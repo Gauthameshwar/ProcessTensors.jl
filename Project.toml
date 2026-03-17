@@ -1,0 +1,14 @@
+name = "ProcessTensors"
+uuid = "359c2eb2-a0cb-447a-868d-92de414ddc78"
+authors = ["Gauthameshwar <gauthameshwar_s@mymail.sutd.edu.sg> and contributors"]
+version = "0.1.0-DEV"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Aqua", "Test"]
