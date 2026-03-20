@@ -1,8 +1,5 @@
-
-struct LiouvillianMPO{BasisTag} <: AbstractMPO
-	mpo::Any
-	metadata::NamedTuple
-end
+# src/liouvillian.jl
+import ITensorMPS: to_vec
 
 function build_liouvillian(mpo_hilbert, lindbladian_terms)
     # Follow row-major convention of the vectorization
