@@ -1,35 +1,31 @@
-# This module exports the basic classes of MPO that will be used in this package
+# src/mpo/mpo.jl
 
-module mpo
+# Import the functions from ITensorMPS that we want to extend
+import ITensorMPS: MPO as CoreMPO
 
-abstract type AbstractMPO end
+export MPO
 
-struct MPO{SpaceTag,BasisTag} <: AbstractMPO
-	tensors::Any
-	metadata::NamedTuple
+struct MPO{S <: AbstractSpace, C} <: AbstractMPS{S}
+    core::CoreMPO
+    combiners::C
+    
+    function MPO{Hilbert}(core::CoreMPO)
+        new{Hilbert, Nothing}(core, nothing)
+    end
+    
+    function MPO{Liouville}(core::CoreMPO, combiners::Vector{ITensor})
+        new{Liouville, Vector{ITensor}}(core, combiners)
+    end
 end
 
-MPO(tensors; kwargs...) = MPO{Any,Any}(tensors, (; kwargs...))
-MPO(::Type{S}, ::Type{B}, tensors; kwargs...) where {S,B} = MPO{S,B}(tensors, (; kwargs...))
+MPO(args...; kwargs...) = MPO{Hilbert}(CoreMPO(args...; kwargs...))
+MPO(A::AbstractArray, args...; kwargs...) = MPO{Hilbert}(CoreMPO(A, args...; kwargs...))
 
-function bondinds(args...)
-	nothing
-end
+MPO{Hilbert}(args...; kwargs...) = MPO{Hilbert}(CoreMPO(args...; kwargs...))
+MPO{Hilbert}(A::AbstractArray, args...; kwargs...) = MPO{Hilbert}(CoreMPO(A, args...; kwargs...))
 
-function siteinds(args...)
-	nothing
-end
+MPO{Liouville}(combiners::Vector{ITensor}, args...; kwargs...) = MPO{Liouville}(CoreMPO(args...; kwargs...), combiners)
+MPO{Liouville}(combiners::Vector{ITensor}, A::AbstractArray, args...; kwargs...) = MPO{Liouville}(CoreMPO(A, args...; kwargs...), combiners)
 
-function basis(args...)
-	nothing
-end
-
-function space(args...)
-	nothing
-end
-
-function validate_mpo(args...)
-	nothing
-end
-
-end # module
+copy(m::MPO{Hilbert}) = MPO{Hilbert}(copy(m.core))
+copy(m::MPO{Liouville}) = MPO{Liouville}(copy(m.core), copy(m.combiners))

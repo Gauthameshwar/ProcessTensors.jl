@@ -1,14 +1,6 @@
-# This module contains the linear algebra of MPO that will be used in this package
+# src/mpo/mpo_utils.jl
 
-function compress!(args...)
-	nothing
-end
+# Import the functions from ITensorMPS that we want to extend
+import ITensorMPS: random_mpo
 
-function canonicalize!(args...)
-	nothing
-end
-
-function apply(mpo1, mpo2)
-    nothing
-end
-
+random_mpo(args...; kwargs...) = MPO(ITensorMPS.random_mpo(args...; kwargs...))

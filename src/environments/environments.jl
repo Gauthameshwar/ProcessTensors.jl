@@ -1,51 +1,27 @@
-# This module exports the classes that will be used to represent the environment in this package
-
+# src/Environments/environments.jl
 module Environments
 
-abstract type AbstractBathMode end
+# Export the tools your users will need to build environments
+export Bath, Fermion, Boson, Spin, BathMode
+
+abstract type AbstractParticle end
+
+# Singleton types for particles with fixed properties
+struct Fermion <: AbstractParticle end
+struct Boson <: AbstractParticle end
+struct Spin{N} <: AbstractParticle end
 
 struct BathMode{P<:AbstractBathParticle} <: AbstractBathMode
     initial_state::Any
     metadata::NamedTuple
 end
 
-const BosonMode = BathMode{Boson}
-const FermionMode = BathMode{Fermion}
-const SpinMode = BathMode{Spin}
-
-BathMode(::Type{P}; kwargs...) where {P<:AbstractBathParticle} = BathMode{P}((; kwargs...))
-
-struct Environment
-    modes::Any
-    spectral_func::Any
-    coupling::Any
-    metadata::NamedTuple
+# We parameterize this so the compiler generates specialized, fast machine code 
+# for every specific combination of particle and spectral density.
+struct Bath{P <: AbstractParticle, S <: AbstractSpectral}
+    modes::Vector{BathMode{P}}
+    spectral_function::S
+    coupling_operator::String  
 end
 
-Environment(; kwargs...) = Environment(nothing, nothing, nothing, nothing, nothing, (; kwargs...))
-
-function add_mode(args...)
-    nothing
 end
-
-function remove_mode(args...)
-    nothing
-end
-
-function set_spectral_model(args...)
-    nothing
-end
-
-function thermal_mode(args...)
-    nothing
-end
-
-function set_coupling(args...)
-    nothing
-end
-
-function validate_environment(args...)
-    nothing
-end
-
-end # module
