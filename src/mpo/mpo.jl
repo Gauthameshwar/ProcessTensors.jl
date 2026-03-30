@@ -1,11 +1,11 @@
 # src/mpo/mpo.jl
 
-# Import the functions from ITensorMPS that we want to extend
 import ITensorMPS: MPO as CoreMPO
 
-export MPO
+# The overarching abstract type for all ProcessTensors operator (MPO) objects
+abstract type AbstractMPO{S <: AbstractSpace} <: AbstractMPS{S} end
 
-struct MPO{S <: AbstractSpace, C} <: AbstractMPS{S}
+struct MPO{S <: AbstractSpace, C} <: AbstractMPO{S}
     core::CoreMPO
     combiners::C
     
@@ -17,7 +17,8 @@ struct MPO{S <: AbstractSpace, C} <: AbstractMPS{S}
         new{Liouville, Vector{ITensor}}(core, combiners)
     end
 end
-
+ 
+# Outer constructors
 MPO(args...; kwargs...) = MPO{Hilbert}(CoreMPO(args...; kwargs...))
 MPO(A::AbstractArray, args...; kwargs...) = MPO{Hilbert}(CoreMPO(A, args...; kwargs...))
 

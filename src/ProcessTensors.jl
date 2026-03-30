@@ -4,43 +4,112 @@ using ITensors
 import ITensorMPS
 
 # =========================================================================
-# The ProcessTensors Public API
+# Foundation
 # =========================================================================
 
 include("basis.jl")
-
 using .Basis: AbstractSpace, Hilbert, Liouville
 
+# =========================================================================
+# Core Types (MPS & MPO structs, getproperty, show)
+# =========================================================================
+
 include("mps/mps.jl")
-include("mps/mps_utils.jl")
 include("mpo/mpo.jl")
-include("mpo/mpo_utils.jl")
 
-import ITensorMPS: siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
-                   common_siteind, common_siteinds, unique_siteind, unique_siteinds,
-                   findfirstsiteind, findfirstsiteinds, findsite, findsites, firstsiteind, firstsiteinds,
-                   replace_siteinds, replace_siteinds!, totalqn, hassameinds,
-                   isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!, @preserve_ortho,
-                   error_contract, truncerror, truncerrors,
-                   inner, dot, ⋅, loginner, logdot, norm, lognorm, expect, correlation_matrix,
-                   sample, sample!, apply, contract, add, truncate!, truncate,
-                   orthogonalize!, orthogonalize, normalize!, replacebond, replacebond!, swapbondsites, movesite, movesites,
-                   OpSum, add!, op, ops, random_mps, random_mpo, state, outer, projector,
-                   tdvp, TimeDependentSum, Trotter, promote_itensor_eltype, convert_leaf_eltype,
-                   argsdict, sim!, splitblocks, tr, entropy, eigs, to_vec, coefficient, replaceprime
+# Rewrap utility — converts a raw CoreMPS/CoreMPO back into our wrapper type
+function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
+    if m isa MPS
+        return S === Hilbert ? MPS{Hilbert}(new_core) : MPS{Liouville}(new_core, m.combiners)
+    else
+        return S === Hilbert ? MPO{Hilbert}(new_core) : MPO{Liouville}(new_core, m.combiners)
+    end
+end
 
-# We re-export tools that users will need from ITensors / ITensorMPS
+# =========================================================================
+# Network Operations
+# =========================================================================
+
+include("networks/indices.jl")
+include("networks/algebra.jl")
+include("networks/manipulations.jl")
+include("networks/orthogonality.jl")
+
+# =========================================================================
+# MPS-Specific
+# =========================================================================
+
+include("mps/constructors.jl")
+include("mps/observables.jl")
+
+# =========================================================================
+# MPO-Specific
+# =========================================================================
+
+include("mpo/constructors.jl")
+include("mpo/manipulations.jl")
+include("mpo/observables.jl")
+
+# =========================================================================
+# Hamiltonian / Operator Sums
+# =========================================================================
+
+include("hamiltonian.jl")
+
+# =========================================================================
+# Liouvillian
+# =========================================================================
+
+include("liouvillian.jl")
+
+# =========================================================================
+# Time Evolution
+# =========================================================================
+
+include("time_evolution/tdvp.jl")
+include("time_evolution/tebd.jl")
+
+# =========================================================================
+# Exports (grouped by category)
+# =========================================================================
+
+# Core types
+export AbstractMPS, AbstractMPO, MPS, MPO, AbstractSpace, Hilbert, Liouville
+
+# Network: indices
 export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
        common_siteind, common_siteinds, unique_siteind, unique_siteinds,
-       findfirstsiteind, findfirstsiteinds, findsite, findsites, firstsiteind, firstsiteinds,
-       replace_siteinds, replace_siteinds!, totalqn, hassameinds,
-       isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!, @preserve_ortho,
-       error_contract, truncerror, truncerrors,
-       inner, dot, ⋅, loginner, logdot, norm, lognorm, expect, correlation_matrix,
-       sample, sample!, apply, contract, add, truncate!, truncate,
-       orthogonalize!, orthogonalize, normalize!, replacebond, replacebond!, swapbondsites, movesite, movesites,
-       OpSum, add!, op, ops, random_mps, random_mpo, state, outer, projector,
-       tdvp, TimeDependentSum, Trotter, promote_itensor_eltype, convert_leaf_eltype,
-       argsdict, sim!, splitblocks, tr, entropy, eigs, to_vec, coefficient, replaceprime
+       findfirstsiteind, findfirstsiteinds, findsite, findsites,
+       firstsiteind, firstsiteinds,
+       replace_siteinds, replace_siteinds!, hassameinds, totalqn, replaceprime
+
+# Network: algebra
+export apply, contract, add, truncate!, truncate,
+       error_contract, truncerror, truncerrors
+
+# Network: manipulations
+export replacebond, replacebond!, swapbondsites, movesite, movesites
+
+# Network: orthogonality
+export isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!,
+       orthogonalize!, orthogonalize, normalize!, @preserve_ortho
+
+# MPS constructors & observables
+export random_mps, state, outer, projector,
+       inner, dot, ⋅, loginner, logdot, norm, lognorm,
+       expect, correlation_matrix, sample, sample!, entropy
+
+# MPO constructors, manipulations & observables
+export random_mpo, splitblocks, tr
+
+# Hamiltonian / OpSum
+export OpSum, add!, op, ops, eigs, coefficient
+
+# Liouvillian
+export to_vec
+
+# Time evolution
+export tdvp, TimeDependentSum, Trotter,
+       promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
 end
