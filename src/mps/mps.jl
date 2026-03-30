@@ -23,9 +23,11 @@ end
 # Outer constructors
 MPS(args...; kwargs...) = MPS{Hilbert}(CoreMPS(args...; kwargs...))
 MPS(A::AbstractArray, args...; kwargs...) = MPS{Hilbert}(CoreMPS(A, args...; kwargs...))
+MPS(A::ITensor, sites; kwargs...) = MPS{Hilbert}(CoreMPS(A, sites; kwargs...))
 
 MPS{Hilbert}(args...; kwargs...) = MPS{Hilbert}(CoreMPS(args...; kwargs...))
 MPS{Hilbert}(A::AbstractArray, args...; kwargs...) = MPS{Hilbert}(CoreMPS(A, args...; kwargs...))
+MPS{Hilbert}(A::ITensor, sites; kwargs...) = MPS{Hilbert}(CoreMPS(A, sites; kwargs...))
 
 MPS{Liouville}(combiners::Vector{ITensor}, args...; kwargs...) = MPS{Liouville}(CoreMPS(args...; kwargs...), combiners)
 MPS{Liouville}(combiners::Vector{ITensor}, A::AbstractArray, args...; kwargs...) = MPS{Liouville}(CoreMPS(A, args...; kwargs...), combiners)

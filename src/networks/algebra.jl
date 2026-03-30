@@ -1,5 +1,5 @@
 # src/networks/algebra.jl
-
+import ITensors: product, ITensor
 import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract, truncerror, truncerrors
 
 # Query functions (return scalars)
@@ -21,6 +21,14 @@ for func in (:apply, :contract, :add)
         $func(op, m::AbstractMPS; kwargs...) = _rewrap(m, $func(op, m.core; kwargs...))
     end
 end
+
+# Resolve specific ambiguities reported by Aqua (can add ITensorMPS.MPS with ProcessTensors.MPS)
+add(m1::CoreAbstractMPS, m2::AbstractMPS; kwargs...) = _rewrap(m2, add(m1, m2.core; kwargs...))
+
+# Extend the apply function to handle ITensor, Vector{ITensor}, and LazyApply.Prod{ITensor}
+apply(op::ITensor, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
+apply(op::Vector{ITensor}, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
+apply(op::ITensors.LazyApply.Prod{ITensor}, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
 
 import Base: +, -, *
 +(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = _rewrap(m1, +(m1.core, m2.core; kwargs...))

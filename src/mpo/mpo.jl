@@ -21,9 +21,11 @@ end
 # Outer constructors
 MPO(args...; kwargs...) = MPO{Hilbert}(CoreMPO(args...; kwargs...))
 MPO(A::AbstractArray, args...; kwargs...) = MPO{Hilbert}(CoreMPO(A, args...; kwargs...))
+MPO(A::ITensor, sites; kwargs...) = MPO{Hilbert}(CoreMPO(A, sites; kwargs...))
 
 MPO{Hilbert}(args...; kwargs...) = MPO{Hilbert}(CoreMPO(args...; kwargs...))
 MPO{Hilbert}(A::AbstractArray, args...; kwargs...) = MPO{Hilbert}(CoreMPO(A, args...; kwargs...))
+MPO{Hilbert}(A::ITensor, sites; kwargs...) = MPO{Hilbert}(CoreMPO(A, sites; kwargs...))
 
 MPO{Liouville}(combiners::Vector{ITensor}, args...; kwargs...) = MPO{Liouville}(CoreMPO(args...; kwargs...), combiners)
 MPO{Liouville}(combiners::Vector{ITensor}, A::AbstractArray, args...; kwargs...) = MPO{Liouville}(CoreMPO(A, args...; kwargs...), combiners)
