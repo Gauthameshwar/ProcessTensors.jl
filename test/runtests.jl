@@ -2,9 +2,16 @@ using ProcessTensors
 using Test
 using Aqua
 
-@testset "ProcessTensors.jl" begin
-    @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(ProcessTensors)
-    end
-    # Write your tests here.
+@testset "Aqua.jl: Code quality checks" begin
+    Aqua.test_all(ProcessTensors; piracies=false)
 end
+
+include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
+
+include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
+
+include(joinpath(@__DIR__, "liouvillian", "liouvillian_methods.jl"))
+
+include(joinpath(@__DIR__, "liouvillian", "spinmpo_vs_qo.jl"))
+
+include(joinpath(@__DIR__, "liouvillian", "bosonmpo_vs_qo.jl"))

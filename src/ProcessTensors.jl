@@ -106,7 +106,7 @@ export random_mpo, splitblocks, tr
 export OpSum, add!, op, ops, eigs, coefficient
 
 # Liouvillian
-export to_vec
+export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville
 
 # Time evolution
 export tdvp, TimeDependentSum, Trotter,
