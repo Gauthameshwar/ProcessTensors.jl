@@ -1,3 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 ProcessTensors = "359c2eb2-a0cb-447a-868d-92de414ddc78"
+
+[compat]
+Documenter = "1.17.0"
