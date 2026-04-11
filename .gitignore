@@ -1,6 +1,11 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
+
+# Scratch / personal task lists
+TODO*
+todo*
+
 /Manifest*.toml
 /docs/Manifest*.toml
 /docs/build/
