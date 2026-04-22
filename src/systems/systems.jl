@@ -1,17 +1,13 @@
-# This module exports the classes that will be used to represent the systems in this package.
+# src/systems/systems.jl
 
-module Systems
+abstract type AbstractSystem end
 
-struct System
-    state::Any
-    hamiltonian::Any
-    dissipators::Any
+struct SpinSystem <: AbstractSystem
+    H::OpSum
+    Ls::Vector{OpSum}
 end
 
-System(; kwargs...) = System(nothing, nothing, nothing, nothing, (; kwargs...))
-
-function validate_system(args...)
-    nothing
+struct BosonSystem <: AbstractSystem
+    H::OpSum
+    Ls::Vector{OpSum}
 end
-
-end # module

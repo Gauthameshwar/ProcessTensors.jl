@@ -2,30 +2,20 @@
 
 module SpectralFunctions
 
-abstract type AbstractSpectral end
+abstract type AbstractSpectralDensity end
 
-struct OhmicSpectral <: AbstractSpectral
-	params::NamedTuple
+struct OhmicSpectralDensity{T<:Real} <: AbstractSpectralDensity
+    α::T    # Coupling strength
+    ωc::T   # Cutoff frequency
+    s::T    # s=1 (Ohmic), s>1 (Super-Ohmic), s<1 (Sub-Ohmic)
 end
 
-struct PowerLawSpectral <: AbstractSpectral
-	params::NamedTuple
+struct LorentzianSpectralDensity{T<:Real} <: AbstractSpectralDensity
+    γ::T    # Coupling strength / width
+    ω0::T   # Resonance frequency
 end
 
-struct CustomSpectral{F} <: AbstractSpectral
-	f::F
-	params::NamedTuple
-end
-
-OhmicSpectral(; kwargs...) = OhmicSpectral((; kwargs...))
-PowerLawSpectral(; kwargs...) = PowerLawSpectral((; kwargs...))
-
-function spectral_density(args...)
-	nothing
-end
-
-function validate_spectral_model(args...)
-	nothing
-end
+# OhmicSpectral(; kwargs...) = OhmicSpectral((; kwargs...))
+# PowerLawSpectral(; kwargs...) = PowerLawSpectral((; kwargs...))
 
 end # module

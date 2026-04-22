@@ -2,26 +2,34 @@
 module Environments
 
 # Export the tools your users will need to build environments
-export Bath, Fermion, Boson, Spin, BathMode
+export AbstractBathMode, BosonicMode, SpinMode, AbstractBath, BosonicBath, SpinBath
 
-abstract type AbstractParticle end
+abstract type AbstractBathMode end
 
-# Singleton types for particles with fixed properties
-struct Fermion <: AbstractParticle end
-struct Boson <: AbstractParticle end
-struct Spin{N} <: AbstractParticle end
-
-struct BathMode{P<:AbstractBathParticle} <: AbstractBathMode
-    initial_state::Any
-    metadata::NamedTuple
+struct BosonicMode{T<:Real, O<:OpSum} <: AbstractBathMode
+    initial_state::MPS{Hilbert}
+    H::OpSum
+    n_max::Int
 end
 
-# We parameterize this so the compiler generates specialized, fast machine code 
-# for every specific combination of particle and spectral density.
-struct Bath{P <: AbstractParticle, S <: AbstractSpectral}
-    modes::Vector{BathMode{P}}
-    spectral_function::S
-    coupling_operator::String  
+struct SpinMode{T<:Real, O<:OpSum} <: AbstractBathMode
+    initial_state::MPS{Hilbert}
+    H::OpSum
 end
 
+abstract type AbstractBath end
+
+struct BosonicBath{M <: AbstractBathMode, S <: AbstractSpectral}
+    modes::Vector{M}
+    spectral_density::S
+    coupling::OpSum
 end
+
+struct SpinBath{M <: AbstractBathMode, S <: AbstractSpectral}
+    modes::Vector{M}
+    spectral_density::S
+    coupling::OpSum
+end
+
+
+end # module
