@@ -14,6 +14,7 @@ include(joinpath(@__DIR__, "liouvillian", "liouvillian_methods.jl"))
 
 include(joinpath(@__DIR__, "time_evolution", "tebd_validation.jl"))
 include(joinpath(@__DIR__, "time_evolution", "tebd_tfim_benchmarks.jl"))
+include(joinpath(@__DIR__, "time_evolution", "tdvp_tfim_benchmarks.jl"))
 
 include(joinpath(@__DIR__, "liouvillian", "spinmpo_vs_qo.jl"))
 
