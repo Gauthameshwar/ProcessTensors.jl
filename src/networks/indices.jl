@@ -60,3 +60,18 @@ end
 
 # In-place mutating
 replace_siteinds!(m::AbstractMPS, args...; kwargs...) = (replace_siteinds!(m.core, args...; kwargs...); m)
+
+# Index tag query functions
+tag_tokens(s::Index) = string.(tags(s))
+
+has_tag_token(s::Index, token::AbstractString) = any(==(token), tag_tokens(s))
+
+has_tag_prefix(s::Index, prefix::AbstractString) = any(t -> startswith(t, prefix), tag_tokens(s))
+
+function tag_value(s::Index, prefix::AbstractString)
+    for token in tag_tokens(s)
+        startswith(token, prefix) || continue
+        return String(token[length(prefix) + 1:end])
+    end
+    return nothing
+end

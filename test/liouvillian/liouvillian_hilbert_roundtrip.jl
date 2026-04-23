@@ -4,7 +4,7 @@ using Test
 
 # Recover the built-in site family tag, e.g. `Site,S=1/2,n=1` -> `S=1/2`.
 function physical_site_type_tag(s::Index)
-    for token in string.(collect(tags(s)))
+    for token in tag_tokens(s)
         if token == "Site" || startswith(token, "n=") || startswith(token, "l=")
             continue
         end

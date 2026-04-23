@@ -29,18 +29,18 @@ end
 
 # Build canonical Liouville tags, e.g. `S=1/2,Site,n=3` becomes `Liouv,S=1/2,ptype=S=1/2,n=3`.
 function _liouv_tagset(s::Index)
-    tag_tokens = string.(collect(tags(s)))
-    site_type = _liouv_site_type(tag_tokens)
+    tokens = tag_tokens(s)
+    site_type = _liouv_site_type(tokens)
     site_type === nothing && throw(
         ArgumentError("liouv_sites: Could not infer a physical SiteType tag from index $(s)."),
     )
 
-    rest = filter(t -> t != "Liouv" && t != site_type && !_is_liouv_ptype_tag(t), tag_tokens)
+    rest = filter(t -> t != "Liouv" && t != site_type && !_is_liouv_ptype_tag(t), tokens)
     return ITensors.TagSet(join(vcat(["Liouv", "$(_LIOUV_PTYPE_PREFIX)$site_type"], rest), ","))
 end
 
 # Check whether an index is already Liouville-tagged, e.g. `Liouv,ptype=Boson,n=1`.
-_is_liouv_site(s::Index) = any(==("Liouv"), string.(collect(tags(s))))
+_is_liouv_site(s::Index) = has_tag_token(s, "Liouv")
 
 _TUPLE_JUMP_TYPE = Tuple{<:Number,<:AbstractString,<:Integer}
 
@@ -208,8 +208,8 @@ end
 
 # Rebuild the temporary physical index used by `op`, e.g. `Liouv,ptype=Electron,n=4` gives `Electron,Site,n=4`.
 function _phys_site_from_liouv(s::Index)
-    tag_tokens = string.(collect(tags(s)))
-    site_type = _liouv_site_type(tag_tokens)
+    tokens = tag_tokens(s)
+    site_type = _liouv_site_type(tokens)
     site_type === nothing && throw(
         ArgumentError(
             "Could not infer physical SiteType for Liouville index $(s). "
@@ -225,9 +225,9 @@ function _phys_site_from_liouv(s::Index)
         ),
     )
 
-    n_token = findfirst(t -> startswith(t, "n="), tag_tokens)
+    n_token = findfirst(t -> startswith(t, "n="), tokens)
     phys_tags = n_token === nothing ? ITensors.TagSet(join([site_type, "Site"], ",")) :
-                ITensors.TagSet(join([site_type, "Site", tag_tokens[n_token]], ","))
+                ITensors.TagSet(join([site_type, "Site", tokens[n_token]], ","))
     return Index(d; tags=phys_tags)
 end
 
