@@ -9,3 +9,6 @@ todo*
 /Manifest*.toml
 /docs/Manifest*.toml
 /docs/build/
+
+# Auto-provisioned env for plotting scripts (CairoMakie; not part of the library project)
+/scripts/.plot_examples_env/
