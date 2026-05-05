@@ -44,3 +44,7 @@ end
 # Systems test sets
 include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
+
+# Environments test sets
+include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))
+include(joinpath(@__DIR__, "environments", "test_environments.jl"))
