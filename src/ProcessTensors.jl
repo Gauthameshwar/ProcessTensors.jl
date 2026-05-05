@@ -84,10 +84,9 @@ using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, Boso
 include("systems/instruments.jl")
 using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     StatePreparation, ObservableMeasurement, TraceOut,
-                    IdentityOperation, SystemPropagation,
-                    InstrumentSchedule, set_instrument!, instrument_at, resolve_instrument,
-                    InstrumentSeq,
-                    instrument_itensor
+                    IdentityOperation, SystemPropagation, resolve_instrument,
+                    InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+
 
 # =========================================================================
 # Exports (grouped by category)
@@ -140,9 +139,9 @@ export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
        mode_initial_states
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
-       StatePreparation, ObservableMeasurement, TraceOut, IdentityOperation, SystemPropagation,
-       InstrumentSchedule, set_instrument!, instrument_at, resolve_instrument,
-       InstrumentSeq, add!, instrument_itensor
+       StatePreparation, ObservableMeasurement, TraceOut,
+       IdentityOperation, SystemPropagation, resolve_instrument,
+       InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 # Time evolution
 export tdvp, tebd, TimeDependentSum, Trotter,

@@ -10,9 +10,8 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation,
-       InstrumentSchedule, set_instrument!, instrument_at, resolve_instrument,
-       InstrumentSeq, instrument_itensor
+       IdentityOperation, SystemPropagation, resolve_instrument,
+       InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 abstract type AbstractInstrument end
 abstract type SingleLegInstrument <: AbstractInstrument end
@@ -166,101 +165,75 @@ end
 IdentityOperation() = IdentityOperation(Index[], Index[])
 
 # =========================================================================
-# InstrumentSchedule — compiled schedule (default + per-step overrides)
+# InstrumentSeq — unified schedule (default + per-tstep entries + bounds)
 # =========================================================================
 
-mutable struct InstrumentSchedule
-    init::Union{Nothing,StatePreparation}    # Optional initial state prep at tstep=0
-    default::AbstractInstrument             # Applied at every unoverridden step
-    overrides::Dict{Int,AbstractInstrument} # Per-step overrides for tstep ∈ 1:nsteps
-    nsteps::Int                             # Upper bound for validation (0 = unchecked)
+mutable struct InstrumentSeq
+    default::AbstractInstrument
+    entries::Dict{Int,AbstractInstrument}
+    nsteps::Int # upper bound for validation; 0 = unchecked until bound to a ProcessTensor
 end
 
-function InstrumentSchedule(
+function InstrumentSeq(
     default::AbstractInstrument,
     nsteps::Int=0;
     init::Union{Nothing,StatePreparation}=nothing,
     overrides::AbstractDict{Int,<:AbstractInstrument}=Dict{Int,AbstractInstrument}(),
+    entries::Union{Nothing,AbstractDict{Int,<:AbstractInstrument}}=nothing,
 )
-    return InstrumentSchedule(
-        init, default, Dict{Int,AbstractInstrument}(pairs(overrides)), nsteps,
-    )
-end
-
-"""
-    resolve_instrument(schedule::InstrumentSchedule, k::Int) -> AbstractInstrument or Nothing
-
-Return the instrument scheduled at step `k`.  
-`k = 0` returns the `init` field (may be `nothing`).  
-`k ≥ 1` returns the override at `k`, or `schedule.default` if none is set.
-"""
-function resolve_instrument(schedule::InstrumentSchedule, k::Int)
-    k == 0 && return schedule.init
-    return get(schedule.overrides, k, schedule.default)
-end
-
-"""
-    set_instrument!(schedule, k, instr) -> schedule
-
-Add or replace the instrument at timestep `k` in a compiled `InstrumentSchedule`.
-Use `k = 0` with a `StatePreparation` to set the initial-state override.
-"""
-function set_instrument!(schedule::InstrumentSchedule, k::Int, instr::AbstractInstrument)
-    if k == 0
-        instr isa StatePreparation || throw(
-            ArgumentError("set_instrument!: Only StatePreparation can be set at tstep=0; got $(typeof(instr))."),
-        )
-        schedule.init = instr
-        return schedule
+    d = if entries === nothing
+        Dict{Int,AbstractInstrument}(pairs(overrides))
+    else
+        Dict{Int,AbstractInstrument}(pairs(entries))
     end
-    k >= 1 || throw(ArgumentError("set_instrument!: Instrument timesteps must be ≥ 0; got $k."))
-    if schedule.nsteps > 0 && k > schedule.nsteps
-        throw(
-            ArgumentError("set_instrument!: tstep=$k exceeds schedule nsteps=$(schedule.nsteps)."),
-        )
+    if init !== nothing
+        d[0] = init
     end
-    schedule.overrides[k] = instr
-    return schedule
+    return InstrumentSeq(default, d, nsteps)
 end
 
-# Backward-compat alias
-instrument_at(schedule::InstrumentSchedule, k::Int) = resolve_instrument(schedule, k)
-
-# =========================================================================
-# InstrumentSeq — user-facing declarative builder (like OpSum for instruments)
-# =========================================================================
-
 """
-    InstrumentSeq
+    InstrumentSeq(; default, nsteps=0, entries...)
 
-Declarative, order-preserving sequence of `(tstep, instrument)` pairs.
-
-Build a sequence with [`add!`](@ref) or the `+=` shorthand:
-
-```julia
-seq = InstrumentSeq()
-seq += (StatePreparation(rho0), 0)           # initial state at tstep = 0
-seq += (ObservableMeasurement(sz_op), 3)     # measure at tstep = 3
-```
-
-Pass to [`evolve`](@ref) for on-the-fly execution, or compile into an
-[`InstrumentSchedule`](@ref) with [`create_instruments`](@ref).
+Empty schedule with a fallback `default` instrument and optional `entries` dictionary.
 """
-struct InstrumentSeq
-    entries::Vector{Pair{Int,AbstractInstrument}}
+function InstrumentSeq(; default::AbstractInstrument, nsteps::Int=0, entries=Dict{Int,AbstractInstrument}())
+    return InstrumentSeq(default, nsteps; entries=entries)
 end
 
-InstrumentSeq() = InstrumentSeq(Pair{Int,AbstractInstrument}[])
+"""
+    resolve_instrument(seq::InstrumentSeq, k::Int) -> Union{AbstractInstrument,Nothing}
+
+- `k == 0`: `entries[0]` if set (typically `StatePreparation`), else `nothing`.
+- `k ≥ 1`: `entries[k]` if set, else `seq.default`.
+"""
+function resolve_instrument(seq::InstrumentSeq, k::Int)
+    k == 0 && return get(seq.entries, 0, nothing)
+    k >= 1 || throw(ArgumentError("resolve_instrument: expected k ≥ 0; got $k."))
+    return get(seq.entries, k, seq.default)
+end
+
+"""
+    resolve_instrument(seq::InstrumentSeq, k::Int, fallback::AbstractInstrument)
+
+Same as `resolve_instrument(seq, k)` for `k == 0`, but for `k ≥ 1` uses `fallback`
+when `entries[k]` is absent (e.g. evolve-time default override).
+"""
+function resolve_instrument(seq::InstrumentSeq, k::Int, fallback::AbstractInstrument)
+    k == 0 && return get(seq.entries, 0, nothing)
+    k >= 1 || throw(ArgumentError("resolve_instrument: expected k ≥ 0; got $k."))
+    return get(seq.entries, k, fallback)
+end
 
 """
     add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int) -> seq
 
-Append `instr` at `tstep` to `seq`.  Bound check against a `ProcessTensor`
-is deferred to [`create_instruments`](@ref) or [`evolve`](@ref).
+Replace or insert the instrument at logical timestep `tstep`.
+`nsteps` upper bound is checked when `seq.nsteps > 0`.
 
-Constraints enforced eagerly:
+Constraints:
 - `tstep ≥ 0`
-- Only `StatePreparation` may be placed at `tstep = 0`
+- `tstep == 0` only allows [`StatePreparation`](@ref).
 """
 function add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int)
     tstep >= 0 || throw(ArgumentError("add!: tstep must be ≥ 0; got $tstep."))
@@ -271,7 +244,10 @@ function add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int)
             ),
         )
     end
-    push!(seq.entries, tstep => instr)
+    if seq.nsteps > 0 && tstep > seq.nsteps
+        throw(ArgumentError("add!: tstep=$tstep exceeds seq.nsteps=$(seq.nsteps)."))
+    end
+    seq.entries[tstep] = instr
     return seq
 end
 
@@ -286,35 +262,72 @@ function Base.:+(seq::InstrumentSeq, entry::Tuple{AbstractInstrument,Int})
 end
 
 function Base.show(io::IO, seq::InstrumentSeq)
-    print(io, "InstrumentSeq($(length(seq.entries)) entries)")
-    for (k, instr) in seq.entries
-        print(io, "\n  tstep=$k => ", typeof(instr))
+    ks = sort!(collect(keys(seq.entries)))
+    print(io, "InstrumentSeq(default=$(typeof(seq.default)), nsteps=$(seq.nsteps), $(length(ks)) explicit entries)")
+    for k in ks
+        print(io, "\n  tstep=$k => ", typeof(seq.entries[k]))
     end
 end
 
-# =========================================================================
-# resolve_instrument for InstrumentSeq (on-the-fly path)
-# =========================================================================
-
 """
-    resolve_instrument(seq::InstrumentSeq, k::Int, default::AbstractInstrument)
-        -> AbstractInstrument or Nothing
+    instrument_leg_maps(seq::InstrumentSeq, nsteps::Int) -> (in_map, out_map, missing_in, missing_out)
 
-Find the instrument for step `k` in `seq` without compiling it first.  
-The *last* entry that matches `k` wins (mirrors `create_instruments` semantics).  
-Returns `nothing` for `k = 0` when no `StatePreparation` entry exists.
+PT leg convention matches [`coupling_times`](@ref) evolve slots `step ∈ 1:nsteps`:
+primed input at `tstep = step`, unprimed output at `tstep = step-1`, except the
+terminal primed leg `tstep = nsteps` and terminal unprimed leg `tstep = nsteps-1`
+are not required in the maps.
+
+`missing_out` only lists `tstep = 0 … nsteps-2`; the final open output leg
+` tstep = nsteps-1 ` may be absent.
 """
-function resolve_instrument(
-    seq::InstrumentSeq,
-    k::Int,
-    default::AbstractInstrument,
-)
-    found = nothing
-    for (tstep, instr) in seq.entries
-        tstep == k && (found = instr)
+function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
+    nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
+
+    in_map = Dict{Int,AbstractInstrument}()
+    out_map = Dict{Int,AbstractInstrument}()
+
+    for step in 1:nsteps
+        instr = resolve_instrument(seq, step)
+        if instr isa TwoLegInstrument
+            if step <= nsteps - 1
+                in_map[step] = instr
+            end
+            tout = step - 1
+            if tout <= nsteps - 2
+                out_map[tout] = instr
+            end
+        elseif instr isa ObservableMeasurement || instr isa TraceOut
+            if instr.leg_plev == _OUTPUT_PLEV
+                tout = step - 1
+                if tout <= nsteps - 2
+                    out_map[tout] = instr
+                end
+            else
+                if step <= nsteps - 1
+                    in_map[step] = instr
+                end
+            end
+        elseif instr isa StatePreparation
+            throw(
+                ArgumentError(
+                    "instrument_leg_maps: StatePreparation is only valid at tstep=0, not at evolve slot step=$step.",
+                ),
+            )
+        end
     end
-    k == 0 && return found   # nothing if no tstep=0 entry
-    return found !== nothing ? found : default
+
+    prep = resolve_instrument(seq, 0)
+    if prep !== nothing
+        prep isa StatePreparation || throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
+        in_map[0] = prep
+    end
+
+    expected_in = collect(0:nsteps-1)
+    expected_out = nsteps == 1 ? Int[] : collect(0:nsteps-2)
+    missing_in = [k for k in expected_in if !haskey(in_map, k)]
+    missing_out = [k for k in expected_out if !haskey(out_map, k)]
+
+    return in_map, out_map, missing_in, missing_out
 end
 
 # =========================================================================
@@ -408,14 +421,14 @@ _coerce_liouville_state(rho0::AbstractMPS{Hilbert}, sites::AbstractVector{<:Inde
 
 function instrument_itensor(
     instr::StatePreparation,
-    input_pt_sites::AbstractVector{<:Index},
+    pt_sites_arg::AbstractVector{<:Index},
     k::Int;
     kwargs...,
 )
-    sites = isempty(instr.pt_sites) ? Index[input_pt_sites...] : instr.pt_sites
-    _validate_single_leg_sites("StatePreparation", sites, _INPUT_PLEV)
+    sites = isempty(instr.pt_sites) ? Index[pt_sites_arg...] : instr.pt_sites
+    _validate_single_leg_sites("StatePreparation", sites, instr.leg_plev)
     all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
-        ArgumentError("StatePreparation: all input_pt_sites must have tstep=$k when tagged."),
+        ArgumentError("StatePreparation: all pt_sites must have tstep=$k when tagged."),
     )
     stateL = _coerce_liouville_state(instr.state, sites)
     state_t = _mps_to_itensor(stateL)
@@ -424,14 +437,14 @@ end
 
 function instrument_itensor(
     instr::ObservableMeasurement,
-    output_pt_sites::AbstractVector{<:Index},
+    pt_sites_arg::AbstractVector{<:Index},
     k::Int;
     kwargs...,
 )
-    sites = isempty(instr.pt_sites) ? Index[output_pt_sites...] : instr.pt_sites
-    _validate_single_leg_sites("ObservableMeasurement", sites, _OUTPUT_PLEV)
+    sites = isempty(instr.pt_sites) ? Index[pt_sites_arg...] : instr.pt_sites
+    _validate_single_leg_sites("ObservableMeasurement", sites, instr.leg_plev)
     all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
-        ArgumentError("ObservableMeasurement: all output_pt_sites must have tstep=$k when tagged."),
+        ArgumentError("ObservableMeasurement: all pt_sites must have tstep=$k when tagged."),
     )
     phys_sites = Index[_phys_site_from_liouv(s) for s in sites]
     obs_h = MPO(instr.op, phys_sites) # build the observable in the Hilbert space
@@ -441,14 +454,14 @@ end
 
 function instrument_itensor(
     instr::TraceOut,
-    output_pt_sites::AbstractVector{<:Index},
+    pt_sites_arg::AbstractVector{<:Index},
     k::Int;
     kwargs...,
 )
-    sites = isempty(instr.pt_sites) ? Index[output_pt_sites...] : instr.pt_sites
-    _validate_single_leg_sites("TraceOut", sites, _OUTPUT_PLEV)
+    sites = isempty(instr.pt_sites) ? Index[pt_sites_arg...] : instr.pt_sites
+    _validate_single_leg_sites("TraceOut", sites, instr.leg_plev)
     all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
-        ArgumentError("TraceOut: all output_pt_sites must have tstep=$k when tagged."),
+        ArgumentError("TraceOut: all pt_sites must have tstep=$k when tagged."),
     )
     return _vectorized_identity_itensor(sites)
 end
@@ -512,7 +525,7 @@ function instrument_itensor(
     args...;
     kwargs...,
 )
-    println("No instrument_itensor constructor is defined for $(typeof(instr)). Future dev will allow user-defined abstract instrument types.")
+    throw(MethodError(instrument_itensor, (instr, args...)))
 end
 
 end # module Instruments
