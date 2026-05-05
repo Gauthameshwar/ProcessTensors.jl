@@ -12,7 +12,10 @@ include(joinpath(@__DIR__, "mps", "test_constructors.jl"))
 include(joinpath(@__DIR__, "mps", "test_observables.jl"))
 
 # MPO test sets
-
+include(joinpath(@__DIR__, "mpo", "test_mpo.jl"))
+include(joinpath(@__DIR__, "mpo", "test_constructors.jl"))
+include(joinpath(@__DIR__, "mpo", "test_observables.jl"))
+include(joinpath(@__DIR__, "mpo", "test_manipulations.jl"))
 
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
 
