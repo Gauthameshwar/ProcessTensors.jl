@@ -6,6 +6,14 @@ using Aqua
     Aqua.test_all(ProcessTensors; piracies=false)
 end
 
+# MPS test sets
+include(joinpath(@__DIR__, "mps", "test_mps.jl"))
+include(joinpath(@__DIR__, "mps", "test_constructors.jl"))
+include(joinpath(@__DIR__, "mps", "test_observables.jl"))
+
+# MPO test sets
+
+
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
 
 include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
