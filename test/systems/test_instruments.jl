@@ -3,7 +3,7 @@ using ITensors
 using LinearAlgebra
 using Test
 
-if !isdefined(Main, :hilbert_matrix_to_mpo)
+if !(@isdefined hilbert_matrix_to_mpo)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
 

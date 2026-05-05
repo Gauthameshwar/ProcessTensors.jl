@@ -3,11 +3,11 @@ using ITensors
 using LinearAlgebra
 using Test
 
-if !isdefined(Main, :dense_hamiltonian_matrix)
+if !(@isdefined dense_hamiltonian_matrix)
     include(joinpath(@__DIR__, "tebd_test_utils.jl"))
 end
 
-function tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
+function tdvp_tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
     os_H = OpSum()
     for j in 1:(N - 1)
         os_H += -J, "Z", j, "Z", j + 1
@@ -18,9 +18,9 @@ function tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
     return os_H
 end
 
-tfim_decay_jump_ops(N::Int; γ::Float64=0.5) = [(γ, "S-", j) for j in 1:N]
+tdvp_tfim_decay_jump_ops(N::Int; γ::Float64=0.5) = [(γ, "S-", j) for j in 1:N]
 
-function dense_one_site_operator(op_name::AbstractString, physical_sites, site::Int)
+function tdvp_dense_one_site_operator(op_name::AbstractString, physical_sites, site::Int)
     local_ops = Matrix{ComplexF64}[]
     for (j, s) in enumerate(physical_sites)
         if j == site
@@ -46,10 +46,10 @@ end
     physical_sites = siteinds("S=1/2", N)
     liouv_sites_shared = liouv_sites(physical_sites)
     trace_bra = vectorized_identity_state(physical_sites, liouv_sites_shared)
-    os_H = tfim_hamiltonian(N; J=1.0, h=1.2)
+    os_H = tdvp_tfim_hamiltonian(N; J=1.0, h=1.2)
     H_mpo = MPO(os_H, physical_sites)
     H_dense = dense_hamiltonian_matrix(os_H, physical_sites)
-    jump_ops = tfim_decay_jump_ops(N; γ=0.5)
+    jump_ops = tdvp_tfim_decay_jump_ops(N; γ=0.5)
 
     ψ0 = MPS(physical_sites, fill("Up", N))
     ρ0 = to_dm(ψ0)
@@ -94,8 +94,8 @@ end
         nsteps = round(Int, T / dt)
         x_mpos = single_site_pauli_mpos("X", physical_sites)
         z_mpos = single_site_pauli_mpos("Z", physical_sites)
-        x_ops = [dense_one_site_operator("X", physical_sites, j) for j in 1:N]
-        z_ops = [dense_one_site_operator("Z", physical_sites, j) for j in 1:N]
+        x_ops = [tdvp_dense_one_site_operator("X", physical_sites, j) for j in 1:N]
+        z_ops = [tdvp_dense_one_site_operator("Z", physical_sites, j) for j in 1:N]
 
         states_1 = tdvp_trajectory(ρ0_vec, L_unitary_mpo, dt, nsteps; nsite=1, maxdim=128, cutoff=1e-10)
         states_2 = tdvp_trajectory(ρ0_vec, L_unitary_mpo, dt, nsteps; nsite=2, maxdim=128, cutoff=1e-10)

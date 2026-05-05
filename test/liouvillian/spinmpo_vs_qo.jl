@@ -88,7 +88,7 @@ function qo_jump_ops(bt, b, site_rates)
     end
 end
 
-function hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
+function spin_hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
     N = length(physical_sites)
     dims = vcat(dim.(prime.(physical_sites)), dim.(physical_sites))
     T = ITensor(reshape(ComplexF64.(M), Tuple(dims)), prime.(physical_sites)..., physical_sites...)
@@ -113,7 +113,7 @@ function build_operator_bases(physical_sites, liouv_sites_shared, bt_qo)
         for a in 1:d
             q = a + (b - 1) * d
             E = basis_operator_matrix(d, a, b)
-            basis_pt[q] = to_liouville(hilbert_matrix_to_mpo(E, physical_sites); sites=liouv_sites_shared)
+            basis_pt[q] = to_liouville(spin_hilbert_matrix_to_mpo(E, physical_sites); sites=liouv_sites_shared)
             basis_qo[q] = Operator(bt_qo, bt_qo, E)
         end
     end

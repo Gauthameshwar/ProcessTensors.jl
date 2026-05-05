@@ -3,7 +3,7 @@ using ITensors
 using LinearAlgebra
 using Test
 
-if !isdefined(Main, :dense_hamiltonian_matrix)
+if !(@isdefined dense_hamiltonian_matrix)
     include(joinpath(@__DIR__, "tebd_test_utils.jl"))
 end
 

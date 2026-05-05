@@ -54,8 +54,8 @@ using ProcessTensors
         @test MPO{Hilbert}(boson_coeffs, boson_site_pairs) isa MPO{Hilbert}
 
         # MPO(A::ITensor, sites; kwargs...)
-        op_spin = randomITensor(prime.(spin_sites)..., dag.(spin_sites)...)
-        op_boson = randomITensor(prime.(boson_sites)..., dag.(boson_sites)...)
+        op_spin = random_itensor(prime.(spin_sites)..., dag.(spin_sites)...)
+        op_boson = random_itensor(prime.(boson_sites)..., dag.(boson_sites)...)
         @test_nowarn MPO(op_spin, spin_sites)
         @test_nowarn MPO(op_boson, boson_sites)
         @test MPO(op_spin, spin_sites) isa MPO{Hilbert}

@@ -54,8 +54,8 @@ using ProcessTensors
         @test MPS{Hilbert}(boson_coeffs, boson_sites) isa MPS{Hilbert}
 
         # MPS(A::ITensor, sites; kwargs...)
-        psi_spin = randomITensor(spin_sites...)
-        psi_boson = randomITensor(boson_sites...)
+        psi_spin = random_itensor(spin_sites...)
+        psi_boson = random_itensor(boson_sites...)
         @test_nowarn MPS(psi_spin, spin_sites)
         @test_nowarn MPS(psi_boson, boson_sites)
         @test MPS(psi_spin, spin_sites) isa MPS{Hilbert}
