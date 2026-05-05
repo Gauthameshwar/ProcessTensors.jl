@@ -6,7 +6,8 @@ import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract, tr
 truncerror(m::AbstractMPS) = truncerror(m.core)
 truncerrors(m::AbstractMPS) = truncerrors(m.core)
 
-error_contract(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = error_contract(m1.core, m2.core; kwargs...)
+_core_or_self(x) = x isa AbstractMPS ? x.core : x
+error_contract(args...; kwargs...) = error_contract((_core_or_self.(args))...; kwargs...)
 
 # Out-of-place (returns new MPS/MPO)
 truncate(m::AbstractMPS; kwargs...) = _rewrap(m, truncate(m.core; kwargs...))

@@ -17,6 +17,12 @@ include(joinpath(@__DIR__, "mpo", "test_constructors.jl"))
 include(joinpath(@__DIR__, "mpo", "test_observables.jl"))
 include(joinpath(@__DIR__, "mpo", "test_manipulations.jl"))
 
+# Networks test sets
+include(joinpath(@__DIR__, "networks", "test_indices.jl"))
+include(joinpath(@__DIR__, "networks", "test_algebra.jl"))
+include(joinpath(@__DIR__, "networks", "test_manipulations.jl"))
+include(joinpath(@__DIR__, "networks", "test_orthogonality.jl"))
+
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
 
 include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
