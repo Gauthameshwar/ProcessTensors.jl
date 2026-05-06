@@ -70,11 +70,31 @@ include("time_evolution/tdvp.jl")
 include("time_evolution/tebd.jl")
 
 # =========================================================================
+# ProcessTensors.jl module: Systems / Baths / Instruments
+# =========================================================================
+
+include("systems/systems.jl")
+include("environments/spectrals.jl")
+using .Spectrals: AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
+                  ohmic_sd, lorentzian_sd
+include("environments/environments.jl")
+using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
+                    bosonic_mode, spin_mode, bosonic_bath, spin_bath,
+                    mode_initial_states
+include("systems/instruments.jl")
+using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
+                    StatePreparation, ObservableMeasurement, TraceOut,
+                    IdentityOperation, SystemPropagation, resolve_instrument,
+                    InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+
+
+# =========================================================================
 # Exports (grouped by category)
 # =========================================================================
 
 # Core types
 export AbstractMPS, AbstractMPO, MPS, MPO, AbstractSpace, Hilbert, Liouville
+export tag_tokens, has_tag_token, has_tag_prefix, tag_value
 
 # Network: indices
 export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
@@ -106,10 +126,26 @@ export random_mpo, splitblocks, tr
 export OpSum, add!, op, ops, eigs, coefficient
 
 # Liouvillian
-export to_vec
+export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouville
+
+# Systems / Baths / Instruments / PT
+export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system
+
+export AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
+       ohmic_sd, lorentzian_sd
+
+export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
+       AbstractBath, BosonicBath, SpinBath, bosonic_bath, spin_bath,
+       mode_initial_states
+
+export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
+       StatePreparation, ObservableMeasurement, TraceOut,
+       IdentityOperation, SystemPropagation, resolve_instrument,
+       InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 # Time evolution
-export tdvp, TimeDependentSum, Trotter,
+export tdvp, tebd, TimeDependentSum, Trotter,
+       is_liouville_space, is_hilbert_space,
        promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
 end

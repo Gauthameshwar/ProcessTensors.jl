@@ -27,5 +27,4 @@ end
 
 # Sampling
 sample(m::AbstractMPS) = sample(m.core)
-sample(m::AbstractMPS, j::Integer) = sample(m.core, j)
 sample!(m::AbstractMPS, args...; kwargs...) = sample!(m.core, args...; kwargs...)

@@ -1,31 +1,28 @@
-# This is a module that exports the classes of spectral functions that will be supported in this package. 
+# src/environments/spectrals.jl
 
-module SpectralFunctions
+module Spectrals
 
-abstract type AbstractSpectral end
+export AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
+       ohmic_sd, lorentzian_sd
 
-struct OhmicSpectral <: AbstractSpectral
-	params::NamedTuple
+abstract type AbstractSpectralDensity end
+
+struct OhmicSpectralDensity{T<:Real} <: AbstractSpectralDensity
+    alpha::T
+    wc::T
+    s::T
 end
 
-struct PowerLawSpectral <: AbstractSpectral
-	params::NamedTuple
+struct LorentzianSpectralDensity{T<:Real} <: AbstractSpectralDensity
+    lambda::T
+    gamma::T
+    omega0::T
 end
 
-struct CustomSpectral{F} <: AbstractSpectral
-	f::F
-	params::NamedTuple
-end
+ohmic_sd(; alpha::Real=1.0, wc::Real=1.0, s::Real=1.0) =
+    OhmicSpectralDensity(float(alpha), float(wc), float(s))
 
-OhmicSpectral(; kwargs...) = OhmicSpectral((; kwargs...))
-PowerLawSpectral(; kwargs...) = PowerLawSpectral((; kwargs...))
+lorentzian_sd(; lambda::Real=1.0, gamma::Real=1.0, omega0::Real=0.0) =
+    LorentzianSpectralDensity(float(lambda), float(gamma), float(omega0))
 
-function spectral_density(args...)
-	nothing
-end
-
-function validate_spectral_model(args...)
-	nothing
-end
-
-end # module
+end # module Spectrals
