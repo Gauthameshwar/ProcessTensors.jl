@@ -11,7 +11,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 Aqua = "0.8"
-ITensorMPS = "0.3.44"
+ITensorMPS = "0.3.44, 0.4"
 ITensors = "0.9.25"
 LinearAlgebra = "1.10"
 QuantumOptics = "1"
