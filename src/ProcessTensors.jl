@@ -87,6 +87,11 @@ using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     IdentityOperation, SystemPropagation, resolve_instrument,
                     InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
+# =========================================================================
+# Process Tensors
+# =========================================================================
+
+include("process_tensor.jl")
 
 # =========================================================================
 # Exports (grouped by category)
@@ -142,6 +147,10 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
        IdentityOperation, SystemPropagation, resolve_instrument,
        InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+
+export ProcessTensor, build_process_tensor, default_schedule, evolve,
+       coupling_times, coupling_sites, input_sites, output_sites,
+       create_instruments, generate_pt_legs
 
 # Time evolution
 export tdvp, tebd, Trotter,

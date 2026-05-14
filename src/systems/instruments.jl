@@ -86,13 +86,13 @@ end
 # Single-leg instruments
 # =========================================================================
 
-struct StatePreparation{M<:AbstractMPS} <: SingleLegInstrument
+struct StatePreparation{M<:Union{AbstractMPS,AbstractMPO{Hilbert}}} <: SingleLegInstrument
     state::M
     pt_sites::Vector{Index}
     leg_plev::Int
 end
 function StatePreparation(
-    state::AbstractMPS,
+    state::Union{AbstractMPS,AbstractMPO{Hilbert}},
     pt_sites::AbstractVector{<:Index}=Index[];
     leg_plev::Int=_INPUT_PLEV,
 )
