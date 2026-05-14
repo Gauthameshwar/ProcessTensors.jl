@@ -45,6 +45,10 @@ end
 include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
 
+# Process tensor test sets
+include(joinpath(@__DIR__, "process_tensor", "test_api.jl"))
+include(joinpath(@__DIR__, "process_tensor", "test_ed_tfi_vs_dense.jl"))
+
 # Environments test sets
 include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))
 include(joinpath(@__DIR__, "environments", "test_environments.jl"))

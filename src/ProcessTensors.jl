@@ -75,8 +75,7 @@ include("time_evolution/tebd.jl")
 
 include("systems/systems.jl")
 include("environments/spectrals.jl")
-using .Spectrals: AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
-                  ohmic_sd, lorentzian_sd
+using .Spectrals: AbstractSpectralDensity
 include("environments/environments.jl")
 using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
                     bosonic_mode, spin_mode, bosonic_bath, spin_bath,
@@ -136,9 +135,6 @@ export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouvi
 # Systems / Baths / Instruments / PT
 export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system
 
-export AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
-       ohmic_sd, lorentzian_sd
-
 export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
        AbstractBath, BosonicBath, SpinBath, bosonic_bath, spin_bath,
        mode_initial_states
@@ -156,4 +152,4 @@ export ProcessTensor, build_process_tensor, default_schedule, evolve,
 export tdvp, tebd, Trotter,
        promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
-end
+end # module ProcessTensors

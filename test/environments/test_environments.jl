@@ -1,4 +1,5 @@
 using ProcessTensors
+using ProcessTensors.Spectrals: ohmic_sd
 using ITensors
 using Test
 

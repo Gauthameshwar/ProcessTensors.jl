@@ -1,9 +1,10 @@
+# API and smoke tests for single-site process tensors (build, legs, instruments, Markovian path).
 using ProcessTensors
 using ITensors
 using Test
 
 if !isdefined(Main, :liouville_state_to_dense)
-    include(joinpath(@__DIR__, "time_evolution", "tebd_test_utils.jl"))
+    include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
 
 @testset "process_tensor.jl: single-site rebuild API" begin

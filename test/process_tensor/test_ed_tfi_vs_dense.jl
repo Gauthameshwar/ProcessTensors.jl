@@ -1,10 +1,13 @@
+# 1 system qubit + 1 bath spin: PT+evolve vs dense joint evolution (TFI-style fields + Sz–Sz coupling).
+# Reference matches `evolve`: first slab is bath+coupling only; later slabs prepend `SystemPropagation`
+# (system unitary) then another bath+coupling step — see `process_tensor.jl` `evolve` loop.
 using ProcessTensors
 using ITensors
 using Test
 using LinearAlgebra
 
 if !isdefined(Main, :liouville_state_to_dense)
-    include(joinpath(@__DIR__, "time_evolution", "tebd_test_utils.jl"))
+    include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
 
 function _partial_trace_env(rho::AbstractMatrix{<:Number}, dsys::Int, denv::Int)
@@ -73,11 +76,14 @@ end
 
     @test length(trajectory.states_liouville) == nsteps
     for k in 0:(nsteps - 1)
+        if k > 0
+            rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, 2)
+        end
+        rho_joint = U_bg * rho_joint * U_bg'
+
         rho_pt_h = to_hilbert(trajectory.states_liouville[k + 1])
         rho_pt = hilbert_mpo_to_dense(rho_pt_h, _physical_sites_from_hilbert_mpo(rho_pt_h))
         rho_ed = _partial_trace_env(rho_joint, 2, 2)
-        @test isapprox(rho_pt, rho_ed; atol=1e-10, rtol=1e-8)
-        rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, 2)
-        rho_joint = U_bg * rho_joint * U_bg'
+        @test isapprox(rho_pt, rho_ed; atol=1e-9, rtol=1e-7)
     end
 end

@@ -1,4 +1,6 @@
 using ProcessTensors
+using ProcessTensors.Spectrals: OhmicSpectralDensity, LorentzianSpectralDensity,
+                              ohmic_sd, lorentzian_sd
 using Test
 
 @testset "spectrals.jl: spectral density structs and helper constructors" begin
