@@ -144,7 +144,7 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 # Time evolution
-export tdvp, Trotter,
+export tdvp, tebd, Trotter,
        promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
 end
