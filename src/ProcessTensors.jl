@@ -130,7 +130,8 @@ export random_mpo, splitblocks, tr
 export OpSum, add!, op, ops, eigs, coefficient
 
 # Liouvillian
-export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouville
+export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouville,
+       liouvillian_propagator_itensor
 
 # Systems / Baths / Instruments / PT
 export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system
@@ -149,7 +150,7 @@ export ProcessTensor, build_process_tensor, default_schedule, evolve,
        create_instruments, generate_pt_legs
 
 # Time evolution
-export tdvp, tebd, Trotter,
+export tdvp, tebd, Exact, Trotter,
        promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
 end # module ProcessTensors

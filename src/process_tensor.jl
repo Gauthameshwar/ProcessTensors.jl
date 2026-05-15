@@ -1,6 +1,8 @@
 import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS, apply
+import ITensors.Ops: Exact, Trotter
 import Base: getproperty, setproperty!
-using LinearAlgebra: exp, kron
+
+const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
 struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
     core::CoreMPO
@@ -81,8 +83,22 @@ function _build_trivial_pt_cores(coupling_site::Index, nsteps::Int)
     return cores
 end
 
+function _validate_dense_liouville_budget(d_joint::Integer; context::AbstractString)
+    d_joint <= MAX_DENSE_LIOUVILLE_DIM && return nothing
+    @warn "$context: joint Liouville vector dimension D=$d_joint exceeds MAX_DENSE_LIOUVILLE_DIM=$(MAX_DENSE_LIOUVILLE_DIM)."
+    throw(
+        ArgumentError(
+            "$context: joint Liouville vector dimension D=$d_joint is too large for dense exp(dt * L). " *
+            "Please reduce mode count / local cutoff or wait for TEBD-based large-bath support.",
+        ),
+    )
+end
+
+joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
+    prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
+
 """Build one Liouville-space PT core per timestep for a single bath mode by embedding a one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})`."""
-function _build_bathmode_pt_cores(coupling_site::Index, coupling_term::OpSum, bathmode::AbstractBathMode, spectral_density::AbstractSpectralDensity, dt::Real, nsteps::Int; kwargs...)
+function _build_bathmode_pt_cores(coupling_site::Index, bathmode::AbstractBathMode, spectral_density::AbstractSpectralDensity, dt::Real, nsteps::Int; bath_coupling::OpSum=OpSum(), exp_alg=Exact(), kwargs...)
     nsteps >= 1 || throw(ArgumentError("_build_bathmode_pt_cores: nsteps must be at least 1; got $nsteps."))
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
@@ -90,23 +106,14 @@ function _build_bathmode_pt_cores(coupling_site::Index, coupling_term::OpSum, ba
     env_liouv = only(bathmode.sites)
     d_env = dim(env_liouv)
     d_sys = dim(coupling_site)
-
-    # Build joint Liouvillian MPO on the two-site ordering [bath, system].
-    joint_ops = bathmode.H + coupling_term # should also contain the spectral density term, where the omega corresponds to the free energy-level spacing of the bath mode
-    joint_L = MPO_Liouville(joint_ops, Index[env_liouv, coupling_site])
-
-    # Materialize dense one-step propagator U_ref = exp(dt * L) once, outside the time loop.
-    Lj = foldl(*, joint_L)
-
-    L_site_order = [prime(env_liouv), prime(coupling_site), env_liouv, coupling_site]
-    L_dense_tensor = Array(Lj, L_site_order...)
     d_joint = d_env * d_sys
-    L_dense = reshape(ComplexF64.(L_dense_tensor), d_joint, d_joint)
-    U_dense = exp(float(dt) * L_dense)
-    U_ref = ITensor(
-        reshape(U_dense, d_env, d_sys, d_env, d_sys),
-        L_site_order...
-    )
+    _validate_dense_liouville_budget(d_joint; context="_build_bathmode_pt_cores")
+
+    coupling_term = bathmode.coupling == OpSum() ? bath_coupling : bathmode.coupling
+    # Joint physical Hamiltonian on [bath, system]; mode coupling uses sites 1=bath, 2=system.
+    joint_ops = bathmode.H + coupling_term
+    sites_vec = Index[env_liouv, coupling_site]
+    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; exp_alg=exp_alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -117,10 +124,10 @@ function _build_bathmode_pt_cores(coupling_site::Index, coupling_term::OpSum, ba
         left = bath_links[k + 1]
         right = bath_links[k + 2]
 
-        core_k = replaceind(U_ref, prime(coupling_site), in_k)
-        core_k = replaceind(core_k, coupling_site, out_k)
+        core_k = replaceind(U_ref, prime(env_liouv), right)
         core_k = replaceind(core_k, env_liouv, left)
-        core_k = replaceind(core_k, prime(env_liouv), right)
+        core_k = replaceind(core_k, prime(coupling_site), in_k)
+        core_k = replaceind(core_k, coupling_site, out_k)
         push!(cores, core_k)
     end
 
@@ -135,12 +142,122 @@ function _build_bathmode_pt_cores(coupling_site::Index, coupling_term::OpSum, ba
     return cores
 end
 
+"""Build one Liouville-space PT core per timestep for multiple bath modes by embedding one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})` with a fused bath memory link."""
+function _build_multimode_pt_cores(coupling_site::Index, environment::AbstractBath, dt::Real, nsteps::Int; exp_alg=Exact(), kwargs...)
+    nsteps >= 1 || throw(ArgumentError("_build_multimode_pt_cores: nsteps must be at least 1; got $nsteps."))
+    isempty(environment.modes) && throw(ArgumentError("_build_multimode_pt_cores: environment must contain at least one mode."))
+
+    modes = environment.modes
+    nmodes = length(modes)
+    sys_site = nmodes + 1
+    sites_vec = Index[vcat([only(m.sites) for m in modes], [coupling_site])...]
+    d_joint = prod(dim.(collect(sites_vec)))
+    _validate_dense_liouville_budget(d_joint; context="_build_multimode_pt_cores")
+
+    joint_ops = OpSum()
+    for (i, mode) in enumerate(modes)
+        for term in ITensors.terms(mode.H)
+            c = ITensors.coefficient(term)
+            args = Any[]
+            for op_t in collect(last(term.args))
+                push!(args, ITensors.name(op_t))
+                for s in ITensors.sites(op_t)
+                    src = Int(s)
+                    src == 1 || throw(ArgumentError("_build_multimode_pt_cores(mode.H): expected local site 1, got $src."))
+                    push!(args, i)
+                end
+            end
+            joint_ops += (c, args...)
+        end
+        for term in ITensors.terms(mode.coupling)
+            c = ITensors.coefficient(term)
+            args = Any[]
+            for op_t in collect(last(term.args))
+                push!(args, ITensors.name(op_t))
+                for s in ITensors.sites(op_t)
+                    src = Int(s)
+                    dst = if src == 1
+                        i
+                    elseif src == 2
+                        sys_site
+                    else
+                        throw(ArgumentError("_build_multimode_pt_cores(mode.coupling): expected local sites 1 or 2, got $src."))
+                    end
+                    push!(args, dst)
+                end
+            end
+            joint_ops += (c, args...)
+        end
+    end
+    joint_ops += environment.coupling
+
+    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; exp_alg=exp_alg)
+
+    bath_sites = collect(sites_vec[1:(end - 1)])
+    bath_sites_prime = prime.(bath_sites)
+    comb_unprimed = combiner(bath_sites...; tags="PT,Link,FusedBath")
+    comb_primed = combiner(bath_sites_prime...; tags="PT,Link,FusedBath,Prime")
+    U_ref = U_ref * comb_unprimed * comb_primed
+
+    fused_left = combinedind(comb_unprimed)
+    fused_right = combinedind(comb_primed)
+    d_bath = prod(dim.(bath_sites))
+    bath_links = [Index(d_bath; tags="PT,Link,tstep=$k") for k in 0:nsteps]
+
+    cores = ITensor[]
+    for k in 0:(nsteps - 1)
+        in_k, out_k = generate_pt_legs(coupling_site, k)
+        left = bath_links[k + 1]
+        right = bath_links[k + 2]
+
+        core_k = replaceind(U_ref, prime(coupling_site), in_k)
+        core_k = replaceind(core_k, coupling_site, out_k)
+        core_k = replaceind(core_k, fused_left, left)
+        core_k = replaceind(core_k, fused_right, right)
+        push!(cores, core_k)
+    end
+
+    bath_state = ITensor(1.0)
+    for mode in modes
+        site = only(mode.sites)
+        prep = instrument_itensor(StatePreparation(mode.rho0), Index[prime(site)], 0)
+        noprime!(prep)
+        hasind(prep, site) || throw(ArgumentError("_build_multimode_pt_cores: prepared mode state is missing mode site index."))
+        bath_state *= prep
+    end
+    initial_bath_state = replaceind(bath_state * comb_unprimed, combinedind(comb_unprimed), bath_links[1])
+
+    bath_trace = ITensor(1.0)
+    for site in bath_sites_prime
+        bath_trace *= instrument_itensor(TraceOut(; leg_plev=plev(site)), Index[site], nsteps)
+    end
+    trace_out = replaceind(bath_trace * comb_primed, combinedind(comb_primed), bath_links[end])
+
+    cores[1] *= initial_bath_state
+    cores[end] *= trace_out
+
+    return cores
+end
+
+"""
+    build_process_tensor(system, coupling_site; environment=nothing, dt, nsteps)
+
+Build a single-coupling-site process tensor.
+
+For `environment !== nothing`, bath modes are ordered as `[mode_1, ..., mode_M, coupling_site]`
+when constructing the joint Liouville generator. Each mode's `coupling` OpSum uses local sites
+`1` (bath) and `2` (system); optional `environment.coupling` holds inter-mode terms on global sites.
+Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` with keyword
+`exp_alg` (`Exact()` by default, or `Trotter{n}()`). Joint Liouville vector dimension
+`D = prod(dim.(sites_vec))` is guarded by `MAX_DENSE_LIOUVILLE_DIM = $(MAX_DENSE_LIOUVILLE_DIM)`.
+"""
 function build_process_tensor(
     system::AbstractSystem,
     coupling_site::Index;
     environment::Union{Nothing,AbstractBath}=nothing,
     dt::Real,
     nsteps::Integer,
+    exp_alg=Exact(),
 )
     nsteps >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
     _validate_coupling_site(system, coupling_site)
@@ -148,7 +265,25 @@ function build_process_tensor(
     cores = if environment === nothing
         _build_trivial_pt_cores(coupling_site, nsteps)
     else
-        _build_bathmode_pt_cores(coupling_site, environment.coupling, environment.modes[1], environment.spectral_density, dt, nsteps)
+        if joint_liouville_dim(environment, coupling_site) > MAX_DENSE_LIOUVILLE_DIM
+            _validate_dense_liouville_budget(
+                joint_liouville_dim(environment, coupling_site);
+                context="build_process_tensor",
+            )
+        end
+        if length(environment.modes) == 1
+            _build_bathmode_pt_cores(
+                coupling_site,
+                environment.modes[1],
+                environment.spectral_density,
+                dt,
+                nsteps;
+                bath_coupling=environment.coupling,
+                exp_alg=exp_alg,
+            )
+        else
+            _build_multimode_pt_cores(coupling_site, environment, dt, nsteps; exp_alg=exp_alg)
+        end
     end
 
     return ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps, coupling_site)
@@ -160,6 +295,7 @@ function build_process_tensor(
     environment::Union{Nothing,AbstractBath}=nothing,
     dt::Real,
     nsteps::Integer,
+    exp_alg=Exact(),
 )
     length(system.sites) == 1 || throw(
         ArgumentError(
@@ -169,7 +305,7 @@ function build_process_tensor(
     )
     return build_process_tensor(
         system, only(system.sites);
-        environment=environment, dt=dt, nsteps=nsteps,
+        environment=environment, dt=dt, nsteps=nsteps, exp_alg=exp_alg,
     )
 end
 
@@ -246,15 +382,37 @@ function coupling_sites(pt::ProcessTensor, step::Int)
     return (in_curr, out_prev)
 end
 
-# This function assumes the memory links have d^2 dim. This is only true for the single mode bath, and can fail otherwise. Change this in the future release of the package.
-function _trace_out_except(t::ITensor, keep::AbstractVector{<:Index}; k::Int=0)
+# Traces all indices except `keep`; for multimode PT this includes fused bath-memory links.
+function _trace_out_except(t::ITensor, keep::AbstractVector{<:Index}; k::Int=0, environment=nothing)
+    function _is_fused_bath_link(idx::Index, environment)
+        environment isa AbstractBath || return false
+        length(environment.modes) > 1 || return false
+        "Link" in tag_tokens(idx) || return false
+        return dim(idx) == prod(dim(only(mode.sites)) for mode in environment.modes)
+    end
+    
+    function _fused_bath_trace_itensor(environment::AbstractBath, fused_link::Index, k::Int)
+        bath_sites_prime = prime.([only(mode.sites) for mode in environment.modes])
+        comb_primed = combiner(bath_sites_prime...; tags="PT,Link,FusedBath,Prime")
+        bath_trace = ITensor(1.0)
+        for site in bath_sites_prime
+            bath_trace *= instrument_itensor(TraceOut(; leg_plev=plev(site)), Index[site], k)
+        end
+        return replaceind(bath_trace * comb_primed, combinedind(comb_primed), fused_link)
+    end
+    
     keep_vec = Index[keep...]
     out = t
     for idx in inds(out)
         idx in keep_vec && continue
         tstep_tag = tag_value(idx, "tstep=")
         idx_k = isnothing(tstep_tag) ? k : parse(Int, tstep_tag)
-        out *= instrument_itensor(TraceOut(; leg_plev=plev(idx)), Index[idx], idx_k)
+        trace_tensor = if _is_fused_bath_link(idx, environment)
+            _fused_bath_trace_itensor(environment, idx, idx_k)
+        else
+            instrument_itensor(TraceOut(; leg_plev=plev(idx)), Index[idx], idx_k)
+        end
+        out *= trace_tensor
     end
     return out
 end
@@ -380,7 +538,7 @@ function evolve(
         end
 
         out_sites = output_sites(pt, k)
-        reduced = _trace_out_except(prev_pt_core, out_sites; k=k)
+        reduced = _trace_out_except(prev_pt_core, out_sites; k=k, environment=pt.environment)
         rho_liouv = _liouville_mps_from_itensor(reduced, out_sites)
         states_liouville[k + 1] = rho_liouv
         states_hilbert[k + 1] = to_hilbert(rho_liouv)

@@ -1,7 +1,8 @@
 # src/time_evolution/tebd.jl
 
-import ITensors: op, apply, exp, ops, ITensor
-import ITensors.Ops: Trotter, Prod, Sum
+import ITensors: op, apply, exp, ops, ITensor, replaceind
+import ITensors: exp as itensor_exp
+import ITensors.Ops: Exact, Trotter, Prod, Sum
 import ITensorMPS: OpSum
 
 # --------------------- Space Detection Helpers ---------------------
@@ -34,6 +35,75 @@ function _build_trotter_gates(os::OpSum, sites::AbstractVector{<:Index}, dt::Num
     gate_prod = Prod{ITensor}(lazy_gates, collect(sites))
     # Extract the individual gate ITensors from the Prod wrapper
     return collect(ITensor, only(gate_prod.args))
+end
+
+"""Compose Trotter gates into a single propagation ITensor on Liouville sites."""
+function _compose_gates_to_map(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
+    curr_out = Dict{Index,Index}(s => prime(s) for s in base_sites)
+    map_t = ITensor(1.0)
+    for s in base_sites
+        map_t *= delta(curr_out[s], s)
+    end
+
+    for gate in gates
+        g2 = gate
+        next_out = copy(curr_out)
+        for s in base_sites
+            hasind(g2, s) && (g2 = replaceind(g2, s, curr_out[s]))
+            sp = prime(s)
+            if hasind(g2, sp)
+                promoted = prime(curr_out[s])
+                g2 = replaceind(g2, sp, promoted)
+                next_out[s] = promoted
+            end
+        end
+        map_t = g2 * map_t
+        curr_out = next_out
+    end
+
+    final_out = Index[curr_out[s] for s in base_sites]
+    return map_t, final_out
+end
+
+"""
+    liouvillian_propagator_itensor(os::OpSum, sites, dt; exp_alg=Exact(), jump_ops=[], liouville_form=false)
+
+Build `U = exp(dt * L)` as an ITensor on Liouville `sites`. By default `os` is a **physical**
+Hamiltonian and the Liouvillian is formed via `OpSum_Liouville(os; jump_ops)`. Set
+`liouville_form=true` when `os` is already a Liouvillian `OpSum`.
+
+`exp_alg` selects the exponentiation algorithm:
+
+- `Exact()`: contract `MPO(L)` to a single operator ITensor and apply `exp(dt * L)` exactly.
+- `Trotter{n}()`: lazy Trotter product from `exp(dt * L; alg=Trotter{n}())`, composed to one map.
+
+Leg convention matches `ITensor(exp(dt * L_mpo))`: unprimed `sites` are ket/output legs,
+`prime.(sites)` are bra/input legs.
+"""
+function liouvillian_propagator_itensor(
+    os::OpSum,
+    sites::AbstractVector{<:Index},
+    dt::Real;
+    exp_alg=Exact(),
+    jump_ops=Tuple{Number,String,Int}[],
+    liouville_form::Bool=false,
+)
+    L_os = liouville_form ? os : OpSum_Liouville(os, jump_ops)
+    if exp_alg isa Exact
+        L_mpo = ITensorMPS.MPO(L_os, sites)
+        Lj = foldl(*, L_mpo)
+        return itensor_exp(dt * Lj)
+    elseif exp_alg isa Trotter
+        lazy_gates = exp(dt * L_os; alg=exp_alg)
+        gate_prod = Prod{ITensor}(lazy_gates, collect(sites))
+        gates = collect(ITensor, only(gate_prod.args))
+        U_map, final_out = _compose_gates_to_map(gates, sites)
+        for (s, s_in) in zip(sites, final_out)
+            U_map = replaceind(U_map, s_in, prime(s))
+        end
+        return U_map
+    end
+    throw(ArgumentError("liouvillian_propagator_itensor: unsupported exp_alg=$(typeof(exp_alg))."))
 end
 
 # --------------------- Main TEBD Entry Points ---------------------

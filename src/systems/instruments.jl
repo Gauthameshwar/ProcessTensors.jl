@@ -6,7 +6,7 @@ using ITensors
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
                         OpSum, OpSum_Liouville, Index, ITensor, dim, plev, prime,
                         replaceind, siteinds, tag_value, to_dm, to_hilbert, to_liouville,
-                        _phys_site_from_liouv, _build_trotter_gates
+                        _phys_site_from_liouv, _build_trotter_gates, _compose_gates_to_map
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
@@ -359,34 +359,6 @@ function _reindex_itensor(t::ITensor, old_sites::AbstractVector{<:Index}, new_si
         tout = replaceind(tout, old_s, new_s)
     end
     return tout
-end
-
-# Helper function to compose TEBD gates into a single propagation ITensor
-function _compose_gates_to_map(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
-    curr_out = Dict{Index,Index}(s => prime(s) for s in base_sites)
-    map_t = ITensor(1.0)
-    for s in base_sites
-        map_t *= delta(curr_out[s], s)
-    end
-
-    for gate in gates
-        g2 = gate
-        next_out = copy(curr_out)
-        for s in base_sites
-            hasind(g2, s) && (g2 = replaceind(g2, s, curr_out[s]))
-            sp = prime(s)
-            if hasind(g2, sp)
-                promoted = prime(curr_out[s])
-                g2 = replaceind(g2, sp, promoted)
-                next_out[s] = promoted
-            end
-        end
-        map_t = g2 * map_t
-        curr_out = next_out
-    end
-
-    final_out = Index[curr_out[s] for s in base_sites]
-    return map_t, final_out
 end
 
 # Helper function to create the vectorized identity ITensor for the TraceOut instrument

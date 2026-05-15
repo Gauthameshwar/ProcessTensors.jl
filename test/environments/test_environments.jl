@@ -18,7 +18,9 @@ using Test
     @test fieldtype(BosonicMode, :sites) == Vector{Index}
 
     @test hasfield(SpinMode, :rho0)
+    @test hasfield(BosonicMode, :coupling)
     @test hasfield(SpinMode, :H)
+    @test hasfield(SpinMode, :coupling)
     @test hasfield(SpinMode, :sites)
     @test fieldtype(SpinMode, :H) == OpSum
     @test fieldtype(SpinMode, :sites) == Vector{Index}
@@ -70,26 +72,24 @@ end
 
 @testset "environments.jl: bath constructors and aliases" begin
     sd = ohmic_sd()
-    cpl_b = OpSum() + (0.2, "N", 1)
-    cpl_s = OpSum() + (0.2, "Sz", 1)
 
     b1_sites = liouv_sites(siteinds("Boson", 1; dim=4))
     b2_sites = liouv_sites(siteinds("Boson", 1; dim=5))
     s1_sites = liouv_sites(siteinds("S=1/2", 1))
     s2_sites = liouv_sites(siteinds("S=1/2", 1))
 
-    b1 = bosonic_mode(b1_sites, OpSum() + (0.1, "N", 1), dim(only(b1_sites)) - 1, random_mps(b1_sites))
-    b2 = bosonic_mode(b2_sites, OpSum() + (0.1, "N", 1), dim(only(b2_sites)) - 1, random_mps(b2_sites))
-    s1 = spin_mode(s1_sites, OpSum() + (0.1, "Sz", 1), random_mps(s1_sites))
-    s2 = spin_mode(s2_sites, OpSum() + (0.1, "Sz", 1), random_mps(s2_sites))
+    b1 = bosonic_mode(b1_sites, OpSum() + (0.1, "N", 1), dim(only(b1_sites)) - 1, random_mps(b1_sites); coupling=OpSum() + (0.2, "N", 1, "Sz", 2))
+    b2 = bosonic_mode(b2_sites, OpSum() + (0.1, "N", 1), dim(only(b2_sites)) - 1, random_mps(b2_sites); coupling=OpSum() + (0.2, "N", 1, "Sz", 2))
+    s1 = spin_mode(s1_sites, OpSum() + (0.1, "Sz", 1), random_mps(s1_sites); coupling=OpSum() + (0.2, "Sz", 1, "Sz", 2))
+    s2 = spin_mode(s2_sites, OpSum() + (0.1, "Sz", 1), random_mps(s2_sites); coupling=OpSum() + (0.2, "Sz", 1, "Sz", 2))
 
-    @test_nowarn BosonicBath([b1, b2], sd, cpl_b)
-    @test_nowarn SpinBath([s1, s2], sd, cpl_s)
-    @test_nowarn bosonic_bath([b1, b2]; spectral_density=sd, coupling=cpl_b)
-    @test_nowarn spin_bath([s1, s2]; spectral_density=sd, coupling=cpl_s)
+    @test_nowarn BosonicBath([b1, b2], sd)
+    @test_nowarn SpinBath([s1, s2], sd)
+    @test_nowarn bosonic_bath([b1, b2]; spectral_density=sd)
+    @test_nowarn spin_bath([s1, s2]; spectral_density=sd)
 
-    bb = BosonicBath([b1, b2], sd, cpl_b)
-    sb = SpinBath([s1, s2], sd, cpl_s)
+    bb = BosonicBath([b1, b2], sd)
+    sb = SpinBath([s1, s2], sd)
     @test bb isa BosonicBath
     @test sb isa SpinBath
     @test length(bb.modes) == 2
@@ -110,6 +110,6 @@ end
     @test_throws ArgumentError BosonicBath(modes=Any[sm], spectral_density=sd, coupling=OpSum())
     @test_throws ArgumentError SpinBath(modes=Any[bm], spectral_density=sd, coupling=OpSum())
 
-    @test_warn r"BosonicBath: system-bath coupling is empty" BosonicBath([bm], sd, OpSum())
-    @test_warn r"SpinBath: system-bath coupling is empty" SpinBath([sm], sd, OpSum())
+    @test_warn r"no mode-system coupling" BosonicBath([bm], sd, OpSum())
+    @test_warn r"no mode-system coupling" SpinBath([sm], sd, OpSum())
 end

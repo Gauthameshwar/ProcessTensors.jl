@@ -27,7 +27,7 @@ end
 
     @testset "coupling_times / coupling_sites resolve stable PT legs" begin
         s = siteinds("S=1/2", 1)
-        system = spin_system(s, OpSum())
+        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
         pt = build_process_tensor(system, system.sites[1]; dt=0.2, nsteps=4)
         out1, in2 = coupling_times(pt, 2)
         @test length(in2) == 1
@@ -47,7 +47,7 @@ end
         @test only(out1b) == only(out1)
     end
 
-    @testset "build_process_tensor rejects multi-mode AbstractBath (v1 single-mode only)" begin
+    @testset "build_process_tensor supports multi-mode SpinBath under dense budget" begin
         s = siteinds("S=1/2", 1)
         e1 = siteinds("S=1/2", 1)
         e2 = siteinds("S=1/2", 1)
@@ -61,15 +61,41 @@ end
         ρ1 = to_liouville(to_dm(MPS(e1, ["Up"])); sites=L1)
         H_env = OpSum()
         H_env += 1.0, "Sx", 1
-        m1 = SpinMode(L1, H_env, ρ1)
+        cpl1 = OpSum() + (0.05, "Sz", 1, "Sz", 2)
+        m1 = SpinMode(L1, H_env, ρ1; coupling=cpl1)
         ρ2 = to_liouville(to_dm(MPS(e2, ["Up"])); sites=L2)
-        m2 = SpinMode(L2, H_env, ρ2)
+        cpl2 = OpSum() + (0.03, "Sz", 1, "Sz", 2)
+        m2 = SpinMode(L2, H_env, ρ2; coupling=cpl2)
+        bath = spin_bath([m1, m2])
+        pt = build_process_tensor(sys, sys.sites[1]; environment=bath, dt=0.05, nsteps=2)
+        @test pt isa ProcessTensor
+        @test length(pt.core) == 2
+        trj = evolve(pt, to_dm(MPS(s, ["Up"])))
+        @test length(trj.states_liouville) == 2
+    end
 
-        coupling = OpSum()
-        coupling += 0.05, "Sz", 1, "Sz", 2
-        coupling += 0.03, "Sz", 1, "Sz", 3
-        bad_bath = spin_bath([m1, m2]; coupling=coupling)
-        @test_throws ArgumentError build_process_tensor(sys, only(L_sys); environment=bad_bath, dt=0.05, nsteps=2)
+    @testset "build_process_tensor rejects oversized mixed bath with warning+error" begin
+        s = siteinds("S=1/2", 1)
+        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+
+        b1 = siteinds("Boson", 1; dim=40)
+        b2 = siteinds("Boson", 1; dim=40)
+        Lb1 = liouv_sites(b1)
+        Lb2 = liouv_sites(b2)
+
+        rho1 = to_liouville(to_dm(MPS(b1, ["0"])); sites=Lb1)
+        rho2 = to_liouville(to_dm(MPS(b2, ["0"])); sites=Lb2)
+        H_b = OpSum()
+        H_b += 0.2, "N", 1
+        cpl1 = OpSum() + (0.02, "N", 1, "Sz", 2)
+        cpl2 = OpSum() + (0.03, "N", 1, "Sz", 2)
+        m1 = bosonic_mode(Lb1, H_b, dim(only(Lb1)) - 1, rho1; coupling=cpl1)
+        m2 = bosonic_mode(Lb2, H_b, dim(only(Lb2)) - 1, rho2; coupling=cpl2)
+        bath = @test_warn r"BosonicBath has bath-only Liouville dimension" bosonic_bath([m1, m2])
+
+        @test_logs (:warn, r"build_process_tensor: joint Liouville vector dimension D=.*exceeds MAX_DENSE_LIOUVILLE_DIM") begin
+            @test_throws ArgumentError build_process_tensor(system, system.sites[1]; environment=bath, dt=0.05, nsteps=2)
+        end
     end
 
     @testset "single-site instrument validation" begin

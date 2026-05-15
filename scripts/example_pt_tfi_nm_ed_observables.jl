@@ -70,11 +70,9 @@ function main(; dt::Float64 = 0.1, nsteps::Int = 24)
     rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
     H_env = OpSum()
     H_env += 1.0, "Sx", 1
-    mode = spin_mode(env_liouv, H_env, rho_env0_l)
-
-    coupling = OpSum()
-    coupling += 1.0, "Sz", 1, "Sz", 2
-    bath = spin_bath([mode]; coupling=coupling)
+    cpl = OpSum() + (1.0, "Sz", 1, "Sz", 2)
+    mode = spin_mode(env_liouv, H_env, rho_env0_l; coupling=cpl)
+    bath = spin_bath([mode])
 
     pt = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
 
