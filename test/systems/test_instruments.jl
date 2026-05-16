@@ -71,6 +71,20 @@ end
     # Then: zero-length leg vectors are allowed.
     @test SystemPropagation(spin_system(s3, H3)) isa SystemPropagation
     @test IdentityOperation() isa IdentityOperation
+
+    s1 = siteinds("S=1/2", 1)
+    L1 = liouv_sites(s1)
+    H1 = OpSum(); H1 += 0.5, "Sx", 1
+    sys1 = spin_system(s1, H1)
+    in1 = prime(L1[1])
+    out0 = L1[1]
+    prop_bound = SystemPropagation([in1], [out0], sys1)
+    @test prop_bound.input_pt_sites == [in1]
+    @test prop_bound.output_pt_sites == [out0]
+    @test prop_bound.system === sys1
+    id_bound = IdentityOperation([in1], [out0])
+    @test id_bound.input_pt_sites == [in1]
+    @test id_bound.output_pt_sites == [out0]
 end
 
 @testset "Instruments.jl: InstrumentSeq / resolve / add!" begin
@@ -133,6 +147,14 @@ end
     @test resolve_instrument(seq5, 1, fb) === fb
     add!(seq5, def, 1)
     @test resolve_instrument(seq5, 1, fb) === def
+
+    seq_kw = InstrumentSeq(; default=IdentityOperation(), nsteps=2, entries=Dict(1 => def))
+    @test resolve_instrument(seq_kw, 1) === def
+    @test occursin("InstrumentSeq", sprint(show, seq_kw))
+
+    seq_plus = InstrumentSeq(IdentityOperation(), 2)
+    seq_plus += (def, 2)
+    @test resolve_instrument(seq_plus, 2) === def
 end
 
 @testset "Instruments.jl: instrument_leg_maps coverage" begin
@@ -309,6 +331,11 @@ end
     idprop = SystemPropagation(sys0)
     Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, order=1)
     @test isapprox(norm(Tid - delta(in1, out0)), 0.0; atol=1e-12)
+
+    prop_bound = SystemPropagation([in1], [out0], sys)
+    T_bound = instrument_itensor(prop_bound, Index[], Index[], 1; dt=dt, order=1)
+    @test T_bound isa ITensor
+    @test hasind(T_bound, in1) && hasind(T_bound, out0)
 end
 
 struct InstrumentsTestDummy <: AbstractInstrument end

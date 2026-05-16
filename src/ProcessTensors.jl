@@ -108,8 +108,7 @@ export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
        replace_siteinds, replace_siteinds!, hassameinds, totalqn, replaceprime
 
 # Network: algebra
-export apply, contract, add, truncate!, truncate,
-       error_contract, truncerror, truncerrors
+export apply, contract, add, truncate!, truncate, error_contract
 
 # Network: manipulations
 export replacebond, replacebond!, swapbondsites, movesite, movesites

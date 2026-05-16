@@ -29,8 +29,10 @@ using ProcessTensors
         @test MPO(spin_sites, "Id") isa MPO{Hilbert}
         @test MPO(boson_sites, "Id") isa MPO{Hilbert}
 
-        # MPO{Hilbert}(args...; kwargs...)
-        @test_nowarn MPO{Hilbert}(spin_sites, "Id")
+        # MPO{Hilbert}(args...; kwargs...) — explicit typed vararg outer constructors
+        m_h_varargs = MPO{Hilbert}(spin_sites, "Id")
+        @test_nowarn m_h_varargs
+        @test m_h_varargs isa MPO{Hilbert}
         @test_nowarn MPO{Hilbert}(boson_sites, "Id")
         @test MPO{Hilbert}(spin_sites, "Id") isa MPO{Hilbert}
         @test MPO{Hilbert}(boson_sites, "Id") isa MPO{Hilbert}
@@ -71,7 +73,9 @@ using ProcessTensors
         spin_combiners = [ITensor(1.0) for _ in 1:length(spin_sites)]
         boson_combiners = [ITensor(1.0) for _ in 1:length(boson_sites)]
 
-        @test_nowarn MPO{Liouville}(spin_combiners, spin_sites, "Id")
+        m_l_varargs = MPO{Liouville}(spin_combiners, spin_sites, "Id")
+        @test_nowarn m_l_varargs
+        @test m_l_varargs isa MPO{Liouville}
         @test_nowarn MPO{Liouville}(boson_combiners, boson_sites, "Id")
         @test MPO{Liouville}(spin_combiners, spin_sites, "Id") isa MPO{Liouville}
         @test MPO{Liouville}(boson_combiners, boson_sites, "Id") isa MPO{Liouville}

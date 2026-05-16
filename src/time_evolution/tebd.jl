@@ -5,16 +5,6 @@ import ITensors: exp as itensor_exp
 import ITensors.Ops: Exact, Trotter, Prod, Sum
 import ITensorMPS: OpSum
 
-# --------------------- Space Detection Helpers ---------------------
-
-# Check whether a ProcessTensors state lives in Liouville space
-is_liouville_space(::AbstractMPS{Liouville}) = true
-is_liouville_space(::AbstractMPS{Hilbert})    = false
-
-#Check whether a ProcessTensors state lives in Hilbert space
-is_hilbert_space(::AbstractMPS{Hilbert})    = true
-is_hilbert_space(::AbstractMPS{Liouville})  = false
-
 # --------------------- Gate Construction ---------------------
 
 """

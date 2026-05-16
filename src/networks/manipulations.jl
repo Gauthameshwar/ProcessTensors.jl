@@ -7,10 +7,8 @@ replacebond(m::AbstractMPS, b::Integer, phi::ITensor; kwargs...) = _rewrap(m, re
 
 swapbondsites(m::AbstractMPS, b::Integer; kwargs...) = _rewrap(m, swapbondsites(m.core, b; kwargs...))
 
-movesite(m::AbstractMPS, args...; kwargs...) = _rewrap(m, movesite(m.core, args...; kwargs...))
 movesite(m::AbstractMPS, n1n2::Pair{Int, Int}; kwargs...) = _rewrap(m, movesite(m.core, n1n2; kwargs...))
 
-movesites(m::AbstractMPS, args...; kwargs...) = _rewrap(m, movesites(m.core, args...; kwargs...))
 movesites(m::AbstractMPS, nsns::Vector{Pair{Int, Int}}; kwargs...) = _rewrap(m, movesites(m.core, nsns; kwargs...))
 
 # In-place mutating

@@ -13,7 +13,6 @@ siteind(m::AbstractMPS, j::Integer) = siteind(m.core, j)
 
 linkinds(m::AbstractMPS) = linkinds(m.core)
 
-linkind(m::AbstractMPS, args...) = linkind(m.core, args...)
 linkind(m::AbstractMPS, j::Integer) = linkind(m.core, j)
 
 linkdim(m::AbstractMPS, b::Integer) = linkdim(m.core, b)
@@ -24,32 +23,29 @@ maxlinkdim(m::AbstractMPS) = maxlinkdim(m.core)
 
 totalqn(m::AbstractMPS) = totalqn(m.core)
 
-findfirstsiteind(m::AbstractMPS, args...) = findfirstsiteind(m.core, args...)
 findfirstsiteind(m::AbstractMPS, s::Index) = findfirstsiteind(m.core, s)
 
-findfirstsiteinds(m::AbstractMPS, args...) = findfirstsiteinds(m.core, args...)
+findfirstsiteinds(m::AbstractMPS, s::Index) = findfirstsiteinds(m.core, s)
 
-findsite(m::AbstractMPS, args...) = findsite(m.core, args...)
 findsite(m::AbstractMPS, s::Index) = findsite(m.core, s)
+findsite(m::AbstractMPS, j::Integer) = findsite(m.core, j)
 
-findsites(m::AbstractMPS, args...) = findsites(m.core, args...)
 findsites(m::AbstractMPS, s::Index) = findsites(m.core, s)
+findsites(m::AbstractMPS, j::Integer) = findsites(m.core, j)
 
-firstsiteind(m::AbstractMPS, args...) = firstsiteind(m.core, args...)
 firstsiteind(m::AbstractMPS, j::Integer) = firstsiteind(m.core, j)
 
-firstsiteinds(m::AbstractMPS, args...) = firstsiteinds(m.core, args...)
+firstsiteinds(m::AbstractMPS) = firstsiteinds(m.core)
 
 # Two-MPS-arg query forwarding
 for func in (:common_siteind, :common_siteinds, :unique_siteind, :unique_siteinds, :hassameinds)
     @eval begin
         $func(m1::AbstractMPS, m2::AbstractMPS, args...; kwargs...) = $func(m1.core, m2.core, args...; kwargs...)
-        $func(m1::AbstractMPS, m2, args...; kwargs...) = $func(m1.core, m2, args...; kwargs...)
+        $func(m1::AbstractMPS, m2::CoreAbstractMPS, args...; kwargs...) = $func(m1.core, m2, args...; kwargs...)
         
         # Specific overrides for ambiguities with ITensorMPS patterns
         $func(m1::AbstractMPS, m2::CoreAbstractMPS, j::Integer) = $func(m1.core, m2, j)
         $func(m1::AbstractMPS, m2::AbstractMPS, j::Integer) = $func(m1.core, m2.core, j)
-        $func(m1::AbstractMPS, m2::CoreAbstractMPS) = $func(m1.core, m2)
     end
 end
 

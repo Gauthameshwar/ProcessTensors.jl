@@ -25,14 +25,18 @@ using ProcessTensors
         @test_nowarn findfirstsiteind(m_spin, siteind(m_spin, 1))
         @test_nowarn findfirstsiteinds(m_spin, siteind(m_spin, 1))
         @test_nowarn findsite(m_spin, siteind(m_spin, 1))
+        @test_nowarn findsite(m_spin, 1)
         @test_nowarn findsites(m_spin, siteind(m_spin, 1))
+        @test_nowarn findsites(m_spin, 1)
         @test_nowarn firstsiteind(m_spin, 1)
         @test_nowarn firstsiteinds(o_spin)
         @test_nowarn common_siteind(m_spin, m_spin_2, 1)
+        @test_nowarn common_siteind(m_spin, m_spin_2.core, 1)
         @test_nowarn common_siteinds(m_spin, m_spin_2)
         @test_nowarn unique_siteind(m_spin, m_spin_2, 1)
         @test_nowarn unique_siteinds(m_spin, m_spin_2)
         @test_nowarn hassameinds(m_spin, m_spin_2)
+        @test_nowarn hassameinds(m_spin, m_spin_2.core)
 
         @test_nowarn siteinds(m_boson)
         @test_nowarn siteind(m_boson, 1)
@@ -45,14 +49,18 @@ using ProcessTensors
         @test_nowarn findfirstsiteind(m_boson, siteind(m_boson, 1))
         @test_nowarn findfirstsiteinds(m_boson, siteind(m_boson, 1))
         @test_nowarn findsite(m_boson, siteind(m_boson, 1))
+        @test_nowarn findsite(m_boson, 1)
         @test_nowarn findsites(m_boson, siteind(m_boson, 1))
+        @test_nowarn findsites(m_boson, 1)
         @test_nowarn firstsiteind(m_boson, 1)
         @test_nowarn firstsiteinds(o_boson)
         @test_nowarn common_siteind(m_boson, m_boson_2, 1)
+        @test_nowarn common_siteind(m_boson, m_boson_2.core, 1)
         @test_nowarn common_siteinds(m_boson, m_boson_2)
         @test_nowarn unique_siteind(m_boson, m_boson_2, 1)
         @test_nowarn unique_siteinds(m_boson, m_boson_2)
         @test_nowarn hassameinds(m_boson, m_boson_2)
+        @test_nowarn hassameinds(m_boson, m_boson_2.core)
     end
 
     @testset "Out-of-place index transforms" begin
@@ -100,7 +108,8 @@ using ProcessTensors
         @test_nowarn tag_tokens(s_spin)
         @test_nowarn has_tag_token(s_spin, "Site")
         @test_nowarn has_tag_prefix(s_spin, "S=")
-        @test_nowarn tag_value(s_spin, "n=")
+        @test tag_value(s_spin, "n=") == "1"
+        @test tag_value(s_spin, "missing_prefix=") === nothing
 
         @test_nowarn tag_tokens(s_boson)
         @test_nowarn has_tag_token(s_boson, "Site")

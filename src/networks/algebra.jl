@@ -1,10 +1,6 @@
 # src/networks/algebra.jl
 import ITensors: product, ITensor
-import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract, truncerror, truncerrors
-
-# Query functions (return scalars)
-truncerror(m::AbstractMPS) = truncerror(m.core)
-truncerrors(m::AbstractMPS) = truncerrors(m.core)
+import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract
 
 _core_or_self(x) = x isa AbstractMPS ? x.core : x
 error_contract(args...; kwargs...) = error_contract((_core_or_self.(args))...; kwargs...)
