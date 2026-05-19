@@ -7,6 +7,15 @@ if !isdefined(Main, :liouville_state_to_dense)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
 
+function _one_site_hilbert_mpo_to_dense(mpo::AbstractMPO{Hilbert})
+    site = only(filter(i -> plev(i) == 0, collect(inds(mpo.core[1]))))
+    d = dim(site)
+    return reshape(ComplexF64.(Array(mpo.core[1], prime(site), site)), d, d)
+end
+
+_one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
+    _one_site_hilbert_mpo_to_dense(to_hilbert(ρ))
+
 @testset "process_tensor.jl: single-site rebuild API" begin
     @testset "build_process_tensor uses explicit coupling_site::Index" begin
         s = siteinds("S=1/2", 2)
@@ -126,7 +135,34 @@ end
         trajectory = evolve(pt, psi0)
         manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[L], maxdim=32, cutoff=1e-12, order=2)
 
+        @test pt.embed_system_propagation
         @test trajectory.times ≈ [0.0, 0.05, 0.1] atol=1e-12
         @test length(trajectory.states_liouville) == 3
+        @test _one_site_liouville_state_to_dense(last(trajectory.states_liouville)) ≈
+              _one_site_liouville_state_to_dense(manual[3]) atol=1e-10
+    end
+
+    @testset "embed_system_propagation=false keeps instrument-side propagation" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum()
+        H += 0.5, "Sz", 1
+        L = OpSum()
+        L += 0.2, "S-", 1
+        system = spin_system(s, H; jump_ops=[L])
+        psi0 = MPS(s, ["Up"])
+
+        pt_embed = build_process_tensor(system; dt=0.05, nsteps=3)
+        pt_external = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
+
+        @test pt_embed.embed_system_propagation
+        @test !pt_external.embed_system_propagation
+        @test length(pt_embed.core) == length(pt_external.core) == 3
+
+        trj_embed = evolve(pt_embed, psi0)
+        trj_external = evolve(pt_external, psi0; default_instr=SystemPropagation(system))
+
+        @test _one_site_liouville_state_to_dense(last(trj_embed.states_liouville)) ≈
+              _one_site_liouville_state_to_dense(last(trj_external.states_liouville)) atol=1e-10
+        @test_throws ArgumentError evolve(pt_embed, psi0; default_instr=SystemPropagation(system))
     end
 end

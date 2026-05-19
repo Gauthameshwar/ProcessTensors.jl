@@ -145,6 +145,76 @@ if !isdefined(Main, :_joint_initial_density)
     end
 end
 
+if !isdefined(Main, :_ed_expectation)
+    """``Tr(ρ O)`` for a single-site (or joint) density matrix and `OpSum` observable."""
+    function _ed_expectation(rho::AbstractMatrix{<:Number}, O::OpSum, sites::AbstractVector{<:Index})
+        O_dense = dense_hamiltonian_matrix(O, sites)
+        return real(tr(ComplexF64.(rho) * O_dense))
+    end
+end
+
+if !isdefined(Main, :_schedule_default_instr_pt)
+    function _schedule_default_instr_pt(pt::ProcessTensor)
+        return pt.embed_system_propagation ? IdentityOperation() : SystemPropagation(pt.system)
+    end
+end
+
+if !isdefined(Main, :_seq_observable_terminal)
+    """Fully contracted schedule measuring `O` on the terminal system output (time label `nsteps-1`)."""
+    function _seq_observable_terminal(
+        rho0_h,
+        O::OpSum,
+        nsteps::Int,
+        default_instr::AbstractInstrument,
+    )
+        seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, ObservableMeasurement(O), nsteps)
+        return seq
+    end
+end
+
+if !isdefined(Main, :_seq_trace_terminal)
+    function _seq_trace_terminal(rho0_h, nsteps::Int, default_instr::AbstractInstrument)
+        seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, TraceOut(), nsteps)
+        return seq
+    end
+end
+
+if !isdefined(Main, :_seq_density_at_snapshot)
+    """
+    Schedule whose `evaluate_process` result is the system marginal at snapshot `k`
+    (`t = k * dt`, output leg `out_k`). Uses `OpenOutput` for `k < nsteps-1` and the
+    terminal-open schedule when `k == nsteps-1`.
+    """
+    function _seq_density_at_snapshot(
+        rho0_h,
+        k::Int,
+        nsteps::Int,
+        default_instr::AbstractInstrument,
+    )
+        0 <= k < nsteps || throw(ArgumentError("_seq_density_at_snapshot: k=$k out of range for nsteps=$nsteps."))
+        seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        if k < nsteps - 1
+            add!(seq, OpenOutput(), k + 1)
+            for step in (k + 2):(nsteps - 1)
+                add!(seq, IdentityOperation(), step)
+            end
+            add!(seq, TraceOut(), nsteps)
+        end
+        return seq
+    end
+end
+
+if !isdefined(Main, :_hilbert_mpo_to_dense_one_site)
+    function _hilbert_mpo_to_dense_one_site(rho_h::AbstractMPO{Hilbert})
+        return hilbert_mpo_to_dense(rho_h, _physical_sites_from_hilbert_mpo(rho_h))
+    end
+end
+
 # Backward-compatible name: one exact bath step (matrix exponential, not Trotter).
 if !isdefined(Main, :_dense_bath_step)
     function _dense_bath_step(nmodes::Int, mode_h_coeffs, mode_cpl_coeffs, dt::Real)

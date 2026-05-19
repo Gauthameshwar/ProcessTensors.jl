@@ -71,6 +71,7 @@ end
     # Then: zero-length leg vectors are allowed.
     @test SystemPropagation(spin_system(s3, H3)) isa SystemPropagation
     @test IdentityOperation() isa IdentityOperation
+    @test OpenOutput() isa OpenOutput
 
     s1 = siteinds("S=1/2", 1)
     L1 = liouv_sites(s1)
@@ -85,6 +86,9 @@ end
     id_bound = IdentityOperation([in1], [out0])
     @test id_bound.input_pt_sites == [in1]
     @test id_bound.output_pt_sites == [out0]
+    open_bound = OpenOutput([in1], [out0])
+    @test open_bound.input_pt_sites == [in1]
+    @test open_bound.output_pt_sites == [out0]
 end
 
 @testset "Instruments.jl: InstrumentSeq / resolve / add!" begin
@@ -301,6 +305,34 @@ end
     data = vec(Array(T, leg))
     @test length(data) == d^2
     @test isapprox(data, vec_id)
+end
+
+@testset "Instruments.jl: instrument_itensor — OpenOutput" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    in1 = prime(L[1])
+    out0 = L[1]
+    open_op = OpenOutput()
+    Topen = instrument_itensor(open_op, [in1], [out0], 1)
+    @test hasind(Topen, in1)
+    @test !hasind(Topen, out0)
+
+    Ttrace_in = instrument_itensor(TraceOut([in1]; leg_plev=1), [in1], 1)
+    @test isapprox(norm(Topen - Ttrace_in), 0.0; atol=1e-12)
+
+    Tid = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+    @test length(inds(Topen)) == 1
+    @test length(inds(Tid)) == 2
+
+    iddef = IdentityOperation()
+    seq = InstrumentSeq(iddef, 2)
+    add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, OpenOutput(), 1)
+    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, 2)
+    @test haskey(in_map, 1)
+    @test haskey(out_map, 0)
+    @test isempty(missing_in)
+    @test isempty(missing_out)
 end
 
 @testset "Instruments.jl: instrument_itensor — SystemPropagation vs exp(dt * L)" begin

@@ -67,4 +67,40 @@ end
     # Joint ED is exact; split PT should approximate it at moderate Δt.
     @test maximum(split_errs) < 0.05
     @test maximum(joint_errs) < 0.05
+
+    O_sys = OpSum() + (1.0, "Sz", 1)
+    default_instr = _schedule_default_instr_pt(pt)
+    obs_errs = Float64[]
+    trace_errs = Float64[]
+    density_errs = Float64[]
+
+    for k in 0:(nsteps - 1)
+        t = k * dt
+        rho_ed = _reduced_system_joint_full(rho_joint, t, H_full, joint_sites, 2, 2)
+
+        pt_k = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=k + 1)
+        seq_obs = _seq_observable_terminal(rho_sys0_h, O_sys, k + 1, default_instr)
+        val_obs = evaluate_process(pt_k, seq_obs; default_instr=default_instr)
+        @test val_obs isa ComplexF64
+        push!(obs_errs, abs(val_obs - _ed_expectation(rho_ed, O_sys, sys_phys)))
+
+        seq_tr = _seq_trace_terminal(rho_sys0_h, k + 1, default_instr)
+        val_tr = evaluate_process(pt_k, seq_tr; default_instr=default_instr)
+        @test val_tr isa ComplexF64
+        push!(trace_errs, abs(val_tr - real(tr(rho_ed))))
+
+        seq_rho = InstrumentSeq(default=default_instr, nsteps=k + 1)
+        add!(seq_rho, StatePreparation(rho_sys0_h), 0)
+        rho_pt_h = to_hilbert(evaluate_process(pt_k, seq_rho; default_instr=default_instr))
+        rho_pt = _hilbert_mpo_to_dense_one_site(rho_pt_h)
+        push!(density_errs, norm(rho_pt - rho_ed))
+
+        rho_ev = _hilbert_mpo_to_dense_one_site(trajectory.states_hilbert[k + 1])
+        val_evolve = _ed_expectation(rho_ev, O_sys, sys_phys)
+        @test isapprox(val_obs, val_evolve; atol=1e-9, rtol=1e-7)
+    end
+
+    @test maximum(obs_errs) < 0.05
+    @test maximum(trace_errs) < 0.05
+    @test maximum(density_errs) < 0.05
 end
