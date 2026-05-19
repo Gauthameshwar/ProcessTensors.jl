@@ -10,7 +10,7 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation, resolve_instrument,
+       IdentityOperation, SystemPropagation, OpenOutput, resolve_instrument,
        InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 abstract type AbstractInstrument end
@@ -163,6 +163,28 @@ function IdentityOperation(
 end
 # Lazy constructor used when explicit PT legs are not required.
 IdentityOperation() = IdentityOperation(Index[], Index[])
+
+"""
+    OpenOutput
+
+Two-leg instrument for a causality cut at evolve slot `s`: apply `vec(I)` on the
+primed input `in_s` and leave the previous unprimed output `out_{s-1}` open (the
+returned ITensor carries only `in_s`, not `out_{s-1}`).
+"""
+struct OpenOutput <: TwoLegInstrument
+    input_pt_sites::Vector{Index}
+    output_pt_sites::Vector{Index}
+end
+function OpenOutput(
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+)
+    input_vec = Index[input_pt_sites...]
+    output_vec = Index[output_pt_sites...]
+    _validate_two_leg_map("OpenOutput", input_vec, output_vec)
+    return OpenOutput(input_vec, output_vec)
+end
+OpenOutput() = OpenOutput(Index[], Index[])
 
 # =========================================================================
 # InstrumentSeq — unified schedule (default + per-tstep entries + bounds)
@@ -459,6 +481,25 @@ function instrument_itensor(
         map_t *= delta(sin, sout)
     end
     return map_t
+end
+
+function instrument_itensor(
+    instr::OpenOutput,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    k::Int;
+    kwargs...,
+)
+    in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
+    out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
+    _validate_two_leg_map("OpenOutput", in_sites, out_sites)
+    all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
+        ArgumentError("OpenOutput: all input_pt_sites must have tstep=$k when tagged."),
+    )
+    all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
+        ArgumentError("OpenOutput: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+    )
+    return _vectorized_identity_itensor(in_sites)
 end
 
 function instrument_itensor(

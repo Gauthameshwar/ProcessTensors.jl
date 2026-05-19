@@ -1,4 +1,5 @@
 import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS, apply
+import ITensors: scalar
 import ITensors.Ops: Exact, Trotter
 import Base: getproperty, setproperty!
 
@@ -11,6 +12,7 @@ struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
     dt::Float64
     nsteps::Int
     coupling_site::Index
+    embed_system_propagation::Bool
 
     function ProcessTensor(
         core::CoreMPO,
@@ -19,6 +21,7 @@ struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
         dt::Real,
         nsteps::Integer,
         coupling_site::Index,
+        embed_system_propagation::Bool=true,
     ) where {S<:AbstractSystem,E<:Union{Nothing,AbstractBath}}
         nsteps_int = Int(nsteps)
         nsteps_int >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
@@ -26,7 +29,7 @@ struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
         length(core) == nsteps_int || throw(
             ArgumentError("ProcessTensor core length must equal nsteps for single-site PT. Got length(core)=$(length(core)) and nsteps=$nsteps_int."),
         )
-        return new{S,E}(core, system, environment, float(dt), nsteps_int, coupling_site)
+        return new{S,E}(core, system, environment, float(dt), nsteps_int, coupling_site, embed_system_propagation)
     end
 end
 
@@ -44,11 +47,12 @@ function ProcessTensor(
     environment,
     dt::Real,
     nsteps::Integer,
+    embed_system_propagation::Bool=true,
 )
     length(system.sites) == 1 || throw(
         ArgumentError("ProcessTensor(core, system, environment, dt, nsteps) is only allowed for single-site systems. Pass coupling_site::Index explicitly."),
     )
-    return ProcessTensor(core, system, environment, dt, nsteps, only(system.sites))
+    return ProcessTensor(core, system, environment, dt, nsteps, only(system.sites), embed_system_propagation)
 end
 
 function Base.getproperty(pt::ProcessTensor, sym::Symbol)
@@ -71,14 +75,60 @@ function generate_pt_legs(site::Index, k::Int)
     return prime(output_site), output_site
 end
 
+# Internal prime level for the system propagator fused into the core
+const _INTERNAL_PLEV = 2
+
+# Function to fuse the system propagator at a specific timestep into the core
+function _fuse_embedded_sysprop_into_core(
+    core::ITensor,
+    system::AbstractSystem,
+    in_curr::Index,
+    out_prev::Index,
+    step::Int,
+    dt::Real;
+    order::Int=2,
+)
+    internal_out = prime(out_prev, _INTERNAL_PLEV)
+    prop = instrument_itensor(SystemPropagation(system), Index[in_curr], Index[out_prev], step; dt=dt, order=order)
+    prop = replaceind(prop, out_prev, internal_out)
+    fused = core * prop
+    return replaceind(fused, internal_out, out_prev)
+end
+
 """Build a trivial process tensor for a single site system, i.e. a sequence of identity operators on the input and output legs.
 This is useful for a Markovian system where the system is not coupled to any bath modes.
 """
-function _build_trivial_pt_cores(coupling_site::Index, nsteps::Int)
+function _build_trivial_pt_cores(
+    system::AbstractSystem,
+    coupling_site::Index,
+    dt::Real,
+    nsteps::Int;
+    embed_system_propagation::Bool=true,
+    order::Int=2,
+)
     cores = ITensor[]
+    inputs = Index[]
+    outputs = Index[]
+    # Build the cores for the trivial process tensor
     for k in 0:(nsteps - 1)
         in_k, out_k = generate_pt_legs(coupling_site, k)
+        push!(inputs, in_k)
+        push!(outputs, out_k)
         push!(cores, delta(in_k, out_k))
+    end
+    # Embed the system propagator into the cores if needed
+    if embed_system_propagation
+        for step in 1:(nsteps - 1)
+            cores[step + 1] = _fuse_embedded_sysprop_into_core(
+                cores[step + 1],
+                system,
+                inputs[step + 1],
+                outputs[step],
+                step,
+                dt;
+                order=order,
+            )
+        end
     end
     return cores
 end
@@ -98,7 +148,19 @@ joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
 """Build one Liouville-space PT core per timestep for a single bath mode by embedding a one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})`."""
-function _build_bathmode_pt_cores(coupling_site::Index, bathmode::AbstractBathMode, spectral_density::AbstractSpectralDensity, dt::Real, nsteps::Int; bath_coupling::OpSum=OpSum(), exp_alg=Exact(), kwargs...)
+function _build_bathmode_pt_cores(
+    system::AbstractSystem,
+    coupling_site::Index,
+    bathmode::AbstractBathMode,
+    spectral_density::AbstractSpectralDensity,
+    dt::Real,
+    nsteps::Int;
+    bath_coupling::OpSum=OpSum(),
+    exp_alg=Exact(),
+    embed_system_propagation::Bool=true,
+    order::Int=2,
+    kwargs...
+)
     nsteps >= 1 || throw(ArgumentError("_build_bathmode_pt_cores: nsteps must be at least 1; got $nsteps."))
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
@@ -119,8 +181,12 @@ function _build_bathmode_pt_cores(coupling_site::Index, bathmode::AbstractBathMo
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
 
     cores = ITensor[]
+    inputs = Index[]
+    outputs = Index[]
     for k in 0:(nsteps - 1)
         in_k, out_k = generate_pt_legs(coupling_site, k)
+        push!(inputs, in_k)
+        push!(outputs, out_k)
         left = bath_links[k + 1]
         right = bath_links[k + 2]
 
@@ -129,6 +195,19 @@ function _build_bathmode_pt_cores(coupling_site::Index, bathmode::AbstractBathMo
         core_k = replaceind(core_k, prime(coupling_site), in_k)
         core_k = replaceind(core_k, coupling_site, out_k)
         push!(cores, core_k)
+    end
+    if embed_system_propagation
+        for step in 1:(nsteps - 1)
+            cores[step + 1] = _fuse_embedded_sysprop_into_core(
+                cores[step + 1],
+                system,
+                inputs[step + 1],
+                outputs[step],
+                step,
+                dt;
+                order=order,
+            )
+        end
     end
 
     # Contract the first and last bath links with the initial bath state and the trace out
@@ -143,7 +222,17 @@ function _build_bathmode_pt_cores(coupling_site::Index, bathmode::AbstractBathMo
 end
 
 """Build one Liouville-space PT core per timestep for multiple bath modes by embedding one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})` with a fused bath memory link."""
-function _build_multimode_pt_cores(coupling_site::Index, environment::AbstractBath, dt::Real, nsteps::Int; exp_alg=Exact(), kwargs...)
+function _build_multimode_pt_cores(
+    system::AbstractSystem,
+    coupling_site::Index,
+    environment::AbstractBath,
+    dt::Real,
+    nsteps::Int;
+    exp_alg=Exact(),
+    embed_system_propagation::Bool=true,
+    order::Int=2,
+    kwargs...
+)
     nsteps >= 1 || throw(ArgumentError("_build_multimode_pt_cores: nsteps must be at least 1; got $nsteps."))
     isempty(environment.modes) && throw(ArgumentError("_build_multimode_pt_cores: environment must contain at least one mode."))
 
@@ -205,8 +294,12 @@ function _build_multimode_pt_cores(coupling_site::Index, environment::AbstractBa
     bath_links = [Index(d_bath; tags="PT,Link,tstep=$k") for k in 0:nsteps]
 
     cores = ITensor[]
+    inputs = Index[]
+    outputs = Index[]
     for k in 0:(nsteps - 1)
         in_k, out_k = generate_pt_legs(coupling_site, k)
+        push!(inputs, in_k)
+        push!(outputs, out_k)
         left = bath_links[k + 1]
         right = bath_links[k + 2]
 
@@ -215,6 +308,19 @@ function _build_multimode_pt_cores(coupling_site::Index, environment::AbstractBa
         core_k = replaceind(core_k, fused_left, left)
         core_k = replaceind(core_k, fused_right, right)
         push!(cores, core_k)
+    end
+    if embed_system_propagation
+        for step in 1:(nsteps - 1)
+            cores[step + 1] = _fuse_embedded_sysprop_into_core(
+                cores[step + 1],
+                system,
+                inputs[step + 1],
+                outputs[step],
+                step,
+                dt;
+                order=order,
+            )
+        end
     end
 
     bath_state = ITensor(1.0)
@@ -240,7 +346,8 @@ function _build_multimode_pt_cores(coupling_site::Index, environment::AbstractBa
 end
 
 """
-    build_process_tensor(system, coupling_site; environment=nothing, dt, nsteps)
+    build_process_tensor(system, coupling_site; environment=nothing, dt, nsteps,
+                         embed_system_propagation=true, order=2)
 
 Build a single-coupling-site process tensor.
 
@@ -250,6 +357,12 @@ when constructing the joint Liouville generator. Each mode's `coupling` OpSum us
 Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` with keyword
 `exp_alg` (`Exact()` by default, or `Trotter{n}()`). Joint Liouville vector dimension
 `D = prod(dim.(sites_vec))` is guarded by `MAX_DENSE_LIOUVILLE_DIM = $(MAX_DENSE_LIOUVILLE_DIM)`.
+
+When `embed_system_propagation=true` (the default), single-site process tensors fuse the
+system Liouvillian map (`system.H` and `system.jump_ops`) into the PT cores. Runtime schedules
+then default to `IdentityOperation()` on the system bonds. Set `embed_system_propagation=false`
+to keep the older environment-only cores and supply `SystemPropagation(pt.system)` through the
+instrument schedule instead.
 """
 function build_process_tensor(
     system::AbstractSystem,
@@ -258,12 +371,22 @@ function build_process_tensor(
     dt::Real,
     nsteps::Integer,
     exp_alg=Exact(),
+    embed_system_propagation::Bool=true,
+    order::Int=2,
 )
     nsteps >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
     _validate_coupling_site(system, coupling_site)
+    embed_in_cores = embed_system_propagation && length(system.sites) == 1
 
     cores = if environment === nothing
-        _build_trivial_pt_cores(coupling_site, nsteps)
+        _build_trivial_pt_cores(
+            system,
+            coupling_site,
+            dt,
+            nsteps;
+            embed_system_propagation=embed_in_cores,
+            order=order,
+        )
     else
         if joint_liouville_dim(environment, coupling_site) > MAX_DENSE_LIOUVILLE_DIM
             _validate_dense_liouville_budget(
@@ -273,6 +396,7 @@ function build_process_tensor(
         end
         if length(environment.modes) == 1
             _build_bathmode_pt_cores(
+                system,
                 coupling_site,
                 environment.modes[1],
                 environment.spectral_density,
@@ -280,13 +404,24 @@ function build_process_tensor(
                 nsteps;
                 bath_coupling=environment.coupling,
                 exp_alg=exp_alg,
+                embed_system_propagation=embed_in_cores,
+                order=order,
             )
         else
-            _build_multimode_pt_cores(coupling_site, environment, dt, nsteps; exp_alg=exp_alg)
+            _build_multimode_pt_cores(
+                system,
+                coupling_site,
+                environment,
+                dt,
+                nsteps;
+                exp_alg=exp_alg,
+                embed_system_propagation=embed_in_cores,
+                order=order,
+            )
         end
     end
 
-    return ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps, coupling_site)
+    return ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps, coupling_site, embed_in_cores)
 end
 
 # Single-site convenience: defaults `coupling_site` to the system's only site.
@@ -296,6 +431,8 @@ function build_process_tensor(
     dt::Real,
     nsteps::Integer,
     exp_alg=Exact(),
+    embed_system_propagation::Bool=true,
+    order::Int=2,
 )
     length(system.sites) == 1 || throw(
         ArgumentError(
@@ -305,12 +442,37 @@ function build_process_tensor(
     )
     return build_process_tensor(
         system, only(system.sites);
-        environment=environment, dt=dt, nsteps=nsteps, exp_alg=exp_alg,
+        environment=environment,
+        dt=dt,
+        nsteps=nsteps,
+        exp_alg=exp_alg,
+        embed_system_propagation=embed_system_propagation,
+        order=order,
     )
 end
 
-# Default schedule uses InstrumentSeq with SystemPropagation fallback.
-default_schedule(pt::ProcessTensor) = InstrumentSeq(default=SystemPropagation(pt.system), nsteps=pt.nsteps)
+_schedule_default_instr(pt::ProcessTensor) =
+    pt.embed_system_propagation ? IdentityOperation() : SystemPropagation(pt.system)
+
+function _validate_schedule_default(pt::ProcessTensor, default_instr::AbstractInstrument, caller::AbstractString)
+    if pt.embed_system_propagation && default_instr isa SystemPropagation
+        throw(
+            ArgumentError(
+                "$caller: system propagation is already embedded in this ProcessTensor; " *
+                "use IdentityOperation() as the schedule default or rebuild with embed_system_propagation=false.",
+            ),
+        )
+    end
+    return nothing
+end
+
+"""
+    default_schedule(pt::ProcessTensor) -> InstrumentSeq
+
+Return a schedule with `IdentityOperation()` as the default when system propagation is
+embedded in `pt`, otherwise `SystemPropagation(pt.system)`.
+"""
+default_schedule(pt::ProcessTensor) = InstrumentSeq(default=_schedule_default_instr(pt), nsteps=pt.nsteps)
 
 """
     output_sites(pt, k) -> Vector{Index}
@@ -450,11 +612,32 @@ function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:I
     return MPS{Liouville}(CoreMPS([t_loc]), ITensor[comb])
 end
 
+function _open_output_steps(seq::InstrumentSeq, nsteps::Int, default::AbstractInstrument)
+    cuts = Int[]
+    for step in 1:(nsteps - 1)
+        resolve_instrument(seq, step, default) isa OpenOutput && push!(cuts, step)
+    end
+    return cuts
+end
+
+function _open_output_keep_k(seq::InstrumentSeq, nsteps::Int, default::AbstractInstrument)
+    cuts = _open_output_steps(seq, nsteps, default)
+    if isempty(cuts)
+        return nothing
+    end
+    length(cuts) == 1 || throw(
+        ArgumentError(
+            "evaluate_process: expected at most one OpenOutput in the schedule; found at steps $(cuts).",
+        ),
+    )
+    return cuts[1] - 1
+end
+
 # User-facing function to create an instrument schedule from a process tensor and an instrument sequence
 function create_instruments(
     pt::ProcessTensor,
     seq::InstrumentSeq;
-    default::AbstractInstrument=SystemPropagation(pt.system),
+    default::AbstractInstrument=_schedule_default_instr(pt),
     order::Int=2,
 )
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
@@ -477,7 +660,12 @@ function create_instruments(
     for step in 1:(pt.nsteps - 1)
         instr = resolve_instrument(seq, step, default)
         out_prev, in_curr = coupling_times(pt, step)
-        if instr isa TwoLegInstrument
+        if pt.embed_system_propagation &&
+           instr isa IdentityOperation &&
+           isempty(instr.input_pt_sites) &&
+           isempty(instr.output_pt_sites)
+            instruments[step + 1] = ITensor(1.0)
+        elseif instr isa TwoLegInstrument
             instruments[step + 1] = instrument_itensor(
                 instr,
                 in_curr,
@@ -500,15 +688,170 @@ function create_instruments(
     return instruments
 end
 
+"""
+    all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq) -> Bool
 
-# Evolve a process tensor 
+Return `true` when the schedule closes every PT leg: all propagation slots are filled
+([`instrument_leg_maps`](@ref) has no missing legs) and evolve slot `pt.nsteps` is a
+single-leg [`TraceOut`](@ref) or [`ObservableMeasurement`](@ref) on the terminal system
+output. Then [`evaluate_process`](@ref) returns a `ComplexF64` scalar.
+
+Otherwise the final system output leg stays open and [`evaluate_process`](@ref) returns
+`MPO{Liouville}` on that leg.
+"""
+function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
+    !isempty(_open_output_steps(seq, pt.nsteps, seq.default)) && return false
+    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    isempty(missing_in) || return false
+    isempty(missing_out) || return false
+    final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
+    return final_instr isa TraceOut || final_instr isa ObservableMeasurement
+end
+
+"""
+    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPO{Liouville}}
+
+Contract a [`ProcessTensor`](@ref) with an [`InstrumentSeq`](@ref) by multiplying all PT
+cores and instrument tensors (bath degrees of freedom are traced when the PT is built).
+
+Return type is inferred from [`all_pt_legs_contracted`](@ref) and keyword
+`all_legs_contracted`:
+
+- all legs closed → `ComplexF64`
+- one [`OpenOutput`](@ref) at evolve slot `s` → `MPO{Liouville}` on `output_sites(pt, s-1)`
+- otherwise terminal output open → `MPO{Liouville}` on `output_sites(pt, pt.nsteps-1)`
+
+If more than one index remains open after contraction, throws `ArgumentError`.
+See also [`evolve`](@ref) for per-timestep reduced-state snapshots.
+"""
+function evaluate_process(
+    pt::ProcessTensor,
+    seq::InstrumentSeq;
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+    order::Int=2,
+    all_legs_contracted::Union{Nothing,Bool}=nothing,
+)
+    _validate_schedule_default(pt, default_instr, "evaluate_process")
+    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    isempty(missing_in) || throw(
+        ArgumentError("evaluate_process: missing input legs for tsteps $(missing_in)."),
+    )
+    isempty(missing_out) || throw(
+        ArgumentError("evaluate_process: missing output legs for tsteps $(missing_out)."),
+    )
+    resolve_instrument(seq, 0) isa StatePreparation ||
+        throw(ArgumentError("evaluate_process: tstep=0 must be StatePreparation."))
+
+    open_keep_k = _open_output_keep_k(seq, pt.nsteps, default_instr)
+    instruments = create_instruments(pt, seq; default=default_instr, order=order)
+    legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
+
+    result = pt.core[1] * instruments[1]
+    for step in 1:(pt.nsteps - 1)
+        instr = resolve_instrument(seq, step, default_instr)
+        out_prev, in_curr = coupling_times(pt, step)
+        if instr isa OpenOutput
+            tmp = copy(pt.core[step + 1])
+            tmp *= instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt, order=order)
+            result *= tmp
+        else
+            result *= instruments[step + 1]
+            result *= pt.core[step + 1]
+        end
+    end
+
+    final_instr = resolve_instrument(seq, pt.nsteps, default_instr)
+    if final_instr isa TraceOut || final_instr isa ObservableMeasurement
+        out_prev, _ = coupling_times(pt, pt.nsteps)
+        result *= instrument_itensor(final_instr, out_prev, pt.nsteps - 1)
+    end
+
+    if legs_closed
+        n_open = length(inds(result))
+        n_open == 0 || throw(
+            ArgumentError(
+                "evaluate_process: expected 0 uncontracted indices " *
+                "(all_pt_legs_contracted=true) but found $n_open.",
+            ),
+        )
+        return ComplexF64(scalar(result))
+    end
+
+    keep_k = something(open_keep_k, pt.nsteps - 1)
+    keep = output_sites(pt, keep_k)
+    reduced = if open_keep_k === nothing && length(inds(result)) == 1
+        result
+    else
+        _trace_out_except(result, keep; k=keep_k, environment=pt.environment)
+    end
+    n_open = length(inds(reduced))
+    n_open == 1 || throw(
+        ArgumentError(
+            "evaluate_process: expected exactly one open system leg at k=$keep_k, found $n_open.",
+        ),
+    )
+    rho_liouv = _liouville_mps_from_itensor(reduced, keep)
+    return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
+end
+
+function evaluate_process(
+    pt::ProcessTensor,
+    seqs::AbstractVector{<:InstrumentSeq};
+    kwargs...
+)
+    results = Vector{ComplexF64}(undef, length(seqs))
+    for i in eachindex(seqs)
+        val = evaluate_process(pt, seqs[i]; kwargs...)
+        val isa ComplexF64 || throw(
+            ArgumentError(
+                "evaluate_process(batch): schedule at index $i is not fully contracted; " *
+                "batch overload requires scalar schedules (all_pt_legs_contracted=true).",
+            ),
+        )
+        results[i] = val
+    end
+    return results
+end
+
+function evaluate_process(
+    pt::ProcessTensor,
+    rho0,
+    seq::InstrumentSeq;
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+    kwargs...
+)
+    seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
+    add!(seq_full, StatePreparation(rho0), 0)
+    return evaluate_process(pt, seq_full; default_instr=default_instr, kwargs...)
+end
+
+function evaluate_process(
+    pt::ProcessTensor,
+    rho0;
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+    kwargs...
+)
+    seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
+    add!(seq, StatePreparation(rho0), 0)
+    return evaluate_process(pt, seq; default_instr=default_instr, kwargs...)
+end
+
+"""
+    evolve(pt, seq; default_instr=_schedule_default_instr(pt), order=2)
+
+Return reduced system snapshots from a process tensor. If `pt.embed_system_propagation`
+is true, the default schedule connector is `IdentityOperation()` because the system
+Liouvillian map is already fused into the PT cores; otherwise it is
+`SystemPropagation(pt.system)`.
+"""
 function evolve(
     pt::ProcessTensor,
     seq::InstrumentSeq;
-    default_instr::AbstractInstrument=SystemPropagation(pt.system),
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
     order::Int=2,
     kwargs...
 )
+    _validate_schedule_default(pt, default_instr, "evolve")
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
         ArgumentError("evolve: missing input legs for tsteps $(missing_in)."),
@@ -552,7 +895,7 @@ function evolve(
     pt::ProcessTensor,
     rho0,
     seq::InstrumentSeq;
-    default_instr::AbstractInstrument=SystemPropagation(pt.system),
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
     kwargs...
 )
     seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
@@ -564,7 +907,7 @@ end
 function evolve(
     pt::ProcessTensor,
     rho0;
-    default_instr::AbstractInstrument=SystemPropagation(pt.system),
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
     add!(seq, StatePreparation(rho0), 0)
