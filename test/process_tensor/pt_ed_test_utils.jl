@@ -21,8 +21,43 @@ if !isdefined(Main, :_partial_trace_env)
 end
 
 if !isdefined(Main, :_joint_phys_sites)
-    """Physical sites `[system, bath_1, …, bath_M]` matching `kron(ρ_sys, ρ_b1, …)`."""
+    """
+    Physical sites `[system, bath_1, …, bath_M]` for a joint `OpSum` / `MPO`.
+
+    ITensor site order is system-first. Split-schedule dense states use
+    `kron(ρ_bath, ρ_sys)` (environment left), matching [`_apply_system_unitary_on_joint`](@ref).
+    """
     _joint_phys_sites(sys_phys, env_phys) = Index[sys_phys[1], env_phys...]
+end
+
+if !isdefined(Main, :_joint_hamiltonian_dense)
+    """Dense joint Hamiltonian from an `OpSum` on `joint_sites` (via `MPO` → matrix)."""
+    _joint_hamiltonian_dense(H::OpSum, joint_sites::AbstractVector{<:Index}) =
+        dense_hamiltonian_matrix(H, joint_sites)
+end
+
+if !isdefined(Main, :_joint_unitary_exp)
+    """`U = exp(-im * t * H)` on the joint Hilbert space defined by `joint_sites`."""
+    _joint_unitary_exp(H::OpSum, joint_sites::AbstractVector{<:Index}, t::Real) =
+        _exact_unitary_exp(H, joint_sites, t)
+end
+
+if !isdefined(Main, :_joint_density_B_at_0)
+    """
+    Joint density after inserting `B` on the system at `t = 0`, for split-schedule ED.
+
+    Matches `StatePreparation(B * ρ_sys)` on the PT system leg with a product bath:
+    `kron(ρ_env, B ρ_sys)`.
+    """
+    function _joint_density_B_at_0(
+        rho_sys::AbstractMatrix{<:Number},
+        rho_env::AbstractMatrix{<:Number},
+        O_B::OpSum,
+        sys_phys::AbstractVector{<:Index},
+    )
+        B = dense_hamiltonian_matrix(O_B, sys_phys)
+        return kron(ComplexF64.(rho_env), B * ComplexF64.(rho_sys))
+    end
 end
 
 if !isdefined(Main, :_exact_unitary_exp)
@@ -39,7 +74,7 @@ if !isdefined(Main, :_apply_system_unitary_on_joint)
         U_sys::AbstractMatrix{<:Number},
         denv::Int,
     )
-        # Joint state is `kron(ρ_sys, ρ_env)`; system factor is the second tensor in kron.
+        # Split-schedule joint states use `kron(ρ_env, ρ_sys)`; system is the second factor.
         U_joint = kron(Matrix{ComplexF64}(I, denv, denv), ComplexF64.(U_sys))
         return U_joint * rho_joint * U_joint'
     end

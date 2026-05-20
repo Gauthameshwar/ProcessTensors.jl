@@ -3,7 +3,7 @@
 import ITensors: op, apply, exp, ops, ITensor, replaceind
 import ITensors: exp as itensor_exp
 import ITensors.Ops: Exact, Trotter, Prod, Sum
-import ITensorMPS: OpSum
+import ITensorMPS: OpSum, apply as mps_apply
 
 # --------------------- Gate Construction ---------------------
 
@@ -27,8 +27,50 @@ function _build_trotter_gates(os::OpSum, sites::AbstractVector{<:Index}, dt::Num
     return collect(ITensor, only(gate_prod.args))
 end
 
-"""Compose Trotter gates into a single propagation ITensor on Liouville sites."""
+"""Build a single-site Liouville basis MPS with `vec(ρ) = e_{flat_idx}`."""
+function _liouville_basis_mps(s::Index, flat_idx::Int)
+    d2 = dim(s)
+    d = isqrt(d2)
+    phys = _phys_site_from_liouv(s)
+    M = zeros(ComplexF64, d, d)
+    i = ((flat_idx - 1) % d) + 1
+    j = div(flat_idx - 1, d) + 1
+    M[i, j] = 1.0
+    ρ_h = MPO{Hilbert}(CoreMPO([ITensor(M, prime(phys), phys)]))
+    return to_liouville(ρ_h; sites=Index[s])
+end
+
+"""
+Compose Trotter gates into a single propagation ITensor on Liouville sites.
+
+Uses sequential `apply(gates, ψ)` (same as TEBD) for single-site maps so trace
+preservation matches the TEBD path. Multi-site maps fall back to explicit gate
+contraction (only used when gate support is site-local).
+"""
 function _compose_gates_to_map(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
+    if length(base_sites) == 1
+        return _compose_gates_to_map_single_site(gates, only(base_sites))
+    end
+    return _compose_gates_to_map_contract(gates, base_sites)
+end
+
+"""Compose columns of the single-site Liouville superoperator via TEBD `apply`."""
+function _compose_gates_to_map_single_site(gates::AbstractVector{<:ITensor}, s::Index)
+    d2 = dim(s)
+    bras = [_liouville_basis_mps(s, i) for i in 1:d2]
+    map_mat = zeros(ComplexF64, d2, d2)
+    for j in 1:d2
+        ψ_out = mps_apply(gates, bras[j]; maxdim=typemax(Int), cutoff=0.0)
+        for i in 1:d2
+            map_mat[i, j] = inner(bras[i], ψ_out)
+        end
+    end
+    map_t = ITensor(map_mat, s, prime(s))
+    return map_t, Index[prime(s)]
+end
+
+"""Legacy gate contraction for multi-site maps (site-local Trotter gates only)."""
+function _compose_gates_to_map_contract(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
     curr_out = Dict{Index,Index}(s => prime(s) for s in base_sites)
     map_t = ITensor(1.0)
     for s in base_sites

@@ -52,6 +52,7 @@ include(joinpath(@__DIR__, "process_tensor", "test_evaluate_process.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_causality.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ed_tfi_vs_dense.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ed_multimode_spin.jl"))
+include(joinpath(@__DIR__, "process_tensor", "test_multitime_correlation.jl"))
 
 # Environments test sets
 include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))

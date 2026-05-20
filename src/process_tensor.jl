@@ -75,24 +75,31 @@ function generate_pt_legs(site::Index, k::Int)
     return prime(output_site), output_site
 end
 
-# Internal prime level for the system propagator fused into the core
+# Internal prime level for the system propagator fused into a core.
 const _INTERNAL_PLEV = 2
 
-# Function to fuse the system propagator at a specific timestep into the core
-function _fuse_embedded_sysprop_into_core(
-    core::ITensor,
+"""One-step embedded system Liouville map on PT legs `(in_k, out_k)`."""
+function _system_propagation_pt_core(
     system::AbstractSystem,
-    in_curr::Index,
-    out_prev::Index,
-    step::Int,
+    in_k::Index,
+    out_k::Index,
     dt::Real;
     order::Int=2,
 )
-    internal_out = prime(out_prev, _INTERNAL_PLEV)
-    prop = instrument_itensor(SystemPropagation(system), Index[in_curr], Index[out_prev], step; dt=dt, order=order)
-    prop = replaceind(prop, out_prev, internal_out)
-    fused = core * prop
-    return replaceind(fused, internal_out, out_prev)
+    liouv_os = OpSum_Liouville(system.H, system.jump_ops)
+    gates = _build_trotter_gates(liouv_os, system.sites, dt; order=order)
+    U, _ = _compose_gates_to_map(gates, system.sites)
+    gate_site = only(system.sites)
+    return replaceind(replaceind(U, prime(gate_site), in_k), gate_site, out_k)
+end
+
+function _require_embedded_propagation!(pt::ProcessTensor, caller::AbstractString)
+    pt.embed_system_propagation && return
+    @warn "$caller requires embed_system_propagation=true; lazy instrument evaluation is disabled for this ProcessTensor."
+    throw(ArgumentError(
+        "$caller: this ProcessTensor was built with embed_system_propagation=false. " *
+        "Use manual instrument_itensor construction and ITensor contraction instead.",
+    ))
 end
 
 """Build a trivial process tensor for a single site system, i.e. a sequence of identity operators on the input and output legs.
@@ -114,20 +121,12 @@ function _build_trivial_pt_cores(
         in_k, out_k = generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)
-        push!(cores, delta(in_k, out_k))
-    end
-    # Embed the system propagator into the cores if needed
-    if embed_system_propagation
-        for step in 1:(nsteps - 1)
-            cores[step + 1] = _fuse_embedded_sysprop_into_core(
-                cores[step + 1],
-                system,
-                inputs[step + 1],
-                outputs[step],
-                step,
-                dt;
-                order=order,
-            )
+        if embed_system_propagation
+            push!(cores, _system_propagation_pt_core(system, in_k, out_k, dt; order=order))
+        else
+            d = dim(in_k)
+            identity_mat = Matrix{Float64}(I, d, d)
+            push!(cores, ITensor(identity_mat, in_k, out_k))
         end
     end
     return cores
@@ -197,19 +196,19 @@ function _build_bathmode_pt_cores(
         push!(cores, core_k)
     end
     if embed_system_propagation
-        for step in 1:(nsteps - 1)
-            cores[step + 1] = _fuse_embedded_sysprop_into_core(
-                cores[step + 1],
-                system,
-                inputs[step + 1],
-                outputs[step],
-                step,
-                dt;
-                order=order,
+        for k in 0:(nsteps - 1)
+            in_k = inputs[k + 1]
+            out_k = outputs[k + 1]
+            internal_out = prime(out_k, _INTERNAL_PLEV)
+            core_k = replaceind(cores[k + 1], out_k, internal_out)
+            sys_prop = replaceind(
+                _system_propagation_pt_core(system, in_k, out_k, dt; order=order),
+                in_k,
+                internal_out,
             )
+            cores[k + 1] = core_k * sys_prop
         end
     end
-
     # Contract the first and last bath links with the initial bath state and the trace out
     initial_bath_state = instrument_itensor(StatePreparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
@@ -310,16 +309,17 @@ function _build_multimode_pt_cores(
         push!(cores, core_k)
     end
     if embed_system_propagation
-        for step in 1:(nsteps - 1)
-            cores[step + 1] = _fuse_embedded_sysprop_into_core(
-                cores[step + 1],
-                system,
-                inputs[step + 1],
-                outputs[step],
-                step,
-                dt;
-                order=order,
+        for k in 0:(nsteps - 1)
+            in_k = inputs[k + 1]
+            out_k = outputs[k + 1]
+            internal_out = prime(out_k, _INTERNAL_PLEV)
+            core_k = replaceind(cores[k + 1], out_k, internal_out)
+            sys_prop = replaceind(
+                _system_propagation_pt_core(system, in_k, out_k, dt; order=order),
+                in_k,
+                internal_out,
             )
+            cores[k + 1] = core_k * sys_prop
         end
     end
 
@@ -360,9 +360,10 @@ Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` wi
 
 When `embed_system_propagation=true` (the default), single-site process tensors fuse the
 system Liouvillian map (`system.H` and `system.jump_ops`) into the PT cores. Runtime schedules
-then default to `IdentityOperation()` on the system bonds. Set `embed_system_propagation=false`
-to keep the older environment-only cores and supply `SystemPropagation(pt.system)` through the
-instrument schedule instead.
+then default to `IdentityOperation()` on the system bonds. High-level lazy APIs
+([`evaluate_process`](@ref), [`evolve`](@ref), [`two_time_correlation_seq`](@ref)) require this
+default. With `embed_system_propagation=false`, bath-only cores are built for expert manual use
+via [`instrument_itensor`](@ref) and explicit ITensor contraction only.
 """
 function build_process_tensor(
     system::AbstractSystem,
@@ -451,15 +452,14 @@ function build_process_tensor(
     )
 end
 
-_schedule_default_instr(pt::ProcessTensor) =
-    pt.embed_system_propagation ? IdentityOperation() : SystemPropagation(pt.system)
+_schedule_default_instr(::ProcessTensor) = IdentityOperation()
 
 function _validate_schedule_default(pt::ProcessTensor, default_instr::AbstractInstrument, caller::AbstractString)
     if pt.embed_system_propagation && default_instr isa SystemPropagation
         throw(
             ArgumentError(
                 "$caller: system propagation is already embedded in this ProcessTensor; " *
-                "use IdentityOperation() as the schedule default or rebuild with embed_system_propagation=false.",
+                "use IdentityOperation() as the schedule default.",
             ),
         )
     end
@@ -469,10 +469,13 @@ end
 """
     default_schedule(pt::ProcessTensor) -> InstrumentSeq
 
-Return a schedule with `IdentityOperation()` as the default when system propagation is
-embedded in `pt`, otherwise `SystemPropagation(pt.system)`.
+Return a schedule with `IdentityOperation()` as the default (system propagation is embedded in `pt`).
+Requires `pt.embed_system_propagation == true`.
 """
-default_schedule(pt::ProcessTensor) = InstrumentSeq(default=_schedule_default_instr(pt), nsteps=pt.nsteps)
+function default_schedule(pt::ProcessTensor)
+    _require_embedded_propagation!(pt, "default_schedule")
+    return InstrumentSeq(default=_schedule_default_instr(pt), nsteps=pt.nsteps)
+end
 
 """
     output_sites(pt, k) -> Vector{Index}
@@ -484,11 +487,17 @@ Valid `k`: `0:(pt.nsteps - 1)`. After a full trajectory, the reduced state attac
 function output_sites(pt::ProcessTensor, k::Int)
     0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
     core_k = pt.core[k + 1]
+    sys_legs = Index[idx for idx in inds(core_k) if !has_tag_token(idx, "Link")]
+    length(sys_legs) == 2 || throw(
+        ArgumentError(
+            "output_sites: core k=$k expected exactly 2 system legs, found $(length(sys_legs)).",
+        ),
+    )
     candidates = filter(
         idx -> plev(idx) == 0 &&
                tag_value(idx, "tstep=") == string(k) &&
                !has_tag_token(idx, "Link"),
-        inds(core_k),
+        sys_legs,
     )
     length(candidates) == 1 || throw(
         ArgumentError("output_sites: expected one output leg at tstep=$k, found $(length(candidates))."),
@@ -506,8 +515,12 @@ with **`k ∈ 0:(pt.nsteps - 1)`** (initialization attaches to **`k = 0`**, i.e.
 """
 function input_sites(pt::ProcessTensor, k::Int)
     0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
-    inn = prime(only(output_sites(pt, k)))
+    out = only(output_sites(pt, k))
+    inn = prime(out)
     plev(inn) == 1 || throw(ArgumentError("input_sites: expected plev=1 input leg, got plev=$(plev(inn))."))
+    inn in inds(pt.core[k + 1]) || throw(
+        ArgumentError("input_sites: primed input leg at tstep=$k is not present on core k=$k."),
+    )
     return Index[inn]
 end
 
@@ -640,6 +653,7 @@ function create_instruments(
     default::AbstractInstrument=_schedule_default_instr(pt),
     order::Int=2,
 )
+    _require_embedded_propagation!(pt, "create_instruments")
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
         ArgumentError("create_instruments: missing input legs for tsteps $(missing_in)."),
@@ -649,8 +663,8 @@ function create_instruments(
     )
 
     prep = resolve_instrument(seq, 0)
-    prep isa StatePreparation || throw(
-        ArgumentError("create_instruments: tstep=0 must be a StatePreparation."),
+    prep isa SingleLegInstrument || throw(
+        ArgumentError("create_instruments: tstep=0 must be a single-leg initial preparation."),
     )
 
     instruments = Vector{ITensor}(undef, pt.nsteps)
@@ -660,12 +674,8 @@ function create_instruments(
     for step in 1:(pt.nsteps - 1)
         instr = resolve_instrument(seq, step, default)
         out_prev, in_curr = coupling_times(pt, step)
-        if pt.embed_system_propagation &&
-           instr isa IdentityOperation &&
-           isempty(instr.input_pt_sites) &&
-           isempty(instr.output_pt_sites)
-            instruments[step + 1] = ITensor(1.0)
-        elseif instr isa TwoLegInstrument
+
+        if instr isa TwoLegInstrument
             instruments[step + 1] = instrument_itensor(
                 instr,
                 in_curr,
@@ -674,7 +684,7 @@ function create_instruments(
                 dt=pt.dt,
                 order=order,
             )
-        elseif instr isa ObservableMeasurement || instr isa TraceOut
+        elseif instr isa SingleLegInstrument
             if instr.leg_plev == 0
                 instruments[step + 1] = instrument_itensor(instr, out_prev, step)
             else
@@ -705,7 +715,7 @@ function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
     isempty(missing_in) || return false
     isempty(missing_out) || return false
     final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
-    return final_instr isa TraceOut || final_instr isa ObservableMeasurement
+    return final_instr isa TraceOut || final_instr isa SingleLegInstrument
 end
 
 """
@@ -731,6 +741,7 @@ function evaluate_process(
     order::Int=2,
     all_legs_contracted::Union{Nothing,Bool}=nothing,
 )
+    _require_embedded_propagation!(pt, "evaluate_process")
     _validate_schedule_default(pt, default_instr, "evaluate_process")
     _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
@@ -739,8 +750,8 @@ function evaluate_process(
     isempty(missing_out) || throw(
         ArgumentError("evaluate_process: missing output legs for tsteps $(missing_out)."),
     )
-    resolve_instrument(seq, 0) isa StatePreparation ||
-        throw(ArgumentError("evaluate_process: tstep=0 must be StatePreparation."))
+    resolve_instrument(seq, 0) isa SingleLegInstrument ||
+        throw(ArgumentError("evaluate_process: tstep=0 must be a single-leg initial preparation."))
 
     open_keep_k = _open_output_keep_k(seq, pt.nsteps, default_instr)
     instruments = create_instruments(pt, seq; default=default_instr, order=order)
@@ -760,8 +771,8 @@ function evaluate_process(
         end
     end
 
-    final_instr = resolve_instrument(seq, pt.nsteps, default_instr)
-    if final_instr isa TraceOut || final_instr isa ObservableMeasurement
+    final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
+    if final_instr isa TraceOut || final_instr isa SingleLegInstrument
         out_prev, _ = coupling_times(pt, pt.nsteps)
         result *= instrument_itensor(final_instr, out_prev, pt.nsteps - 1)
     end
@@ -839,10 +850,9 @@ end
 """
     evolve(pt, seq; default_instr=_schedule_default_instr(pt), order=2)
 
-Return reduced system snapshots from a process tensor. If `pt.embed_system_propagation`
-is true, the default schedule connector is `IdentityOperation()` because the system
-Liouvillian map is already fused into the PT cores; otherwise it is
-`SystemPropagation(pt.system)`.
+Return reduced system snapshots from a process tensor. Requires `pt.embed_system_propagation == true`;
+the default schedule connector is `IdentityOperation()` because the system Liouvillian map is
+fused into the PT cores.
 """
 function evolve(
     pt::ProcessTensor,
@@ -851,6 +861,7 @@ function evolve(
     order::Int=2,
     kwargs...
 )
+    _require_embedded_propagation!(pt, "evolve")
     _validate_schedule_default(pt, default_instr, "evolve")
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
@@ -868,8 +879,8 @@ function evolve(
     states_hilbert = Vector{MPO{Hilbert}}(undef, pt.nsteps)
     times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
 
-    resolve_instrument(seq, 0) isa StatePreparation ||
-        throw(ArgumentError("evolve: tstep=0 must be StatePreparation."))
+    resolve_instrument(seq, 0) isa SingleLegInstrument ||
+        throw(ArgumentError("evolve: tstep=0 must be a single-leg initial preparation."))
 
     prev_pt_core = pt.core[1] * instruments[1]
 
@@ -912,4 +923,127 @@ function evolve(
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
     add!(seq, StatePreparation(rho0), 0)
     return evolve(pt, seq; default_instr=default_instr)
+end
+
+# =========================================================================
+# Two-time correlator instrument schedules
+# =========================================================================
+
+"""
+    two_time_correlation_seq(pt, (O_A, n_A), (O_B, n_B); rho0, default_instr)
+
+Build an [`InstrumentSeq`](@ref) that contracts with [`evaluate_process`](@ref) to the
+two-time correlator ``\\langle A(t_A)\\, B(t_B)\\rangle`` (first tuple is ``A`` at ``t_A``,
+second is ``B`` at ``t_B``).
+
+**Time indices:** ``n`` labels the system snapshot after ``n`` split evolution steps,
+``t = n\\,\\Delta t`` with [`ProcessTensor`](@ref) `pt.dt`. An operator at time ``n`` is
+placed on evolve slot ``n + 1`` (except ``n = 0`` preparation at `tstep = 0`).
+
+**Superoperators** (Liouville legs):
+
+- Left: ``\\mathcal{L}_O[\\rho] = O\\rho`` — [`ObservableMeasurement`](@ref) on the output leg.
+- Right: ``\\mathcal{R}_O[\\rho] = \\rho O`` — [`ObservableMeasurement`](@ref) with `leg_plev = 1`.
+
+Let ``n_{\\mathrm{late}} = \\max(n_A, n_B)``, ``n_{\\mathrm{early}} = \\min(n_A, n_B)``.
+
+| Case | Formula |
+|------|---------|
+| ``n_A > n_B`` | ``\\mathrm{Tr}[A\\,\\mathcal{U}_{n_B \\to n_A}\\,\\mathcal{L}_B\\,\\mathcal{U}_{0 \\to n_B}\\,\\rho(0)]`` |
+| ``n_A < n_B`` | ``\\mathrm{Tr}[B\\,\\mathcal{U}_{n_A \\to n_B}\\,\\mathcal{R}_A\\,\\mathcal{U}_{0 \\to n_A}\\,\\rho(0)]`` |
+| ``n_A = n_B`` | ``\\mathrm{Tr}[A\\,B\\,\\rho(t)]`` at ``t = n_A\\Delta t`` (composed terminal measurement or interior ``\\mathcal{L}_{AB}``) |
+
+**PT horizon:** requires ``n_{\\mathrm{late}} + 1 \\le \\texttt{pt.nsteps}``. Operators at
+interior time slices are represented by two-leg left/right action instruments that consume the
+previous output and current input legs. Only an operator acting on the terminal output leg is
+represented by a single-leg [`ObservableMeasurement`](@ref). Post-``t_{\\mathrm{late}}`` cores
+are contracted with [`IdentityOperation`](@ref) and a terminal [`TraceOut`](@ref).
+
+`rho0` is the system state at ``t = 0`` as `MPO`/`MPS` in Hilbert space. When
+``n_{\\mathrm{early}} = 0``, the early operator is folded into a composed [`StatePreparation`](@ref)
+at `tstep = 0`; otherwise `rho0` is prepared at `tstep = 0` and the early operator is inserted
+on the input leg at its evolve slot.
+
+Requires `pt.embed_system_propagation == true`.
+"""
+function two_time_correlation_seq(
+    pt::ProcessTensor,
+    op_a::Tuple{OpSum, Int},
+    op_b::Tuple{OpSum, Int};
+    rho0::Union{AbstractMPO{Hilbert}, AbstractMPS{Hilbert}},
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+)
+    _require_embedded_propagation!(pt, "two_time_correlation_seq")
+    O_A, n_A = op_a
+    O_B, n_B = op_b
+    n_A >= 0 || throw(ArgumentError("two_time_correlation_seq: time index n_A must be ≥ 0; got $n_A."))
+    n_B >= 0 || throw(ArgumentError("two_time_correlation_seq: time index n_B must be ≥ 0; got $n_B."))
+    n_late = max(n_A, n_B)
+    n_late + 1 <= pt.nsteps || throw(
+        ArgumentError(
+            "two_time_correlation_seq: max(n_A, n_B) + 1 = $(n_late + 1) exceeds pt.nsteps=$(pt.nsteps).",
+        ),
+    )
+
+    phys_sites = if rho0 isa AbstractMPO{Hilbert}
+        Index[
+            only(filter(i -> plev(i) == 0, inds(rho0.core[j])))
+            for j in eachindex(rho0.core)
+        ]
+    else
+        siteinds(rho0)
+    end
+    n_early = min(n_A, n_B)
+    slot_late = n_late + 1
+    terminal_late = slot_late == pt.nsteps
+
+    seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
+
+    if n_A == n_B
+        add!(seq, StatePreparation(rho0), 0)
+        # Terminal single-leg and interior left_action compose observables in opposite order;
+        # B*A factors → Tr(A B ρ) via left_action, A*B factors → Tr(A B ρ) on the terminal leg.
+        same_time = terminal_late ?
+                    ObservableMeasurement(O_A) * ObservableMeasurement(O_B) :
+                    ObservableMeasurement(O_B) * ObservableMeasurement(O_A)
+        if terminal_late
+            add!(seq, same_time, pt.nsteps)
+        else
+            add!(seq, left_action(same_time, phys_sites), slot_late)
+            for step in (slot_late + 1):(pt.nsteps - 1)
+                add!(seq, IdentityOperation(), step)
+            end
+            add!(seq, TraceOut(), pt.nsteps)
+        end
+    else
+        if n_A > n_B
+            O_early, O_late, early_side = O_B, O_A, :left
+        else
+            O_early, O_late, early_side = O_A, O_B, :right
+        end
+
+        if n_early == 0
+            prep = early_side === :left ?
+                   ObservableMeasurement(O_early; leg_plev=1) * StatePreparation(rho0) :
+                   StatePreparation(rho0) * ObservableMeasurement(O_early; leg_plev=1)
+            add!(seq, prep, 0)
+        else
+            add!(seq, StatePreparation(rho0), 0)
+            early_slot = n_early + 1
+            early_lr = early_side === :left ? left_action(O_early, phys_sites) : right_action(O_early, phys_sites)
+            add!(seq, early_lr, early_slot)
+        end
+
+        if terminal_late
+            add!(seq, ObservableMeasurement(O_late), pt.nsteps)
+        else
+            add!(seq, left_action(O_late, phys_sites), slot_late)
+            for step in (slot_late + 1):(pt.nsteps - 1)
+                add!(seq, IdentityOperation(), step)
+            end
+            add!(seq, TraceOut(), pt.nsteps)
+        end
+    end
+
+    return seq
 end

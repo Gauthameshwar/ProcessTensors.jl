@@ -370,6 +370,61 @@ end
     @test hasind(T_bound, in1) && hasind(T_bound, out0)
 end
 
+@testset "Instruments.jl: ProductInstrument" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    op_z = OpSum()
+    op_z += 1.0, "Sz", 1
+    obs_z = ObservableMeasurement(op_z)
+    trace_in = TraceOut(; leg_plev=1)
+
+    prod1 = obs_z * trace_in
+    prod2 = trace_in * obs_z
+    @test prod1 isa ProductInstrument
+    @test prod2 isa ProductInstrument
+    @test prod1.input_instr === trace_in
+    @test prod1.output_instr === obs_z
+    @test prod2 == prod1
+
+    @test_throws ArgumentError obs_z * obs_z
+    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
+    @test_throws ArgumentError prep * trace_in
+
+    @test occursin("*", sprint(show, prod1))
+
+    in1 = prime(L[1])
+    out0 = L[1]
+    T_prod = instrument_itensor(prod1, [in1], [out0], 1)
+    T_ref = instrument_itensor(trace_in, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
+    @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)
+
+    iddef = IdentityOperation()
+    seq = InstrumentSeq(iddef, 3)
+    add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, prod1, 1)
+    add!(seq, TraceOut(), 3)
+    _, _, missing_in, missing_out = instrument_leg_maps(seq, 3)
+    @test isempty(missing_in)
+    @test isempty(missing_out)
+
+    system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+    pt = build_process_tensor(
+        system;
+        dt=0.05,
+        nsteps=3,
+        embed_system_propagation=false,
+    )
+    default = SystemPropagation(system)
+    rho0_h = to_dm(MPS(s, ["Up"]))
+    seq_eval = InstrumentSeq(default=default, nsteps=pt.nsteps)
+    add!(seq_eval, StatePreparation(rho0_h), 0)
+    add!(seq_eval, ObservableMeasurement(op_z) * TraceOut(; leg_plev=1), 1)
+    add!(seq_eval, TraceOut(), pt.nsteps)
+    val = evaluate_process(pt, seq_eval; default_instr=default)
+    @test val isa ComplexF64
+    @test isfinite(val)
+end
+
 struct InstrumentsTestDummy <: AbstractInstrument end
 
 @testset "Instruments.jl: instrument_itensor — unknown AbstractInstrument" begin

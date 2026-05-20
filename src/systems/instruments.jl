@@ -3,15 +3,17 @@ module Instruments
 import ..ProcessTensors
 import ..ProcessTensors: add!
 using ITensors
+using LinearAlgebra
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
-                        OpSum, OpSum_Liouville, Index, ITensor, dim, plev, prime,
-                        replaceind, siteinds, tag_value, to_dm, to_hilbert, to_liouville,
-                        _phys_site_from_liouv, _build_trotter_gates, _compose_gates_to_map
+                        OpSum, OpSum_Liouville, Index, ITensor, apply, dim, plev, prime,
+                        replaceind, siteinds, tag_value, to_dm, to_liouville,
+                        _phys_site_from_liouv, _build_trotter_gates, _compose_gates_to_map, _superop_matrix, _LiouvLeft, _LiouvRight
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation, OpenOutput, resolve_instrument,
-       InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+       IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+       LeftRightOperator, left_action, right_action, 
+       resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 abstract type AbstractInstrument end
 abstract type SingleLegInstrument <: AbstractInstrument end
@@ -21,11 +23,13 @@ abstract type TwoLegInstrument <: AbstractInstrument end
 const _INPUT_PLEV = 1
 const _OUTPUT_PLEV = 0
 
+# Validate the prime level of a leg. It should be either 0 or 1
 _assert_valid_leg_plev(leg_plev::Int) =
     leg_plev in (_INPUT_PLEV, _OUTPUT_PLEV) || throw(
         ArgumentError("Instrument leg prime level must be 0 (output) or 1 (input); got $leg_plev."),
     )
 
+# Validate the single-leg instrument has exactly one site and that it has the correct prime level
 function _validate_single_leg_sites(
     instr_name::AbstractString,
     pt_sites::AbstractVector{<:Index},
@@ -41,11 +45,13 @@ function _validate_single_leg_sites(
     return nothing
 end
 
+# Get the tstep from a site.
 _tstep_from_site(s::Index) = begin
     tstep_str = tag_value(s, "tstep=")
     return tstep_str === nothing ? nothing : parse(Int, tstep_str)
 end
 
+# Validate the two-leg instrument has exactly one input and one output site and that they have the correct prime levels
 function _validate_two_leg_map(
     instr_name::AbstractString,
     input_pt_sites::AbstractVector{<:Index},
@@ -114,6 +120,103 @@ function ObservableMeasurement(
     pt_sites_vec = Index[pt_sites...]
     isempty(pt_sites_vec) || _validate_single_leg_sites("ObservableMeasurement", pt_sites_vec, leg_plev)
     return ObservableMeasurement(op, pt_sites_vec, leg_plev)
+end
+
+struct _ComposedSingleLegInstrument{F<:Tuple} <: SingleLegInstrument
+    factors::F
+    pt_sites::Vector{Index}
+    leg_plev::Int
+end
+
+"""
+    LeftRightOperator(A, B)
+
+Two-leg instrument implementing ``\\rho \\mapsto A\\,\\rho\\,B`` on the system Hilbert factor,
+equivalently ``\\mathrm{vec}(\\rho) \\mapsto (B^{\\mathsf T} \\otimes A)\\,\\mathrm{vec}(\\rho)`` on
+the Liouville leg. Both arguments are `MPO{Hilbert}` on the same physical sites.
+
+Use [`left_action`](@ref) / [`right_action`](@ref) for the common cases ``O\\rho`` and ``\\rho O``.
+"""
+struct LeftRightOperator{A<:AbstractMPO{Hilbert},B<:AbstractMPO{Hilbert}} <: TwoLegInstrument
+    left::A
+    right::B
+    input_pt_sites::Vector{Index}
+    output_pt_sites::Vector{Index}
+end
+
+function LeftRightOperator(
+    left::AbstractMPO{Hilbert},
+    right::AbstractMPO{Hilbert},
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    left_sites = _phys_sites_from_hilbert_mpo(left)
+    right_sites = _phys_sites_from_hilbert_mpo(right)
+    left_sites == right_sites || throw(
+        ArgumentError("LeftRightOperator: left and right MPOs must share the same siteinds."),
+    )
+    input_vec = Index[input_pt_sites...]
+    output_vec = Index[output_pt_sites...]
+    if !isempty(input_vec) || !isempty(output_vec)
+        _validate_two_leg_map("LeftRightOperator", input_vec, output_vec)
+    end
+    return LeftRightOperator(left, right, input_vec, output_vec)
+end
+
+function _identity_hilbert_mpo(phys_sites::AbstractVector{<:Index})
+    os = OpSum()
+    for j in eachindex(phys_sites)
+        os += 1.0, "Id", j
+    end
+    return MPO(os, phys_sites)
+end
+
+function _fold_observable_factors(factors, phys_sites::AbstractVector{<:Index})
+    op_acc = nothing
+    for f in factors
+        f isa ObservableMeasurement || continue
+        O_mpo = MPO(f.op, phys_sites)
+        op_acc = op_acc === nothing ? O_mpo : apply(O_mpo, op_acc)
+    end
+    op_acc === nothing && throw(ArgumentError("Composed instrument has no ObservableMeasurement factors."))
+    return op_acc
+end
+
+function _composed_observable_mpo(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
+    return _fold_observable_factors(composed.factors, phys_sites)
+end
+
+function _phys_sites_from_hilbert_mpo(mpo::AbstractMPO{Hilbert})
+    return Index[
+        only(filter(i -> plev(i) == _OUTPUT_PLEV, inds(mpo.core[j])))
+        for j in eachindex(mpo.core)
+    ]
+end
+
+"""``\\rho \\mapsto A\\rho`` (identity on the right)."""
+function left_action(A::AbstractMPO{Hilbert})
+    return LeftRightOperator(A, _identity_hilbert_mpo(_phys_sites_from_hilbert_mpo(A)))
+end
+
+function left_action(O::OpSum, phys_sites::AbstractVector{<:Index})
+    return left_action(MPO(O, phys_sites))
+end
+
+function left_action(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
+    return left_action(_composed_observable_mpo(composed, phys_sites))
+end
+
+"""``\\rho \\mapsto \\rho B`` (identity on the left)."""
+function right_action(B::AbstractMPO{Hilbert})
+    return LeftRightOperator(_identity_hilbert_mpo(_phys_sites_from_hilbert_mpo(B)), B)
+end
+
+function right_action(O::OpSum, phys_sites::AbstractVector{<:Index})
+    return right_action(MPO(O, phys_sites))
+end
+
+function right_action(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
+    return right_action(_composed_observable_mpo(composed, phys_sites))
 end
 
 struct TraceOut <: SingleLegInstrument
@@ -185,6 +288,73 @@ function OpenOutput(
     return OpenOutput(input_vec, output_vec)
 end
 OpenOutput() = OpenOutput(Index[], Index[])
+
+"""
+    ProductInstrument
+
+Two-leg instrument at one evolve slot: an output-leg factor (`plev = 0`, time `step - 1`)
+and an input-leg factor (`plev = 1`, time `step`). Construct via `output_factor * input_factor`
+(order-independent for single-leg factors).
+"""
+struct ProductInstrument{I<:SingleLegInstrument,O<:SingleLegInstrument} <: TwoLegInstrument
+    input_instr::I
+    output_instr::O
+end
+
+function Base.show(io::IO, instr::ProductInstrument)
+    print(io, instr.output_instr, " * ", instr.input_instr)
+end
+
+function Base.:(*)(a::SingleLegInstrument, b::SingleLegInstrument)
+    if a.leg_plev == _OUTPUT_PLEV && b.leg_plev == _INPUT_PLEV
+        (a isa StatePreparation || b isa StatePreparation) && throw(
+            ArgumentError("Cannot multiply StatePreparation into a ProductInstrument."),
+        )
+        return ProductInstrument(b, a)
+    elseif a.leg_plev == _INPUT_PLEV && b.leg_plev == _OUTPUT_PLEV
+        (a isa StatePreparation || b isa StatePreparation) && throw(
+            ArgumentError("Cannot multiply StatePreparation into a ProductInstrument."),
+        )
+        return ProductInstrument(a, b)
+    elseif a.leg_plev == b.leg_plev
+        _is_a_valid_product_instrument(a::SingleLegInstrument) = a isa ObservableMeasurement || a isa StatePreparation || a isa _ComposedSingleLegInstrument
+
+        # Proceed only if both factors are valid product instruments
+        (_is_a_valid_product_instrument(a) && _is_a_valid_product_instrument(b)) || throw(
+            ArgumentError("Same-leg instrument products only support ObservableMeasurement and StatePreparation factors."),
+        )
+
+        factors = (
+            (a isa _ComposedSingleLegInstrument ? a.factors : (a,))...,
+            (b isa _ComposedSingleLegInstrument ? b.factors : (b,))...,
+        )
+        # Check to ensure we don't have multiple state preparations
+        nprep = count(f -> f isa StatePreparation, factors)
+        nprep <= 1 || throw(ArgumentError("Same-leg instrument products support at most one StatePreparation."))
+        if nprep == 1 && !(first(factors) isa StatePreparation || last(factors) isa StatePreparation)
+            throw(ArgumentError("StatePreparation must be the first or final factor in a same-leg instrument product."))
+        end
+
+        a_sites = a.pt_sites
+        b_sites = b.pt_sites
+        pt_sites = if isempty(a_sites)
+            Index[b_sites...]
+        elseif isempty(b_sites)
+            Index[a_sites...]
+        elseif a_sites == b_sites
+            Index[a_sites...]
+        else
+            throw(ArgumentError("Same-leg instrument products require matching pt_sites when both factors are bound."))
+        end
+        return _ComposedSingleLegInstrument(factors, pt_sites, a.leg_plev)
+    end
+    throw(
+        ArgumentError(
+            "Product of single-leg instruments requires one output (plev=0) and one input " *
+            "(plev=1); got plev=($(a.leg_plev), $(b.leg_plev)).",
+        ),
+    )
+end
 
 # =========================================================================
 # InstrumentSeq — unified schedule (default + per-tstep entries + bounds)
@@ -259,7 +429,9 @@ Constraints:
 """
 function add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int)
     tstep >= 0 || throw(ArgumentError("add!: tstep must be ≥ 0; got $tstep."))
-    if tstep == 0 && !(instr isa StatePreparation)
+    valid_init = instr isa StatePreparation ||
+                 (instr isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, instr.factors))
+    if tstep == 0 && !valid_init
         throw(
             ArgumentError(
                 "add!: Only StatePreparation may be placed at tstep=0 (initial condition). Got $(typeof(instr)).",
@@ -318,7 +490,9 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
             if tout <= nsteps - 2
                 out_map[tout] = instr
             end
-        elseif instr isa ObservableMeasurement || instr isa TraceOut
+        elseif instr isa ObservableMeasurement ||
+               instr isa _ComposedSingleLegInstrument ||
+               instr isa TraceOut
             if instr.leg_plev == _OUTPUT_PLEV
                 tout = step - 1
                 if tout <= nsteps - 2
@@ -340,7 +514,9 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
 
     prep = resolve_instrument(seq, 0)
     if prep !== nothing
-        prep isa StatePreparation || throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
+        prep isa StatePreparation ||
+            (prep isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, prep.factors)) ||
+            throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
         in_map[0] = prep
     end
 
@@ -430,6 +606,153 @@ function instrument_itensor(
 end
 
 function instrument_itensor(
+    instr::_ComposedSingleLegInstrument,
+    pt_sites_arg::AbstractVector{<:Index},
+    k::Int;
+    kwargs...,
+)
+    sites = isempty(instr.pt_sites) ? Index[pt_sites_arg...] : instr.pt_sites
+    _validate_single_leg_sites("_ComposedSingleLegInstrument", sites, instr.leg_plev)
+    all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
+        ArgumentError("_ComposedSingleLegInstrument: all pt_sites must have tstep=$k when tagged."),
+    )
+    ρ = nothing
+    for f in instr.factors
+        if f isa StatePreparation
+            ρ = if f.state isa AbstractMPO{Hilbert}
+                f.state
+            elseif f.state isa AbstractMPS{Hilbert}
+                to_dm(f.state)
+            else
+                throw(ArgumentError("_ComposedSingleLegInstrument: StatePreparation state must be Hilbert MPS or MPO."))
+            end
+        end
+    end
+    phys_sites = ρ === nothing ?
+                 Index[_phys_site_from_liouv(s) for s in sites] :
+                 _phys_sites_from_hilbert_mpo(ρ)
+    has_obs = any(f -> f isa ObservableMeasurement, instr.factors)
+    op_acc = has_obs ? _fold_observable_factors(instr.factors, phys_sites) : nothing
+    prep_first = any(f -> f isa StatePreparation, instr.factors) && first(instr.factors) isa StatePreparation
+    hilbert_mpo = if ρ === nothing
+        op_acc
+    elseif op_acc === nothing
+        ρ
+    elseif prep_first
+        apply(ρ, op_acc)
+    else
+        apply(op_acc, ρ)
+    end
+    hilbert_mpo === nothing && throw(ArgumentError("_ComposedSingleLegInstrument: no factors to build."))
+    state_l = to_liouville(hilbert_mpo; sites=sites)
+    return _reindex_itensor(_mps_to_itensor(state_l), siteinds(state_l), sites)
+end
+
+# function _left_right_superop_itensor(
+#     left::AbstractMPO{Hilbert},
+#     right::AbstractMPO{Hilbert},
+#     out_liouv::Index,
+# )
+#     phys_sites = _phys_sites_from_hilbert_mpo(left)
+#     _phys_sites_from_hilbert_mpo(right) == phys_sites || throw(
+#         ArgumentError("LeftRightOperator: left and right MPOs must share physical sites."),
+#     )
+#     T_A = _mpo_to_itensor(left)
+#     T_B = _mpo_to_itensor(right)
+#     d = prod(dim.(phys_sites))
+#     A_mat = reshape(ComplexF64.(Array(T_A, prime.(phys_sites)..., phys_sites...)), d, d)
+#     B_mat = reshape(ComplexF64.(Array(T_B, prime.(phys_sites)..., phys_sites...)), d, d)
+#     W = kron(transpose(B_mat), A_mat)
+#     return ITensor(reshape(W, d^2, d^2), prime(out_liouv), out_liouv)
+# end
+
+# function instrument_itensor(
+#     instr::LeftRightOperator,
+#     input_pt_sites::AbstractVector{<:Index},
+#     output_pt_sites::AbstractVector{<:Index},
+#     k::Int;
+#     kwargs...,
+# )
+#     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
+#     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
+#     _validate_two_leg_map("LeftRightOperator", in_sites, out_sites)
+#     all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
+#         ArgumentError("LeftRightOperator: all input_pt_sites must have tstep=$k when tagged."),
+#     )
+#     all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
+#         ArgumentError("LeftRightOperator: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+#     )
+#     inp = only(in_sites)
+#     out = only(out_sites)
+    
+#     # Inline the superoperator construction with BOTH indices
+#     phys_sites = _phys_sites_from_hilbert_mpo(instr.left)
+#     _phys_sites_from_hilbert_mpo(instr.right) == phys_sites || throw(
+#         ArgumentError("LeftRightOperator: left and right MPOs must share physical 
+#                     sites."),
+#                         )
+
+#     # Convert operators to ITensors
+#     T_A = _mpo_to_itensor(instr.left)
+#     T_B = _mpo_to_itensor(instr.right)
+#     d = prod(dim.(phys_sites))
+
+#     # Extract matrices
+#     A_mat = reshape(ComplexF64.(Array(T_A, prime.(phys_sites)..., phys_sites...)), d, d)
+#     B_mat = reshape(ComplexF64.(Array(T_B, prime.(phys_sites)..., phys_sites...)), d, d)
+
+#     # Construct Liouville superoperator: kron(B^T, A)
+#     W = kron(transpose(B_mat), A_mat)
+
+#     # Return with BOTH inp and out indices properly bound
+#     return ITensor(reshape(W, d^2, d^2), inp, out)
+
+# end
+
+function instrument_itensor(
+    instr::LeftRightOperator,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    k::Int;
+    kwargs...,
+)
+    in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] :
+instr.input_pt_sites
+    out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] :
+instr.output_pt_sites
+    _validate_two_leg_map("LeftRightOperator", in_sites, out_sites)
+
+    inp = only(in_sites)
+    out = only(out_sites)
+
+    # Extract physical sites and convert MPOs to matrices
+    phys_sites = _phys_sites_from_hilbert_mpo(instr.left)
+    _phys_sites_from_hilbert_mpo(instr.right) == phys_sites || throw(
+        ArgumentError("LeftRightOperator: left and right MPOs must share physical 
+sites."),
+    )
+
+    T_A = _mpo_to_itensor(instr.left)
+    T_B = _mpo_to_itensor(instr.right)
+    d = prod(dim.(phys_sites))
+
+    # Extract as matrices
+    A_mat = reshape(ComplexF64.(Array(T_A, prime.(phys_sites)..., phys_sites...)), d, d)
+    B_mat = reshape(ComplexF64.(Array(T_B, prime.(phys_sites)..., phys_sites...)), d, d)
+
+    # Use existing _superop_matrix helpers to build Liouville embeddings
+    Id = Matrix{ComplexF64}(I, d, d)
+    left_superop = _superop_matrix(_LiouvLeft(), A_mat, Id)    # I ⊗ A
+    right_superop = _superop_matrix(_LiouvRight(), B_mat, Id)  # B^T ⊗ I
+
+    # Compose superoperators: (B^T ⊗ I) * (I ⊗ A) = B^T ⊗ A
+    W = right_superop * left_superop
+
+    # Return ITensor with BOTH indices properly bound
+    return ITensor(reshape(W, d^2, d^2), inp, out)
+end
+
+function instrument_itensor(
     instr::ObservableMeasurement,
     pt_sites_arg::AbstractVector{<:Index},
     k::Int;
@@ -458,6 +781,18 @@ function instrument_itensor(
         ArgumentError("TraceOut: all pt_sites must have tstep=$k when tagged."),
     )
     return _vectorized_identity_itensor(sites)
+end
+
+function instrument_itensor(
+    instr::ProductInstrument,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    k::Int;
+    kwargs...,
+)
+    T_out = instrument_itensor(instr.output_instr, output_pt_sites, k - 1; kwargs...)
+    T_in = instrument_itensor(instr.input_instr, input_pt_sites, k; kwargs...)
+    return T_in * T_out
 end
 
 function instrument_itensor(
@@ -528,9 +863,24 @@ function instrument_itensor(
         end
         return id_map
     end
-    gates = _build_trotter_gates(liouv_os, out_sites, dt; order=order)
-    U_t, final_out = _compose_gates_to_map(gates, out_sites)
-    return _reindex_itensor(U_t, final_out, in_sites)
+    # Trotter gates must be built on canonical system Liouville sites (with `Site` tag).
+    # PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
+    gate_sites = Index[instr.system.sites...]
+    length(gate_sites) == length(out_sites) || throw(
+        ArgumentError(
+            "SystemPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
+        ),
+    )
+    gates = _build_trotter_gates(liouv_os, gate_sites, dt; order=order)
+    U_t, final_out = _compose_gates_to_map(gates, gate_sites)
+    U_pt = U_t
+    for (gate_out, pt_out) in zip(final_out, out_sites)
+        U_pt = replaceind(U_pt, gate_out, pt_out)
+    end
+    for (g, pt_out) in zip(gate_sites, out_sites)
+        U_pt = replaceind(U_pt, g, pt_out)
+    end
+    return _reindex_itensor(U_pt, out_sites, in_sites)
 end
 
 function instrument_itensor(
