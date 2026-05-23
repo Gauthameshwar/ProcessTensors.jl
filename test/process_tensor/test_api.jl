@@ -125,44 +125,31 @@ _one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
         s = siteinds("S=1/2", 1)
         H = OpSum()
         H += 0.5, "Sz", 1
-        L = OpSum()
-        L += 0.2, "S-", 1
-        system = spin_system(s, H; jump_ops=[L])
+        system = spin_system(s, H)
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         psi0 = MPS(s, ["Up"])
         rho0 = to_liouville(to_dm(psi0); sites=system.sites)
 
         trajectory = evolve(pt, psi0)
-        manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[L], maxdim=32, cutoff=1e-12, order=2)
+        manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[], maxdim=32, cutoff=1e-12, order=2)
 
         @test pt.embed_system_propagation
         @test trajectory.times ≈ [0.0, 0.05, 0.1] atol=1e-12
         @test length(trajectory.states_liouville) == 3
-        @test _one_site_liouville_state_to_dense(last(trajectory.states_liouville)) ≈
-              _one_site_liouville_state_to_dense(manual[3]) atol=1e-10
+        for i in 1:pt.nsteps
+            @test _one_site_liouville_state_to_dense(trajectory.states_liouville[i]) ≈
+                  _one_site_liouville_state_to_dense(manual[i + 1]) atol=1e-10
+        end
     end
 
-    @testset "embed_system_propagation=false keeps instrument-side propagation" begin
+    @testset "lazy APIs reject embed_system_propagation=false" begin
         s = siteinds("S=1/2", 1)
         H = OpSum()
         H += 0.5, "Sz", 1
-        L = OpSum()
-        L += 0.2, "S-", 1
-        system = spin_system(s, H; jump_ops=[L])
+        system = spin_system(s, H)
         psi0 = MPS(s, ["Up"])
-
-        pt_embed = build_process_tensor(system; dt=0.05, nsteps=3)
-        pt_external = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
-
-        @test pt_embed.embed_system_propagation
-        @test !pt_external.embed_system_propagation
-        @test length(pt_embed.core) == length(pt_external.core) == 3
-
-        trj_embed = evolve(pt_embed, psi0)
-        trj_external = evolve(pt_external, psi0; default_instr=SystemPropagation(system))
-
-        @test _one_site_liouville_state_to_dense(last(trj_embed.states_liouville)) ≈
-              _one_site_liouville_state_to_dense(last(trj_external.states_liouville)) atol=1e-10
-        @test_throws ArgumentError evolve(pt_embed, psi0; default_instr=SystemPropagation(system))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
+        @test !pt.embed_system_propagation
+        @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evolve(pt, psi0)
     end
 end

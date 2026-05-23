@@ -1,3 +1,4 @@
+# Process-tensor two-time correlators ⟨A(t_A) B(t_B)⟩ vs split joint ED.
 using ProcessTensors
 using ITensors
 using Test
@@ -10,167 +11,174 @@ if !isdefined(Main, :_joint_phys_sites)
     include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
 end
 
-function _single_site_opsum(opname::AbstractString)
-    O = OpSum()
-    O += 1.0, opname, 1
-    return O
+function _assert_corr_matches(val_pt, val_ed)
+    @test val_pt isa ComplexF64
+    @test isapprox(val_pt, val_ed; atol=_PT_SPLIT_CORR_ATOL, rtol=_PT_SPLIT_CORR_RTOL)
 end
 
-function _pt_corr_AtB0(
-    pt::ProcessTensor,
-    rho_sys0_h,
-    O_A::OpSum,
-    O_B::OpSum,
-    sys_phys;
-    default_instr::AbstractInstrument,
-)
-    rho0 = hilbert_mpo_to_dense(rho_sys0_h, sys_phys)
-    B = dense_hamiltonian_matrix(O_B, sys_phys)
-    rho_B0_h = hilbert_matrix_to_mpo(B * rho0, sys_phys)
-
-    seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho_B0_h), 0)
-    add!(seq, ObservableMeasurement(O_A), pt.nsteps)
-    return evaluate_process(pt, seq; default_instr=default_instr)
-end
-
-
-"""
-``⟨A(t) B(0)⟩`` from joint ED: insert `B` at `t = 0`, evolve, then `Tr[A ρ_sys(t)]`.
-
-`evolution = :split` (default) matches the PT instrument schedule
-(`SystemPropagation` + bath slabs). `evolution = :full` uses a single
-`exp(-im * t * H_full)` built from the joint `OpSum` on `joint_sites`.
-"""
-function _ed_corr_AtB0(
-    rho_sys0_h,
-    rho_env0_h,
-    O_A::OpSum,
-    O_B::OpSum,
-    n2::Int,
-    dt::Real,
-    H_sys::OpSum,
-    H_bg::OpSum,
-    sys_phys::AbstractVector{<:Index},
-    env_phys::AbstractVector{<:Index};
-    denv::Int = dim(only(env_phys)),
-    evolution::Symbol = :split,
-)
-    rho_sys0 = hilbert_mpo_to_dense(rho_sys0_h, sys_phys)
-    rho_env0 = hilbert_mpo_to_dense(rho_env0_h, env_phys)
-    joint_sites = _joint_phys_sites(sys_phys, env_phys)
-    H_full = _build_joint_full_opsum(H_sys, H_bg)
-    _ = _joint_hamiltonian_dense(H_full, joint_sites)
-
-    rho_joint_B0 = _joint_density_B_at_0(rho_sys0, rho_env0, O_B, sys_phys)
-    t = n2 * dt
-    rho_joint_t = if evolution === :split
-        _evolve_joint_split_exact(
-            rho_joint_B0,
-            dt,
-            n2,
-            H_sys,
-            H_bg,
-            sys_phys,
-            joint_sites;
-            denv=denv,
-        )
-    elseif evolution === :full
-        _evolve_joint_full_exact(rho_joint_B0, t, H_full, joint_sites)
-    else
-        throw(ArgumentError("_ed_corr_AtB0: evolution must be :split or :full; got $evolution."))
-    end
-
-    dsys = dim(only(sys_phys))
-    A = dense_hamiltonian_matrix(O_A, sys_phys)
-    rho_sys_t = _partial_trace_env(rho_joint_t, dsys, denv)
-    return tr(A * rho_sys_t)
-end
-
-
-@testset "process tensor: multi-time correlations vs joint ED" begin
+@testset "process tensor: two_time_correlation_seq vs joint ED" begin
     sys_phys = siteinds("S=1/2", 1)
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
+    dt = 0.05
+    default_instr = IdentityOperation()
 
-    H_sys = _single_site_opsum("Sx")
+    H_sys = OpSum()
+    H_sys += 1.0, "Sx", 1
     system = spin_system(sys_phys, H_sys)
-
     rho_sys0_h = to_dm(MPS(sys_phys, ["Dn"]))
     rho_env0_h = to_dm(MPS(env_phys, ["Up"]))
     rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
-
-    H_env = _single_site_opsum("Sx")
-    coupling = OpSum() + (1.0, "Sz", 1, "Sz", 2)
-    mode = spin_mode(env_liouv, H_env, rho_env0_l; coupling=coupling)
-    bath = spin_bath([mode])
-
+    H_env = OpSum()
+    H_env += 1.0, "Sx", 1
+    coupling = OpSum()
+    coupling += 1.0, "Sz", 1, "Sz", 2
+    bath = spin_bath([spin_mode(env_liouv, H_env, rho_env0_l; coupling=coupling)])
     H_bg = OpSum()
     H_bg += 1.0, "Sx", 2
     H_bg += 1.0, "Sz", 1, "Sz", 2
 
-    dt = 0.05
-    n2 = 3
-    nsteps = n2 + 1
-    pt = build_process_tensor(
-        system,
-        system.sites[1];
-        environment=bath,
-        dt=dt,
-        nsteps=nsteps,
-        embed_system_propagation=false,
-    )
-    default_instr = SystemPropagation(system)
+    O_Sz = OpSum()
+    O_Sz += 1.0, "Sz", 1
+    O_Sx = OpSum()
+    O_Sx += 1.0, "Sx", 1
+    O_Sy = OpSum()
+    O_Sy += 1.0, "Sy", 1
 
-    cases = [
-        ("Sz(t)Sz(0)", _single_site_opsum("Sz"), _single_site_opsum("Sz")),
-        ("Sz(t)Sx(0)", _single_site_opsum("Sz"), _single_site_opsum("Sx")),
-        ("Sx(t)Sy(0)", _single_site_opsum("Sx"), _single_site_opsum("Sy")),
-    ]
-
-    for (label, O_A, O_B) in cases
-        @testset "$label" begin
-            # Correlation from the process tensor
-            val_pt = _pt_corr_AtB0(
-                pt,
-                rho_sys0_h,
-                O_A,
-                O_B,
-                sys_phys;
-                default_instr=default_instr,
-            )
-            # Correlation from the Trotterized joint ED
-            val_ed = _ed_corr_AtB0(
-                rho_sys0_h,
-                rho_env0_h,
-                O_A,
-                O_B,
-                n2,
-                dt,
-                H_sys,
-                H_bg,
-                sys_phys,
-                env_phys;
-                evolution=:split,
-            )
-            @test val_pt isa ComplexF64
-            @test isapprox(val_pt, val_ed; atol=1e-10, rtol=1e-8)
-
-            # Correlation from the exact joint ED
-            val_full = _ed_corr_AtB0(
-                rho_sys0_h,
-                rho_env0_h,
-                O_A,
-                O_B,
-                n2,
-                dt,
-                H_sys,
-                H_bg,
-                sys_phys,
-                env_phys;
-                evolution=:full,
-            )
-            @test isapprox(val_ed, val_full; atol=0.01, rtol=0.05)
+    @testset "minimal PT, t_B = 0 (n_A > n_B)" begin
+        n_late = 3
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=n_late + 1,
+            embed_system_propagation=true,
+        )
+        for (label, O_A, O_B) in [
+            ("Sz(t)Sz(0)", O_Sz, O_Sz),
+            ("Sz(t)Sx(0)", O_Sz, O_Sx),
+            ("Sx(t)Sy(0)", O_Sx, O_Sy),
+        ]
+            @testset "$label" begin
+                val_pt = evaluate_process(
+                    pt,
+                    two_time_correlation_seq(pt, (O_A, n_late), (O_B, 0);
+                        rho0=rho_sys0_h,
+                        default_instr=default_instr,
+                    ),
+                )
+                val_ed = _ed_corr_two_time(
+                    rho_sys0_h, rho_env0_h, O_A, O_B, n_late, 0,
+                    dt, H_sys, H_bg, sys_phys, env_phys,
+                )
+                _assert_corr_matches(val_pt, val_ed)
+            end
         end
+    end
+
+    @testset "minimal PT, t_B > 0 (n_A > n_B)" begin
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=4,
+            embed_system_propagation=true,
+        )
+        val_pt = evaluate_process(
+            pt,
+            two_time_correlation_seq(pt, (O_Sz, 3), (O_Sx, 1);
+                rho0=rho_sys0_h,
+                default_instr=default_instr,
+            ),
+        )
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 3, 1,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
+    end
+
+    @testset "minimal PT, reversed order (n_A < n_B)" begin
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=4,
+            embed_system_propagation=true,
+        )
+        val_pt = evaluate_process(
+            pt,
+            two_time_correlation_seq(pt, (O_Sx, 1), (O_Sz, 3);
+                rho0=rho_sys0_h,
+                default_instr=default_instr,
+            ),
+        )
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sx, O_Sz, 1, 3,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
+    end
+
+    @testset "minimal PT, same time (n_A = n_B)" begin
+        n_late = 2
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=n_late + 1,
+            embed_system_propagation=true,
+        )
+        @test pt.nsteps == n_late + 1
+        val_pt = evaluate_process(
+            pt,
+            two_time_correlation_seq(pt, (O_Sz, 2), (O_Sx, 2);
+                rho0=rho_sys0_h,
+                default_instr=default_instr,
+            ),
+        )
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 2, 2,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
+    end
+
+    @testset "extended PT (n_late interior to full horizon)" begin
+        n_late = 3
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=5,
+            embed_system_propagation=true,
+        )
+        @test pt.nsteps > n_late + 1
+
+        val_pt = evaluate_process(
+            pt,
+            two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sz, 0);
+                rho0=rho_sys0_h,
+                default_instr=default_instr,
+            ),
+        )
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sz, n_late, 0,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
+
+        val_pt = evaluate_process(
+            pt,
+            two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sx, 1);
+                rho0=rho_sys0_h,
+                default_instr=default_instr,
+            ),
+        )
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, n_late, 1,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
     end
 end

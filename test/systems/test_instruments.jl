@@ -375,7 +375,10 @@ end
     L = liouv_sites(s)
     op_z = OpSum()
     op_z += 1.0, "Sz", 1
+    op_x = OpSum()
+    op_x += 1.0, "Sx", 1
     obs_z = ObservableMeasurement(op_z)
+    obs_x = ObservableMeasurement(op_x)
     trace_in = TraceOut(; leg_plev=1)
 
     prod1 = obs_z * trace_in
@@ -386,9 +389,12 @@ end
     @test prod1.output_instr === obs_z
     @test prod2 == prod1
 
-    @test_throws ArgumentError obs_z * obs_z
+    same_leg = obs_z * obs_x
+    @test same_leg isa SingleLegInstrument
+    @test !(same_leg isa ProductInstrument)
     prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
     @test_throws ArgumentError prep * trace_in
+    @test_throws MethodError obs_z * IdentityOperation()
 
     @test occursin("*", sprint(show, prod1))
 
@@ -397,6 +403,25 @@ end
     T_prod = instrument_itensor(prod1, [in1], [out0], 1)
     T_ref = instrument_itensor(trace_in, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
     @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)
+
+    T_same = instrument_itensor(same_leg, [out0], 1)
+    obs_h = apply(MPO(op_x, s), MPO(op_z, s))
+    ref_l = to_liouville(obs_h; sites=L)
+    T_same_ref = contract_core(ref_l.core)
+    @test isapprox(norm(T_same - T_same_ref), 0.0; atol=1e-12)
+
+    lr_left = left_action(op_z, s)
+    lr_right = right_action(op_z, s)
+    T_lr_left = instrument_itensor(lr_left, [in1], [out0], 1)
+    T_lr_right = instrument_itensor(lr_right, [in1], [out0], 1)
+    @test hasind(T_lr_left, in1) && hasind(T_lr_left, out0)
+    @test hasind(T_lr_right, in1) && hasind(T_lr_right, out0)
+
+    # General LeftRightOperator: ρ ↦ A ρ B with non-identity B (right action only on B side).
+    O_mpo = MPO(op_z, s)
+    Id_mpo = MPO(OpSum() + (1.0, "Id", 1), s)
+    T_gen = instrument_itensor(LeftRightOperator(O_mpo, Id_mpo), [in1], [out0], 1)
+    @test isapprox(Array(T_gen, in1, out0), Array(T_lr_left, in1, out0); atol=1e-12)
 
     iddef = IdentityOperation()
     seq = InstrumentSeq(iddef, 3)
@@ -408,21 +433,81 @@ end
     @test isempty(missing_out)
 
     system = spin_system(s, OpSum() + (0.3, "Sz", 1))
-    pt = build_process_tensor(
-        system;
-        dt=0.05,
-        nsteps=3,
-        embed_system_propagation=false,
-    )
-    default = SystemPropagation(system)
+    pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s, ["Up"]))
-    seq_eval = InstrumentSeq(default=default, nsteps=pt.nsteps)
+    seq_eval = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
     add!(seq_eval, StatePreparation(rho0_h), 0)
-    add!(seq_eval, ObservableMeasurement(op_z) * TraceOut(; leg_plev=1), 1)
-    add!(seq_eval, TraceOut(), pt.nsteps)
-    val = evaluate_process(pt, seq_eval; default_instr=default)
+    add!(seq_eval, ObservableMeasurement(op_z), pt.nsteps)
+    val = evaluate_process(pt, seq_eval)
     @test val isa ComplexF64
     @test isfinite(val)
+end
+
+@testset "Instruments.jl: LeftRightOperator and composed left_action" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    op_z = OpSum()
+    op_z += 1.0, "Sz", 1
+    op_x = OpSum()
+    op_x += 1.0, "Sx", 1
+    in1 = prime(L[1])
+    out0 = L[1]
+
+    composed = ObservableMeasurement(op_z) * ObservableMeasurement(op_x)
+    lr = left_action(composed, s)
+    @test lr isa LeftRightOperator
+    T_lr = instrument_itensor(lr, [in1], [out0], 1)
+    @test norm(T_lr) > 0.0
+
+    # Custom bilateral map: ρ ↦ S_- ρ S_+ (single-site example).
+    Lop = OpSum()
+    Lop += 1.0, "S-", 1
+    L_mpo = MPO(Lop, s)
+    Ldag_mpo = MPO(OpSum() + (1.0, "S+", 1), s)
+    jump_lr = LeftRightOperator(L_mpo, Ldag_mpo)
+    T_jump = instrument_itensor(jump_lr, [in1], [out0], 1)
+    @test length(inds(T_jump)) == 2
+    @test hasind(T_jump, in1) && hasind(T_jump, out0)
+end
+
+@testset "Instruments.jl: composed ObservableMeasurement * StatePreparation" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    op_z = OpSum()
+    op_z += 1.0, "Sz", 1
+    rho_h = to_dm(MPS(s, ["Dn"]))
+    prep_left = ObservableMeasurement(op_z; leg_plev=1) * StatePreparation(rho_h)
+    T_left = instrument_itensor(prep_left, [prime(L[1])], 0)
+    ref_left = instrument_itensor(
+        StatePreparation(apply(MPO(op_z, s), rho_h)),
+        [prime(L[1])],
+        0,
+    )
+    @test isapprox(norm(T_left - ref_left), 0.0; atol=1e-12)
+
+    prep_right = StatePreparation(rho_h) * ObservableMeasurement(op_z; leg_plev=1)
+    T_right = instrument_itensor(prep_right, [prime(L[1])], 0)
+    ref_right = instrument_itensor(
+        StatePreparation(apply(rho_h, MPO(op_z, s))),
+        [prime(L[1])],
+        0,
+    )
+    @test isapprox(norm(T_right - ref_right), 0.0; atol=1e-12)
+end
+
+@testset "Instruments.jl: lazy APIs reject embed_system_propagation=false" begin
+    s = siteinds("S=1/2", 1)
+    system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+    pt = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
+    rho0_h = to_dm(MPS(s, ["Up"]))
+    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq, StatePreparation(rho0_h), 0)
+    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evaluate_process(pt, seq)
+    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evolve(pt, rho0_h)
+    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError two_time_correlation_seq(
+        pt, (OpSum() + (1.0, "Sz", 1), 1), (OpSum() + (1.0, "Sz", 1), 0);
+        rho0=rho0_h,
+    )
 end
 
 struct InstrumentsTestDummy <: AbstractInstrument end

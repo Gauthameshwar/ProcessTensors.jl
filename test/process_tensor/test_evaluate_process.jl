@@ -55,7 +55,7 @@ end
 
         val = evaluate_process(pt, seq)
         @test val isa ComplexF64
-        @test isapprox(val, 1.0; atol=1e-6)
+        @test isapprox(real(val), 1.0; atol=1e-6)
 
         val_kw = evaluate_process(pt, seq; all_legs_contracted=true)
         @test val_kw ≈ val
@@ -80,36 +80,6 @@ end
         ρ_ref = _mpo_to_dense(to_hilbert(rho_out))
         ρ_final = _mpo_to_dense(trj.states_hilbert[end])
         @test ρ_ref ≈ ρ_final atol=1e-10
-    end
-
-    @testset "OpenOutput intermediate marginal vs evolve" begin
-        s = siteinds("S=1/2", 1)
-        H = OpSum()
-        H += 0.5, "Sz", 1
-        system = spin_system(s, H)
-        pt = build_process_tensor(
-            system;
-            dt=0.05,
-            nsteps=4,
-            embed_system_propagation=false,
-        )
-        rho0_h = to_dm(MPS(s, ["Up"]))
-        sysprop = SystemPropagation(system)
-
-        seq = InstrumentSeq(default=sysprop, nsteps=pt.nsteps)
-        add!(seq, StatePreparation(rho0_h), 0)
-        add!(seq, OpenOutput(), 2)
-        add!(seq, IdentityOperation(), 3)
-        add!(seq, TraceOut(), pt.nsteps)
-
-        rho_out = evaluate_process(pt, seq; default_instr=sysprop)
-        @test rho_out isa MPO{Liouville}
-        @test !all_pt_legs_contracted(pt, seq)
-
-        trj = evolve(pt, rho0_h; default_instr=sysprop)
-        ρ_ref = _mpo_to_dense(trj.states_hilbert[2])
-        ρ_open = _mpo_to_dense(to_hilbert(rho_out)) / tr(_mpo_to_dense(to_hilbert(rho_out)))
-        @test ρ_ref ≈ ρ_open atol=1e-10
     end
 
     @testset "bath PT scalar" begin

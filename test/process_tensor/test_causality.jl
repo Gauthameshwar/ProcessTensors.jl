@@ -1,11 +1,8 @@
-# Causality tests for process tensors.
+# Causality tests for process tensors (embedded propagation only).
 #
 # At snapshot index `t` (1-based, matching `evolve` / `states_hilbert[t]`), the reduced
-# system state should not depend on future interventions. We compare:
-#   (1) `evolve` reference at `t`;
-#   (2) `evaluate_process` with OpenOutput causality break plus IdentityOperation probes;
-#   (3) same future break with SystemPropagation probes.
-# All three must agree.
+# system state should not depend on future interventions. Compare `evolve` with a reference
+# schedule vs a schedule that inserts nontrivial two-leg instruments only after time `t`.
 
 using ProcessTensors
 using ITensors
@@ -23,9 +20,9 @@ if !isdefined(Main, :_mpo_to_dense)
     end
 end
 
-"""Default open-system schedule: prep at 0, SystemPropagation on bond slots."""
+"""Default embedded schedule: prep at 0, IdentityOperation on bond slots."""
 function _standard_seq(pt::ProcessTensor, rho0_h)
-    seq = InstrumentSeq(default=SystemPropagation(pt.system), nsteps=pt.nsteps)
+    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
     add!(seq, StatePreparation(rho0_h), 0)
     return seq
 end
@@ -33,25 +30,19 @@ end
 """
     _seq_future_causality_break(pt, rho0_h, open_at, future_probe)
 
-Construct a full contraction schedule that leaves `output_sites(pt, open_at)` open:
-- at the first future step (`open_at + 1`) apply `OpenOutput()` (trace input, keep output);
-- on later future steps apply `future_probe` to connect future output-input bonds;
-- close the terminal output with `TraceOut` when `open_at < nsteps-1`.
+Schedule identical to the reference up through evolve slot `open_at`, then apply
+`future_instr` on all later bond slots and trace the terminal output.
 """
 function _seq_future_causality_break(
     pt::ProcessTensor,
     rho0_h,
     open_at::Int,
-    future_probe::AbstractInstrument,
+    future_instr::AbstractInstrument,
 )
     0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
     seq = _standard_seq(pt, rho0_h)
     for step in (open_at + 1):(pt.nsteps - 1)
-        if step == open_at + 1
-            add!(seq, OpenOutput(), step)
-        else
-            add!(seq, future_probe, step)
-        end
+        add!(seq, future_instr, step)
     end
     if open_at < pt.nsteps - 1
         add!(seq, TraceOut(), pt.nsteps)
@@ -59,10 +50,15 @@ function _seq_future_causality_break(
     return seq
 end
 
+"""Physical Hilbert sites from a single-site `MPO{Hilbert}` density."""
+function _phys_sites_from_rho0(rho0_h::AbstractMPO{Hilbert})
+    return [only(filter(i -> plev(i) == 0, inds(rho0_h.core[j]))) for j in 1:length(rho0_h.core)]
+end
+
 """
     _check_causality_triple(pt, rho0_h, t_idx; atol, order)
 
-Return nothing.
+Compare reduced states at snapshot `t_idx` from reference evolution vs a future-perturbed schedule.
 """
 function _check_causality_triple(
     pt::ProcessTensor,
@@ -73,30 +69,24 @@ function _check_causality_triple(
 )
     open_at = t_idx - 1
     0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
-    sysprop = SystemPropagation(pt.system)
+    default_instr = IdentityOperation()
     seq_std = _standard_seq(pt, rho0_h)
-    seq_id = _seq_future_causality_break(pt, rho0_h, open_at, IdentityOperation())
-    seq_sys = _seq_future_causality_break(pt, rho0_h, open_at, sysprop)
-
-    # Trace out the system at the snapshot index without contracting the future cores
-    ρ_trunc = _mpo_to_dense(
-        evolve(pt, seq_std; default_instr=sysprop, order=order).states_hilbert[t_idx],
+    O_probe = OpSum() + (1.0, "Sz", 1)
+    seq_pert = _seq_future_causality_break(
+        pt,
+        rho0_h,
+        open_at,
+        left_action(O_probe, _phys_sites_from_rho0(rho0_h)),
     )
 
-    # Contract the full process tensor with IdentityOperation in the future
-    ρ_id = _mpo_to_dense(
-        to_hilbert(evaluate_process(pt, seq_id; default_instr=sysprop, order=order))
+    ρ_ref = _mpo_to_dense(
+        evolve(pt, seq_std; default_instr=default_instr, order=order).states_hilbert[t_idx],
     )
-    ρ_id /= tr(ρ_id)
-
-    # Contract the full process tensor with SystemPropagation in the future
-    ρ_sys = _mpo_to_dense(
-        to_hilbert(evaluate_process(pt, seq_sys; default_instr=sysprop, order=order)),
+    ρ_pert = _mpo_to_dense(
+        evolve(pt, seq_pert; default_instr=default_instr, order=order).states_hilbert[t_idx],
     )
-    ρ_sys /= tr(ρ_sys)
 
-    @test ρ_trunc ≈ ρ_id atol=atol
-    @test ρ_trunc ≈ ρ_sys atol=atol
+    @test ρ_ref ≈ ρ_pert atol=atol
     return nothing
 end
 
@@ -125,7 +115,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=nsteps,
-            embed_system_propagation=false,
         )
         rho0_h = to_dm(MPS(s, ["Up"]))
 
@@ -167,7 +156,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=nsteps,
-            embed_system_propagation=false,
         )
         rho0_h = to_dm(MPS(s, ["Up"]))
 
