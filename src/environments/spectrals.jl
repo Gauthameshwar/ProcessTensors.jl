@@ -36,4 +36,15 @@ ohmic_sd(; alpha::Real=1.0, wc::Real=1.0, s::Real=1.0) =
 lorentzian_sd(; lambda::Real=1.0, gamma::Real=1.0, omega0::Real=0.0) =
     LorentzianSpectralDensity(float(lambda), float(gamma), float(omega0))
 
+function Base.show(io::IO, sd::OhmicSpectralDensity)
+    print(io, "Ohmic(α=", sd.alpha, ", ωc=", sd.wc, ", s=", sd.s, ")")
+end
+
+function Base.show(io::IO, sd::LorentzianSpectralDensity)
+    print(io, "Lorentzian(λ=", sd.lambda, ", γ=", sd.gamma, ", ω₀=", sd.omega0, ")")
+end
+
+Base.show(io::IO, ::MIME"text/plain", sd::OhmicSpectralDensity) = show(io, sd)
+Base.show(io::IO, ::MIME"text/plain", sd::LorentzianSpectralDensity) = show(io, sd)
+
 end # module Spectrals

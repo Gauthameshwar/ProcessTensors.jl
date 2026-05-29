@@ -2,9 +2,11 @@
 
 module Environments
 
-using ..ProcessTensors: AbstractMPS, OpSum, Index, siteinds
+using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token
 using ..Spectrals: AbstractSpectralDensity, ohmic_sd
-using ITensors: dim
+using ITensors
+using ITensors: dim, terms
+import Base: show
 
 const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
@@ -198,5 +200,129 @@ spin_bath(; modes::AbstractVector=SpinMode[], spectral_density::AbstractSpectral
     SpinBath(; modes=modes, spectral_density=spectral_density, coupling=coupling)
 
 mode_initial_states(bath::AbstractBath) = getfield.(bath.modes, :rho0)
+
+function Base.show(io::IO, mode::BosonicMode)
+    println(io, "ProcessTensors.BosonicMode")
+    space = any(!has_tag_token(s, "Liouv") for s in mode.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(mode.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    ρ = mode.rho0
+    initial = ρ isa MPS{Liouville} ? "MPS{Liouville}" :
+              ρ isa MPS{Hilbert} ? "MPS{Hilbert}" : string(typeof(ρ))
+    println(io, "  initial state: ", initial)
+    print(io, "  coupling: ")
+    if isempty(terms(mode.coupling))
+        println(io, "none")
+    else
+        labels = String[]
+        for t in terms(mode.coupling)
+            label = replace(sprint(show, t), r"\(\d+,?\)" => "")
+            label = replace(replace(strip(label), " " => ""), r"^[-+]?[\d\.]+" => "")
+            push!(labels, label)
+        end
+        println(io, '"', join(labels, "+"), '"')
+    end
+    println(io, "  n_max: ", mode.n_max)
+end
+
+function Base.show(io::IO, mode::SpinMode)
+    println(io, "ProcessTensors.SpinMode")
+    space = any(!has_tag_token(s, "Liouv") for s in mode.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(mode.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    ρ = mode.rho0
+    initial = ρ isa MPS{Liouville} ? "MPS{Liouville}" :
+              ρ isa MPS{Hilbert} ? "MPS{Hilbert}" : string(typeof(ρ))
+    println(io, "  initial state: ", initial)
+    print(io, "  coupling: ")
+    if isempty(terms(mode.coupling))
+        println(io, "none")
+    else
+        labels = String[]
+        for t in terms(mode.coupling)
+            label = replace(sprint(show, t), r"\(\d+,?\)" => "")
+            label = replace(replace(strip(label), " " => ""), r"^[-+]?[\d\.]+" => "")
+            push!(labels, label)
+        end
+        println(io, '"', join(labels, "+"), '"')
+    end
+end
+
+function Base.show(io::IO, bath::BosonicBath)
+    nm = length(bath.modes)
+    println(io, "ProcessTensors.BosonicBath")
+    println(io, "  modes: ", nm)
+    space = any(!has_tag_token(s, "Liouv") for s in bath.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(bath.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    d_bath = isempty(bath.sites) ? 1 : prod(site_dims)
+    println(io, "  bath Liouville dimension: ", d_bath)
+    println(io)
+    println(io, "  mode summary:")
+    for k in (nm <= 6 ? (1:nm) : (1:2))
+        m = bath.modes[k]
+        println(io, "    [$k] BosonicMode(dim=$(dim(only(m.sites))), H_terms=$(length(terms(m.H))), coupling_terms=$(length(terms(m.coupling))), n_max=$(m.n_max))")
+    end
+    if nm > 6
+        println(io, "    ⋮")
+        for k in (nm - 1):nm
+            m = bath.modes[k]
+            println(io, "    [$k] BosonicMode(dim=$(dim(only(m.sites))), H_terms=$(length(terms(m.H))), coupling_terms=$(length(terms(m.coupling))), n_max=$(m.n_max))")
+        end
+    end
+end
+
+function Base.show(io::IO, bath::SpinBath)
+    nm = length(bath.modes)
+    println(io, "ProcessTensors.SpinBath")
+    println(io, "  modes: ", nm)
+    space = any(!has_tag_token(s, "Liouv") for s in bath.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(bath.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    d_bath = isempty(bath.sites) ? 1 : prod(site_dims)
+    println(io, "  bath Liouville dimension: ", d_bath)
+    println(io)
+    println(io, "  mode summary:")
+    for k in (nm <= 6 ? (1:nm) : (1:2))
+        m = bath.modes[k]
+        println(io, "    [$k] SpinMode(dim=$(dim(only(m.sites))), H_terms=$(length(terms(m.H))), coupling_terms=$(length(terms(m.coupling))))")
+    end
+    if nm > 6
+        println(io, "    ⋮")
+        for k in (nm - 1):nm
+            m = bath.modes[k]
+            println(io, "    [$k] SpinMode(dim=$(dim(only(m.sites))), H_terms=$(length(terms(m.H))), coupling_terms=$(length(terms(m.coupling))))")
+        end
+    end
+end
+
+Base.show(io::IO, ::MIME"text/plain", mode::BosonicMode) = show(io, mode)
+Base.show(io::IO, ::MIME"text/plain", mode::SpinMode) = show(io, mode)
+Base.show(io::IO, ::MIME"text/plain", bath::BosonicBath) = show(io, bath)
+Base.show(io::IO, ::MIME"text/plain", bath::SpinBath) = show(io, bath)
 
 end # module Environments

@@ -1,7 +1,7 @@
-import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS, apply
-import ITensors: scalar
+import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS, apply, linkdims, maxlinkdim
+import ITensors: scalar, terms
 import ITensors.Ops: Exact, Trotter
-import Base: getproperty, setproperty!
+import Base: getproperty, setproperty!, show
 
 const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
@@ -64,6 +64,48 @@ function Base.setproperty!(pt::ProcessTensor, sym::Symbol, val)
     sym in fieldnames(typeof(pt)) && return setfield!(pt, sym, val)
     return setproperty!(getfield(pt, :core), sym, val)
 end
+
+
+function Base.show(io::IO, pt::ProcessTensor)
+    S, E = typeof(pt).parameters
+    t_final = pt.dt * pt.nsteps
+    χ = maxlinkdim(pt.core)
+    print(io, pt.nsteps, "-step ProcessTensor{", nameof(S), ", ", nameof(E), "}")
+    print(io, " | dt=", pt.dt, " | t_final=", round(t_final, digits=10), " | maxlinkdim=", χ)
+    println(io)
+    println(io)
+    nsites = length(pt.system.sites)
+    println(io, "  system:      ", nameof(S), "(nsites=", nsites, ", dissipative=", !isempty(pt.system.jump_ops), ")")
+    print(io, "  environment: ")
+    if pt.environment === nothing
+        println(io, "none")
+    elseif pt.environment isa AbstractBath
+        env = pt.environment
+        nmodes = length(env.modes)
+        d_bath = isempty(env.sites) ? 1 : prod(dim.(env.sites))
+        has_coupling = !isempty(terms(env.coupling)) ||
+            any(!isempty(terms(m.coupling)) for m in env.modes)
+        println(io, nameof(typeof(env)), "(nmodes=", nmodes, ", D_bath=", d_bath, ", coupling=", has_coupling, ")")
+    else
+        println(io, typeof(pt.environment))
+    end
+    ldims = Int[d for d in linkdims(pt.core) if d !== nothing]
+    print(io, "  core:        MPO{Liouville}(length=", length(pt.core), ", linkdims=")
+    if isempty(ldims)
+        print(io, "none")
+    else
+        print(io, "[")
+        if length(ldims) <= 10
+            print(io, join(ldims, ", "))
+        else
+            print(io, join(ldims[1:3], ", "), ", …, ", ldims[end])
+        end
+        print(io, "]")
+    end
+    println(io, ")")
+end
+
+Base.show(io::IO, ::MIME"text/plain", pt::ProcessTensor) = show(io, pt)
 
 function _tagset_with_tstep(s::Index, k::Int)
     tokens = filter(token -> token != "Site" && !startswith(token, "tstep="), tag_tokens(s))

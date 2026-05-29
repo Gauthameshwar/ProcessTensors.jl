@@ -1,5 +1,7 @@
 # src/systems/systems.jl
 
+import Base: show
+
 abstract type AbstractSystem end
 
 struct SpinSystem <: AbstractSystem
@@ -63,3 +65,38 @@ spin_system(sites::AbstractVector{<:Index}, H::OpSum; jump_ops::AbstractVector{<
 
 boson_system(sites::AbstractVector{<:Index}, H::OpSum; jump_ops::AbstractVector{<:OpSum}=OpSum[]) =
     BosonSystem(sites, H, collect(jump_ops))
+
+function Base.show(io::IO, sys::SpinSystem)
+    ns = length(sys.sites)
+    println(io, "ProcessTensors.SpinSystem")
+    println(io, "  sites: ", ns)
+    space = any(!has_tag_token(s, "Liouv") for s in sys.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(sys.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    println(io, "  dissipative: ", !isempty(sys.jump_ops))
+end
+
+function Base.show(io::IO, sys::BosonSystem)
+    ns = length(sys.sites)
+    println(io, "ProcessTensors.BosonSystem")
+    println(io, "  sites: ", ns)
+    space = any(!has_tag_token(s, "Liouv") for s in sys.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(sys.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    println(io, "  dissipative: ", !isempty(sys.jump_ops))
+end
+
+Base.show(io::IO, ::MIME"text/plain", sys::SpinSystem) = show(io, sys)
+Base.show(io::IO, ::MIME"text/plain", sys::BosonSystem) = show(io, sys)
