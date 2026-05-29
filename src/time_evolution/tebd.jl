@@ -1,252 +1,289 @@
 # src/time_evolution/tebd.jl
 
-import ITensors: op, apply, exp, ops, ITensor, replaceind
+import ITensors: ITensor, Index, exp, replaceind
 import ITensors: exp as itensor_exp
-import ITensors.Ops: Exact, Trotter, Prod, Sum
+import ITensors.Ops: Exact, Trotter, Prod
 import ITensorMPS: OpSum, apply as mps_apply
 
-# --------------------- Gate Construction ---------------------
+# ---------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------
 
-"""
-    _build_trotter_gates(os::OpSum, sites, dt; order=2)
+function _nsteps(T::Real, dt::Real; atol=1e-12, rtol=1e-12)
+    dt > 0 || throw(ArgumentError("dt must be positive; got dt=$dt."))
+    T ≥ 0 || throw(ArgumentError("T must be nonnegative; got T=$T."))
 
-Build Trotter gates from a symbolic OpSum, a site vector, and a time step.
+    n = round(Int, T / dt)
+    isapprox(n * dt, T; atol=atol, rtol=rtol) ||
+        throw(ArgumentError("T/dt must be approximately integer. Got T=$T, dt=$dt."))
 
-For Hilbert space the propagator is `exp(-i H dt)`, so we pass `-im * dt * os`.
-For Liouville space the propagator is `exp(L dt)`, so we pass `dt * os`
-(the `-im` and `gamma` factors are already baked into the Liouvillian OpSum by
-`build_liouvillian_opsum`).
-
-Returns a `Vector{ITensor}` of gates ready for `apply`.
-"""
-function _build_trotter_gates(os::OpSum, sites::AbstractVector{<:Index}, dt::Number; order::Int=2)
-    lazy_gates = exp(dt * os; alg=Trotter{order}())
-    # Materialize the lazy Trotter product into concrete ITensor gates
-    gate_prod = Prod{ITensor}(lazy_gates, collect(sites))
-    # Extract the individual gate ITensors from the Prod wrapper
-    return collect(ITensor, only(gate_prod.args))
+    return n
 end
 
-"""Build a single-site Liouville basis MPS with `vec(ρ) = e_{flat_idx}`."""
-function _liouville_basis_mps(s::Index, flat_idx::Int)
+# ---------------------------------------------------------------------
+# Core 1: build Trotter gates
+# ---------------------------------------------------------------------
+
+"""
+    trotter_gates(os, sites, τ; alg=Trotter{2}())
+
+Factorize `exp(τ * os)` into a vector of ITensor gates using a Trotter decomposition.
+
+`τ` encodes the full exponent prefactor, including any imaginary unit and sign:
+- Hilbert space: `τ = -im * dt`
+- Liouville space: `τ = dt` (the `-im` factors are already baked into `OpSum_Liouville`)
+
+`alg` must be a `Trotter{n}()` instance controlling the decomposition order.
+"""
+function trotter_gates(
+    os::OpSum,
+    sites::AbstractVector{<:Index},
+    τ::Number;
+    alg=Trotter{2}(),
+)
+    lazy = exp(τ * os; alg=alg)
+    prod = Prod{ITensor}(lazy, collect(sites))
+    return collect(ITensor, only(prod.args))
+end
+
+# ---------------------------------------------------------------------
+# Core 2: materialize gates into one map tensor
+# ---------------------------------------------------------------------
+
+"""
+    propagator_itensor_from_gates(gates, sites; method=:auto)
+
+Contract a vector of Trotter gates into a single superoperator ITensor on `sites`.
+
+`method` controls how the contraction is performed:
+- `:basis` (default for 1 site): builds the map column-by-column by applying the gates to
+  Liouville basis states. This matches the TEBD path exactly and is trace-preserving by
+  construction.
+- `:contract`: directly contracts gate ITensors using index promotion. Suitable for
+  multi-site maps.
+- `:auto`: selects `:basis` for 1 site, `:contract` otherwise.
+
+Returns `(U::ITensor, final_out::Vector{Index})` where `U` has unprimed `sites` as
+ket/output legs and `final_out` as bra/input legs.
+"""
+function propagator_itensor_from_gates(
+    gates::AbstractVector{<:ITensor},
+    sites::AbstractVector{<:Index};
+    method::Symbol = length(sites) == 1 ? :basis : :contract,
+)
+    method === :basis && return _map_from_gates_by_basis(gates, sites)
+    method === :contract && return _map_from_gates_by_contraction(gates, sites)
+
+    throw(ArgumentError("Unknown map materialization method: $method"))
+end
+
+function _map_from_gates_by_basis(
+    gates::AbstractVector{<:ITensor},
+    sites::AbstractVector{<:Index},
+)
+    length(sites) == 1 ||
+        throw(ArgumentError(":basis materialization currently supports only one site."))
+
+    s = only(sites)
     d2 = dim(s)
     d = isqrt(d2)
     phys = _phys_site_from_liouv(s)
-    M = zeros(ComplexF64, d, d)
-    i = ((flat_idx - 1) % d) + 1
-    j = div(flat_idx - 1, d) + 1
-    M[i, j] = 1.0
-    ρ_h = MPO{Hilbert}(CoreMPO([ITensor(M, prime(phys), phys)]))
-    return to_liouville(ρ_h; sites=Index[s])
-end
 
-"""
-Compose Trotter gates into a single propagation ITensor on Liouville sites.
+    U = zeros(ComplexF64, d2, d2)
 
-Uses sequential `apply(gates, ψ)` (same as TEBD) for single-site maps so trace
-preservation matches the TEBD path. Multi-site maps fall back to explicit gate
-contraction (only used when gate support is site-local).
-"""
-function _compose_gates_to_map(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
-    if length(base_sites) == 1
-        return _compose_gates_to_map_single_site(gates, only(base_sites))
-    end
-    return _compose_gates_to_map_contract(gates, base_sites)
-end
-
-"""Compose columns of the single-site Liouville superoperator via TEBD `apply`."""
-function _compose_gates_to_map_single_site(gates::AbstractVector{<:ITensor}, s::Index)
-    d2 = dim(s)
-    bras = [_liouville_basis_mps(s, i) for i in 1:d2]
-    map_mat = zeros(ComplexF64, d2, d2)
     for j in 1:d2
-        ψ_out = mps_apply(gates, bras[j]; maxdim=typemax(Int), cutoff=0.0)
-        for i in 1:d2
-            map_mat[i, j] = inner(bras[i], ψ_out)
+        # Construct the j-th Liouville basis vector vec(E_{ij}) where j = i + (k-1)*d
+        i = ((j - 1) % d) + 1
+        k = div(j - 1, d) + 1
+        M = zeros(ComplexF64, d, d)
+        M[i, k] = 1.0
+        ρ_h = MPO{Hilbert}(CoreMPO([ITensor(M, prime(phys), phys)]))
+        basis_j = to_liouville(ρ_h; sites=Index[s])
+
+        ψj = mps_apply(gates, basis_j; maxdim=typemax(Int), cutoff=0.0)
+
+        for ii in 1:d2
+            ii_row = ((ii - 1) % d) + 1
+            ii_col = div(ii - 1, d) + 1
+            M_ii = zeros(ComplexF64, d, d)
+            M_ii[ii_row, ii_col] = 1.0
+            ρ_ii = MPO{Hilbert}(CoreMPO([ITensor(M_ii, prime(phys), phys)]))
+            basis_ii = to_liouville(ρ_ii; sites=Index[s])
+            U[ii, j] = inner(basis_ii, ψj)
         end
     end
-    map_t = ITensor(map_mat, s, prime(s))
-    return map_t, Index[prime(s)]
+
+    return ITensor(U, s, prime(s)), Index[prime(s)]
 end
 
-"""Legacy gate contraction for multi-site maps (site-local Trotter gates only)."""
-function _compose_gates_to_map_contract(gates::AbstractVector{<:ITensor}, base_sites::AbstractVector{<:Index})
-    curr_out = Dict{Index,Index}(s => prime(s) for s in base_sites)
-    map_t = ITensor(1.0)
-    for s in base_sites
-        map_t *= delta(curr_out[s], s)
+function _map_from_gates_by_contraction(
+    gates::AbstractVector{<:ITensor},
+    sites::AbstractVector{<:Index},
+)
+    current_out = Dict(s => prime(s) for s in sites)
+
+    U = ITensor(1.0)
+    for s in sites
+        U *= delta(current_out[s], s)
     end
 
     for gate in gates
-        g2 = gate
-        next_out = copy(curr_out)
-        for s in base_sites
-            hasind(g2, s) && (g2 = replaceind(g2, s, curr_out[s]))
+        g = gate
+        next_out = copy(current_out)
+
+        for s in sites
+            if hasind(g, s)
+                g = replaceind(g, s, current_out[s])
+            end
+
             sp = prime(s)
-            if hasind(g2, sp)
-                promoted = prime(curr_out[s])
-                g2 = replaceind(g2, sp, promoted)
+            if hasind(g, sp)
+                promoted = prime(current_out[s])
+                g = replaceind(g, sp, promoted)
                 next_out[s] = promoted
             end
         end
-        map_t = g2 * map_t
-        curr_out = next_out
+
+        U = g * U
+        current_out = next_out
     end
 
-    final_out = Index[curr_out[s] for s in base_sites]
-    return map_t, final_out
+    final_out = Index[current_out[s] for s in sites]
+    return U, final_out
 end
 
 """
-    liouvillian_propagator_itensor(os::OpSum, sites, dt; exp_alg=Exact(), jump_ops=[], liouville_form=false)
+    liouvillian_propagator_itensor(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
 
-Build `U = exp(dt * L)` as an ITensor on Liouville `sites`. By default `os` is a **physical**
-Hamiltonian and the Liouvillian is formed via `OpSum_Liouville(os; jump_ops)`. Set
-`liouville_form=true` when `os` is already a Liouvillian `OpSum`.
+Build `U = exp(dt * L)` as a single ITensor on Liouville `sites`.
 
-`exp_alg` selects the exponentiation algorithm:
+By default, `os` is a physical Hamiltonian and the Liouvillian is constructed internally via
+`OpSum_Liouville(os; jump_ops)`. Set `liouville_form=true` when `os` is already a Liouvillian
+`OpSum`.
 
-- `Exact()`: contract `MPO(L)` to a single operator ITensor and apply `exp(dt * L)` exactly.
-- `Trotter{n}()`: lazy Trotter product from `exp(dt * L; alg=Trotter{n}())`, composed to one map.
+`alg` selects the exponentiation algorithm:
+- `Exact()` (default): contract the Liouvillian MPO to a single dense tensor and exponentiate
+  exactly with `LinearAlgebra.exp`. Suitable for small systems (Liouville dim ≲ few hundred).
+- `Trotter{n}()`: factorize via Trotter decomposition and materialize the gate sequence into
+  one explicit superoperator tensor via `propagator_itensor_from_gates`.
 
-Leg convention matches `ITensor(exp(dt * L_mpo))`: unprimed `sites` are ket/output legs,
-`prime.(sites)` are bra/input legs.
+Leg convention: unprimed `sites` are ket/output legs; `prime.(sites)` are bra/input legs.
+This matches the convention of `exp(dt * L_mpo)` contracted to a single ITensor.
+
+`materialize_method` is forwarded to `propagator_itensor_from_gates` when `alg isa Trotter`
+(`:auto` selects `:basis` for 1 site, `:contract` otherwise).
 """
 function liouvillian_propagator_itensor(
     os::OpSum,
     sites::AbstractVector{<:Index},
     dt::Real;
-    exp_alg=Exact(),
+    alg=Exact(),
     jump_ops=Tuple{Number,String,Int}[],
     liouville_form::Bool=false,
+    materialize_method::Symbol=:auto,
 )
-    L_os = liouville_form ? os : OpSum_Liouville(os, jump_ops)
-    if exp_alg isa Exact
-        L_mpo = ITensorMPS.MPO(L_os, sites)
-        Lj = foldl(*, L_mpo)
-        return itensor_exp(dt * Lj)
-    elseif exp_alg isa Trotter
-        lazy_gates = exp(dt * L_os; alg=exp_alg)
-        gate_prod = Prod{ITensor}(lazy_gates, collect(sites))
-        gates = collect(ITensor, only(gate_prod.args))
-        U_map, final_out = _compose_gates_to_map(gates, sites)
-        for (s, s_in) in zip(sites, final_out)
-            U_map = replaceind(U_map, s_in, prime(s))
+    L = liouville_form ? os : OpSum_Liouville(os, jump_ops)
+
+    if alg isa Exact
+        L_mpo = ITensorMPS.MPO(L, sites)
+        L_dense = foldl(*, L_mpo)
+        return itensor_exp(dt * L_dense)
+    elseif alg isa Trotter
+        gates = trotter_gates(L, sites, dt; alg=alg)
+
+        method = materialize_method === :auto ?
+            (length(sites) == 1 ? :basis : :contract) :
+            materialize_method
+
+        U, final_out = propagator_itensor_from_gates(gates, sites; method=method)
+
+        for (old_out, s) in zip(final_out, sites)
+            U = replaceind(U, old_out, prime(s))
         end
-        return U_map
+
+        return U
     end
-    throw(ArgumentError("liouvillian_propagator_itensor: unsupported exp_alg=$(typeof(exp_alg))."))
+
+    throw(ArgumentError("Unsupported exponentiation algorithm: $(typeof(alg))."))
 end
 
-# --------------------- Main TEBD Entry Points ---------------------
+# ---------------------------------------------------------------------------
+# TEBD time loop
+# ---------------------------------------------------------------------------
 
-"""
-    tebd(state::AbstractMPS{Hilbert}, os_H::OpSum, dt, T; kwargs...)
-
-Evolve a **Hilbert-space** MPS under the Hamiltonian `os_H` for total time `T`
-using second-order TEBD (Trotter).
-
-The propagator is `U(dt) = exp(-i H dt)`.
-
-# Keywords
-- `maxdim::Int = typemax(Int)`: maximum bond dimension after each gate application.
-- `cutoff::Float64 = 1e-8`: SVD truncation cutoff.
-- `order::Int = 2`: Trotter order (1 or 2).
-- `verbose::Bool = false`: print progress every 10 steps.
-
-Returns the time-evolved MPS (same type as input).
-"""
-function tebd(
-    state::AbstractMPS{Hilbert},
-    os_H::OpSum,
-    dt::Real,
-    T::Real;
-    maxdim::Int=typemax(Int),
-    cutoff::Float64=1e-8,
-    order::Int=2,
-    verbose::Bool=false,
-)
-    sites = siteinds(state)
-    gates = _build_trotter_gates(os_H, sites, -im * dt; order=order)
-
-    return _tebd_loop(state, gates, dt, T; maxdim=maxdim, cutoff=cutoff, verbose=verbose)
-end
-
-"""
-    tebd(state::AbstractMPS{Liouville}, os_H::OpSum, dt, T; jump_ops=[], kwargs...)
-
-Evolve a **Liouville-space** MPS (vectorised density matrix) under the Lindblad
-master equation for total time `T` using second-order TEBD (Trotter).
-
-The propagator is `exp(L dt)` where `L` is the full Liouvillian superoperator.
-
-# Arguments
-- `os_H::OpSum`: physical Hamiltonian in terms of standard operator names (e.g. `"Sz"`, `"S+"`) and **physical** site numbers.
-- `jump_ops`: Lindblad jump operators, in any format accepted by `OpSum_Liouville`.
-
-# Keywords
-- `maxdim::Int = typemax(Int)`: maximum bond dimension.
-- `cutoff::Float64 = 1e-8`: SVD truncation cutoff.
-- `order::Int = 2`: Trotter order.
-- `verbose::Bool = false`: print progress.
-
-Returns the time-evolved MPS{Liouville} (same type as input).
-"""
-function tebd(
-    state::AbstractMPS{Liouville},
-    os_H::OpSum,
-    dt::Real,
-    T::Real;
-    jump_ops=Tuple{Number,String,Int}[],
-    maxdim::Int=typemax(Int),
-    cutoff::Float64=1e-8,
-    order::Int=2,
-    verbose::Bool=false,
-)
-    # Build the full Liouvillian OpSum (commutator + dissipator)
-    L_os = OpSum_Liouville(os_H, jump_ops)
-
-    # The Liouville sites are the site indices of the vectorised state
-    liouv_sites_vec = siteinds(state)
-
-    # dt is REAL — the -im factors are already inside the Liouvillian OpSum
-    gates = _build_trotter_gates(L_os, liouv_sites_vec, dt; order=order)
-
-    return _tebd_loop(state, gates, dt, T; maxdim=maxdim, cutoff=cutoff, verbose=verbose)
-end
-
-# --------------------- TEBD Time Loop ---------------------
-
-"""
-    _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
-
-Execute the TEBD time-stepping loop.
-
-For `Trotter{2}`, `exp` already produces the symmetric 2nd-order decomposition:
-`exp(H/2) * reverse(exp(H/2))`, so applying the full gate list once is one TEBD2 step.
-
-For `Trotter{1}`, `exp` produces a 1st-order decomposition.
-"""
 function _tebd_loop(
     state::AbstractMPS,
     gates::Vector{ITensor},
     dt::Real,
     T::Real;
     maxdim::Int=typemax(Int),
-    cutoff::Float64=1e-8,
+    cutoff::Real=1e-8,
     verbose::Bool=false,
 )
-    N_steps = Int(round(T / dt))
-
+    N_steps = _nsteps(T, dt)
     ψ = copy(state)
     for step in 1:N_steps
         ψ = apply(gates, ψ; cutoff=cutoff, maxdim=maxdim)
-
-        if verbose #&& (step % 10 == 0 || step == 1 || step == N_steps)
+        if verbose
             χ_max = maxlinkdim(ψ)
             println("TEBD step $step / $N_steps  |  max bond dim = $χ_max")
         end
     end
-
     return ψ
+end
+
+# ---------------------------------------------------------------------------
+# Public TEBD entry points
+# ---------------------------------------------------------------------------
+
+"""
+    tebd(state::AbstractMPS{Hilbert}, H, dt, T; alg=Trotter{2}(), maxdim, cutoff, verbose)
+
+Evolve a Hilbert-space MPS under Hamiltonian `H` for total time `T` using TEBD.
+
+The propagator per step is `U(dt) = exp(-i H dt)`, factorized via `alg`.
+`alg` must be a `Trotter{n}()` algorithm object.
+
+Returns the time-evolved `MPS{Hilbert}`.
+"""
+function tebd(
+    state::AbstractMPS{Hilbert},
+    H::OpSum,
+    dt::Real,
+    T::Real;
+    alg=Trotter{2}(),
+    maxdim::Int=typemax(Int),
+    cutoff::Real=1e-8,
+    verbose::Bool=false,
+)
+    gates = trotter_gates(H, siteinds(state), -im * dt; alg=alg)
+    return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
+end
+
+"""
+    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim, cutoff, verbose)
+
+Evolve a Liouville-space MPS (vectorized density matrix) under the Lindblad master equation
+for total time `T` using TEBD.
+
+`H` is the physical Hamiltonian; dissipators are supplied via `jump_ops`. The full Liouvillian
+`L = -i[H, ·] + Σ_k γ_k D[L_k]` is built internally, and the propagator per step is
+`exp(L dt)`.
+
+Returns the time-evolved `MPS{Liouville}`.
+"""
+function tebd(
+    state::AbstractMPS{Liouville},
+    H::OpSum,
+    dt::Real,
+    T::Real;
+    jump_ops=Tuple{Number,String,Int}[],
+    alg=Trotter{2}(),
+    maxdim::Int=typemax(Int),
+    cutoff::Real=1e-8,
+    verbose::Bool=false,
+)
+    L = OpSum_Liouville(H, jump_ops)
+    gates = trotter_gates(L, siteinds(state), dt; alg=alg)
+    return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
 end

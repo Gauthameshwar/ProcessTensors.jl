@@ -112,8 +112,8 @@ using ProcessTensors
         @test_nowarn m[1] = m[1]
 
         out = sprint(show, m)
-        @test occursin("ProcessTensors.MPS", out)
-        @test occursin("Space: Hilbert", out)
-        @test occursin("Sites: 4", out)
+        @test occursin("4-element MPS{Hilbert}", out)
+        @test occursin("site dims:", out)
+        @test occursin("tensors:", out)
     end
 end

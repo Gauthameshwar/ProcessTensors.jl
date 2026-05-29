@@ -140,7 +140,7 @@ function tebd_observable_trajectory(
     z_mpos::Vector{MPO{Hilbert}},
     T_max::Float64,
     dt::Float64,
-    order::Int;
+    alg;
     maxdim::Int,
     cutoff::Float64,
 )
@@ -152,7 +152,7 @@ function tebd_observable_trajectory(
     t = 0.0
     while t < T_max - 1e-12
         Δt = min(dt, T_max - t)
-        current = tebd(current, os_H, Δt, Δt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, order=order)
+        current = tebd(current, os_H, Δt, Δt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, alg=alg)
         t += Δt
         push!(times, t)
         push!(sx, _mean_pauli_trace_mpo(current, x_mpos))
@@ -197,19 +197,20 @@ function main()
 
     ##############  TEBD  ##############
     dt_list = Float64[0.2, 0.1, 0.05]
-    orders = [1, 2]
+    trotter_orders = (1, 2)
     maxdim = 128
     cutoff = 1e-12
 
     tebd_runs = Tuple{Int, Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}}[]
-    for order in orders
+    for n in trotter_orders
+        alg = Trotter{n}()
         for dt in dt_list
             times, sx, sz = tebd_observable_trajectory(
-                ρ0_vec, os_H, jump_ops, x_mpos, z_mpos, T_max, dt, order; 
+                ρ0_vec, os_H, jump_ops, x_mpos, z_mpos, T_max, dt, alg;
                 maxdim=maxdim, cutoff=cutoff,
             )
-            push!(tebd_runs, (order, dt, times, sx, sz))
-            println("  TEBD order=$order dt=$dt : $(length(times)) points, final t=$(last(times))")
+            push!(tebd_runs, (n, dt, times, sx, sz))
+            println("  TEBD alg=$alg dt=$dt : $(length(times)) points, final t=$(last(times))")
         end
     end
 

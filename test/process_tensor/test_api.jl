@@ -131,7 +131,7 @@ _one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
         rho0 = to_liouville(to_dm(psi0); sites=system.sites)
 
         trajectory = evolve(pt, psi0)
-        manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[], maxdim=32, cutoff=1e-12, order=2)
+        manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[], maxdim=32, cutoff=1e-12, alg=Trotter{2}())
 
         @test pt.embed_system_propagation
         @test trajectory.times ≈ [0.0, 0.05, 0.1] atol=1e-12

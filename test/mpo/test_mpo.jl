@@ -123,10 +123,10 @@ using ProcessTensors
 
         out_h = sprint(show, m_h)
         out_l = sprint(show, m_l)
-        @test occursin("ProcessTensors.MPO", out_h)
-        @test occursin("Space: Hilbert", out_h)
-        @test occursin("Sites: 4", out_h)
-        @test occursin("ProcessTensors.MPO", out_l)
-        @test occursin("Space: Liouville", out_l)
+        @test occursin("4-element MPO{Hilbert}", out_h)
+        @test occursin("site dims:", out_h)
+        @test occursin("combiners: none", out_h)
+        @test occursin("4-element MPO{Liouville}", out_l)
+        @test occursin("combiners:", out_l)
     end
 end

@@ -55,7 +55,7 @@ function _get_ed_observables(
         ρ_pt = _reduced_system_ρ(trajectory.states_liouville[k + 1], dsys)
 
         t = k * dt
-        U_L = liouvillian_propagator_itensor(H_full, joint_liouv, t; exp_alg=Exact())
+        U_L = liouvillian_propagator_itensor(H_full, joint_liouv, t; alg=Exact())
         rho_joint_l = apply(U_L, copy(rho_joint0_l); cutoff=0.0, maxdim=typemax(Int))
         ρ_red = _partial_trace_system(to_hilbert(rho_joint_l), dsys, denv)
 

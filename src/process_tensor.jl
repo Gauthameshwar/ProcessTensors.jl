@@ -126,11 +126,15 @@ function _system_propagation_pt_core(
     in_k::Index,
     out_k::Index,
     dt::Real;
-    order::Int=2,
+    alg=Trotter{2}(),
 )
-    liouv_os = OpSum_Liouville(system.H, system.jump_ops)
-    gates = _build_trotter_gates(liouv_os, system.sites, dt; order=order)
-    U, _ = _compose_gates_to_map(gates, system.sites)
+    U = liouvillian_propagator_itensor(
+        system.H,
+        system.sites,
+        dt;
+        alg=alg,
+        jump_ops=system.jump_ops,
+    )
     gate_site = only(system.sites)
     return replaceind(replaceind(U, prime(gate_site), in_k), gate_site, out_k)
 end
@@ -153,7 +157,7 @@ function _build_trivial_pt_cores(
     dt::Real,
     nsteps::Int;
     embed_system_propagation::Bool=true,
-    order::Int=2,
+    alg=Trotter{2}(),
 )
     cores = ITensor[]
     inputs = Index[]
@@ -164,7 +168,7 @@ function _build_trivial_pt_cores(
         push!(inputs, in_k)
         push!(outputs, out_k)
         if embed_system_propagation
-            push!(cores, _system_propagation_pt_core(system, in_k, out_k, dt; order=order))
+            push!(cores, _system_propagation_pt_core(system, in_k, out_k, dt; alg=alg))
         else
             d = dim(in_k)
             identity_mat = Matrix{Float64}(I, d, d)
@@ -197,9 +201,9 @@ function _build_bathmode_pt_cores(
     dt::Real,
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
-    exp_alg=Exact(),
+    alg=Exact(),
     embed_system_propagation::Bool=true,
-    order::Int=2,
+    sys_alg=Trotter{2}(),
     kwargs...
 )
     nsteps >= 1 || throw(ArgumentError("_build_bathmode_pt_cores: nsteps must be at least 1; got $nsteps."))
@@ -216,7 +220,7 @@ function _build_bathmode_pt_cores(
     # Joint physical Hamiltonian on [bath, system]; mode coupling uses sites 1=bath, 2=system.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; exp_alg=exp_alg)
+    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -244,7 +248,7 @@ function _build_bathmode_pt_cores(
             internal_out = prime(out_k, _INTERNAL_PLEV)
             core_k = replaceind(cores[k + 1], out_k, internal_out)
             sys_prop = replaceind(
-                _system_propagation_pt_core(system, in_k, out_k, dt; order=order),
+                _system_propagation_pt_core(system, in_k, out_k, dt; alg=sys_alg),
                 in_k,
                 internal_out,
             )
@@ -269,9 +273,9 @@ function _build_multimode_pt_cores(
     environment::AbstractBath,
     dt::Real,
     nsteps::Int;
-    exp_alg=Exact(),
+    alg=Exact(),
     embed_system_propagation::Bool=true,
-    order::Int=2,
+    sys_alg=Trotter{2}(),
     kwargs...
 )
     nsteps >= 1 || throw(ArgumentError("_build_multimode_pt_cores: nsteps must be at least 1; got $nsteps."))
@@ -321,7 +325,7 @@ function _build_multimode_pt_cores(
     end
     joint_ops += environment.coupling
 
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; exp_alg=exp_alg)
+    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
     bath_sites_prime = prime.(bath_sites)
@@ -357,7 +361,7 @@ function _build_multimode_pt_cores(
             internal_out = prime(out_k, _INTERNAL_PLEV)
             core_k = replaceind(cores[k + 1], out_k, internal_out)
             sys_prop = replaceind(
-                _system_propagation_pt_core(system, in_k, out_k, dt; order=order),
+                _system_propagation_pt_core(system, in_k, out_k, dt; alg=sys_alg),
                 in_k,
                 internal_out,
             )
@@ -389,16 +393,19 @@ end
 
 """
     build_process_tensor(system, coupling_site; environment=nothing, dt, nsteps,
-                         embed_system_propagation=true, order=2)
+                         alg=Exact(), sys_alg=Trotter{2}(), embed_system_propagation=true)
 
 Build a single-coupling-site process tensor.
 
 For `environment !== nothing`, bath modes are ordered as `[mode_1, ..., mode_M, coupling_site]`
 when constructing the joint Liouville generator. Each mode's `coupling` OpSum uses local sites
 `1` (bath) and `2` (system); optional `environment.coupling` holds inter-mode terms on global sites.
-Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` with keyword
-`exp_alg` (`Exact()` by default, or `Trotter{n}()`). Joint Liouville vector dimension
+Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` with `alg`
+(`Exact()` by default, or `Trotter{n}()`). Joint Liouville vector dimension
 `D = prod(dim.(sites_vec))` is guarded by `MAX_DENSE_LIOUVILLE_DIM = $(MAX_DENSE_LIOUVILLE_DIM)`.
+
+`sys_alg` controls the Trotter algorithm used for the embedded system propagator
+(`_system_propagation_pt_core`); defaults to `Trotter{2}()`.
 
 When `embed_system_propagation=true` (the default), single-site process tensors fuse the
 system Liouvillian map (`system.H` and `system.jump_ops`) into the PT cores. Runtime schedules
@@ -413,9 +420,9 @@ function build_process_tensor(
     environment::Union{Nothing,AbstractBath}=nothing,
     dt::Real,
     nsteps::Integer,
-    exp_alg=Exact(),
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
     embed_system_propagation::Bool=true,
-    order::Int=2,
 )
     nsteps >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
     _validate_coupling_site(system, coupling_site)
@@ -428,7 +435,7 @@ function build_process_tensor(
             dt,
             nsteps;
             embed_system_propagation=embed_in_cores,
-            order=order,
+            alg=sys_alg,
         )
     else
         if joint_liouville_dim(environment, coupling_site) > MAX_DENSE_LIOUVILLE_DIM
@@ -446,9 +453,9 @@ function build_process_tensor(
                 dt,
                 nsteps;
                 bath_coupling=environment.coupling,
-                exp_alg=exp_alg,
+                alg=alg,
                 embed_system_propagation=embed_in_cores,
-                order=order,
+                sys_alg=sys_alg,
             )
         else
             _build_multimode_pt_cores(
@@ -457,9 +464,9 @@ function build_process_tensor(
                 environment,
                 dt,
                 nsteps;
-                exp_alg=exp_alg,
+                alg=alg,
                 embed_system_propagation=embed_in_cores,
-                order=order,
+                sys_alg=sys_alg,
             )
         end
     end
@@ -473,9 +480,9 @@ function build_process_tensor(
     environment::Union{Nothing,AbstractBath}=nothing,
     dt::Real,
     nsteps::Integer,
-    exp_alg=Exact(),
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
     embed_system_propagation::Bool=true,
-    order::Int=2,
 )
     length(system.sites) == 1 || throw(
         ArgumentError(
@@ -488,9 +495,9 @@ function build_process_tensor(
         environment=environment,
         dt=dt,
         nsteps=nsteps,
-        exp_alg=exp_alg,
+        alg=alg,
+        sys_alg=sys_alg,
         embed_system_propagation=embed_system_propagation,
-        order=order,
     )
 end
 
@@ -693,7 +700,7 @@ function create_instruments(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default::AbstractInstrument=_schedule_default_instr(pt),
-    order::Int=2,
+    alg=Trotter{2}(),
 )
     _require_embedded_propagation!(pt, "create_instruments")
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
@@ -724,7 +731,7 @@ function create_instruments(
                 out_prev,
                 step;
                 dt=pt.dt,
-                order=order,
+                alg=alg,
             )
         elseif instr isa SingleLegInstrument
             if instr.leg_plev == 0
@@ -780,7 +787,7 @@ function evaluate_process(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
-    order::Int=2,
+    alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
 )
     _require_embedded_propagation!(pt, "evaluate_process")
@@ -796,7 +803,7 @@ function evaluate_process(
         throw(ArgumentError("evaluate_process: tstep=0 must be a single-leg initial preparation."))
 
     open_keep_k = _open_output_keep_k(seq, pt.nsteps, default_instr)
-    instruments = create_instruments(pt, seq; default=default_instr, order=order)
+    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
     legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
 
     result = pt.core[1] * instruments[1]
@@ -805,7 +812,7 @@ function evaluate_process(
         out_prev, in_curr = coupling_times(pt, step)
         if instr isa OpenOutput
             tmp = copy(pt.core[step + 1])
-            tmp *= instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt, order=order)
+            tmp *= instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt, alg=alg)
             result *= tmp
         else
             result *= instruments[step + 1]
@@ -890,7 +897,7 @@ function evaluate_process(
 end
 
 """
-    evolve(pt, seq; default_instr=_schedule_default_instr(pt), order=2)
+    evolve(pt, seq; default_instr=_schedule_default_instr(pt), alg=Trotter{2}())
 
 Return reduced system snapshots from a process tensor. Requires `pt.embed_system_propagation == true`;
 the default schedule connector is `IdentityOperation()` because the system Liouvillian map is
@@ -900,7 +907,7 @@ function evolve(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
-    order::Int=2,
+    alg=Trotter{2}(),
     kwargs...
 )
     _require_embedded_propagation!(pt, "evolve")
@@ -913,7 +920,7 @@ function evolve(
         ArgumentError("evolve: missing output legs for tsteps $(missing_out)."),
     )
 
-    instruments = create_instruments(pt, seq; default=default_instr, order=order)
+    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
 
     # Exactly `nsteps` reduced states: index `j` is the snapshot after PT slab `j-1`
     # (times `t = 0, dt, …, (nsteps-1)*dt`).

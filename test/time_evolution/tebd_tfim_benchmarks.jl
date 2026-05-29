@@ -61,13 +61,13 @@ function dense_bipartite_entropy(ψ_dense::AbstractVector, physical_sites, bond:
 end
 
 # Sample unitary TEBD states at requested times by evolving incrementally from one sample to the next.
-function unitary_tebd_samples(ψ0, os_H::OpSum, sample_times; dt::Float64, maxdim::Int, cutoff::Float64, order::Int=2)
+function unitary_tebd_samples(ψ0, os_H::OpSum, sample_times; dt::Float64, maxdim::Int, cutoff::Float64, alg=Trotter{2}())
     states = Vector{typeof(ψ0)}(undef, length(sample_times))
     current = copy(ψ0)
     current_time = 0.0
     for (k, target_time) in enumerate(sample_times)
         Δt = target_time - current_time
-        current = tebd(current, os_H, dt, Δt; maxdim=maxdim, cutoff=cutoff, order=order)
+        current = tebd(current, os_H, dt, Δt; maxdim=maxdim, cutoff=cutoff, alg=alg)
         states[k] = current
         current_time = target_time
     end
@@ -87,13 +87,13 @@ function dense_steady_state(L_dense::AbstractMatrix{<:Number})
 end
 
 # Sample Liouville TEBD states at requested times by evolving incrementally from one sample to the next.
-function liouville_tebd_samples(ρ0, os_H::OpSum, sample_times; jump_ops, dt::Float64, maxdim::Int, cutoff::Float64, order::Int=2)
+function liouville_tebd_samples(ρ0, os_H::OpSum, sample_times; jump_ops, dt::Float64, maxdim::Int, cutoff::Float64, alg=Trotter{2}())
     states = Vector{typeof(ρ0)}(undef, length(sample_times))
     current = copy(ρ0)
     current_time = 0.0
     for (k, target_time) in enumerate(sample_times)
         Δt = target_time - current_time
-        current = tebd(current, os_H, dt, Δt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, order=order)
+        current = tebd(current, os_H, dt, Δt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, alg=alg)
         states[k] = current
         current_time = target_time
     end
@@ -124,7 +124,7 @@ end
     entropy_errors = Float64[]
 
     for dt in dt_choices
-        tebd_states = unitary_tebd_samples(ψ0, os_H, sample_times; dt=dt, maxdim=128, cutoff=1e-12, order=2)
+        tebd_states = unitary_tebd_samples(ψ0, os_H, sample_times; dt=dt, maxdim=128, cutoff=1e-12, alg=Trotter{2}())
         mz_curve = [sum(real.(expect(ψ, "Z"))) / N for ψ in tebd_states]
         entropy_curve = [entropy(ψ, bond) for ψ in tebd_states]
 
@@ -170,7 +170,7 @@ end
         dt=0.05,
         maxdim=128,
         cutoff=1e-12,
-        order=2,
+        alg=Trotter{2}(),
     )
 
     distances = Float64[]
@@ -198,7 +198,7 @@ end
     dt_z_errors = Float64[]
 
     for dt in dt_choices
-        state = tebd(ρ0_vec, os_H, dt, 14.0; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, order=2)
+        state = tebd(ρ0_vec, os_H, dt, 14.0; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, alg=Trotter{2}())
         ρ_dense = liouville_state_to_dense(state, physical_sites)
         push!(dt_distances, relative_frobenius_error(ρ_dense, ρ_ss_exact))
         push!(dt_residuals, norm(L_dense * vec(ρ_dense)) / max(norm(vec(ρ_dense)), eps(Float64)))

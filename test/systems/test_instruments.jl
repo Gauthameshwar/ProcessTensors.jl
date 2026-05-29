@@ -347,7 +347,7 @@ end
     # Given: single-site Sy-type Hamiltonian and Liouvillian MPO.
     # When: instrument_itensor (order-1 Trotter) vs dense exp(dt * L).
     # Then: maps agree at requested indices.
-    Tmap = instrument_itensor(prop, [in1], [out0], 1; dt=dt, order=1)
+    Tmap = instrument_itensor(prop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
     L_mpo = MPO_Liouville(H, L; jump_ops=[])
     T_L = contract_core(L_mpo.core)
     d = dim(L[1])
@@ -361,11 +361,11 @@ end
     # Then: delta map between in/out legs; warning is captured/asserted by @test_logs.
     sys0 = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
     idprop = SystemPropagation(sys0)
-    Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, order=1)
+    Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
     @test isapprox(norm(Tid - delta(in1, out0)), 0.0; atol=1e-12)
 
     prop_bound = SystemPropagation([in1], [out0], sys)
-    T_bound = instrument_itensor(prop_bound, Index[], Index[], 1; dt=dt, order=1)
+    T_bound = instrument_itensor(prop_bound, Index[], Index[], 1; dt=dt, alg=Trotter{1}())
     @test T_bound isa ITensor
     @test hasind(T_bound, in1) && hasind(T_bound, out0)
 end

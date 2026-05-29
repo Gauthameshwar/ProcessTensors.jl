@@ -7,7 +7,8 @@ using LinearAlgebra
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
                         OpSum, OpSum_Liouville, Index, ITensor, apply, dim, plev, prime,
                         replaceind, siteinds, tag_value, to_dm, to_liouville,
-                        _phys_site_from_liouv, _build_trotter_gates, _compose_gates_to_map, _superop_matrix, _LiouvLeft, _LiouvRight
+                        _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
+                        liouvillian_propagator_itensor, Exact, Trotter
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
@@ -648,67 +649,6 @@ function instrument_itensor(
     return _reindex_itensor(_mps_to_itensor(state_l), siteinds(state_l), sites)
 end
 
-# function _left_right_superop_itensor(
-#     left::AbstractMPO{Hilbert},
-#     right::AbstractMPO{Hilbert},
-#     out_liouv::Index,
-# )
-#     phys_sites = _phys_sites_from_hilbert_mpo(left)
-#     _phys_sites_from_hilbert_mpo(right) == phys_sites || throw(
-#         ArgumentError("LeftRightOperator: left and right MPOs must share physical sites."),
-#     )
-#     T_A = _mpo_to_itensor(left)
-#     T_B = _mpo_to_itensor(right)
-#     d = prod(dim.(phys_sites))
-#     A_mat = reshape(ComplexF64.(Array(T_A, prime.(phys_sites)..., phys_sites...)), d, d)
-#     B_mat = reshape(ComplexF64.(Array(T_B, prime.(phys_sites)..., phys_sites...)), d, d)
-#     W = kron(transpose(B_mat), A_mat)
-#     return ITensor(reshape(W, d^2, d^2), prime(out_liouv), out_liouv)
-# end
-
-# function instrument_itensor(
-#     instr::LeftRightOperator,
-#     input_pt_sites::AbstractVector{<:Index},
-#     output_pt_sites::AbstractVector{<:Index},
-#     k::Int;
-#     kwargs...,
-# )
-#     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
-#     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
-#     _validate_two_leg_map("LeftRightOperator", in_sites, out_sites)
-#     all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-#         ArgumentError("LeftRightOperator: all input_pt_sites must have tstep=$k when tagged."),
-#     )
-#     all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-#         ArgumentError("LeftRightOperator: all output_pt_sites must have tstep=$(k - 1) when tagged."),
-#     )
-#     inp = only(in_sites)
-#     out = only(out_sites)
-    
-#     # Inline the superoperator construction with BOTH indices
-#     phys_sites = _phys_sites_from_hilbert_mpo(instr.left)
-#     _phys_sites_from_hilbert_mpo(instr.right) == phys_sites || throw(
-#         ArgumentError("LeftRightOperator: left and right MPOs must share physical 
-#                     sites."),
-#                         )
-
-#     # Convert operators to ITensors
-#     T_A = _mpo_to_itensor(instr.left)
-#     T_B = _mpo_to_itensor(instr.right)
-#     d = prod(dim.(phys_sites))
-
-#     # Extract matrices
-#     A_mat = reshape(ComplexF64.(Array(T_A, prime.(phys_sites)..., phys_sites...)), d, d)
-#     B_mat = reshape(ComplexF64.(Array(T_B, prime.(phys_sites)..., phys_sites...)), d, d)
-
-#     # Construct Liouville superoperator: kron(B^T, A)
-#     W = kron(transpose(B_mat), A_mat)
-
-#     # Return with BOTH inp and out indices properly bound
-#     return ITensor(reshape(W, d^2, d^2), inp, out)
-
-# end
-
 function instrument_itensor(
     instr::LeftRightOperator,
     input_pt_sites::AbstractVector{<:Index},
@@ -728,8 +668,7 @@ instr.output_pt_sites
     # Extract physical sites and convert MPOs to matrices
     phys_sites = _phys_sites_from_hilbert_mpo(instr.left)
     _phys_sites_from_hilbert_mpo(instr.right) == phys_sites || throw(
-        ArgumentError("LeftRightOperator: left and right MPOs must share physical 
-sites."),
+        ArgumentError("LeftRightOperator: left and right MPOs must share physical sites."),
     )
 
     T_A = _mpo_to_itensor(instr.left)
@@ -843,7 +782,7 @@ function instrument_itensor(
     output_pt_sites::AbstractVector{<:Index},
     k::Int;
     dt::Real,
-    order::Int=2,
+    alg=Trotter{2}(),
     kwargs...,
 )
     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
@@ -863,24 +802,31 @@ function instrument_itensor(
         end
         return id_map
     end
-    # Trotter gates must be built on canonical system Liouville sites (with `Site` tag).
-    # PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
+    # liouvillian_propagator_itensor builds on canonical system Liouville sites (with `Site`
+    # tag). PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
     gate_sites = Index[instr.system.sites...]
     length(gate_sites) == length(out_sites) || throw(
         ArgumentError(
             "SystemPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
         ),
     )
-    gates = _build_trotter_gates(liouv_os, gate_sites, dt; order=order)
-    U_t, final_out = _compose_gates_to_map(gates, gate_sites)
+    U_t = liouvillian_propagator_itensor(
+        instr.system.H,
+        gate_sites,
+        dt;
+        alg=alg,
+        jump_ops=instr.system.jump_ops,
+    )
+    # U_t has unprimed gate_sites (output) and prime.(gate_sites) (input).
+    # Relabel to PT leg convention: output → out_sites, input → in_sites.
     U_pt = U_t
-    for (gate_out, pt_out) in zip(final_out, out_sites)
-        U_pt = replaceind(U_pt, gate_out, pt_out)
-    end
     for (g, pt_out) in zip(gate_sites, out_sites)
         U_pt = replaceind(U_pt, g, pt_out)
     end
-    return _reindex_itensor(U_pt, out_sites, in_sites)
+    for (g, pt_in) in zip(gate_sites, in_sites)
+        U_pt = replaceind(U_pt, prime(g), pt_in)
+    end
+    return U_pt
 end
 
 function instrument_itensor(

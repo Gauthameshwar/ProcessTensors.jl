@@ -56,7 +56,7 @@ function _phys_sites_from_rho0(rho0_h::AbstractMPO{Hilbert})
 end
 
 """
-    _check_causality_triple(pt, rho0_h, t_idx; atol, order)
+    _check_causality_triple(pt, rho0_h, t_idx; atol, alg)
 
 Compare reduced states at snapshot `t_idx` from reference evolution vs a future-perturbed schedule.
 """
@@ -65,7 +65,7 @@ function _check_causality_triple(
     rho0_h,
     t_idx::Int;
     atol=1e-10,
-    order::Int=2,
+    alg=Trotter{2}(),
 )
     open_at = t_idx - 1
     0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
@@ -80,10 +80,10 @@ function _check_causality_triple(
     )
 
     ρ_ref = _mpo_to_dense(
-        evolve(pt, seq_std; default_instr=default_instr, order=order).states_hilbert[t_idx],
+        evolve(pt, seq_std; default_instr=default_instr, alg=alg).states_hilbert[t_idx],
     )
     ρ_pert = _mpo_to_dense(
-        evolve(pt, seq_pert; default_instr=default_instr, order=order).states_hilbert[t_idx],
+        evolve(pt, seq_pert; default_instr=default_instr, alg=alg).states_hilbert[t_idx],
     )
 
     @test ρ_ref ≈ ρ_pert atol=atol

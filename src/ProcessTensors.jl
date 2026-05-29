@@ -154,6 +154,7 @@ export ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_p
 
 # Time evolution
 export tdvp, tebd, Exact, Trotter,
+       trotter_gates, propagator_itensor_from_gates,
        promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
 
 end # module ProcessTensors

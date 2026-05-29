@@ -47,7 +47,7 @@ spin_chain_jump_ops(N::Int; γ::Float64=0.1) = [(γ, "S-", j) for j in 1:N]
             jump_ops=jump_ops,
             maxdim=128,
             cutoff=1e-12,
-            order=2,
+            alg=Trotter{2}(),
         )
 
         for (step, state) in enumerate(states)
@@ -73,7 +73,7 @@ spin_chain_jump_ops(N::Int; γ::Float64=0.1) = [(γ, "S-", j) for j in 1:N]
         errors = Float64[]
 
         for dt in dts
-            state = tebd(ρ0_vec, os_H, dt, T; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, order=2)
+            state = tebd(ρ0_vec, os_H, dt, T; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, alg=Trotter{2}())
             ρ_tebd_dense = liouville_state_to_dense(state, physical_sites)
             push!(errors, relative_frobenius_error(ρ_tebd_dense, exact_dense))
         end
@@ -85,8 +85,8 @@ spin_chain_jump_ops(N::Int; γ::Float64=0.1) = [(γ, "S-", j) for j in 1:N]
 
     @testset "reference and moderate truncation stay close" begin
         T = 0.2
-        ρ_tight = tebd(ρ0_vec, os_H, 0.025, T; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, order=2)
-        ρ_loose = tebd(ρ0_vec, os_H, 0.025, T; jump_ops=jump_ops, maxdim=32, cutoff=1e-9, order=2)
+        ρ_tight = tebd(ρ0_vec, os_H, 0.025, T; jump_ops=jump_ops, maxdim=128, cutoff=1e-12, alg=Trotter{2}())
+        ρ_loose = tebd(ρ0_vec, os_H, 0.025, T; jump_ops=jump_ops, maxdim=32, cutoff=1e-9, alg=Trotter{2}())
 
         err = relative_frobenius_error(
             liouville_state_to_dense(ρ_loose, physical_sites),

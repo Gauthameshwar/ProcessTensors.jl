@@ -113,12 +113,12 @@ function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_s
 end
 
 # Evolve repeatedly by one TEBD step so invariants can be checked at every sampled time.
-function tebd_trajectory(ρ0, os_H, dt::Real, nsteps::Integer; jump_ops, maxdim::Int, cutoff::Float64, order::Int=2)
+function tebd_trajectory(ρ0, os_H, dt::Real, nsteps::Integer; jump_ops, maxdim::Int, cutoff::Float64, alg=Trotter{2}())
     states = Vector{typeof(ρ0)}(undef, nsteps + 1)
     states[1] = copy(ρ0)
     current = copy(ρ0)
     for step in 1:nsteps
-        current = tebd(current, os_H, dt, dt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, order=order)
+        current = tebd(current, os_H, dt, dt; jump_ops=jump_ops, maxdim=maxdim, cutoff=cutoff, alg=alg)
         states[step + 1] = current
     end
     return states
