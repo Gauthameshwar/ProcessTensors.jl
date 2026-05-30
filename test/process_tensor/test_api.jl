@@ -3,6 +3,8 @@ using ProcessTensors
 using ITensors
 using Test
 
+struct _UnsupportedPTInstrument <: AbstractInstrument end
+
 if !isdefined(Main, :liouville_state_to_dense)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
@@ -152,4 +154,141 @@ _one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
         @test !pt.embed_system_propagation
         @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evolve(pt, psi0)
     end
+
+    @testset "ProcessTensor direct single-site constructor" begin
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.2, "Sz", 1))
+        pt_ref = build_process_tensor(system; dt=0.1, nsteps=3)
+        pt = ProcessTensor(pt_ref.core, system, nothing, 0.1, 3)
+        @test pt.coupling_site == only(system.sites)
+        @test pt.dt == 0.1
+        @test pt.nsteps == 3
+        @test pt.environment === nothing
+        @test length(pt.core) == 3
+
+        s2 = siteinds("S=1/2", 2)
+        system2 = spin_system(s2, OpSum() + (0.1, "Sz", 1))
+        pt_multi = build_process_tensor(system2, system2.sites[1]; dt=0.1, nsteps=2)
+        @test_throws ArgumentError ProcessTensor(pt_multi.core, system2, nothing, 0.1, 2)
+    end
+
+    @testset "ProcessTensor core property forwarding" begin
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.2, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.1, nsteps=3)
+        core = pt.core
+
+        @test getproperty(pt, :core) === core
+        @test getproperty(pt, :nsteps) == 3
+        @test getproperty(pt, :dt) == 0.1
+
+        common_props = filter(sym -> hasproperty(core, sym), (:llim, :rlim, :center, :orthocenter))
+        @test !isempty(common_props)
+        for prop in common_props
+            @test getproperty(pt, prop) == getproperty(core, prop)
+            val = getproperty(core, prop)
+            @test_nowarn setproperty!(pt, prop, val)
+            @test getproperty(pt, prop) == val
+            @test getproperty(core, prop) == val
+        end
+    end
+
+    @testset "create_instruments bond dispatch and invalid types" begin
+        # Mirrors the step loop in create_instruments (process_tensor.jl:721-742).
+        function _create_instruments_step_bond(pt, instr, step)
+            out_prev, in_curr = coupling_times(pt, step)
+            if instr isa TwoLegInstrument
+                return instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt)
+            elseif instr isa SingleLegInstrument
+                if instr.leg_plev == 0
+                    return instrument_itensor(instr, out_prev, step)
+                else
+                    return instrument_itensor(instr, in_curr, step)
+                end
+            else
+                throw(ArgumentError("create_instruments: unsupported instrument $(typeof(instr)) at step=$step."))
+            end
+        end
+
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        @test _create_instruments_step_bond(pt, TraceOut(; leg_plev=1), 1) isa ITensor
+        @test _create_instruments_step_bond(pt, TraceOut(; leg_plev=1), 2) isa ITensor
+        out1, _ = coupling_times(pt, 2)
+        op_z = OpSum() + (1.0, "Sz", 1)
+        @test instrument_itensor(ObservableMeasurement(op_z; leg_plev=0), out1, 1) isa ITensor
+
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        instruments = create_instruments(pt, seq)
+        @test length(instruments) == pt.nsteps
+        @test instruments[1] ≈ instrument_itensor(StatePreparation(rho0_h), input_sites(pt, 0), 0)
+        for step in 1:(pt.nsteps - 1)
+            expected = _create_instruments_step_bond(pt, IdentityOperation(), step)
+            @test instruments[step + 1] ≈ expected
+        end
+
+        err = @test_throws ArgumentError _create_instruments_step_bond(pt, _UnsupportedPTInstrument(), 1)
+        @test occursin("unsupported instrument", lowercase(string(err.value)))
+    end
+
+    @testset "evolve rho0 + seq convenience overload" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.5, "Sz", 1)
+        system = spin_system(s, H)
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        trj_conv = evolve(pt, rho0_h, seq)
+        seq_with_prep = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq_with_prep, StatePreparation(rho0_h), 0)
+        trj_ref = evolve(pt, seq_with_prep)
+        trj_short = evolve(pt, rho0_h)
+
+        @test trj_conv.times ≈ trj_ref.times
+        @test trj_conv.times ≈ trj_short.times
+        for i in 1:pt.nsteps
+            @test _one_site_liouville_state_to_dense(trj_conv.states_liouville[i]) ≈
+                  _one_site_liouville_state_to_dense(trj_ref.states_liouville[i]) atol=1e-10
+            @test _one_site_liouville_state_to_dense(trj_conv.states_liouville[i]) ≈
+                  _one_site_liouville_state_to_dense(trj_short.states_liouville[i]) atol=1e-10
+        end
+    end
+end
+
+@testset "process_tensor.jl: pretty printing" begin
+    s = siteinds("S=1/2", 1)
+    H = OpSum() + (0.5, "Sz", 1)
+    system = spin_system(s, H)
+    pt_markov = build_process_tensor(system; dt=0.1, nsteps=3)
+
+    out = sprint(show, pt_markov)
+    @test out == sprint(show, MIME"text/plain"(), pt_markov)
+    @test occursin("3-step ProcessTensor{SpinSystem, Nothing}", out)
+    @test occursin("dt=0.1", out)
+    @test occursin("t_final=0.3", out)
+    @test occursin("maxlinkdim=1", out)
+    @test occursin("system:      SpinSystem(nsites=1, dissipative=false)", out)
+    @test occursin("environment: none", out)
+    @test occursin("core:        MPO{Liouville}(length=3", out)
+
+    L_env = liouv_sites(siteinds("S=1/2", 1))
+    e = siteinds("S=1/2", 1)
+    ρ = to_liouville(to_dm(MPS(e, ["Up"])); sites=L_env)
+    H_env = OpSum() + (1.0, "Sx", 1)
+    mode = SpinMode(L_env, H_env, ρ; coupling=OpSum() + (0.05, "Sz", 1, "Sz", 2))
+    bath = spin_bath([mode])
+    pt_bath = build_process_tensor(system, system.sites[1]; environment=bath, dt=0.1, nsteps=3)
+
+    out_bath = sprint(show, pt_bath)
+    @test occursin("3-step ProcessTensor{SpinSystem, SpinBath}", out_bath)
+    @test occursin("dt=0.1", out_bath)
+    @test occursin("t_final=0.3", out_bath)
+    @test occursin("maxlinkdim=4", out_bath)
+    @test occursin("environment: SpinBath(nmodes=1, D_bath=4, coupling=true)", out_bath)
+    @test occursin("core:        MPO{Liouville}(length=3", out_bath)
 end

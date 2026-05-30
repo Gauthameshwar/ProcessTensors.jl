@@ -105,15 +105,48 @@ using ProcessTensors
 
     @testset "Forwarded indexing and show" begin
         spin_sites = siteinds("S=1/2", 4)
-        m = MPS(spin_sites, fill("Up", 4))
+        m_h = MPS(spin_sites, fill("Up", 4))
+        combiners = [ITensor(1.0) for _ in 1:length(spin_sites)]
+        m_l = MPS{Liouville}(ProcessTensors.ITensorMPS.MPS(spin_sites, fill("Up", 4)), combiners)
 
-        @test length(m) == 4
-        @test_nowarn m[1]
-        @test_nowarn m[1] = m[1]
+        @test length(m_h) == 4
+        @test_nowarn m_h[1]
+        @test_nowarn m_h[1] = m_h[1]
 
-        out = sprint(show, m)
-        @test occursin("4-element MPS{Hilbert}", out)
-        @test occursin("site dims:", out)
-        @test occursin("tensors:", out)
+        for (m, space, combiner_line) in (
+            (m_h, "Hilbert", "combiners: none"),
+            (m_l, "Liouville", "4 ITensors"),
+        )
+            out = sprint(show, m)
+            plain = sprint(show, MIME"text/plain"(), m)
+            @test out == plain
+            @test occursin("4-element MPS{$space}", out)
+            @test occursin("site dims:", out)
+            @test occursin("link dims:", out)
+            @test occursin("maxlinkdim:", out)
+            @test occursin(combiner_line, out)
+            @test occursin("tensors:", out)
+            @test occursin("[1]", out)
+            @test occursin("[4]", out)
+        end
+
+        spin_sites_big = siteinds("S=1/2", 8)
+        m_h_big = MPS(spin_sites_big, fill("Up", 8))
+        combiners_big = [ITensor(1.0) for _ in 1:length(spin_sites_big)]
+        m_l_big = MPS{Liouville}(ProcessTensors.ITensorMPS.MPS(spin_sites_big, fill("Up", 8)), combiners_big)
+
+        for (m, space, combiner_line) in (
+            (m_h_big, "Hilbert", "combiners: none"),
+            (m_l_big, "Liouville", "8 ITensors"),
+        )
+            out = sprint(show, m)
+            @test occursin("8-element MPS{$space}", out)
+            @test occursin("⋮", out)
+            @test occursin("[1]", out)
+            @test occursin("[2]", out)
+            @test occursin("[7]", out)
+            @test occursin("[8]", out)
+            @test occursin(combiner_line, out)
+        end
     end
 end

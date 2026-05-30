@@ -28,3 +28,26 @@ using Test
     @test lor2.gamma == 0.8
     @test lor2.omega0 == 2.0
 end
+
+@testset "spectrals.jl: pretty printing" begin
+    ohm = ohmic_sd(alpha=2, wc=3.5, s=0.75)
+    lor = lorentzian_sd(lambda=1.2, gamma=0.8, omega0=2.0)
+
+    out_ohm = sprint(show, ohm)
+    out_lor = sprint(show, lor)
+    @test out_ohm == sprint(show, MIME"text/plain"(), ohm)
+    @test out_lor == sprint(show, MIME"text/plain"(), lor)
+
+    @test occursin("Ohmic(α=", out_ohm)
+    @test occursin("ωc=", out_ohm)
+    @test occursin("s=", out_ohm)
+    @test occursin("2.0", out_ohm)
+    @test occursin("3.5", out_ohm)
+    @test occursin("0.75", out_ohm)
+
+    @test occursin("Lorentzian(λ=", out_lor)
+    @test occursin("γ=", out_lor)
+    @test occursin("ω₀=", out_lor)
+    @test occursin("1.2", out_lor)
+    @test occursin("0.8", out_lor)
+end

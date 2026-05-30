@@ -150,4 +150,27 @@ end
         @test batch[1] ≈ evaluate_process(pt, seq1)
         @test batch[2] ≈ evaluate_process(pt, seq2)
     end
+
+    @testset "rho0 convenience overloads" begin
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        seq_closed = _closed_markovian_seq(pt, rho0_h)
+        @test evaluate_process(pt, rho0_h, seq_closed) ≈ evaluate_process(pt, seq_closed)
+
+        seq_open = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        rho_out = evaluate_process(pt, rho0_h, seq_open)
+        seq_manual = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq_manual, StatePreparation(rho0_h), 0)
+        @test rho_out ≈ evaluate_process(pt, seq_manual)
+
+        rho_default = evaluate_process(pt, rho0_h)
+        @test rho_default isa MPO{Liouville}
+        trj = evolve(pt, rho0_h)
+        ρ_ref = _mpo_to_dense(to_hilbert(rho_default))
+        ρ_final = _mpo_to_dense(trj.states_hilbert[end])
+        @test ρ_ref ≈ ρ_final atol=1e-10
+    end
 end

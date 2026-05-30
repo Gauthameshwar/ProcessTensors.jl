@@ -123,10 +123,40 @@ using ProcessTensors
 
         out_h = sprint(show, m_h)
         out_l = sprint(show, m_l)
-        @test occursin("4-element MPO{Hilbert}", out_h)
-        @test occursin("site dims:", out_h)
-        @test occursin("combiners: none", out_h)
-        @test occursin("4-element MPO{Liouville}", out_l)
-        @test occursin("combiners:", out_l)
+        plain_h = sprint(show, MIME"text/plain"(), m_h)
+        plain_l = sprint(show, MIME"text/plain"(), m_l)
+        @test out_h == plain_h
+        @test out_l == plain_l
+        for (out, space, combiner_line) in (
+            (out_h, "Hilbert", "combiners: none"),
+            (out_l, "Liouville", "4 ITensors"),
+        )
+            @test occursin("4-element MPO{$space}", out)
+            @test occursin("site dims:", out)
+            @test occursin("link dims:", out)
+            @test occursin("maxlinkdim:", out)
+            @test occursin(combiner_line, out)
+            @test occursin("tensors:", out)
+            @test occursin("[1]", out)
+            @test occursin("[4]", out)
+        end
+
+        spin_sites_big = siteinds("S=1/2", 8)
+        m_h_big = MPO(spin_sites_big, "Id")
+        combiners_big = [ITensor(1.0) for _ in 1:length(spin_sites_big)]
+        m_l_big = MPO{Liouville}(combiners_big, spin_sites_big, "Id")
+
+        for (out, space, combiner_line) in (
+            (sprint(show, m_h_big), "Hilbert", "combiners: none"),
+            (sprint(show, m_l_big), "Liouville", "8 ITensors"),
+        )
+            @test occursin("8-element MPO{$space}", out)
+            @test occursin("⋮", out)
+            @test occursin("[1]", out)
+            @test occursin("[2]", out)
+            @test occursin("[7]", out)
+            @test occursin("[8]", out)
+            @test occursin(combiner_line, out)
+        end
     end
 end

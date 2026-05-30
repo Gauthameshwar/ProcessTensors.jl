@@ -43,7 +43,7 @@ set_theme!(
 )
 
 """
-    _correlation_grid(system, bath, rho0_h, O_A, O_B, sys_phys; dt, n_times, ...)
+    _correlation_grid(system, bath, rho0_h, O_A, O_B; dt, n_times, ...)
 
 Fill `grid[n₁+1, n₂+1] = ⟨A(t₂) B(t₁)⟩` for all `n₁, n₂ ∈ 0:(n_times-1)` using one
 [`ProcessTensor`](@ref) with `nsteps = n_times + 1` (extra slot so same-time pairs at

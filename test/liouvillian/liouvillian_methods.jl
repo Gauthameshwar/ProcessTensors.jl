@@ -24,6 +24,32 @@ end
     L3 = OpSum()
     L3 += 0.1, "Sz", 1
 
+    @testset "OpSum_Liouville: keyword vs positional jump_ops" begin
+        L_opsum_kw = OpSum_Liouville(os_H; jump_ops=tuple_jump_vec)
+        L_opsum_pos = OpSum_Liouville(os_H, tuple_jump_vec)
+        L_opsum_empty = OpSum_Liouville(os_H)
+
+        @test L_opsum_kw isa OpSum
+        @test L_opsum_pos isa OpSum
+        @test L_opsum_empty isa OpSum
+
+        L_mpo_kw = MPO(L_opsum_kw, sL)
+        L_mpo_pos = MPO(L_opsum_pos, sL)
+        err = norm(_liouv_tensor_array(L_mpo_kw, sL[1]) - _liouv_tensor_array(L_mpo_pos, sL[1]))
+        @test err < 1e-12
+    end
+
+    @testset "OpSum_Liouville: OpSum jump_ops" begin
+        L_opsum_single = OpSum_Liouville(os_H, L1)
+        L_opsum_vec = OpSum_Liouville(os_H, [L1, L2])
+
+        L_mpo_single = MPO(L_opsum_single, sL)
+        L_mpo_vec = MPO(L_opsum_vec, sL)
+
+        @test length(L_mpo_single) == 1
+        @test length(L_mpo_vec) == 1
+    end
+
     @testset "keyword jump_ops on liouville sites" begin
         L_mpo = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=tuple_jump_vec)
         @test length(L_mpo) == 1
@@ -62,6 +88,18 @@ end
 
         err = norm(_liouv_tensor_array(L_from_vector_liouv, sL[1]) - _liouv_tensor_array(L_from_varargs_liouv, sL[1]))
         @test err < 1e-12
+    end
+
+    @testset "keyword OpSum jump_ops on liouville sites" begin
+        L_kw_single = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=L1)
+        L_pos_single = @test_nowarn MPO_Liouville(os_H, L1, sL)
+        err_single = norm(_liouv_tensor_array(L_kw_single, sL[1]) - _liouv_tensor_array(L_pos_single, sL[1]))
+        @test err_single < 1e-12
+
+        L_kw_vec = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=[L1, L2])
+        L_pos_vec = @test_nowarn MPO_Liouville(os_H, [L1, L2], sL)
+        err_vec = norm(_liouv_tensor_array(L_kw_vec, sL[1]) - _liouv_tensor_array(L_pos_vec, sL[1]))
+        @test err_vec < 1e-12
     end
 
     @testset "unsupported 4-argument physical+liouville tuple call" begin

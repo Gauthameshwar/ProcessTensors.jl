@@ -52,8 +52,17 @@ end
     ψ1 = MPS(sites, ["Up", "Dn"])
     ψ2 = MPS(sites, ["Dn", "Up"])
 
+    ψ1_liou = to_liouville(ψ1)
+    @test ψ1_liou isa MPS{Liouville}
+    @test length(siteinds(ψ1_liou)) == length(sites)
+    @test all(hastags.(siteinds(ψ1_liou), "Liouv"))
+
     ρ_pure = to_dm(ψ1)
     @test ρ_pure isa MPO{Hilbert}
+
+    ρ_pure_liou_pos = to_liouville(ρ_pure, sL)
+    @test ρ_pure_liou_pos isa MPS{Liouville}
+    @test siteinds(ρ_pure_liou_pos) == sL
 
     ρ_pure_liou = to_liouville(ρ_pure; sites=sL)
     @test ρ_pure_liou isa MPS{Liouville}

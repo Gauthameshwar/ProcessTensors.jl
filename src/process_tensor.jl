@@ -197,7 +197,6 @@ function _build_bathmode_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
     bathmode::AbstractBathMode,
-    spectral_density::AbstractSpectralDensity,
     dt::Real,
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
@@ -449,7 +448,6 @@ function build_process_tensor(
                 system,
                 coupling_site,
                 environment.modes[1],
-                environment.spectral_density,
                 dt,
                 nsteps;
                 bath_coupling=environment.coupling,

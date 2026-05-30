@@ -113,3 +113,58 @@ end
     @test_warn r"no mode-system coupling" BosonicBath([bm], sd, OpSum())
     @test_warn r"no mode-system coupling" SpinBath([sm], sd, OpSum())
 end
+
+@testset "environments.jl: pretty printing" begin
+    sd = ohmic_sd()
+    b_sites = liouv_sites(siteinds("Boson", 1; dim=4))
+    s_sites = liouv_sites(siteinds("S=1/2", 1))
+    n_max_b = dim(only(b_sites)) - 1
+
+    bm = bosonic_mode(
+        b_sites,
+        OpSum() + (0.1, "N", 1),
+        n_max_b,
+        random_mps(b_sites);
+        coupling=OpSum() + ("N", 1, "Sz", 2),
+    )
+    sm = spin_mode(
+        s_sites,
+        OpSum() + (0.1, "Sz", 1),
+        random_mps(s_sites);
+        coupling=OpSum() + ("Sx", 1, "Sx", 2),
+    )
+    bb = bosonic_bath([bm, bm])
+    sb = spin_bath([sm, sm])
+
+    out_sm = sprint(show, sm)
+    out_bm = sprint(show, bm)
+    @test out_sm == sprint(show, MIME"text/plain"(), sm)
+    @test out_bm == sprint(show, MIME"text/plain"(), bm)
+
+    for (out, name) in ((out_sm, "SpinMode"), (out_bm, "BosonicMode"))
+        @test occursin("ProcessTensors.$name", out)
+        @test occursin("space: Liouville", out)
+        @test occursin("site dims:", out)
+        @test occursin("initial state:", out)
+        @test occursin("coupling:", out)
+    end
+    @test occursin("n_max:", out_bm)
+
+    out_sb = sprint(show, sb)
+    out_bb = sprint(show, bb)
+    @test out_sb == sprint(show, MIME"text/plain"(), sb)
+    @test out_bb == sprint(show, MIME"text/plain"(), bb)
+    for (out, bath_name, mode_name, dim) in (
+        (out_sb, "SpinBath", "SpinMode", 16),
+        (out_bb, "BosonicBath", "BosonicMode", 256),
+    )
+        @test occursin("ProcessTensors.$bath_name", out)
+        @test occursin("modes: 2", out)
+        @test occursin("space: Liouville", out)
+        @test occursin("site dims:", out)
+        @test occursin("bath Liouville dimension: $dim", out)
+        @test occursin("mode summary:", out)
+        @test occursin("[1] $mode_name", out)
+        @test occursin("[2] $mode_name", out)
+    end
+end

@@ -132,3 +132,31 @@ end
     @test length(sys_spin_explicit.jump_ops) == 1
     @test length(sys_boson_explicit.jump_ops) == 1
 end
+
+@testset "systems.jl: pretty printing" begin
+    spin_sites = siteinds("S=1/2", 2)
+    boson_sites = siteinds("Boson", 2; dim=3)
+    H_spin = OpSum() + (0.3, "Sz", 1)
+    H_boson = OpSum() + (0.4, "N", 1)
+    J_spin = OpSum() + (0.1, "S-", 1)
+
+    sys_spin = spin_system(spin_sites, H_spin)
+    sys_boson = boson_system(boson_sites, H_boson)
+    sys_diss = spin_system(spin_sites, H_spin; jump_ops=[J_spin])
+
+    out_spin = sprint(show, sys_spin)
+    out_boson = sprint(show, sys_boson)
+    out_diss = sprint(show, sys_diss)
+    @test out_spin == sprint(show, MIME"text/plain"(), sys_spin)
+    @test out_boson == sprint(show, MIME"text/plain"(), sys_boson)
+
+    for (out, name, nsites) in ((out_spin, "SpinSystem", 2), (out_boson, "BosonSystem", 2))
+        @test occursin("ProcessTensors.$name", out)
+        @test occursin("sites: $nsites", out)
+        @test occursin("space: Liouville", out)
+        @test occursin("site dims:", out)
+        @test occursin("dissipative: false", out)
+    end
+    @test occursin("dissipative: true", out_diss)
+    @test length(sys_diss.jump_ops) == 1
+end
