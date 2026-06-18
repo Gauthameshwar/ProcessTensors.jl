@@ -3,8 +3,6 @@ import ITensors: scalar, terms
 import ITensors.Ops: Exact, Trotter
 import Base: getproperty, setproperty!, show
 
-const MAX_DENSE_LIOUVILLE_DIM = 5_000
-
 struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
     core::CoreMPO
     system::S
@@ -178,17 +176,6 @@ function _build_trivial_pt_cores(
     return cores
 end
 
-function _validate_dense_liouville_budget(d_joint::Integer; context::AbstractString)
-    d_joint <= MAX_DENSE_LIOUVILLE_DIM && return nothing
-    @warn "$context: joint Liouville vector dimension D=$d_joint exceeds MAX_DENSE_LIOUVILLE_DIM=$(MAX_DENSE_LIOUVILLE_DIM)."
-    throw(
-        ArgumentError(
-            "$context: joint Liouville vector dimension D=$d_joint is too large for dense exp(dt * L). " *
-            "Please reduce mode count / local cutoff or wait for TEBD-based large-bath support.",
-        ),
-    )
-end
-
 joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
@@ -205,7 +192,6 @@ function _build_bathmode_pt_cores(
     sys_alg=Trotter{2}(),
     kwargs...
 )
-    nsteps >= 1 || throw(ArgumentError("_build_bathmode_pt_cores: nsteps must be at least 1; got $nsteps."))
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
     )
@@ -277,7 +263,6 @@ function _build_multimode_pt_cores(
     sys_alg=Trotter{2}(),
     kwargs...
 )
-    nsteps >= 1 || throw(ArgumentError("_build_multimode_pt_cores: nsteps must be at least 1; got $nsteps."))
     isempty(environment.modes) && throw(ArgumentError("_build_multimode_pt_cores: environment must contain at least one mode."))
 
     modes = environment.modes
@@ -424,7 +409,7 @@ function build_process_tensor(
     embed_system_propagation::Bool=true,
 )
     nsteps >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
-    _validate_coupling_site(system, coupling_site)
+
     embed_in_cores = embed_system_propagation && length(system.sites) == 1
 
     cores = if environment === nothing
@@ -501,8 +486,18 @@ end
 
 _schedule_default_instr(::ProcessTensor) = IdentityOperation()
 
-function _validate_schedule_default(pt::ProcessTensor, default_instr::AbstractInstrument, caller::AbstractString)
-    if pt.embed_system_propagation && default_instr isa SystemPropagation
+# Shared schedule validation for the lazy evaluation pipeline (create_instruments / evaluate_process / evolve):
+# requires embedded propagation, optionally the schedule default, complete PT leg maps, and a single-leg tstep=0.
+function _validate_instrument_schedule!(
+    pt::ProcessTensor,
+    seq::InstrumentSeq,
+    default_instr::AbstractInstrument,
+    caller::AbstractString;
+    require_embedded::Bool=true,
+    check_schedule_default::Bool=false,
+)
+    require_embedded && _require_embedded_propagation!(pt, caller)
+    if check_schedule_default && pt.embed_system_propagation && default_instr isa SystemPropagation
         throw(
             ArgumentError(
                 "$caller: system propagation is already embedded in this ProcessTensor; " *
@@ -510,6 +505,17 @@ function _validate_schedule_default(pt::ProcessTensor, default_instr::AbstractIn
             ),
         )
     end
+
+    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    isempty(missing_in) || throw(
+        ArgumentError("$caller: missing input legs for tsteps $(missing_in)."),
+    )
+    isempty(missing_out) || throw(
+        ArgumentError("$caller: missing output legs for tsteps $(missing_out)."),
+    )
+    resolve_instrument(seq, 0) isa SingleLegInstrument || throw(
+        ArgumentError("$caller: tstep=0 must be a single-leg initial preparation."),
+    )
     return nothing
 end
 
@@ -680,19 +686,6 @@ function _open_output_steps(seq::InstrumentSeq, nsteps::Int, default::AbstractIn
     return cuts
 end
 
-function _open_output_keep_k(seq::InstrumentSeq, nsteps::Int, default::AbstractInstrument)
-    cuts = _open_output_steps(seq, nsteps, default)
-    if isempty(cuts)
-        return nothing
-    end
-    length(cuts) == 1 || throw(
-        ArgumentError(
-            "evaluate_process: expected at most one OpenOutput in the schedule; found at steps $(cuts).",
-        ),
-    )
-    return cuts[1] - 1
-end
-
 # User-facing function to create an instrument schedule from a process tensor and an instrument sequence
 function create_instruments(
     pt::ProcessTensor,
@@ -700,20 +693,9 @@ function create_instruments(
     default::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
 )
-    _require_embedded_propagation!(pt, "create_instruments")
-    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
-    isempty(missing_in) || throw(
-        ArgumentError("create_instruments: missing input legs for tsteps $(missing_in)."),
-    )
-    isempty(missing_out) || throw(
-        ArgumentError("create_instruments: missing output legs for tsteps $(missing_out)."),
-    )
+    _validate_instrument_schedule!(pt, seq, default, "create_instruments")
 
     prep = resolve_instrument(seq, 0)
-    prep isa SingleLegInstrument || throw(
-        ArgumentError("create_instruments: tstep=0 must be a single-leg initial preparation."),
-    )
-
     instruments = Vector{ITensor}(undef, pt.nsteps)
     prep_in = input_sites(pt, 0)
     instruments[1] = instrument_itensor(prep, prep_in, 0)
@@ -788,19 +770,19 @@ function evaluate_process(
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
 )
-    _require_embedded_propagation!(pt, "evaluate_process")
-    _validate_schedule_default(pt, default_instr, "evaluate_process")
-    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
-    isempty(missing_in) || throw(
-        ArgumentError("evaluate_process: missing input legs for tsteps $(missing_in)."),
-    )
-    isempty(missing_out) || throw(
-        ArgumentError("evaluate_process: missing output legs for tsteps $(missing_out)."),
-    )
-    resolve_instrument(seq, 0) isa SingleLegInstrument ||
-        throw(ArgumentError("evaluate_process: tstep=0 must be a single-leg initial preparation."))
+    _validate_instrument_schedule!(pt, seq, default_instr, "evaluate_process"; check_schedule_default=true)
 
-    open_keep_k = _open_output_keep_k(seq, pt.nsteps, default_instr)
+    open_cuts = _open_output_steps(seq, pt.nsteps, default_instr)
+    open_keep_k = if isempty(open_cuts)
+        nothing
+    else
+        length(open_cuts) == 1 || throw(
+            ArgumentError(
+                "evaluate_process: expected at most one OpenOutput in the schedule; found at steps $(open_cuts).",
+            ),
+        )
+        open_cuts[1] - 1
+    end
     instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
     legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
 
@@ -908,15 +890,7 @@ function evolve(
     alg=Trotter{2}(),
     kwargs...
 )
-    _require_embedded_propagation!(pt, "evolve")
-    _validate_schedule_default(pt, default_instr, "evolve")
-    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
-    isempty(missing_in) || throw(
-        ArgumentError("evolve: missing input legs for tsteps $(missing_in)."),
-    )
-    isempty(missing_out) || throw(
-        ArgumentError("evolve: missing output legs for tsteps $(missing_out)."),
-    )
+    _validate_instrument_schedule!(pt, seq, default_instr, "evolve"; check_schedule_default=true)
 
     instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
 
@@ -925,9 +899,6 @@ function evolve(
     states_liouville = Vector{MPS{Liouville}}(undef, pt.nsteps)
     states_hilbert = Vector{MPO{Hilbert}}(undef, pt.nsteps)
     times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
-
-    resolve_instrument(seq, 0) isa SingleLegInstrument ||
-        throw(ArgumentError("evolve: tstep=0 must be a single-leg initial preparation."))
 
     prev_pt_core = pt.core[1] * instruments[1]
 
@@ -1032,14 +1003,7 @@ function two_time_correlation_seq(
         ),
     )
 
-    phys_sites = if rho0 isa AbstractMPO{Hilbert}
-        Index[
-            only(filter(i -> plev(i) == 0, inds(rho0.core[j])))
-            for j in eachindex(rho0.core)
-        ]
-    else
-        siteinds(rho0)
-    end
+    phys_sites = _phys_sites_from_hilbert_state(rho0)
     n_early = min(n_A, n_B)
     slot_late = n_late + 1
     terminal_late = slot_late == pt.nsteps

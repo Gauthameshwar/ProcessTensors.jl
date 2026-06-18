@@ -231,6 +231,17 @@ function _phys_site_from_liouv(s::Index)
     return Index(d; tags=phys_tags)
 end
 
+# Physical Hilbert sites from a density matrix MPO (unprimed leg at each site).
+function _phys_sites_from_hilbert_mpo(mpo::AbstractMPO{Hilbert})
+    return Index[
+        only(filter(i -> plev(i) == 0, inds(mpo.core[j])))
+        for j in eachindex(mpo.core)
+    ]
+end
+
+_phys_sites_from_hilbert_state(ρ::AbstractMPO{Hilbert}) = _phys_sites_from_hilbert_mpo(ρ)
+_phys_sites_from_hilbert_state(ψ::AbstractMPS{Hilbert}) = siteinds(ψ)
+
 # --------------------- Operator Constructions in the Liouville space ---------------------
 
 # The types of embedding of the physical operators into the Liouville space, as determined by the operator name suffix.
@@ -297,67 +308,34 @@ function ITensors.op(on::ITensors.OpName{N}, ::ITensors.SiteType"Liouv", s::Inde
 end
 
 # --------------------- Liouvillian MPO Construction ---------------------
-# Reject empty site inputs early, e.g. `MPO_Liouville(H, Index[])` is not meaningful.
-function _assert_sites_nonempty(sites::AbstractVector{<:Index})
-    isempty(sites) && throw(ArgumentError("MPO_Liouville: received an empty sites vector."))
-    return nothing
+# Canonical OpSum builder: normalized tuple-jump vector
+function _liouvillian_opsum(
+    os_H::OpSum,
+    tuple_jumps::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}},
+)
+    jumps = [(γ, String(opname), Int(site)) for (γ, opname, site) in tuple_jumps]
+    return build_liouvillian_opsum(os_H, jumps)
 end
 
-# Reuse Liouville sites when given, or build them from physical sites, e.g. `sites=s` returns `liouv_sites(s)`.
-function _liouv_sites_from_last_arg(sites::AbstractVector{<:Index})
-    _assert_sites_nonempty(sites)
+# Canonical OpSum builder: normalized Lindblad OpSum channel vector.
+function _liouvillian_opsum(os_H::OpSum, lindblad_ops::AbstractVector{<:OpSum})
+    return build_liouvillian_opsum_from_lindblad(os_H, lindblad_ops)
+end
+
+# Canonical MPO builder from a Liouvillian OpSum and physical or Liouville sites.
+function _liouvillian_mpo_from_opsum(
+    os_L::OpSum,
+    sites::AbstractVector{<:Index};
+    splitblocks::Bool=true,
+)
+    isempty(sites) && throw(ArgumentError("MPO_Liouville: received an empty sites vector."))
     all_liouv = all(_is_liouv_site, sites)
     any_liouv = any(_is_liouv_site, sites)
     any_liouv && !all_liouv && throw(
         ArgumentError("MPO_Liouville: mixed physical and Liouville indices detected in sites argument."),
     )
-    return all_liouv ? sites : liouv_sites(sites)
-end
-
-# Normalize tuple jump operators, e.g. `(γ, "S-", 1)` becomes `[(γ, "S-", 1)]`.
-function _normalize_tuple_jump_ops(jump_ops)
-    if jump_ops isa _TUPLE_JUMP_TYPE
-        γ, opname, site = jump_ops
-        return [(γ, String(opname), Int(site))]
-    elseif jump_ops isa AbstractVector
-        isempty(jump_ops) && return Tuple{Number,String,Int}[]
-        all(op -> op isa _TUPLE_JUMP_TYPE, jump_ops) || throw(
-            ArgumentError(
-                "MPO_Liouville: tuple jump operators must be (rate, op_name::String, site::Int).",
-            ),
-        )
-        return [(γ, String(opname), Int(site)) for (γ, opname, site) in jump_ops]
-    end
-    throw(
-        ArgumentError(
-            "MPO_Liouville: unsupported tuple jump_ops format $(typeof(jump_ops)).",
-        ),
-    )
-end
-
-# Normalize Lindblad OpSum inputs, e.g. a single `OpSum` becomes a one-element vector.
-function _normalize_lindblad_ops(jump_ops)
-    if jump_ops isa OpSum
-        return [jump_ops]
-    elseif jump_ops isa AbstractVector{<:OpSum}
-        isempty(jump_ops) && return OpSum[]
-        all(op -> op isa OpSum, jump_ops) || throw(
-            ArgumentError("MPO_Liouville: Lindblad jump operators must be OpSum objects."),
-        )
-        return collect(jump_ops)
-    end
-    throw(
-        ArgumentError(
-            "MPO_Liouville: unsupported Lindblad jump_ops format $(typeof(jump_ops)).",
-        ),
-    )
-end
-
-# Build the MPO from tuple jump operators, e.g. local `(γ, "S-", 1)` terms plus the Hamiltonian commutator.
-function _build_liouvillian_mpo(os_H::OpSum, tuple_jump_ops::AbstractVector, sites::AbstractVector{<:Index}; splitblocks::Bool=true)
-    liouv_sites_arg = _liouv_sites_from_last_arg(sites)
-    os_Liouville = build_liouvillian_opsum(os_H, tuple_jump_ops)
-    return MPO(os_Liouville, liouv_sites_arg; splitblocks=splitblocks)
+    liouv_sites_arg = all_liouv ? sites : liouv_sites(sites)
+    return MPO(os_L, liouv_sites_arg; splitblocks=splitblocks)
 end
 
 # Build the Liouvillian OpSum from a Hamiltonian OpSum and a vector of jump operators (with rates).
@@ -390,18 +368,6 @@ function build_liouvillian_opsum(os_H::OpSum, jump_ops::AbstractVector{<:Tuple{<
     end
 
     return os_L
-end
-
-# Build the MPO from Lindblad OpSum channels, e.g. `[OpSum() + (γ, "S-", 1)]` plus the Hamiltonian commutator.
-function _build_liouvillian_mpo_from_lindblad(
-    os_H::OpSum,
-    os_lindblad::AbstractVector{<:OpSum},
-    sites::AbstractVector{<:Index};
-    splitblocks::Bool=true,
-)
-    liouv_sites_arg = _liouv_sites_from_last_arg(sites)
-    os_Liouville = build_liouvillian_opsum_from_lindblad(os_H, os_lindblad)
-    return MPO(os_Liouville, liouv_sites_arg; splitblocks=splitblocks)
 end
 
 function build_liouvillian_opsum_from_lindblad(
@@ -476,7 +442,7 @@ function build_liouvillian_opsum_from_lindblad(
 end
 
 """
-    OpSum_Liouville(os_H::OpSum; jump_ops=[])
+    OpSum_Liouville(os_H::OpSum; jump_ops=Tuple{Number,String,Int}[])
     OpSum_Liouville(os_H::OpSum, jump_ops)
 
 Generate the symbolic Liouvillian OpSum from a physical Hamiltonian and Lindblad jump operators,
@@ -503,34 +469,40 @@ function OpSum_Liouville(os_H::OpSum; jump_ops=Tuple{Number,String,Int}[])
     return OpSum_Liouville(os_H, jump_ops)
 end
 
+OpSum_Liouville(os_H::OpSum, jump::_TUPLE_JUMP_TYPE) = begin
+    γ, opname, site = jump
+    _liouvillian_opsum(os_H, [(γ, String(opname), Int(site))])
+end
+
+OpSum_Liouville(
+    os_H::OpSum,
+    jumps::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}},
+) = _liouvillian_opsum(os_H, jumps)
+
+OpSum_Liouville(os_H::OpSum, L::OpSum) = _liouvillian_opsum(os_H, OpSum[L])
+
+OpSum_Liouville(os_H::OpSum, Ls::AbstractVector{<:OpSum}) = _liouvillian_opsum(os_H, Ls)
+
+# Untyped empty vector (e.g. `jump_ops=[]`) is treated as no jump operators.
+OpSum_Liouville(os_H::OpSum, jump_ops::AbstractVector) = isempty(jump_ops) ?
+    _liouvillian_opsum(os_H, Tuple{Number,String,Int}[]) :
+    throw(ArgumentError("OpSum_Liouville: unsupported jump_ops format $(typeof(jump_ops))."))
+
 function OpSum_Liouville(os_H::OpSum, jump_ops)
-    if jump_ops isa OpSum || (jump_ops isa AbstractVector && !isempty(jump_ops) && all(op -> op isa OpSum, jump_ops))
-        lindblad_ops = _normalize_lindblad_ops(jump_ops)
-        return build_liouvillian_opsum_from_lindblad(os_H, lindblad_ops)
-    end
-    tuple_jump_ops = _normalize_tuple_jump_ops(jump_ops)
-    return build_liouvillian_opsum(os_H, tuple_jump_ops)
+    throw(ArgumentError("OpSum_Liouville: unsupported jump_ops format $(typeof(jump_ops))."))
 end
 
 """
-    MPO_Liouville(os_H::OpSum, sites::AbstractVector{<:Index}; jump_ops=[])
+    MPO_Liouville(os_H::OpSum, sites::AbstractVector{<:Index}; jump_ops=Tuple{Number,String,Int}[])
 
 Build a Liouvillian MPO using either physical or pre-created Liouville sites.
 """
-function MPO_Liouville(
+MPO_Liouville(
     os_H::OpSum,
     sites::AbstractVector{<:Index};
     jump_ops=Tuple{Number,String,Int}[],
     splitblocks::Bool=true,
-)
-    if jump_ops isa OpSum || (jump_ops isa AbstractVector && !isempty(jump_ops) && all(op -> op isa OpSum, jump_ops))
-        lindblad_ops = _normalize_lindblad_ops(jump_ops)
-        return _build_liouvillian_mpo_from_lindblad(os_H, lindblad_ops, sites; splitblocks=splitblocks)
-    end
-
-    tuple_jump_ops = _normalize_tuple_jump_ops(jump_ops)
-    return _build_liouvillian_mpo(os_H, tuple_jump_ops, sites; splitblocks=splitblocks)
-end
+) = _liouvillian_mpo_from_opsum(OpSum_Liouville(os_H, jump_ops), sites; splitblocks=splitblocks)
 
 """
     MPO_Liouville(os_H::OpSum, jump_ops, sites::AbstractVector{<:Index}; splitblocks=true)
@@ -542,22 +514,12 @@ Accepts:
 - Lindblad OpSum operators: single OpSum or vector of OpSums, e.g. [OpSum() += γ, "S-", 1]
 - For multiple varargs OpSums, use: MPO_Liouville(H, L1, L2, L3, sites)
 """
-function MPO_Liouville(
+MPO_Liouville(
     os_H::OpSum,
     jump_ops,
     sites::AbstractVector{<:Index};
     splitblocks::Bool=true,
-)
-    # Check if it's OpSum-based
-    if jump_ops isa OpSum || (jump_ops isa AbstractVector && !isempty(jump_ops) && all(op -> op isa OpSum, jump_ops))
-        lindblad_ops = _normalize_lindblad_ops(jump_ops)
-        return _build_liouvillian_mpo_from_lindblad(os_H, lindblad_ops, sites; splitblocks=splitblocks)
-    end
-
-    # Otherwise treat as tuple-based
-    tuple_jump_ops = _normalize_tuple_jump_ops(jump_ops)
-    return _build_liouvillian_mpo(os_H, tuple_jump_ops, sites; splitblocks=splitblocks)
-end
+) = _liouvillian_mpo_from_opsum(OpSum_Liouville(os_H, jump_ops), sites; splitblocks=splitblocks)
 
 """
     MPO_Liouville(os_H::OpSum, L1::OpSum, L2::OpSum, Lrest..., sites::AbstractVector{<:Index}; splitblocks=true)
@@ -597,5 +559,5 @@ function MPO_Liouville(
 
     lindblad_ops = OpSum[L1, L2]
     append!(lindblad_ops, extra_ops)
-    return _build_liouvillian_mpo_from_lindblad(os_H, lindblad_ops, sites; splitblocks=splitblocks)
+    return _liouvillian_mpo_from_opsum(_liouvillian_opsum(os_H, lindblad_ops), sites; splitblocks=splitblocks)
 end

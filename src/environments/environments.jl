@@ -2,13 +2,12 @@
 
 module Environments
 
-using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token
+using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token,
+                       MAX_DENSE_LIOUVILLE_DIM
 using ..Spectrals: AbstractSpectralDensity, ohmic_sd
 using ITensors
 using ITensors: dim, terms
 import Base: show
-
-const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
 export AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
        bosonic_mode, spin_mode, bosonic_bath, spin_bath,
@@ -16,14 +15,6 @@ export AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinB
 
 abstract type AbstractBathMode end
 abstract type AbstractBath end
-
-function _warn_if_dense_pt_budget_exceeded(sites::AbstractVector{<:Index}, bath_name::AbstractString)
-    d_bath = isempty(sites) ? 1 : prod(dim.(collect(sites)))
-    d_bath <= MAX_DENSE_LIOUVILLE_DIM && return nothing
-    @warn "$bath_name has bath-only Liouville dimension D_bath=$d_bath (> $MAX_DENSE_LIOUVILLE_DIM). " *
-          "It will fail in dense build_process_tensor once the system coupling site is included."
-    return nothing
-end
 
 ##########  Bath Particle Modes  ##########
 # Bosonic Bath Mode
@@ -106,7 +97,11 @@ struct BosonicBath{M<:BosonicMode,S<:AbstractSpectralDensity,O<:OpSum} <: Abstra
         all(mode -> mode.coupling == OpSum(), modes) &&
             coupling == OpSum() &&
             @warn "BosonicBath: no mode-system coupling on modes or inter-mode coupling on bath. This is usually not what you want."
-        _warn_if_dense_pt_budget_exceeded(sites, "BosonicBath")
+        d_bath = isempty(sites) ? 1 : prod(dim.(collect(sites)))
+        if d_bath > MAX_DENSE_LIOUVILLE_DIM
+            @warn "BosonicBath has bath-only Liouville dimension D_bath=$d_bath (> $MAX_DENSE_LIOUVILLE_DIM). " *
+                  "It will fail in dense build_process_tensor once the system coupling site is included."
+        end
         new(collect(modes), spectral_density, coupling, Index[sites...])
     end
 end
@@ -154,7 +149,11 @@ struct SpinBath{M<:SpinMode,S<:AbstractSpectralDensity,O<:OpSum} <: AbstractBath
         all(mode -> mode.coupling == OpSum(), modes) &&
             coupling == OpSum() &&
             @warn "SpinBath: no mode-system coupling on modes or inter-mode coupling on bath. This is usually not what you want."
-        _warn_if_dense_pt_budget_exceeded(sites, "SpinBath")
+        d_bath = isempty(sites) ? 1 : prod(dim.(collect(sites)))
+        if d_bath > MAX_DENSE_LIOUVILLE_DIM
+            @warn "SpinBath has bath-only Liouville dimension D_bath=$d_bath (> $MAX_DENSE_LIOUVILLE_DIM). " *
+                  "It will fail in dense build_process_tensor once the system coupling site is included."
+        end
         new(collect(modes), spectral_density, coupling, Index[sites...])
     end
 end

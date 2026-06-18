@@ -6,21 +6,6 @@ import ITensors.Ops: Exact, Trotter, Prod
 import ITensorMPS: OpSum, apply as mps_apply
 
 # ---------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------
-
-function _nsteps(T::Real, dt::Real; atol=1e-12, rtol=1e-12)
-    dt > 0 || throw(ArgumentError("dt must be positive; got dt=$dt."))
-    T ≥ 0 || throw(ArgumentError("T must be nonnegative; got T=$T."))
-
-    n = round(Int, T / dt)
-    isapprox(n * dt, T; atol=atol, rtol=rtol) ||
-        throw(ArgumentError("T/dt must be approximately integer. Got T=$T, dt=$dt."))
-
-    return n
-end
-
-# ---------------------------------------------------------------------
 # Core 1: build Trotter gates
 # ---------------------------------------------------------------------
 
@@ -220,7 +205,16 @@ function _tebd_loop(
     cutoff::Real=1e-8,
     verbose::Bool=false,
 )
-    N_steps = _nsteps(T, dt)
+    function nsteps(T_duration::Real, dt_step::Real; atol=1e-12, rtol=1e-12)
+        dt_step > 0 || throw(ArgumentError("dt must be positive; got dt=$dt_step."))
+        T_duration ≥ 0 || throw(ArgumentError("T must be nonnegative; got T=$T_duration."))
+        n = round(Int, T_duration / dt_step)
+        isapprox(n * dt_step, T_duration; atol=atol, rtol=rtol) ||
+            throw(ArgumentError("T/dt must be approximately integer. Got T=$T_duration, dt=$dt_step."))
+        return n
+    end
+
+    N_steps = nsteps(T, dt)
     ψ = copy(state)
     for step in 1:N_steps
         ψ = apply(gates, ψ; cutoff=cutoff, maxdim=maxdim)

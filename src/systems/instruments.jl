@@ -8,7 +8,8 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
                         OpSum, OpSum_Liouville, Index, ITensor, apply, dim, plev, prime,
                         replaceind, siteinds, tag_value, to_dm, to_liouville,
                         _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
-                        liouvillian_propagator_itensor, Exact, Trotter
+                        liouvillian_propagator_itensor, Exact, Trotter,
+                        _phys_sites_from_hilbert_mpo
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
@@ -89,6 +90,25 @@ function _validate_two_leg_map(
     return nothing
 end
 
+# Collect single-leg PT sites into a Vector{Index}, validating non-empty bindings.
+# Empty inputs stay empty for lazy PT-leg binding at contraction time.
+function _bind_single_leg_sites(instr_name::AbstractString, pt_sites, leg_plev::Int)
+    pt_sites_vec = Index[pt_sites...]
+    isempty(pt_sites_vec) || _validate_single_leg_sites(instr_name, pt_sites_vec, leg_plev)
+    return pt_sites_vec
+end
+
+# Collect two-leg PT sites into (input, output) Vector{Index} pairs, validating the leg map.
+# With `lazy_ok=true`, fully-empty bindings skip validation for deferred PT-leg binding.
+function _bind_two_leg_sites(instr_name::AbstractString, input_pt_sites, output_pt_sites; lazy_ok::Bool=false)
+    input_vec = Index[input_pt_sites...]
+    output_vec = Index[output_pt_sites...]
+    if !lazy_ok || !isempty(input_vec) || !isempty(output_vec)
+        _validate_two_leg_map(instr_name, input_vec, output_vec)
+    end
+    return input_vec, output_vec
+end
+
 # =========================================================================
 # Single-leg instruments
 # =========================================================================
@@ -103,8 +123,7 @@ function StatePreparation(
     pt_sites::AbstractVector{<:Index}=Index[];
     leg_plev::Int=_INPUT_PLEV,
 )
-    pt_sites_vec = Index[pt_sites...]
-    isempty(pt_sites_vec) || _validate_single_leg_sites("StatePreparation", pt_sites_vec, leg_plev)
+    pt_sites_vec = _bind_single_leg_sites("StatePreparation", pt_sites, leg_plev)
     return StatePreparation(state, pt_sites_vec, leg_plev)
 end
 
@@ -118,8 +137,7 @@ function ObservableMeasurement(
     pt_sites::AbstractVector{<:Index}=Index[];
     leg_plev::Int=_OUTPUT_PLEV,
 )
-    pt_sites_vec = Index[pt_sites...]
-    isempty(pt_sites_vec) || _validate_single_leg_sites("ObservableMeasurement", pt_sites_vec, leg_plev)
+    pt_sites_vec = _bind_single_leg_sites("ObservableMeasurement", pt_sites, leg_plev)
     return ObservableMeasurement(op, pt_sites_vec, leg_plev)
 end
 
@@ -156,20 +174,8 @@ function LeftRightOperator(
     left_sites == right_sites || throw(
         ArgumentError("LeftRightOperator: left and right MPOs must share the same siteinds."),
     )
-    input_vec = Index[input_pt_sites...]
-    output_vec = Index[output_pt_sites...]
-    if !isempty(input_vec) || !isempty(output_vec)
-        _validate_two_leg_map("LeftRightOperator", input_vec, output_vec)
-    end
+    input_vec, output_vec = _bind_two_leg_sites("LeftRightOperator", input_pt_sites, output_pt_sites; lazy_ok=true)
     return LeftRightOperator(left, right, input_vec, output_vec)
-end
-
-function _identity_hilbert_mpo(phys_sites::AbstractVector{<:Index})
-    os = OpSum()
-    for j in eachindex(phys_sites)
-        os += 1.0, "Id", j
-    end
-    return MPO(os, phys_sites)
 end
 
 function _fold_observable_factors(factors, phys_sites::AbstractVector{<:Index})
@@ -183,20 +189,14 @@ function _fold_observable_factors(factors, phys_sites::AbstractVector{<:Index})
     return op_acc
 end
 
-function _composed_observable_mpo(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
-    return _fold_observable_factors(composed.factors, phys_sites)
-end
-
-function _phys_sites_from_hilbert_mpo(mpo::AbstractMPO{Hilbert})
-    return Index[
-        only(filter(i -> plev(i) == _OUTPUT_PLEV, inds(mpo.core[j])))
-        for j in eachindex(mpo.core)
-    ]
-end
-
 """``\\rho \\mapsto A\\rho`` (identity on the right)."""
 function left_action(A::AbstractMPO{Hilbert})
-    return LeftRightOperator(A, _identity_hilbert_mpo(_phys_sites_from_hilbert_mpo(A)))
+    phys_sites = _phys_sites_from_hilbert_mpo(A)
+    os = OpSum()
+    for j in eachindex(phys_sites)
+        os += 1.0, "Id", j
+    end
+    return LeftRightOperator(A, MPO(os, phys_sites))
 end
 
 function left_action(O::OpSum, phys_sites::AbstractVector{<:Index})
@@ -204,12 +204,17 @@ function left_action(O::OpSum, phys_sites::AbstractVector{<:Index})
 end
 
 function left_action(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
-    return left_action(_composed_observable_mpo(composed, phys_sites))
+    return left_action(_fold_observable_factors(composed.factors, phys_sites))
 end
 
 """``\\rho \\mapsto \\rho B`` (identity on the left)."""
 function right_action(B::AbstractMPO{Hilbert})
-    return LeftRightOperator(_identity_hilbert_mpo(_phys_sites_from_hilbert_mpo(B)), B)
+    phys_sites = _phys_sites_from_hilbert_mpo(B)
+    os = OpSum()
+    for j in eachindex(phys_sites)
+        os += 1.0, "Id", j
+    end
+    return LeftRightOperator(MPO(os, phys_sites), B)
 end
 
 function right_action(O::OpSum, phys_sites::AbstractVector{<:Index})
@@ -217,7 +222,7 @@ function right_action(O::OpSum, phys_sites::AbstractVector{<:Index})
 end
 
 function right_action(composed::_ComposedSingleLegInstrument, phys_sites::AbstractVector{<:Index})
-    return right_action(_composed_observable_mpo(composed, phys_sites))
+    return right_action(_fold_observable_factors(composed.factors, phys_sites))
 end
 
 struct TraceOut <: SingleLegInstrument
@@ -225,8 +230,7 @@ struct TraceOut <: SingleLegInstrument
     leg_plev::Int
 end
 function TraceOut(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_OUTPUT_PLEV)
-    pt_sites_vec = Index[pt_sites...]
-    isempty(pt_sites_vec) || _validate_single_leg_sites("TraceOut", pt_sites_vec, leg_plev)
+    pt_sites_vec = _bind_single_leg_sites("TraceOut", pt_sites, leg_plev)
     return TraceOut(pt_sites_vec, leg_plev)
 end
 
@@ -244,9 +248,7 @@ function SystemPropagation(
     output_pt_sites::AbstractVector{<:Index},
     system::S,
 ) where {S<:AbstractSystem}
-    input_vec  = Index[input_pt_sites...]
-    output_vec = Index[output_pt_sites...]
-    _validate_two_leg_map("SystemPropagation", input_vec, output_vec)
+    input_vec, output_vec = _bind_two_leg_sites("SystemPropagation", input_pt_sites, output_pt_sites)
     return SystemPropagation{S}(input_vec, output_vec, system)
 end
 # Lazy constructor used by default schedules; PT leg binding is deferred.
@@ -260,9 +262,7 @@ function IdentityOperation(
     input_pt_sites::AbstractVector{<:Index},
     output_pt_sites::AbstractVector{<:Index},
 )
-    input_vec  = Index[input_pt_sites...]
-    output_vec = Index[output_pt_sites...]
-    _validate_two_leg_map("IdentityOperation", input_vec, output_vec)
+    input_vec, output_vec = _bind_two_leg_sites("IdentityOperation", input_pt_sites, output_pt_sites)
     return IdentityOperation(input_vec, output_vec)
 end
 # Lazy constructor used when explicit PT legs are not required.
@@ -283,9 +283,7 @@ function OpenOutput(
     input_pt_sites::AbstractVector{<:Index},
     output_pt_sites::AbstractVector{<:Index},
 )
-    input_vec = Index[input_pt_sites...]
-    output_vec = Index[output_pt_sites...]
-    _validate_two_leg_map("OpenOutput", input_vec, output_vec)
+    input_vec, output_vec = _bind_two_leg_sites("OpenOutput", input_pt_sites, output_pt_sites)
     return OpenOutput(input_vec, output_vec)
 end
 OpenOutput() = OpenOutput(Index[], Index[])
@@ -331,49 +329,39 @@ struct CustomTwoLegInstrument <: TwoLegInstrument
     source_output::Vector{Index}
 end
 
-function _validate_custom_data_indices(data::ITensor, input_sites::AbstractVector{<:Index}, output_sites::AbstractVector{<:Index})
-    for s in input_sites
-        hasind(data, s) || throw(
-            ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
-        )
-    end
-    for s in output_sites
-        hasind(data, s) || throw(
-            ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
-        )
-    end
-    expected = length(input_sites) + length(output_sites)
-    length(inds(data)) == expected || throw(
-        ArgumentError(
-            "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
-        ),
-    )
-    return nothing
-end
-
-function CustomTwoLegInstrument(
+function CustomTwoLegInstrument(;
     data::ITensor,
-    input_pt_sites::AbstractVector{<:Index},
-    output_pt_sites::AbstractVector{<:Index},
-)
-    in_vec = Index[input_pt_sites...]
-    out_vec = Index[output_pt_sites...]
-    _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
-    _validate_custom_data_indices(data, in_vec, out_vec)
-    return CustomTwoLegInstrument(data, in_vec, out_vec, Index[], Index[])
-end
-
-function CustomTwoLegInstrument(
-    data::ITensor;
-    source_input::AbstractVector{<:Index},
-    source_output::AbstractVector{<:Index},
     input_pt_sites::AbstractVector{<:Index}=Index[],
     output_pt_sites::AbstractVector{<:Index}=Index[],
+    source_input::AbstractVector{<:Index}=Index[],
+    source_output::AbstractVector{<:Index}=Index[],
 )
-    src_in = Index[source_input...]
-    src_out = Index[source_output...]
     in_vec = Index[input_pt_sites...]
     out_vec = Index[output_pt_sites...]
+    src_in = Index[source_input...]
+    src_out = Index[source_output...]
+
+    if isempty(src_in) && isempty(src_out)
+        _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
+        for s in in_vec
+            hasind(data, s) || throw(
+                ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
+            )
+        end
+        for s in out_vec
+            hasind(data, s) || throw(
+                ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
+            )
+        end
+        expected = length(in_vec) + length(out_vec)
+        length(inds(data)) == expected || throw(
+            ArgumentError(
+                "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
+            ),
+        )
+        return CustomTwoLegInstrument(data, in_vec, out_vec, Index[], Index[])
+    end
+
     if !isempty(in_vec) && length(src_in) != length(in_vec)
         throw(
             ArgumentError(
@@ -393,8 +381,45 @@ function CustomTwoLegInstrument(
     if !isempty(in_vec) || !isempty(out_vec)
         _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
     end
-    _validate_custom_data_indices(data, src_in, src_out)
+    for s in src_in
+        hasind(data, s) || throw(
+            ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
+        )
+    end
+    for s in src_out
+        hasind(data, s) || throw(
+            ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
+        )
+    end
+    expected = length(src_in) + length(src_out)
+    length(inds(data)) == expected || throw(
+        ArgumentError(
+            "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
+        ),
+    )
     return CustomTwoLegInstrument(data, in_vec, out_vec, src_in, src_out)
+end
+
+CustomTwoLegInstrument(
+    data::ITensor,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+) = CustomTwoLegInstrument(; data, input_pt_sites, output_pt_sites)
+
+function CustomTwoLegInstrument(
+    data::ITensor;
+    source_input::AbstractVector{<:Index},
+    source_output::AbstractVector{<:Index},
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    return CustomTwoLegInstrument(;
+        data,
+        source_input,
+        source_output,
+        input_pt_sites,
+        output_pt_sites,
+    )
 end
 
 function Base.show(io::IO, instr::CustomTwoLegInstrument)
@@ -689,6 +714,49 @@ _coerce_liouville_state(rho0::AbstractMPO{Hilbert}, sites::AbstractVector{<:Inde
 _coerce_liouville_state(rho0::AbstractMPS{Hilbert}, sites::AbstractVector{<:Index}) =
     to_liouville(to_dm(rho0); sites=sites)
 
+_hilbert_density_from_prep(ρ::AbstractMPO{Hilbert}) = ρ
+_hilbert_density_from_prep(ψ::AbstractMPS{Hilbert}) = to_dm(ψ)
+function _hilbert_density_from_prep(state)
+    throw(ArgumentError("StatePreparation state must be Hilbert MPS or MPO."))
+end
+
+function _composed_hilbert_mpo(instr::_ComposedSingleLegInstrument, sites::AbstractVector{<:Index})
+    factors = instr.factors
+
+    prep_idx = findfirst(f -> f isa StatePreparation, factors)
+    ρ = prep_idx === nothing ? nothing : _hilbert_density_from_prep(factors[prep_idx].state)
+
+    phys_sites = if ρ === nothing
+        Index[_phys_site_from_liouv(s) for s in sites]
+    else
+        _phys_sites_from_hilbert_mpo(ρ)
+    end
+
+    op_acc = if any(f -> f isa ObservableMeasurement, factors)
+        _fold_observable_factors(factors, phys_sites)
+    else
+        nothing
+    end
+
+    hilbert_mpo = if ρ === nothing && op_acc === nothing
+        nothing
+    elseif ρ === nothing
+        op_acc
+    elseif op_acc === nothing
+        ρ
+    elseif first(factors) isa StatePreparation
+        apply(ρ, op_acc)
+    else
+        apply(op_acc, ρ)
+    end
+
+    hilbert_mpo === nothing && throw(
+        ArgumentError("_ComposedSingleLegInstrument: no factors to build."),
+    )
+
+    return hilbert_mpo
+end
+
 function instrument_itensor(
     instr::StatePreparation,
     pt_sites_arg::AbstractVector{<:Index},
@@ -716,34 +784,7 @@ function instrument_itensor(
     all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
         ArgumentError("_ComposedSingleLegInstrument: all pt_sites must have tstep=$k when tagged."),
     )
-    ρ = nothing
-    for f in instr.factors
-        if f isa StatePreparation
-            ρ = if f.state isa AbstractMPO{Hilbert}
-                f.state
-            elseif f.state isa AbstractMPS{Hilbert}
-                to_dm(f.state)
-            else
-                throw(ArgumentError("_ComposedSingleLegInstrument: StatePreparation state must be Hilbert MPS or MPO."))
-            end
-        end
-    end
-    phys_sites = ρ === nothing ?
-                 Index[_phys_site_from_liouv(s) for s in sites] :
-                 _phys_sites_from_hilbert_mpo(ρ)
-    has_obs = any(f -> f isa ObservableMeasurement, instr.factors)
-    op_acc = has_obs ? _fold_observable_factors(instr.factors, phys_sites) : nothing
-    prep_first = any(f -> f isa StatePreparation, instr.factors) && first(instr.factors) isa StatePreparation
-    hilbert_mpo = if ρ === nothing
-        op_acc
-    elseif op_acc === nothing
-        ρ
-    elseif prep_first
-        apply(ρ, op_acc)
-    else
-        apply(op_acc, ρ)
-    end
-    hilbert_mpo === nothing && throw(ArgumentError("_ComposedSingleLegInstrument: no factors to build."))
+    hilbert_mpo = _composed_hilbert_mpo(instr, sites)
     state_l = to_liouville(hilbert_mpo; sites=sites)
     return _reindex_itensor(_mps_to_itensor(state_l), siteinds(state_l), sites)
 end

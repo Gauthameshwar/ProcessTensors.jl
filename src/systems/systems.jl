@@ -4,6 +4,31 @@ import Base: show
 
 abstract type AbstractSystem end
 
+# Validate a system's site family and return canonical Liouville sites.
+# `family_tag` is the SiteType substring required on every site (e.g. "S=" or "Boson");
+# `family_desc` names the family in the error message (e.g. "spin indices").
+# Hilbert sites are converted to Liouville; mixed Hilbert/Liouville inputs are rejected.
+function _normalize_system_sites(
+    sites::AbstractVector{<:Index},
+    system_name::AbstractString,
+    family_tag::AbstractString,
+    family_desc::AbstractString,
+)
+    all(site -> any(t -> occursin(family_tag, t), tag_tokens(site)), sites) || throw(
+        ArgumentError("$system_name: sites must be made of $family_desc. Got $(tag_tokens.(sites))."),
+    )
+    has_liouv = map(site -> has_tag_token(site, "Liouv"), sites)
+    if any(has_liouv) && !all(has_liouv)
+        throw(
+            ArgumentError(
+                "$system_name: all sites must be either all Hilbert (no 'Liouv' tag) or all Liouville (all have 'Liouv' tag). Got mixture: $(tag_tokens.(sites)).",
+            ),
+        )
+    end
+    any(has_liouv) || return liouv_sites(sites)
+    return Index[sites...]
+end
+
 struct SpinSystem <: AbstractSystem
     H::OpSum
     jump_ops::Vector{OpSum}
@@ -12,23 +37,8 @@ struct SpinSystem <: AbstractSystem
     # Constructor to verify the indices input and H are all consistent
     function SpinSystem(sites::AbstractVector{<:Index}, H::OpSum, jump_ops::AbstractVector{<:OpSum})
         H == OpSum() && @warn "SpinSystem: H is empty. This is usually not what you want."
-        all(site -> any(t -> occursin("S=", t), tag_tokens(site)), sites) || throw(
-            ArgumentError("SpinSystem: sites must be made of spin indices. Got $(tag_tokens.(sites))."),
-        )
-        # Check that all sites are either all liouville (all have "Liouv" in their tags) or all hilbert (none have "Liouv")
-        has_liouv = map(site -> has_tag_token(site, "Liouv"), sites)
-        if any(has_liouv) && !all(has_liouv)
-            throw(
-                ArgumentError(
-                    "SpinSystem: all sites must be either all Hilbert (no 'Liouv' tag) or all Liouville (all have 'Liouv' tag). Got mixture: $(tag_tokens.(sites)).",
-                ),
-            )
-        end
-        # If all sites are hilbert, convert them to liouville
-        if !any(has_liouv)
-            sites = liouv_sites(sites)
-        end
-        new(H, collect(jump_ops), Index[sites...])
+        liouv = _normalize_system_sites(sites, "SpinSystem", "S=", "spin indices")
+        new(H, collect(jump_ops), liouv)
     end
 end
 
@@ -40,23 +50,8 @@ struct BosonSystem <: AbstractSystem
     # Constructor to verify the indices input and H are all consistent
     function BosonSystem(sites::AbstractVector{<:Index}, H::OpSum, jump_ops::AbstractVector{<:OpSum})
         H == OpSum() && @warn "BosonSystem: H is empty. This is usually not what you want."
-        all(site -> any(t -> occursin("Boson", t), tag_tokens(site)), sites) || throw(
-            ArgumentError("BosonSystem: sites must be made of boson indices. Got $(tag_tokens.(sites))."),
-        )
-        # Check that all sites are either all liouville (all have "Liouv" in their tags) or all hilbert (none have "Liouv")
-        has_liouv = map(site -> has_tag_token(site, "Liouv"), sites)
-        if any(has_liouv) && !all(has_liouv)
-            throw(
-                ArgumentError(
-                    "BosonSystem: all sites must be either all Hilbert (no 'Liouv' tag) or all Liouville (all have 'Liouv' tag). Got mixture: $(tag_tokens.(sites)).",
-                ),
-            )
-        end
-        # If all sites are hilbert, convert them to liouville
-        if !any(has_liouv)
-            sites = liouv_sites(sites)
-        end
-        new(H, collect(jump_ops), Index[sites...])
+        liouv = _normalize_system_sites(sites, "BosonSystem", "Boson", "boson indices")
+        new(H, collect(jump_ops), liouv)
     end
 end
 
