@@ -370,6 +370,105 @@ end
     @test hasind(T_bound, in1) && hasind(T_bound, out0)
 end
 
+@testset "Instruments.jl: CustomTwoLegInstrument" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    in1 = prime(L[1])
+    out0 = L[1]
+
+    @testset "ready tensor from instrument_itensor" begin
+        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+        custom = CustomTwoLegInstrument(T_ref, [in1], [out0])
+        @test custom isa TwoLegInstrument
+        @test occursin("CustomTwoLegInstrument", sprint(show, custom))
+        T = instrument_itensor(custom, [in1], [out0], 1)
+        @test isapprox(norm(T - T_ref), 0.0; atol=1e-12)
+
+        system = spin_system(s, OpSum() + (0.1, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        out1, in2 = coupling_times(pt, 2)
+        T_step2 = instrument_itensor(custom, in2, out1, 2)
+        T_ref2 = instrument_itensor(IdentityOperation(), in2, out1, 2)
+        @test isapprox(norm(T_step2 - T_ref2), 0.0; atol=1e-12)
+    end
+
+    @testset "reindexing tensor with source legs" begin
+        src_in = Index(dim(L[1]), "src_in")
+        src_out = Index(dim(L[1]), "src_out")
+        T_data = ITensor(1.0)
+        T_data *= delta(src_in, src_out)
+
+        custom_lazy = CustomTwoLegInstrument(T_data; source_input=[src_in], source_output=[src_out])
+        T_lazy = instrument_itensor(custom_lazy, [in1], [out0], 1)
+        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+        @test isapprox(norm(T_lazy - T_ref), 0.0; atol=1e-12)
+
+        custom_bound = CustomTwoLegInstrument(
+            T_data;
+            source_input=[src_in],
+            source_output=[src_out],
+            input_pt_sites=[in1],
+            output_pt_sites=[out0],
+        )
+        T_bound = instrument_itensor(custom_bound, [in1], [out0], 1)
+        @test isapprox(norm(T_bound - T_ref), 0.0; atol=1e-12)
+    end
+
+    @testset "reindexing LeftRightOperator data" begin
+        op_z = OpSum() + (1.0, "Sz", 1)
+        lr = left_action(op_z, s)
+        in1 = prime(L[1])
+        out0 = L[1]
+        T_ref = instrument_itensor(lr, [in1], [out0], 1)
+
+        src_in = Index(dim(L[1]), "src_in")
+        src_out = Index(dim(L[1]), "src_out")
+        T_data = replaceinds(T_ref, in1 => src_in, out0 => src_out)
+        custom = CustomTwoLegInstrument(T_data; source_input=[src_in], source_output=[src_out])
+        T = instrument_itensor(custom, [in1], [out0], 1)
+        @test isapprox(Array(T, in1, out0), Array(T_ref, in1, out0); atol=1e-12)
+    end
+
+    @testset "validation errors" begin
+        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+        bad_in = Index(dim(L[1]), "bad_in")
+        @test_throws ArgumentError CustomTwoLegInstrument(T_ref, [bad_in], [out0])
+        src_in = Index(dim(L[1]), "src_in")
+        src_out = Index(dim(L[1]), "src_out")
+        T_data = ITensor(1.0) * delta(src_in, src_out)
+        @test_throws ArgumentError CustomTwoLegInstrument(
+            T_data;
+            source_input=[src_in],
+            source_output=[src_out],
+            input_pt_sites=[in1],
+        )
+    end
+
+    @testset "instrument_leg_maps and create_instruments" begin
+        custom = CustomTwoLegInstrument(
+            instrument_itensor(IdentityOperation(), [in1], [out0], 1),
+            [in1],
+            [out0],
+        )
+        seq = InstrumentSeq(custom, 2)
+        add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+        _, _, missing_in, missing_out = instrument_leg_maps(seq, 2)
+        @test isempty(missing_in)
+        @test isempty(missing_out)
+
+        system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=2)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+        seq_pt = InstrumentSeq(default=custom, nsteps=pt.nsteps)
+        add!(seq_pt, StatePreparation(rho0_h), 0)
+        instruments = create_instruments(pt, seq_pt)
+        @test length(instruments) == pt.nsteps
+        out_prev, in_curr = coupling_times(pt, 1)
+        T_id = instrument_itensor(IdentityOperation(), in_curr, out_prev, 1)
+        @test isapprox(norm(instruments[2] - T_id), 0.0; atol=1e-12)
+    end
+end
+
 @testset "Instruments.jl: ProductInstrument" begin
     s = siteinds("S=1/2", 1)
     L = liouv_sites(s)

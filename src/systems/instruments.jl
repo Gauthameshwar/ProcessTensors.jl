@@ -12,7 +12,7 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+       IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument, CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action, 
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
@@ -306,6 +306,105 @@ function Base.show(io::IO, instr::ProductInstrument)
     print(io, instr.output_instr, " * ", instr.input_instr)
 end
 
+"""
+    CustomTwoLegInstrument
+
+Two-leg instrument backed by a dense `ITensor` on Liouville process-tensor legs.
+
+Construct in either of two ways:
+
+- **Ready tensor:** `CustomTwoLegInstrument(data, input_pt_sites, output_pt_sites)` when
+  `data` is already an `instrument_itensor` (or equivalent) with indices matching the
+  supplied PT legs.
+
+- **Reindexing tensor:** `CustomTwoLegInstrument(data; source_input=..., source_output=...,
+  input_pt_sites=..., output_pt_sites=...)` when `data` carries source indices that are
+  replaced by the target PT legs at contraction time. Leave `input_pt_sites` /
+  `output_pt_sites` empty for lazy PT-leg binding (same convention as
+  [`IdentityOperation`](@ref)).
+"""
+struct CustomTwoLegInstrument <: TwoLegInstrument
+    data::ITensor
+    input_pt_sites::Vector{Index}
+    output_pt_sites::Vector{Index}
+    source_input::Vector{Index}
+    source_output::Vector{Index}
+end
+
+function _validate_custom_data_indices(data::ITensor, input_sites::AbstractVector{<:Index}, output_sites::AbstractVector{<:Index})
+    for s in input_sites
+        hasind(data, s) || throw(
+            ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
+        )
+    end
+    for s in output_sites
+        hasind(data, s) || throw(
+            ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
+        )
+    end
+    expected = length(input_sites) + length(output_sites)
+    length(inds(data)) == expected || throw(
+        ArgumentError(
+            "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
+        ),
+    )
+    return nothing
+end
+
+function CustomTwoLegInstrument(
+    data::ITensor,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+)
+    in_vec = Index[input_pt_sites...]
+    out_vec = Index[output_pt_sites...]
+    _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
+    _validate_custom_data_indices(data, in_vec, out_vec)
+    return CustomTwoLegInstrument(data, in_vec, out_vec, Index[], Index[])
+end
+
+function CustomTwoLegInstrument(
+    data::ITensor;
+    source_input::AbstractVector{<:Index},
+    source_output::AbstractVector{<:Index},
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    src_in = Index[source_input...]
+    src_out = Index[source_output...]
+    in_vec = Index[input_pt_sites...]
+    out_vec = Index[output_pt_sites...]
+    if !isempty(in_vec) && length(src_in) != length(in_vec)
+        throw(
+            ArgumentError(
+                "CustomTwoLegInstrument: source_input and input_pt_sites must have equal length; " *
+                "got $(length(src_in)) and $(length(in_vec)).",
+            ),
+        )
+    end
+    if !isempty(out_vec) && length(src_out) != length(out_vec)
+        throw(
+            ArgumentError(
+                "CustomTwoLegInstrument: source_output and output_pt_sites must have equal length; " *
+                "got $(length(src_out)) and $(length(out_vec)).",
+            ),
+        )
+    end
+    if !isempty(in_vec) || !isempty(out_vec)
+        _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
+    end
+    _validate_custom_data_indices(data, src_in, src_out)
+    return CustomTwoLegInstrument(data, in_vec, out_vec, src_in, src_out)
+end
+
+function Base.show(io::IO, instr::CustomTwoLegInstrument)
+    print(io, "CustomTwoLegInstrument(")
+    if isempty(instr.source_input)
+        print(io, "ready, nind=", length(inds(instr.data)), ")")
+    else
+        print(io, "reindex, nind=", length(inds(instr.data)), ")")
+    end
+end
 function Base.:(*)(a::SingleLegInstrument, b::SingleLegInstrument)
     if a.leg_plev == _OUTPUT_PLEV && b.leg_plev == _INPUT_PLEV
         (a isa StatePreparation || b isa StatePreparation) && throw(
@@ -829,6 +928,42 @@ function instrument_itensor(
     return U_pt
 end
 
+function instrument_itensor(
+    instr::CustomTwoLegInstrument,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    k::Int;
+    kwargs...,
+)
+    runtime_in = Index[input_pt_sites...]
+    runtime_out = Index[output_pt_sites...]
+    _validate_two_leg_map("CustomTwoLegInstrument", runtime_in, runtime_out)
+    all(s -> _tstep_from_site(s) in (nothing, k), runtime_in) || throw(
+        ArgumentError("CustomTwoLegInstrument: all input_pt_sites must have tstep=$k when tagged."),
+    )
+    all(s -> _tstep_from_site(s) in (nothing, k - 1), runtime_out) || throw(
+        ArgumentError("CustomTwoLegInstrument: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+    )
+
+    if isempty(instr.source_input) && isempty(instr.source_output)
+        return _reindex_itensor(
+            _reindex_itensor(copy(instr.data), instr.input_pt_sites, runtime_in),
+            instr.output_pt_sites,
+            runtime_out,
+        )
+    end
+
+    target_in = isempty(instr.input_pt_sites) ? runtime_in : instr.input_pt_sites
+    target_out = isempty(instr.output_pt_sites) ? runtime_out : instr.output_pt_sites
+    _validate_two_leg_map("CustomTwoLegInstrument", target_in, target_out)
+
+    t = _reindex_itensor(
+        _reindex_itensor(copy(instr.data), instr.source_input, target_in),
+        instr.source_output,
+        target_out,
+    )
+    return _reindex_itensor(_reindex_itensor(t, target_in, runtime_in), target_out, runtime_out)
+end
 function instrument_itensor(
     instr::AbstractInstrument,
     args...;

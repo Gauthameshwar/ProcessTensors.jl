@@ -84,6 +84,7 @@ include("systems/instruments.jl")
 using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     StatePreparation, ObservableMeasurement,
                     TraceOut, IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+                    CustomTwoLegInstrument,
                     LeftRightOperator, left_action, right_action,
                     resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
@@ -143,6 +144,7 @@ export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
        IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+       CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
