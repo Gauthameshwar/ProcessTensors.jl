@@ -22,11 +22,6 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         "Getting Started" => "getting_started.md",
-        "Theory" => [
-            "Tensor Networks in Physics" => "theory/tensor_networks.md",
-            "Quantum States and Liouville Space" => "theory/liouville_space.md",
-            "Process Tensors" => "theory/process_tensors.md",
-        ],
         "Tutorials" => [
             "Liouville Basics" => "tutorials/liouville_basics.md",
             "Unitary Dynamics" => "tutorials/unitary_dynamics.md",
@@ -35,7 +30,6 @@ makedocs(;
             "Multi-Time Correlations" => "tutorials/multitime_correlations.md",
         ],
         "API Reference" => "api.md",
-        "ITensorMPS compatibility" => "itensormps_compatibility.md",
         "Examples" => "examples.md",
         "References" => "references.md",
     ],

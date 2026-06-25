@@ -6,9 +6,13 @@ CurrentModule = ProcessTensors
 
 Documentation for [ProcessTensors](https://github.com/Gauthameshwar/ProcessTensors.jl).
 
-```@index
-```
+ProcessTensors extends ITensorMPS workflows with Hilbert/Liouville wrappers,
+Liouvillian builders, instruments, and process tensors for open-system dynamics.
 
-```@autodocs
-Modules = [ProcessTensors]
+- [Getting Started](@ref): installation notes and workflow overview.
+- [API Reference](@ref): central public API (process tensors, instruments, baths).
+- [Examples](@ref): small Hilbert/Liouville and process-tensor workflows.
+
+```@index
+Pages = ["getting_started.md", "api.md", "examples.md", "references.md"]
 ```

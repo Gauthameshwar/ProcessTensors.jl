@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="85.366753mm"
+   height="31.999994mm"
+   viewBox="0 0 85.366753 31.999994"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="logo.svg"
+   inkscape:version="1.4 (e7c3feb1, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="1.5499863"
+     inkscape:cx="154.84008"
+     inkscape:cy="57.419864"
+     inkscape:window-width="1512"
+     inkscape:window-height="921"
+     inkscape:window-x="0"
+     inkscape:window-y="33"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1">
+    <marker
+       style="overflow:visible"
+       id="marker70"
+       refX="0"
+       refY="0"
+       orient="auto"
+       markerWidth="0.34999999"
+       markerHeight="0.34999999"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.45)"
+         style="fill:context-fill;fill-rule:evenodd;stroke:context-stroke;stroke-width:2"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 c 0,-2.76 2.3,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         id="path70" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="ColoredDot"
+       refX="0"
+       refY="0"
+       orient="auto"
+       markerWidth="0.34999999"
+       markerHeight="0.34999999"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.45)"
+         style="fill:context-fill;fill-rule:evenodd;stroke:context-stroke;stroke-width:2"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 c 0,-2.76 2.3,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         id="path20" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker66"
+       refX="0"
+       refY="0"
+       orient="auto"
+       markerWidth="0.40000001"
+       markerHeight="0.40000001"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 c 0,-2.76 2.3,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         id="path66" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Dot"
+       refX="0"
+       refY="0"
+       orient="auto"
+       markerWidth="0.40000001"
+       markerHeight="0.40000001"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 c 0,-2.76 2.3,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         id="path17" />
+    </marker>
+  </defs>
+  <g
+     id="layer1"
+     transform="translate(-14.23,-75.000017)">
+    <path
+       style="fill:#9558b2;fill-opacity:1;stroke:#4063d8;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+       d="M 36.184393,81.75 H 48.90662"
+       id="path63" />
+    <path
+       style="fill:#9558b2;fill-opacity:1;stroke:#4063d8;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+       d="M 65.345056,81.75 H 78.067283"
+       id="path64" />
+    <path
+       style="fill:#9558b2;fill-opacity:1;stroke:#4063d8;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker66);paint-order:stroke markers fill"
+       d="m 97.596755,82 h -5.03586"
+       id="path65" />
+    <path
+       style="fill:#9558b2;fill-opacity:1;stroke:#4063d8;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-end:url(#Dot);paint-order:stroke markers fill"
+       d="M 21.535882,82 H 16.5"
+       id="path62" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.00373134;stroke:#d9aa1f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-end:url(#ColoredDot);paint-order:stroke markers fill"
+       d="M 21.155882,100.16 H 16.12"
+       id="path67" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#d9aa1f;stroke-width:1.97596;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker70);paint-order:stroke markers fill"
+       d="M 39.64611,100.16 H 34.730586"
+       id="path68" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.00746268;stroke:#d9aa1f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-end:url(#ColoredDot);paint-order:stroke markers fill"
+       d="M 50.562895,100.16 H 45.527013"
+       id="path69" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.00746268;stroke:#d9aa1f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker70);paint-order:stroke markers fill"
+       d="M 68.661957,100.16 H 63.626075"
+       id="path71" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.00746268;stroke:#d9aa1f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-end:url(#ColoredDot);paint-order:stroke markers fill"
+       d="M 79.434484,100.16 H 74.398602"
+       id="path72" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.00746268;stroke:#d9aa1f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-start:url(#marker70);paint-order:stroke markers fill"
+       d="M 97.594187,100.16 H 92.558334"
+       id="path73" />
+    <rect
+       style="fill:#cb3c33;fill-opacity:1;stroke:#000000;stroke-width:1.64986;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke markers fill"
+       id="rect60"
+       width="14.350136"
+       height="30.350136"
+       x="20.824932"
+       y="75.824944"
+       ry="2.3711045" />
+    <rect
+       style="fill:#389826;fill-opacity:1;stroke:#000000;stroke-width:1.64986;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke markers fill"
+       id="rect61"
+       width="14.350136"
+       height="30.350136"
+       x="49.883263"
+       y="75.824944"
+       ry="2.3711045" />
+    <rect
+       style="fill:#9558b2;fill-opacity:1;stroke:#000000;stroke-width:1.64986;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke markers fill"
+       id="rect62"
+       width="14.350136"
+       height="30.350136"
+       x="78.941597"
+       y="75.824944"
+       ry="2.3711045" />
+  </g>
+</svg>
