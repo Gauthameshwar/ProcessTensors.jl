@@ -3,6 +3,26 @@ import ITensors: scalar, terms
 import ITensors.Ops: Exact, Trotter
 import Base: getproperty, setproperty!, show
 
+"""
+    ProcessTensor
+
+Liouville-space MPO wrapper for a single-coupling-site process tensor.
+
+Stores the environment influence and, by default, one-step system Liouvillian
+propagation as an `MPO{Liouville}` core over time-ordered input/output legs.
+Fields `system`, `environment`, `dt`, `nsteps`, and `coupling_site` record the
+physical model. High-level APIs such as [`evaluate_process`](@ref),
+[`evolve`](@ref), and [`two_time_correlation_seq`](@ref) expect
+`embed_system_propagation = true`.
+
+Unknown property access delegates to `.core`, like [`MPO`](@ref).
+
+# Examples
+```julia
+pt = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8)
+trajectory = evolve(pt, ρ0)
+```
+"""
 struct ProcessTensor{S<:AbstractSystem,E} <: AbstractMPO{Liouville}
     core::CoreMPO
     system::S
@@ -110,6 +130,15 @@ function _tagset_with_tstep(s::Index, k::Int)
     return ITensors.TagSet(join(vcat(tokens, ["tstep=$k"]), ","))
 end
 
+"""
+    generate_pt_legs(site::Index, k::Int)
+
+Construct the input/output Liouville legs for one process-tensor timestep.
+
+The returned tuple is `(input_site, output_site)`. The input leg is the primed
+version (`plev = 1`) of the output leg (`plev = 0`), and both carry the same
+physical Liouville metadata as `site` plus a `tstep=k` tag.
+"""
 function generate_pt_legs(site::Index, k::Int)
     output_site = Index(dim(site); tags=_tagset_with_tstep(site, k))
     return prime(output_site), output_site
@@ -118,7 +147,7 @@ end
 # Internal prime level for the system propagator fused into a core.
 const _INTERNAL_PLEV = 2
 
-"""One-step embedded system Liouville map on PT legs `(in_k, out_k)`."""
+# One-step embedded system Liouville map on PT legs `(in_k, out_k)`.
 function _system_propagation_pt_core(
     system::AbstractSystem,
     in_k::Index,
@@ -146,9 +175,7 @@ function _require_embedded_propagation!(pt::ProcessTensor, caller::AbstractStrin
     ))
 end
 
-"""Build a trivial process tensor for a single site system, i.e. a sequence of identity operators on the input and output legs.
-This is useful for a Markovian system where the system is not coupled to any bath modes.
-"""
+# Build Markovian PT cores with identity or embedded system propagation on each `(in_k, out_k)` pair.
 function _build_trivial_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
@@ -160,7 +187,6 @@ function _build_trivial_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    # Build the cores for the trivial process tensor
     for k in 0:(nsteps - 1)
         in_k, out_k = generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
@@ -179,7 +205,7 @@ end
 joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
-"""Build one Liouville-space PT core per timestep for a single bath mode by embedding a one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})`."""
+# Build one PT core per timestep by embedding a joint bath-system propagator and retaining one bath memory link.
 function _build_bathmode_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
@@ -251,7 +277,7 @@ function _build_bathmode_pt_cores(
     return cores
 end
 
-"""Build one Liouville-space PT core per timestep for multiple bath modes by embedding one-step joint bath-system propagator onto `(in_k, out_k, link_k, link_{k+1})` with a fused bath memory link."""
+# Build PT cores for multiple modes using a fused bath memory link between timesteps.
 function _build_multimode_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
@@ -381,22 +407,14 @@ end
 
 Build a single-coupling-site process tensor.
 
-For `environment !== nothing`, bath modes are ordered as `[mode_1, ..., mode_M, coupling_site]`
-when constructing the joint Liouville generator. Each mode's `coupling` OpSum uses local sites
-`1` (bath) and `2` (system); optional `environment.coupling` holds inter-mode terms on global sites.
-Bath slabs use `liouvillian_propagator_itensor` on the joint physical `OpSum` with `alg`
-(`Exact()` by default, or `Trotter{n}()`). Joint Liouville vector dimension
-`D = prod(dim.(sites_vec))` is guarded by `MAX_DENSE_LIOUVILLE_DIM = $(MAX_DENSE_LIOUVILLE_DIM)`.
+`coupling_site` is the Liouville-space system leg kept as the process-tensor
+input/output channel. Reuse the same Liouville index objects across the system,
+bath, and instruments so later contractions match by exact index identity.
 
-`sys_alg` controls the Trotter algorithm used for the embedded system propagator
-(`_system_propagation_pt_core`); defaults to `Trotter{2}()`.
-
-When `embed_system_propagation=true` (the default), single-site process tensors fuse the
-system Liouvillian map (`system.H` and `system.jump_ops`) into the PT cores. Runtime schedules
-then default to `IdentityOperation()` on the system bonds. High-level lazy APIs
-([`evaluate_process`](@ref), [`evolve`](@ref), [`two_time_correlation_seq`](@ref)) require this
-default. With `embed_system_propagation=false`, bath-only cores are built for expert manual use
-via [`instrument_itensor`](@ref) and explicit ITensor contraction only.
+# Examples
+```julia
+pt = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8)
+```
 """
 function build_process_tensor(
     system::AbstractSystem,
@@ -457,7 +475,13 @@ function build_process_tensor(
     return ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps, coupling_site, embed_in_cores)
 end
 
-# Single-site convenience: defaults `coupling_site` to the system's only site.
+"""
+    build_process_tensor(system; environment=nothing, dt, nsteps,
+                         alg=Exact(), sys_alg=Trotter{2}(), embed_system_propagation=true)
+
+Build a process tensor for a single-site system by using its only Liouville
+site as the coupling site.
+"""
 function build_process_tensor(
     system::AbstractSystem;
     environment::Union{Nothing,AbstractBath}=nothing,
@@ -519,24 +543,13 @@ function _validate_instrument_schedule!(
     return nothing
 end
 
-"""
-    default_schedule(pt::ProcessTensor) -> InstrumentSeq
-
-Return a schedule with `IdentityOperation()` as the default (system propagation is embedded in `pt`).
-Requires `pt.embed_system_propagation == true`.
-"""
+# Tier B: default schedule with `IdentityOperation()` when propagation is embedded in `pt`.
 function default_schedule(pt::ProcessTensor)
     _require_embedded_propagation!(pt, "default_schedule")
     return InstrumentSeq(default=_schedule_default_instr(pt), nsteps=pt.nsteps)
 end
 
-"""
-    output_sites(pt, k) -> Vector{Index}
-
-Liouville **output** leg (unprimed, `plev=0`) at process-tensor time label `k`.
-Valid `k`: `0:(pt.nsteps - 1)`. After a full trajectory, the reduced state attaches to
-`output_sites(pt, pt.nsteps - 1)` once bath / memory legs are contracted.
-"""
+# Tier B: Liouville output leg (`plev=0`) at process-tensor time label `k`.
 function output_sites(pt::ProcessTensor, k::Int)
     0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
     core_k = pt.core[k + 1]
@@ -560,12 +573,7 @@ function output_sites(pt::ProcessTensor, k::Int)
     return Index[out]
 end
 
-"""
-    input_sites(pt, k) -> Vector{Index}
-
-Liouville **input** leg (primed, `plev=1`) for the slab with time label **`tstep=k`**,
-with **`k ∈ 0:(pt.nsteps - 1)`** (initialization attaches to **`k = 0`**, i.e. `tstep=0'`).
-"""
+# Tier B: Liouville input leg (`plev=1`) for slab with time label `tstep=k`.
 function input_sites(pt::ProcessTensor, k::Int)
     0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
     out = only(output_sites(pt, k))
@@ -577,21 +585,7 @@ function input_sites(pt::ProcessTensor, k::Int)
     return Index[inn]
 end
 
-"""
-    coupling_times(pt, step) -> (out_prev, in_curr)
-
-For evolve slot **`step ∈ 1:pt.nsteps`**, return **`(out_prev, in_curr)`** for the two-leg
-instrument that advances the system line **after** slab `step - 1` and **before** slab `step`
-(in 1-based evolve counting):
-
-  * `out_prev = output_sites(pt, step - 1)` — unprimed, `tstep = step-1`
-  * `in_curr` — primed, `tstep = step` (from `generate_pt_legs(..., step)[1]`; for `step == pt.nsteps`
-    this is the terminal primed leg with `tstep = pt.nsteps`, satisfying `tin == tout + 1` in
-    `Instruments._validate_two_leg_map`).
-
-When calling `instrument_itensor` for `SystemPropagation` / `IdentityOperation`, pass
-`(input_pt_sites=in_curr, output_pt_sites=out_prev)`.
-"""
+# Tier B: for evolve slot `step`, return `(out_prev, in_curr)` PT leg pair.
 function coupling_times(pt::ProcessTensor, step::Int)
     1 <= step <= pt.nsteps || throw(BoundsError(1:pt.nsteps, step))
     if step <= pt.nsteps - 1
@@ -604,7 +598,7 @@ function coupling_times(pt::ProcessTensor, step::Int)
     return (output_sites(pt, step - 1), Index[inn])
 end
 
-"""Legacy alias: `(in_curr, out_prev)` — same indices as `coupling_times(pt, step)`, swapped tuple order. This will be removed once we have a stable implementation of the build and evolve of process tensors without this function"""
+# Tier B (legacy): `(in_curr, out_prev)` — swapped `coupling_times` tuple order.
 function coupling_sites(pt::ProcessTensor, step::Int)
     out_prev, in_curr = coupling_times(pt, step)
     return (in_curr, out_prev)
@@ -686,7 +680,14 @@ function _open_output_steps(seq::InstrumentSeq, nsteps::Int, default::AbstractIn
     return cuts
 end
 
-# User-facing function to create an instrument schedule from a process tensor and an instrument sequence
+"""
+    create_instruments(pt, seq; default, alg)
+
+Materialize an `InstrumentSeq` as one `ITensor` per process-tensor timestep.
+
+Most users call `evaluate_process` or `evolve` instead of building the
+instrument tensors manually.
+"""
 function create_instruments(
     pt::ProcessTensor,
     seq::InstrumentSeq;
@@ -727,16 +728,12 @@ function create_instruments(
     return instruments
 end
 
+# Tier B: `true` when the schedule closes every PT leg (scalar `evaluate_process`).
 """
-    all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq) -> Bool
+    all_pt_legs_contracted(pt, seq) -> Bool
 
-Return `true` when the schedule closes every PT leg: all propagation slots are filled
-([`instrument_leg_maps`](@ref) has no missing legs) and evolve slot `pt.nsteps` is a
-single-leg [`TraceOut`](@ref) or [`ObservableMeasurement`](@ref) on the terminal system
-output. Then [`evaluate_process`](@ref) returns a `ComplexF64` scalar.
-
-Otherwise the final system output leg stays open and [`evaluate_process`](@ref) returns
-`MPO{Liouville}` on that leg.
+Return `true` when the schedule closes every process-tensor leg, so
+[`evaluate_process`](@ref) returns a `ComplexF64` scalar.
 """
 function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
     !isempty(_open_output_steps(seq, pt.nsteps, seq.default)) && return false
@@ -750,18 +747,18 @@ end
 """
     evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPO{Liouville}}
 
-Contract a [`ProcessTensor`](@ref) with an [`InstrumentSeq`](@ref) by multiplying all PT
-cores and instrument tensors (bath degrees of freedom are traced when the PT is built).
+Contract a process tensor with an instrument schedule.
 
-Return type is inferred from [`all_pt_legs_contracted`](@ref) and keyword
-`all_legs_contracted`:
+Return a scalar when every process-tensor leg is closed, or an
+`MPO{Liouville}` when one system output leg is left open.
 
-- all legs closed → `ComplexF64`
-- one [`OpenOutput`](@ref) at evolve slot `s` → `MPO{Liouville}` on `output_sites(pt, s-1)`
-- otherwise terminal output open → `MPO{Liouville}` on `output_sites(pt, pt.nsteps-1)`
-
-If more than one index remains open after contraction, throws `ArgumentError`.
-See also [`evolve`](@ref) for per-timestep reduced-state snapshots.
+# Examples
+```julia
+seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+add!(seq, StatePreparation(ρ0), 0)
+add!(seq, TraceOut(), pt.nsteps)
+result = evaluate_process(pt, seq)
+```
 """
 function evaluate_process(
     pt::ProcessTensor,
@@ -834,6 +831,12 @@ function evaluate_process(
     return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
 end
 
+"""
+    evaluate_process(pt, seqs::AbstractVector{<:InstrumentSeq}; kwargs...) -> Vector{ComplexF64}
+
+Evaluate a batch of fully contracted instrument schedules and return one scalar
+per schedule.
+"""
 function evaluate_process(
     pt::ProcessTensor,
     seqs::AbstractVector{<:InstrumentSeq};
@@ -853,6 +856,12 @@ function evaluate_process(
     return results
 end
 
+"""
+    evaluate_process(pt, rho0, seq; kwargs...)
+
+Insert `StatePreparation(rho0)` at `tstep = 0` and contract the resulting
+schedule with `pt`.
+"""
 function evaluate_process(
     pt::ProcessTensor,
     rho0,
@@ -865,6 +874,12 @@ function evaluate_process(
     return evaluate_process(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
+"""
+    evaluate_process(pt, rho0; kwargs...)
+
+Evaluate a process tensor from an initial state using the default instrument
+schedule.
+"""
 function evaluate_process(
     pt::ProcessTensor,
     rho0;
@@ -879,9 +894,17 @@ end
 """
     evolve(pt, seq; default_instr=_schedule_default_instr(pt), alg=Trotter{2}())
 
-Return reduced system snapshots from a process tensor. Requires `pt.embed_system_propagation == true`;
-the default schedule connector is `IdentityOperation()` because the system Liouvillian map is
-fused into the PT cores.
+Return reduced system snapshots generated by contracting a process tensor with
+an instrument schedule.
+
+The result is a named tuple containing the sample times, Liouville-space
+states, and reconstructed Hilbert-space density MPOs.
+
+# Examples
+```julia
+trajectory = evolve(pt, ρ0)
+ρ_t = trajectory.states_hilbert[3]
+```
 """
 function evolve(
     pt::ProcessTensor,
@@ -919,7 +942,12 @@ function evolve(
     return (times=times, states_liouville=states_liouville, states_hilbert=states_hilbert)
 end
 
-# Evolve a process tensor pt with an initial state and a defined instrument sequence
+"""
+    evolve(pt, rho0, seq; default_instr=_schedule_default_instr(pt))
+
+Insert `StatePreparation(rho0)` at `tstep = 0` and return reduced system
+snapshots for the resulting schedule.
+"""
 function evolve(
     pt::ProcessTensor,
     rho0,
@@ -932,7 +960,12 @@ function evolve(
     return evolve(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
-# Evolve a process tensor pt with an initial state rho0 and the default instrument sequence
+"""
+    evolve(pt, rho0; default_instr=_schedule_default_instr(pt))
+
+Return reduced system snapshots from an initial state using the default
+instrument schedule.
+"""
 function evolve(
     pt::ProcessTensor,
     rho0;
@@ -943,46 +976,20 @@ function evolve(
     return evolve(pt, seq; default_instr=default_instr)
 end
 
-# =========================================================================
-# Two-time correlator instrument schedules
-# =========================================================================
-
 """
     two_time_correlation_seq(pt, (O_A, n_A), (O_B, n_B); rho0, default_instr)
 
-Build an [`InstrumentSeq`](@ref) that contracts with [`evaluate_process`](@ref) to the
-two-time correlator ``\\langle A(t_A)\\, B(t_B)\\rangle`` (first tuple is ``A`` at ``t_A``,
-second is ``B`` at ``t_B``).
+Build an `InstrumentSeq` for the two-time correlator
+``\\langle A(t_A) B(t_B)\\rangle``.
 
-**Time indices:** ``n`` labels the system snapshot after ``n`` split evolution steps,
-``t = n\\,\\Delta t`` with [`ProcessTensor`](@ref) `pt.dt`. An operator at time ``n`` is
-placed on evolve slot ``n + 1`` (except ``n = 0`` preparation at `tstep = 0`).
+`rho0` is prepared at `tstep = 0`, and operator insertions are placed on the
+process-tensor legs indexed by `n_A` and `n_B`.
 
-**Superoperators** (Liouville legs):
-
-- Left: ``\\mathcal{L}_O[\\rho] = O\\rho`` — [`ObservableMeasurement`](@ref) on the output leg.
-- Right: ``\\mathcal{R}_O[\\rho] = \\rho O`` — [`ObservableMeasurement`](@ref) with `leg_plev = 1`.
-
-Let ``n_{\\mathrm{late}} = \\max(n_A, n_B)``, ``n_{\\mathrm{early}} = \\min(n_A, n_B)``.
-
-| Case | Formula |
-|------|---------|
-| ``n_A > n_B`` | ``\\mathrm{Tr}[A\\,\\mathcal{U}_{n_B \\to n_A}\\,\\mathcal{L}_B\\,\\mathcal{U}_{0 \\to n_B}\\,\\rho(0)]`` |
-| ``n_A < n_B`` | ``\\mathrm{Tr}[B\\,\\mathcal{U}_{n_A \\to n_B}\\,\\mathcal{R}_A\\,\\mathcal{U}_{0 \\to n_A}\\,\\rho(0)]`` |
-| ``n_A = n_B`` | ``\\mathrm{Tr}[A\\,B\\,\\rho(t)]`` at ``t = n_A\\Delta t`` (composed terminal measurement or interior ``\\mathcal{L}_{AB}``) |
-
-**PT horizon:** requires ``n_{\\mathrm{late}} + 1 \\le \\texttt{pt.nsteps}``. Operators at
-interior time slices are represented by two-leg left/right action instruments that consume the
-previous output and current input legs. Only an operator acting on the terminal output leg is
-represented by a single-leg [`ObservableMeasurement`](@ref). Post-``t_{\\mathrm{late}}`` cores
-are contracted with [`IdentityOperation`](@ref) and a terminal [`TraceOut`](@ref).
-
-`rho0` is the system state at ``t = 0`` as `MPO`/`MPS` in Hilbert space. When
-``n_{\\mathrm{early}} = 0``, the early operator is folded into a composed [`StatePreparation`](@ref)
-at `tstep = 0`; otherwise `rho0` is prepared at `tstep = 0` and the early operator is inserted
-on the input leg at its evolve slot.
-
-Requires `pt.embed_system_propagation == true`.
+# Examples
+```julia
+seq = two_time_correlation_seq(pt, (O_A, 1), (O_B, 3); rho0=ρ0)
+result = evaluate_process(pt, seq)
+```
 """
 function two_time_correlation_seq(
     pt::ProcessTensor,

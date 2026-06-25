@@ -2,6 +2,14 @@
 
 import Base: show
 
+"""
+    AbstractSystem
+
+Abstract interface for system models used in process-tensor construction.
+
+Concrete systems store a Hamiltonian `H`, Lindblad jump operators `jump_ops`, and
+canonical Liouville-space `sites` for the system degrees of freedom.
+"""
 abstract type AbstractSystem end
 
 # Validate a system's site family and return canonical Liouville sites.
@@ -29,6 +37,16 @@ function _normalize_system_sites(
     return Index[sites...]
 end
 
+"""
+    SpinSystem(sites, H, jump_ops)
+
+Spin-system model for process-tensor construction.
+
+`sites` may be either all Hilbert-space spin site indices or all Liouville-space
+spin indices. Hilbert sites are converted with [`liouv_sites`](@ref); mixed
+Hilbert/Liouville inputs are rejected. `H` is a physical Hamiltonian `OpSum`, and
+`jump_ops` is a vector of Lindblad-channel `OpSum`s.
+"""
 struct SpinSystem <: AbstractSystem
     H::OpSum
     jump_ops::Vector{OpSum}
@@ -42,6 +60,16 @@ struct SpinSystem <: AbstractSystem
     end
 end
 
+"""
+    BosonSystem(sites, H, jump_ops)
+
+Bosonic-system model for process-tensor construction.
+
+`sites` may be either all Hilbert-space boson site indices or all Liouville-space
+boson indices. Hilbert sites are converted with [`liouv_sites`](@ref); mixed
+Hilbert/Liouville inputs are rejected. `H` is a physical Hamiltonian `OpSum`, and
+`jump_ops` is a vector of Lindblad-channel `OpSum`s.
+"""
 struct BosonSystem <: AbstractSystem
     H::OpSum
     jump_ops::Vector{OpSum}
@@ -55,9 +83,19 @@ struct BosonSystem <: AbstractSystem
     end
 end
 
+"""
+    spin_system(sites, H; jump_ops=OpSum[])
+
+Construct a [`SpinSystem`](@ref) using keyword-style Lindblad jump operators.
+"""
 spin_system(sites::AbstractVector{<:Index}, H::OpSum; jump_ops::AbstractVector{<:OpSum}=OpSum[]) =
     SpinSystem(sites, H, collect(jump_ops))
 
+"""
+    boson_system(sites, H; jump_ops=OpSum[])
+
+Construct a [`BosonSystem`](@ref) using keyword-style Lindblad jump operators.
+"""
 boson_system(sites::AbstractVector{<:Index}, H::OpSum; jump_ops::AbstractVector{<:OpSum}=OpSum[]) =
     BosonSystem(sites, H, collect(jump_ops))
 

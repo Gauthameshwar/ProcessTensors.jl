@@ -14,25 +14,51 @@ module Spectrals
 export AbstractSpectralDensity, OhmicSpectralDensity, LorentzianSpectralDensity,
        ohmic_sd, lorentzian_sd
 
+"""
+    AbstractSpectralDensity
+
+Abstract interface for spectral-density parameter objects.
+
+Current process-tensor builders store these values on bath objects for API
+compatibility; they are not yet used to construct bath Liouvillians.
+"""
 abstract type AbstractSpectralDensity end
 
-"""Ohmic spectral density parameters; reserved for future ACE/TEMPO coupling — not used in `build_process_tensor` yet."""
+"""
+    OhmicSpectralDensity(alpha, wc, s)
+
+Ohmic spectral-density parameters, reserved for future ACE/TEMPO coupling.
+"""
 struct OhmicSpectralDensity{T<:Real} <: AbstractSpectralDensity
     alpha::T
     wc::T
     s::T
 end
 
-"""Lorentzian spectral density parameters; reserved for future ACE/TEMPO coupling — not used in `build_process_tensor` yet."""
+"""
+    LorentzianSpectralDensity(lambda, gamma, omega0)
+
+Lorentzian spectral-density parameters, reserved for future ACE/TEMPO coupling.
+"""
 struct LorentzianSpectralDensity{T<:Real} <: AbstractSpectralDensity
     lambda::T
     gamma::T
     omega0::T
 end
 
+"""
+    ohmic_sd(; alpha=1.0, wc=1.0, s=1.0)
+
+Construct an [`OhmicSpectralDensity`](@ref) parameter object.
+"""
 ohmic_sd(; alpha::Real=1.0, wc::Real=1.0, s::Real=1.0) =
     OhmicSpectralDensity(float(alpha), float(wc), float(s))
 
+"""
+    lorentzian_sd(; lambda=1.0, gamma=1.0, omega0=0.0)
+
+Construct a [`LorentzianSpectralDensity`](@ref) parameter object.
+"""
 lorentzian_sd(; lambda::Real=1.0, gamma::Real=1.0, omega0::Real=0.0) =
     LorentzianSpectralDensity(float(lambda), float(gamma), float(omega0))
 

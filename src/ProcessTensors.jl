@@ -3,16 +3,12 @@ module ProcessTensors
 using ITensors
 import ITensorMPS
 
-# =========================================================================
 # Foundation
-# =========================================================================
 
 include("basis.jl")
 using .Basis: AbstractSpace, Hilbert, Liouville
 
-# =========================================================================
 # Core Types (MPS & MPO structs, getproperty, show)
-# =========================================================================
 
 include("mps/mps.jl")
 include("mpo/mpo.jl")
@@ -26,52 +22,38 @@ function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
     end
 end
 
-# =========================================================================
 # Network Operations
-# =========================================================================
 
 include("networks/indices.jl")
 include("networks/algebra.jl")
 include("networks/manipulations.jl")
 include("networks/orthogonality.jl")
 
-# =========================================================================
 # MPS-Specific
-# =========================================================================
 
 include("mps/constructors.jl")
 include("mps/observables.jl")
 
-# =========================================================================
 # MPO-Specific
-# =========================================================================
 
 include("mpo/constructors.jl")
 include("mpo/manipulations.jl")
 include("mpo/observables.jl")
 
-# =========================================================================
 # Hamiltonian / Operator Sums
-# =========================================================================
 
 include("hamiltonian.jl")
 
-# =========================================================================
 # Liouvillian
-# =========================================================================
 
 include("liouvillian.jl")
 
-# =========================================================================
 # Time Evolution
-# =========================================================================
 
 include("time_evolution/tdvp.jl")
 include("time_evolution/tebd.jl")
 
-# =========================================================================
 # ProcessTensors.jl module: Systems / Baths / Instruments
-# =========================================================================
 
 include("systems/systems.jl")
 include("environments/spectrals.jl")
@@ -86,17 +68,16 @@ using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     TraceOut, IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
                     CustomTwoLegInstrument,
                     LeftRightOperator, left_action, right_action,
+                    state_preparation, observable_measurement, trace_out,
+                    left_right_operator, system_propagation, identity_operation, open_output,
+                    custom_twoleg_instrument,
                     resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
-# =========================================================================
 # Process Tensors
-# =========================================================================
 
 include("process_tensor.jl")
 
-# =========================================================================
 # Exports (grouped by category)
-# =========================================================================
 
 # Core types
 export AbstractMPS, AbstractMPO, MPS, MPO, AbstractSpace, Hilbert, Liouville
@@ -146,6 +127,9 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
        CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
+       state_preparation, observable_measurement, trace_out,
+       left_right_operator, system_propagation, identity_operation, open_output,
+       custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 export ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,

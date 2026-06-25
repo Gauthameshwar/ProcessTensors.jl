@@ -4,9 +4,36 @@ import ITensorMPS: MPO as CoreMPO
 import ITensorMPS: siteinds, linkdims, maxlinkdim
 import Base: show, copy
 
-# The overarching abstract type for all ProcessTensors operator (MPO) objects
+"""
+    AbstractMPO{S<:AbstractSpace}
+
+Abstract interface for ProcessTensors matrix-product-operator wrappers.
+
+`S` distinguishes ordinary Hilbert-space operators from Liouville-space
+superoperators used in open-system and process-tensor contractions.
+"""
 abstract type AbstractMPO{S <: AbstractSpace} <: AbstractMPS{S} end
 
+"""
+    MPO{S<:AbstractSpace}
+
+Matrix-product-operator wrapper around an `ITensorMPS.MPO` stored in `.core`.
+
+`MPO{Hilbert}` represents an operator or density matrix on Hilbert-space site
+indices and is the default result of `MPO(...)`. `MPO{Liouville}` represents a
+Liouville-space superoperator acting on vectorized density matrices. Liouville
+MPOs may carry `combiners` when constructed from fused Hilbert indices, matching
+the convention used by [`to_liouville`](@ref) and [`MPO_Liouville`](@ref).
+
+Most generic MPO operations are delegated to `.core` and rewrapped when they
+return an MPS/MPO-like object.
+
+# Examples
+```julia
+ρ = to_dm(random_mps(sites))
+ρL = to_liouville(ρ; sites=liouv_sites(sites))  # MPS{Liouville} from density MPO
+```
+"""
 struct MPO{S <: AbstractSpace, C} <: AbstractMPO{S}
     core::CoreMPO
     combiners::C

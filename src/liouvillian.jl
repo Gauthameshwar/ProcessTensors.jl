@@ -44,12 +44,36 @@ _is_liouv_site(s::Index) = has_tag_token(s, "Liouv")
 
 _TUPLE_JUMP_TYPE = Tuple{<:Number,<:AbstractString,<:Integer}
 
-# ------------------------ Density Matrix Constructors ---------------------
+"""
+    to_dm(ψ::AbstractMPS{Hilbert})
+    to_dm(ψs::AbstractVector{<:AbstractMPS{Hilbert}}; coeffs)
 
+Construct a Hilbert-space density MPO.
+
+For one state, returns the pure density operator ``|ψ⟩⟨ψ|``. For a vector of
+states, returns the classical mixture ``∑ᵢ pᵢ |ψᵢ⟩⟨ψᵢ|`` with non-negative
+`coeffs` summing to one.
+
+# Examples
+```julia
+ψ1 = random_mps(sites)
+ψ2 = random_mps(sites)
+ρ_pure = to_dm(ψ1)
+ρ_mixed = to_dm([ψ1, ψ2]; coeffs=[0.3, 0.7])
+```
+"""
 function to_dm(ψ::AbstractMPS{Hilbert})::MPO{Hilbert}
     return outer(ψ', ψ)
 end
 
+"""
+    to_dm(ψs::AbstractVector{<:AbstractMPS{Hilbert}}; coeffs)
+
+Construct the mixed Hilbert-space density MPO
+`sum(coeffs[i] * |ψ_i><ψ_i| for i in eachindex(ψs))`.
+
+`coeffs` must be non-negative, have the same length as `ψs`, and sum to one.
+"""
 function to_dm(
     ψarr::AbstractVector{<:AbstractMPS{Hilbert}};
     coeffs::AbstractVector{<:Real}=fill(1 / length(ψarr), length(ψarr)),
@@ -71,39 +95,41 @@ function to_dm(
     return ρ
 end
 
-# --------------------- Vectorization and Unvectorization ---------------------
+"""
+    to_liouville(ψ::AbstractMPS{Hilbert})
 
+Convert a Hilbert-space pure state by forming `to_dm(ψ)` and vectorizing the
+resulting density MPO.
+"""
 function to_liouville(ψ::AbstractMPS{Hilbert})::MPS{Liouville}
     return to_liouville(to_dm(ψ))
 end
 
-
 function to_liouville(
-    ρ::AbstractMPO{Hilbert}, 
+    ρ::AbstractMPO{Hilbert},
     sites::Union{Nothing, AbstractVector{<:Index}},
 )::MPS{Liouville}
-    """
-    Vectorize a density matrix from Hilbert space to Liouville space.
-    
-    **Arguments:**
-    - `ρ::AbstractMPO{Hilbert}`: Hilbert-space density matrix
-    - `sites::Vector{Index}`: Pre-created Liouville sites (dimension d² for each site).
-      If provided, these indices are used for vectorization. If `nothing`, new indices are created.
-    
-    **Returns:** `MPS{Liouville}` with vectorized density matrix. The Liouville sites used are accessible
-    via `siteinds(ρ_vec)` if no pre-created sites were used during creation.
-    
-    **Recommended workflow (for index consistency):**
-    ```julia
-    s = siteinds("S=1/2", N)           # Define physical sites once
-    s_L = liouv_sites(s)               # Create Liouville sites once
-    
-    ρ_vec = to_liouville(density_mpo, s_L)  # Reuse same Liouville sites
-    ```
-    """
     return to_liouville(ρ; sites=sites)
 end
 
+"""
+    to_liouville(ρ::AbstractMPO{Hilbert}; sites=nothing)
+    to_liouville(ψ::AbstractMPS{Hilbert})
+
+Vectorize a Hilbert-space density operator into a Liouville-space MPS.
+
+Each local Hilbert bra/ket pair is fused into one Liouville site of dimension
+``d^2``. When `sites` is provided, those exact Liouville indices are reused so
+density states, Liouvillian MPOs, instruments, and process-tensor legs contract
+by index identity.
+
+# Examples
+```julia
+s = siteinds("S=1/2", 4)
+s_L = liouv_sites(s)
+ρL = to_liouville(ρ; sites=s_L)
+```
+"""
 function to_liouville(
     ρ::AbstractMPO{Hilbert};
     sites::Union{Nothing, AbstractVector{<:Index}}=nothing,
@@ -146,60 +172,39 @@ function to_liouville(
     return MPS{Liouville}(CoreMPS(liouv_tensors), combiners_ρ)
 end
 
+"""
+    to_hilbert(ρ::AbstractMPS{Liouville})
+
+Unvectorize a Liouville-space density MPS into a Hilbert-space density MPO.
+
+Uses the `combiners` stored on `ρ` to split each Liouville site back into the
+corresponding Hilbert bra/ket site pair.
+
+# Examples
+```julia
+ρ = to_hilbert(ρL)
+```
+"""
 function to_hilbert(ρ::AbstractMPS{Liouville})::MPO{Hilbert}
-    """
-    Unvectorize a density matrix from Liouville space back to Hilbert space (inverse of `to_liouville`).
-    
-    **Arguments:**
-    - `ρ::AbstractMPS{Liouville}`: Liouville-space density matrix (vectorized)
-    
-    **Returns:** `MPO{Hilbert}` density matrix in standard Hilbert-space representation.
-    
-    The Hilbert-space MPO uses the physical indices recovered from the Liouville basis tags
-    (canonically `ptype=...`, while still accepting legacy `phys=...` tags).
-    """
     raw_tensors = [ρ.core[i] for i in eachindex(ρ.core)]
     unzipped_tensors = [raw_tensors[i] * ρ.combiners[i] for i in eachindex(raw_tensors)]
     return MPO{Hilbert}(CoreMPO(unzipped_tensors))
 end
 
-# --------------------- Liouvillian site Constructors ---------------------
-
 """
     liouv_sites(physical_sites::AbstractVector{<:Index}) -> Vector{Index}
 
-Create Liouville-space sites from physical (Hilbert-space) sites.
+Construct Liouville-space site indices from Hilbert-space site indices.
 
-Each Liouville site has dimension d² for a physical site of dimension d.
+Each returned index has dimension ``d^2`` for a physical site of dimension
+``d`` and carries the `"Liouv"` tag plus physical site-family metadata
+(`"ptype=..."`). Reuse the same objects across [`to_liouville`](@ref),
+[`MPO_Liouville`](@ref), and process-tensor instruments.
 
-**Recommended workflow (BEST PRACTICE):**
+# Examples
 ```julia
-# Define all sites at the beginning of your code
-s = siteinds("S=1/2", N)          # Physical sites
-s_L = liouv_sites(s)             # Liouville sites - CREATE ONCE!
-
-# Pass s_L to ALL subsequent operations
-ρ = to_dm(ψ)
-ρ_vec = to_liouville(ρ; sites=s_L)       # Pass s_L
-
-os_H = OpSum() + ...
-L_mpo = MPO_Liouville(os_H, s, s_L)      # Pass both physical and Liouville sites
-
-# All operations use the SAME indices - NO manual index matching needed!
-result = apply(L_mpo, ρ_vec)
+s_L = liouv_sites(siteinds("S=1/2", 4))
 ```
-
-**Why this matters:**
-- Each call to `liouv_sites(...)` creates completely new Index objects
-- ITensors automatic contraction requires exact Index object identity
-- If you create Liouville indices separately in `to_liouville` and `MPO_Liouville`, they won't match
-- Reusing the same pre-created `s_L` keeps everything consistent (like ITensorMPS conventions)
-
-**Arguments:**
-- `physical_sites`: Vector of physical indices (typically from `siteinds(\"S=1/2\", N)`)
-
-**Returns:** Vector of Liouville indices (one per site), tagged with `"Liouv"` and
-the physical site family metadata (`"ptype=..."`).
 """
 function liouv_sites(physical_sites::AbstractVector{<:Index})
     liouv = [Index(dim(s)^2; tags=_liouv_tagset(s)) for s in physical_sites]
@@ -242,9 +247,7 @@ end
 _phys_sites_from_hilbert_state(ρ::AbstractMPO{Hilbert}) = _phys_sites_from_hilbert_mpo(ρ)
 _phys_sites_from_hilbert_state(ψ::AbstractMPS{Hilbert}) = siteinds(ψ)
 
-# --------------------- Operator Constructions in the Liouville space ---------------------
-
-# The types of embedding of the physical operators into the Liouville space, as determined by the operator name suffix.
+# The operator-name suffix determines how a physical operator is embedded in Liouville space.
 abstract type _LiouvSideTrait end
 struct _LiouvLeft <: _LiouvSideTrait end
 struct _LiouvRight <: _LiouvSideTrait end
@@ -283,7 +286,6 @@ function _superop_matrix(::_LiouvLdagLRight, A::AbstractMatrix, Id::AbstractMatr
     return kron(transpose(LdagL), Id)
 end
 
-# --------------------- Model Construction Helpers ---------------------
 # Materialize a physical operator as a dense matrix, e.g. `Sz` on an `S=1/2` site becomes a `2×2` array.
 function _op_matrix(op_name::AbstractString, s_phys::Index; kwargs...)
     opT = ITensors.op(op_name, s_phys; kwargs...)
@@ -307,7 +309,6 @@ function ITensors.op(on::ITensors.OpName{N}, ::ITensors.SiteType"Liouv", s::Inde
     return ITensor(_superop_matrix(side, A, Id), prime(s), s)
 end
 
-# --------------------- Liouvillian MPO Construction ---------------------
 # Canonical OpSum builder: normalized tuple-jump vector
 function _liouvillian_opsum(
     os_H::OpSum,
@@ -370,20 +371,12 @@ function build_liouvillian_opsum(os_H::OpSum, jump_ops::AbstractVector{<:Tuple{<
     return os_L
 end
 
+# Build a Liouvillian OpSum from Lindblad-channel OpSums, each representing one
+# jump operator with its rate in the term coefficient.
 function build_liouvillian_opsum_from_lindblad(
     os_H::OpSum,
     os_lindblad::AbstractVector{<:OpSum},
 )
-    """
-    Build a Liouvillian OpSum from a Hamiltonian and a vector of Lindbladian jump operator OpSums.
-    
-    Each OpSum in os_lindblad should represent a single dissipation channel, i.e., a jump operator 
-    L with its associated decay rate γ. The OpSum term should be of the form:
-        os_jump_k += γ, "OpName", site1[, site2, ...]
-    
-    This function extracts γ and the operator L from each OpSum and builds the corresponding
-    dissipator superoperator terms: γ(L* ⊗ L) - (γ/2)(I ⊗ L†L) - (γ/2)((L†L)^T ⊗ I).
-    """
     os_L = OpSum()
 
     # Add Hamiltonian commutator terms: -i[H, ·]
@@ -444,43 +437,74 @@ end
 """
     OpSum_Liouville(os_H::OpSum; jump_ops=Tuple{Number,String,Int}[])
     OpSum_Liouville(os_H::OpSum, jump_ops)
+    OpSum_Liouville(os_H::OpSum, L::OpSum)
+    OpSum_Liouville(os_H::OpSum, Ls::AbstractVector{<:OpSum})
 
-Generate the symbolic Liouvillian OpSum from a physical Hamiltonian and Lindblad jump operators,
-**without** converting it into an MPO.
+Construct the Liouville-space `OpSum` superoperator ``L`` for the master equation
 
-This is the recommended entry point for generating Trotter gates for TEBD in Liouville space,
-or for any workflow where you need the symbolic operator sum before choosing a representation.
+```math
+\\frac{d\\rho}{dt} = -i[H,\\rho] + \\sum_k \\gamma_k \\, \\mathcal{D}[L_k]\\rho,
+```
 
-Accepts the same jump operator formats as `MPO_Liouville`:
-- Tuple-based: `(γ, "S-", 1)` or `[(γ, "S-", 1), ...]`
-- OpSum-based: `OpSum() + (γ, "S-", 1)` or `[OpSum() + (γ, "S-", 1), ...]`
+where ``\\mathcal{D}[L]\\rho = L\\rho L^\\dagger - \\tfrac{1}{2}\\{L^\\dagger L, \\rho\\}``
+is the Lindblad dissipator.
+
+The Hamiltonian part is encoded as the commutator superoperator
+``-i[H,\\cdot] = -i(H\\otimes I - I\\otimes H^\\top)`` on vectorized density matrices.
+Each tuple jump ``(\\gamma, \\text{opname}, j)`` adds
+``\\gamma\\,\\mathcal{D}[L_j]`` with ``L_j = \\text{op}(\\text{opname}, j)``.
+For example, `jump_ops=[(0.1, "S-", 1)]` adds amplitude damping via
+``L = S_-`` at site `1` with rate ``\\gamma = 0.1``.
+
+Jump operators may also be supplied as `OpSum`s or vectors of `OpSum`s.
 
 # Examples
-
 ```julia
-# For MPO construction:
-L_mpo = MPO(OpSum_Liouville(os_H; jump_ops=jumps), s_L)
-
-# For TEBD gate generation:
-gates = ops(exp(dt * OpSum_Liouville(os_H; jump_ops=jumps); alg=Trotter{2}()), s_L)
+H = OpSum()
+H += 1.0, "Sz", 1
+L = OpSum_Liouville(H; jump_ops=[(0.1, "S-", 1)])
 ```
 """
 function OpSum_Liouville(os_H::OpSum; jump_ops=Tuple{Number,String,Int}[])
     return OpSum_Liouville(os_H, jump_ops)
 end
 
+"""
+    OpSum_Liouville(os_H::OpSum, jump::Tuple{<:Number,<:AbstractString,<:Integer})
+
+Construct the Liouvillian `OpSum` using one tuple-form Lindblad jump operator
+such as `(γ, "S-", 1)`.
+"""
 OpSum_Liouville(os_H::OpSum, jump::_TUPLE_JUMP_TYPE) = begin
     γ, opname, site = jump
     _liouvillian_opsum(os_H, [(γ, String(opname), Int(site))])
 end
 
+"""
+    OpSum_Liouville(os_H::OpSum, jumps::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}})
+
+Construct the Liouvillian `OpSum` using several tuple-form Lindblad jump
+operators.
+"""
 OpSum_Liouville(
     os_H::OpSum,
     jumps::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}},
 ) = _liouvillian_opsum(os_H, jumps)
 
+"""
+    OpSum_Liouville(os_H::OpSum, L::OpSum)
+
+Construct the Liouvillian `OpSum` using one Lindblad jump operator written as
+an `OpSum`.
+"""
 OpSum_Liouville(os_H::OpSum, L::OpSum) = _liouvillian_opsum(os_H, OpSum[L])
 
+"""
+    OpSum_Liouville(os_H::OpSum, Ls::AbstractVector{<:OpSum})
+
+Construct the Liouvillian `OpSum` using several Lindblad jump operators written
+as `OpSum`s.
+"""
 OpSum_Liouville(os_H::OpSum, Ls::AbstractVector{<:OpSum}) = _liouvillian_opsum(os_H, Ls)
 
 # Untyped empty vector (e.g. `jump_ops=[]`) is treated as no jump operators.
@@ -493,9 +517,20 @@ function OpSum_Liouville(os_H::OpSum, jump_ops)
 end
 
 """
-    MPO_Liouville(os_H::OpSum, sites::AbstractVector{<:Index}; jump_ops=Tuple{Number,String,Int}[])
+    MPO_Liouville(os_H::OpSum, sites::AbstractVector{<:Index}; jump_ops=Tuple{Number,String,Int}[], splitblocks=true)
+    MPO_Liouville(os_H::OpSum, jump_ops, sites::AbstractVector{<:Index}; splitblocks=true)
 
-Build a Liouvillian MPO using either physical or pre-created Liouville sites.
+Construct a Liouville-space MPO from a Hamiltonian and Lindblad jump operators.
+
+`sites` may be physical Hilbert-space sites or pre-created Liouville sites from
+[`liouv_sites`](@ref). Reuse the same Liouville indices across
+[`to_liouville`](@ref) and process-tensor objects.
+
+# Examples
+```julia
+s_L = liouv_sites(sites)
+L_mpo = MPO_Liouville(H, s_L; jump_ops=[(0.1, "S-", 1)])
+```
 """
 MPO_Liouville(
     os_H::OpSum,
@@ -507,12 +542,8 @@ MPO_Liouville(
 """
     MPO_Liouville(os_H::OpSum, jump_ops, sites::AbstractVector{<:Index}; splitblocks=true)
 
-Build a Liouvillian MPO from positional jump operators and site indices.
-
-Accepts:
-- Tuple-based jump operators: single tuple or vector of tuples, e.g. (γ, "S-", 1) or [(γ, "S-", 1)]
-- Lindblad OpSum operators: single OpSum or vector of OpSums, e.g. [OpSum() += γ, "S-", 1]
-- For multiple varargs OpSums, use: MPO_Liouville(H, L1, L2, L3, sites)
+Construct a Liouville-space MPO using supported tuple-form or `OpSum` Lindblad
+jump operators supplied positionally.
 """
 MPO_Liouville(
     os_H::OpSum,
@@ -524,13 +555,8 @@ MPO_Liouville(
 """
     MPO_Liouville(os_H::OpSum, L1::OpSum, L2::OpSum, Lrest..., sites::AbstractVector{<:Index}; splitblocks=true)
 
-Build a Liouvillian MPO from multiple Lindblad jump operators as varargs.
-
-Each OpSum argument (L1, L2, L3, ...) is treated as one Lindblad dissipation channel.
-The rightmost positional argument must be physical or Liouville sites.
-
-**Note:** For a single OpSum jump operator, use the vector form:
-`MPO_Liouville(os_H, [L1], sites)` or `MPO_Liouville(os_H, sites; jump_ops=[L1])`
+Construct a Liouville-space MPO using two or more Lindblad jump operators
+written as positional `OpSum` arguments.
 """
 function MPO_Liouville(
     os_H::OpSum,

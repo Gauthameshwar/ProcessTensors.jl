@@ -5,20 +5,29 @@ import ITensors: exp as itensor_exp
 import ITensors.Ops: Exact, Trotter, Prod
 import ITensorMPS: OpSum, apply as mps_apply
 
-# ---------------------------------------------------------------------
-# Core 1: build Trotter gates
-# ---------------------------------------------------------------------
+# Tier C: `Exact` and `Trotter` are re-exported from `ITensors.Ops` (see API page).
 
 """
     trotter_gates(os, sites, τ; alg=Trotter{2}())
 
-Factorize `exp(τ * os)` into a vector of ITensor gates using a Trotter decomposition.
+Factorize ``\\exp(\\tau \\, \\mathrm{os})`` into a vector of ITensor gates using a
+Trotter decomposition.
+
+Schematically, for `alg = Trotter{2}()` the decomposition has the form
+
+```math
+\\exp(\\tau \\, \\mathrm{os}) \\approx
+\\prod_{\\text{groups}} \\exp\\!\\left(\\frac{\\tau}{2}\\, \\mathrm{os}_{\\text{group}}\\right)
+\\cdots
+\\prod_{\\text{groups}} \\exp\\!\\left(\\frac{\\tau}{2}\\, \\mathrm{os}_{\\text{group}}\\right),
+```
+
+with the exact gate ordering and grouping determined by ITensors for the chosen
+`Trotter{n}()` order. Higher `n` generally improves accuracy at fixed `τ`.
 
 `τ` encodes the full exponent prefactor, including any imaginary unit and sign:
-- Hilbert space: `τ = -im * dt`
-- Liouville space: `τ = dt` (the `-im` factors are already baked into `OpSum_Liouville`)
-
-`alg` must be a `Trotter{n}()` instance controlling the decomposition order.
+- Hilbert space: `τ = -im * dt` for unitary evolution `exp(-im H dt)`
+- Liouville space: `τ = dt` (the `-im` factors are already in `OpSum_Liouville`)
 """
 function trotter_gates(
     os::OpSum,
@@ -30,10 +39,6 @@ function trotter_gates(
     prod = Prod{ITensor}(lazy, collect(sites))
     return collect(ITensor, only(prod.args))
 end
-
-# ---------------------------------------------------------------------
-# Core 2: materialize gates into one map tensor
-# ---------------------------------------------------------------------
 
 """
     propagator_itensor_from_gates(gates, sites; method=:auto)
@@ -140,23 +145,33 @@ end
 """
     liouvillian_propagator_itensor(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
 
-Build `U = exp(dt * L)` as a single ITensor on Liouville `sites`.
+Build the one-step Liouville propagator ``U = \\exp(dt \\, L)`` as a single
+`ITensor` on `sites`.
 
-By default, `os` is a physical Hamiltonian and the Liouvillian is constructed internally via
-`OpSum_Liouville(os; jump_ops)`. Set `liouville_form=true` when `os` is already a Liouvillian
-`OpSum`.
+When `liouville_form=false`, `os` is a physical Hamiltonian and `L` is built by
+[`OpSum_Liouville`](@ref):
 
-`alg` selects the exponentiation algorithm:
-- `Exact()` (default): contract the Liouvillian MPO to a single dense tensor and exponentiate
-  exactly with `LinearAlgebra.exp`. Suitable for small systems (Liouville dim ≲ few hundred).
-- `Trotter{n}()`: factorize via Trotter decomposition and materialize the gate sequence into
-  one explicit superoperator tensor via `propagator_itensor_from_gates`.
+```math
+L = -i[H,\\cdot] + \\sum_k \\gamma_k \\, \\mathcal{D}[L_k],
+\\qquad
+\\mathcal{D}[L]\\rho = L\\rho L^\\dagger - \\tfrac{1}{2}\\{L^\\dagger L, \\rho\\}.
+```
 
-Leg convention: unprimed `sites` are ket/output legs; `prime.(sites)` are bra/input legs.
-This matches the convention of `exp(dt * L_mpo)` contracted to a single ITensor.
+Set `liouville_form=true` when `os` is already a Liouville `OpSum`.
 
-`materialize_method` is forwarded to `propagator_itensor_from_gates` when `alg isa Trotter`
-(`:auto` selects `:basis` for 1 site, `:contract` otherwise).
+`alg` selects how ``\\exp(dt\\,L)`` is constructed:
+
+- `Exact()` (default): contract `L` to a dense superoperator matrix and compute
+  ``U = \\exp(dt\\,L)`` exactly. Suitable for small Liouville dimensions.
+- `Trotter{n}()`: approximate
+  ``\\exp(dt\\,L) \\approx \\prod_j \\exp(dt\\,L_j)`` using [`trotter_gates`](@ref),
+  then contract the gate list with [`propagator_itensor_from_gates`](@ref).
+
+Leg convention: unprimed `sites` are ket/output legs; `prime.(sites)` are
+bra/input legs.
+
+`materialize_method` is forwarded to `propagator_itensor_from_gates` when
+`alg isa Trotter` (`:auto` selects `:basis` for one site, `:contract` otherwise).
 """
 function liouvillian_propagator_itensor(
     os::OpSum,
@@ -192,10 +207,6 @@ function liouvillian_propagator_itensor(
     throw(ArgumentError("Unsupported exponentiation algorithm: $(typeof(alg))."))
 end
 
-# ---------------------------------------------------------------------------
-# TEBD time loop
-# ---------------------------------------------------------------------------
-
 function _tebd_loop(
     state::AbstractMPS,
     gates::Vector{ITensor},
@@ -226,19 +237,30 @@ function _tebd_loop(
     return ψ
 end
 
-# ---------------------------------------------------------------------------
-# Public TEBD entry points
-# ---------------------------------------------------------------------------
-
 """
     tebd(state::AbstractMPS{Hilbert}, H, dt, T; alg=Trotter{2}(), maxdim, cutoff, verbose)
+    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim, cutoff, verbose)
 
-Evolve a Hilbert-space MPS under Hamiltonian `H` for total time `T` using TEBD.
+Time-evolve an MPS for total time `T` in steps of `dt` using TEBD.
 
-The propagator per step is `U(dt) = exp(-i H dt)`, factorized via `alg`.
-`alg` must be a `Trotter{n}()` algorithm object.
+For `MPS{Hilbert}`, each step applies ``U = \\exp(-i H\\, dt)``.
+For `MPS{Liouville}`, the Liouvillian ``L`` is built internally and each step
+applies ``U = \\exp(L\\, dt)``.
 
-Returns the time-evolved `MPS{Hilbert}`.
+`alg` must be a `Trotter{n}()` object from `ITensors.Ops`. It controls the
+Suzuki–Trotter factorization of the per-step propagator via
+[`trotter_gates`](@ref); `Trotter{2}()` is the default second-order choice.
+The gates are applied `round(T/dt)` times with optional truncation (`maxdim`,
+`cutoff`).
+
+For exact single-step exponentiation on small Liouville spaces, use
+[`liouvillian_propagator_itensor`](@ref) with `alg=Exact()` instead of TEBD.
+
+# Examples
+```julia
+ψ_T = tebd(ψ0, H, 0.1, 1.0; alg=Trotter{2}())
+ρL_T = tebd(ρL0, H, 0.1, 1.0; jump_ops=[(0.1, "S-", 1)])
+```
 """
 function tebd(
     state::AbstractMPS{Hilbert},
@@ -257,14 +279,7 @@ end
 """
     tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim, cutoff, verbose)
 
-Evolve a Liouville-space MPS (vectorized density matrix) under the Lindblad master equation
-for total time `T` using TEBD.
-
-`H` is the physical Hamiltonian; dissipators are supplied via `jump_ops`. The full Liouvillian
-`L = -i[H, ·] + Σ_k γ_k D[L_k]` is built internally, and the propagator per step is
-`exp(L dt)`.
-
-Returns the time-evolved `MPS{Liouville}`.
+Liouville-space overload: see the main [`tebd`](@ref) docstring.
 """
 function tebd(
     state::AbstractMPS{Liouville},

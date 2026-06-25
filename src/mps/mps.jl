@@ -5,9 +5,38 @@ import ITensorMPS: MPS as CoreMPS
 import ITensorMPS: siteinds, linkdims, maxlinkdim
 import Base: show, length, getindex, setindex!, copy
 
-# The overarching abstract type for all ProcessTensors MPS/MPO objects
+"""
+    AbstractMPS{S<:AbstractSpace}
+
+Abstract interface for ProcessTensors matrix-product wrappers.
+
+`S` records whether the wrapped tensor network lives in Hilbert space or Liouville
+space. Concrete wrappers delegate most generic ITensorMPS operations to their
+underlying `.core`.
+"""
 abstract type AbstractMPS{S <: AbstractSpace} <: CoreAbstractMPS end
 
+"""
+    MPS{S<:AbstractSpace}
+
+Matrix-product-state wrapper around an `ITensorMPS.MPS` stored in `.core`.
+
+`MPS{Hilbert}` represents a Hilbert-space state vector and is the default result
+of `MPS(...)` and [`random_mps`](@ref). `MPS{Liouville}` represents a vectorized
+density matrix or Liouville-space state; it carries `combiners` that record how
+Hilbert bra/ket site pairs were fused into Liouville sites by [`to_liouville`](@ref),
+so [`to_hilbert`](@ref) can reconstruct the density MPO.
+
+Most ITensorMPS operations are forwarded to `.core` and rewrapped when they return
+an MPS-like object.
+
+# Examples
+```julia
+ψ = random_mps(sites; linkdims=4)   # MPS{Hilbert}
+ρ = to_dm(ψ)
+ρL = to_liouville(ρ; sites=liouv_sites(sites))  # MPS{Liouville}
+```
+"""
 struct MPS{S <: AbstractSpace, C} <: AbstractMPS{S}
     core::CoreMPS
     combiners::C
