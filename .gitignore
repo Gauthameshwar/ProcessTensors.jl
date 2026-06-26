@@ -10,6 +10,10 @@ todo*
 /docs/Manifest*.toml
 /docs/build/
 
+# Literate-generated tutorial pages (source: docs/literate/tutorials/*.jl)
+/docs/src/tutorials/*.md
+!/docs/src/tutorials/README.md
+
 # Auto-provisioned env for plotting scripts (CairoMakie; not part of the library project)
 /scripts/.plot_examples_env/
 
