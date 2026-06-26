@@ -1,6 +1,10 @@
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 ProcessTensors = "359c2eb2-a0cb-447a-868d-92de414ddc78"
 
 [compat]
-Documenter = "1.17.0"
+CairoMakie = "0.15"
+Documenter = "1.17"
+Literate = "2"
