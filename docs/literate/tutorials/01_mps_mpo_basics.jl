@@ -606,5 +606,5 @@ println(roundreal(S_operator_bond))
 # > Reuse the correct indices. ITensors makes contractions safe because tensor
 # > legs are labelled objects, not anonymous array axes.
 #
-# In the next tutorial, [Liouville Basics](@ref), we take a density MPO and
+# In the next tutorial, [Liouville-Space Basics](@ref), we take a density MPO and
 # vectorize it into Liouville space.

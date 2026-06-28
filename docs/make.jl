@@ -11,7 +11,7 @@ const TUTORIAL_OUT = joinpath(DOCS_ROOT, "src", "tutorials")
 const TUTORIALS = [
     ("00_itensor_basics.jl", "itensor_basics", "ITensor Basics"),
     ("01_mps_mpo_basics.jl", "mps_mpo_basics", "MPS and MPO Basics"),
-    ("02_liouville_basics.jl", "liouville_basics", "Liouville Basics"),
+    ("02_liouville_basics.jl", "liouville_basics", "Liouville-Space Basics"),
     ("03_unitary_dynamics.jl", "unitary_dynamics", "Unitary Dynamics"),
     ("04_dissipative_dynamics.jl", "dissipative_dynamics", "Dissipative Dynamics"),
     ("05_time_dependent_dynamics.jl", "time_dependent_dynamics", "Time-Dependent Dynamics"),
