@@ -1,12 +1,12 @@
 # Quantum States and Liouville Space
 
-This page introduces the quantum-mechanical objects that appear throughout `ProcessTensors.jl`: state vectors, observables, density matrices, reduced states, Liouville-space vectorisation, and Lindblad dynamics.
+This page introduces the quantum-mechanical objects that appear throughout `ProcessTensors.jl`: state vectors, observables, density matrices, reduced states, Liouville-space vectorisation, and open-system dynamics.
 
 The goal is not to replace a textbook on quantum mechanics or open quantum systems. Instead, this page gives the minimum theory needed to understand why the package moves between Hilbert-space and Liouville-space tensor-network representations.
 
 For tensor-network vocabulary such as MPS, MPO, contraction, and bond dimension, see [Tensor Networks in Physics](tensor_networks.md).
 
-## Hilbert space and dynamics
+## Hilbert space and density matrices
 
 Before going to the Liouville space, we shall have a quick revision of quantum mechanics in the Hilbert space. In ordinary closed-system quantum mechanics, the state of a pure quantum system is represented by a vector $|\psi\rangle$ in a Hilbert space. For a lattice of $N$ sites with local dimension $d$, a general state can be written as
 
@@ -72,8 +72,6 @@ These are ordinary Hilbert-space quantities. They are the baseline against which
 !!! note "Package perspective"
     In `ProcessTensors.jl`, Hilbert-space MPS and MPO objects provide the familiar starting point. Density-matrix and Liouville-space tools extend this language to mixed states, dissipative dynamics, and process tensors.
 
-## Density matrices
-
 Pure state vectors are not enough for open quantum systems. A subsystem interacting with an environment is generally not described by a single state vector, even if the combined system-environment state is pure.
 
 The density matrix formalism gives a more general description of quantum states that contains these classical probabilities associated with each pure wavefunction.
@@ -128,7 +126,7 @@ For a pure state $\rho=|\psi\rangle\langle\psi|$, this reduces to the familiar e
 !!! note "Package convention"
     In `ProcessTensors.jl`, a pure MPS can be converted into a density-matrix MPO using `to_dm(ψ)`. Mixtures of MPS states are also supported, provided the probabilities are non-negative and sum to one.
 
-## Reduced density matrices and partial traces
+### Reduced density matrices and partial traces
 
 Open-system physics usually begins with a larger closed system made of a system $S$ and a bath or environment $B$. The joint density matrix lives on the composite Hilbert space
 
@@ -203,52 +201,121 @@ Reduced state:
 !!! note "Why this matters for process tensors"
     Process tensors describe reduced system dynamics while keeping track of how the bath remembers past interactions. Reduced density matrices are the first step toward that language.
 
+
 ## Liouville space and vectorisation
 
-A density matrix is an operator. Liouville space treats this operator as a vector-like object.
-
-The basic idea is
+A density matrix is an operator on Hilbert space,
 
 ```math
-\rho
-\quad
-\longrightarrow
-\quad
-|\rho\rangle\rangle.
+\rho \in \mathcal{B}(\mathcal{H}),
 ```
 
-In Hilbert-space notation, one may think of the dynamics of $\rho$ as a linear map, $M(\{A_i\}, \rho)$, that takes a density matrix $\rho$ and a collection of operators $\{A_i\}$ as input. After vectorisation, the same map is represented as a superoperator acting on the vectorised state: $\mathcal{M}(\{A_i\})|\rho\rangle\rangle$.
+where $\mathcal{B}(\mathcal{H})$ denotes the space of linear operators on
+$\mathcal{H}$.
 
-For a local Hilbert-space dimension $d$, the local Liouville-space dimension is $d^2$.In tensor-network language, a Hilbert-space density matrix with two physical legs per site becomes a Liouville-space object with one enlarged physical leg per site.
+The key observation is that $\mathcal{B}(\mathcal{H})$ is itself a Hilbert
+space when equipped with the Hilbert--Schmidt inner product,
 
-```text
-Hilbert-space density matrix at one site:
-
-      s'
-      |
-     [ρ]
-      |
-      s
-
-Liouville-space vectorised form:
-
-     s_L = combined(s, s')
-      |
-    [ρ_L]
+```math
+\langle\langle A | B \rangle\rangle
+=
+\operatorname{Tr}(A^\dagger B).
 ```
 
-This is why Liouville-space simulations are more expensive than pure-state simulations, but also why MPS/MPO tools can be reused for mixed-state dynamics.
+This operator Hilbert space is called **Liouville space**.
 
-!!! note "Package convention"
-    In `ProcessTensors.jl`, `to_liouville` converts Hilbert-space density matrices into Liouville-space MPS-like objects, while `to_hilbert` maps them back.
+If $\dim(\mathcal{H})=d$, then
 
-## Column-major vectorisation
+```math
+\dim\mathcal{B}(\mathcal{H}) = d^2.
+```
 
-Different communities use different vectorisation conventions. The convention matters because it determines how left and right operator multiplication become superoperators.
+This is why Liouville-space simulations are more expensive than pure-state
+Hilbert-space simulations, but also why density matrices can be treated with
+state-vector tensor-network tools.
 
-`ProcessTensors.jl` uses column-major vectorisation since this align's with Julia's native convention to do tensor product, reshape and vectorise matrices.
+!!! note "Package perspective"
+    In `ProcessTensors.jl`, a Hilbert-space density matrix is represented as an
+    `MPO{Hilbert}`. After vectorisation, it becomes an `MPS{Liouville}`.
 
-For a single-site density matrix
+### First-level vectorisation
+
+Choose an orthonormal basis $\{|j\rangle\}$ of $\mathcal{H}$. The basic
+vectorisation rule is
+
+```math
+|j\rangle\langle k|
+\longmapsto
+|j\rangle\otimes|k\rangle.
+```
+
+Equivalently, for an operator
+
+```math
+A =
+\sum_{j,k}
+A_{jk}
+|j\rangle\langle k|,
+```
+
+we define
+
+```math
+|A\rangle\rangle
+=
+\sum_{j,k}
+A_{jk}
+|j\rangle\otimes|k\rangle.
+```
+
+This is the simple linear-algebra move behind Liouville space: an operator
+becomes a vector in a larger space.
+
+A more invariant way to say this is
+
+```math
+\mathcal{B}(\mathcal{H})
+\simeq
+\mathcal{H}\otimes\mathcal{H}^*.
+```
+
+The second factor is the dual space. After a basis is chosen, it is often
+identified computationally with another copy of $\mathcal{H}$.
+
+!!! warning "Basis dependence"
+    The bare map
+    $|j\rangle\langle k|\mapsto |j\rangle\otimes|k\rangle$
+    depends on the chosen basis. This is harmless for numerical work if the
+    convention is fixed, but it should not be mistaken for a basis-independent
+    physical statement.
+
+!!! tip "Why this language is useful"
+    In Hilbert-space notation, a channel looks like a function acting on a
+    matrix:
+
+    ```math
+    \rho \mapsto \Phi(\rho).
+    ```
+
+    In Liouville space, the same channel is represented as an operator acting
+    on a vector:
+
+    ```math
+    |\rho\rangle\rangle
+    \mapsto
+    \Phi |\rho\rangle\rangle.
+    ```
+
+### Column-major vectorisation convention
+
+Different communities use different vectorisation conventions. The convention
+matters because it determines the Kronecker-product formulas for left and right
+multiplication.
+
+`ProcessTensors.jl` uses **column-major vectorisation**, matching Julia's native
+array ordering.
+
+For a one-site density matrix
 
 ```math
 \rho
@@ -259,7 +326,7 @@ For a single-site density matrix
 \end{pmatrix},
 ```
 
-column-major vectorisation gives
+the vectorised state is
 
 ```math
 |\rho\rangle\rangle
@@ -277,25 +344,29 @@ column-major vectorisation gives
 Equivalently, the first matrix index changes fastest.
 
 ```text
-Matrix entries:
+Matrix:
 
-      column 1        column 2
-       ρ₁₁              ρ₁₂
-       ρ₂₁              ρ₂₂
+       column 1        column 2
+
+        ρ₁₁              ρ₁₂
+        ρ₂₁              ρ₂₂
 
 Column-major vector:
 
-      [ρ₁₁, ρ₂₁, ρ₁₂, ρ₂₂]ᵀ
+       [ρ₁₁, ρ₂₁, ρ₁₂, ρ₂₂]ᵀ
 ```
 
-!!! warning "Do not mix vectorisation conventions"
-    Row-major and column-major vectorisation give different Kronecker-product formulas. When constructing or interpreting Liouville-space operators, always use the convention assumed by the package.
+!!! warning "Do not mix conventions"
+    Row-major and column-major vectorisation lead to different formulas. All
+    left/right action rules in this documentation assume the column-major
+    convention above.
 
-## Operators as superoperators
+### Operators as superoperators
 
-A superoperator is a linear map acting on operators. After vectorisation, superoperators become ordinary operators acting on $|\rho\rangle\rangle$.
+A superoperator is a linear map acting on operators. After vectorisation, it
+becomes an ordinary operator acting on Liouville-space vectors.
 
-For column-major vectorisation, the key identity is
+The central identity is
 
 ```math
 \operatorname{vec}(A\rho B)
@@ -304,7 +375,7 @@ For column-major vectorisation, the key identity is
 \operatorname{vec}(\rho).
 ```
 
-Two important special cases are left and right multiplication:
+Two special cases are especially important:
 
 ```math
 \operatorname{vec}(A\rho)
@@ -313,6 +384,8 @@ Two important special cases are left and right multiplication:
 |\rho\rangle\rangle,
 ```
 
+and
+
 ```math
 \operatorname{vec}(\rho B)
 =
@@ -320,36 +393,78 @@ Two important special cases are left and right multiplication:
 |\rho\rangle\rangle.
 ```
 
-So left multiplication by $A$ and right multiplication by $B$ become different Liouville-space operators.
+So left multiplication and right multiplication are represented by different
+Liouville-space operators.
 
-```text
-Hilbert-space action:
+In package notation:
 
-      ρ  ──>  Aρ
-      ρ  ──>  ρB
-      ρ  ──>  AρB
+| Hilbert-space action | Liouville-space action | Package suffix |
+| -------------------- | ---------------------- | -------------- |
+| $A\rho$ | $(I \otimes A)\vert\rho\rangle\rangle$ | `A_L` |
+| $\rho A$ | $(A^{\mathsf{T}} \otimes I)\vert\rho\rangle\rangle$ | `A_R` |
+| $A\rho A^\dagger$ | $(A^* \otimes A)\vert\rho\rangle\rangle$ | `A_Jump` |
+| $A^\dagger A\rho$ | $(I \otimes A^\dagger A)\vert\rho\rangle\rangle$ | `A_LdagL_L` |
+| $\rho A^\dagger A$ | $((A^\dagger A)^{\mathsf{T}} \otimes I)\vert\rho\rangle\rangle$ | `A_LdagL_R` |
 
-Liouville-space action:
+!!! note "Left and right are physical statements"
+    The suffixes `_L` and `_R` do not mean “left tensor leg” and “right tensor
+    leg”. They mean multiplication of the density matrix from the left or from
+    the right before vectorisation.
 
-      |ρ⟩⟩  ──>  (I ⊗ A)|ρ⟩⟩
-      |ρ⟩⟩  ──>  (Bᵀ ⊗ I)|ρ⟩⟩
-      |ρ⟩⟩  ──>  (Bᵀ ⊗ A)|ρ⟩⟩
+### Channels as Liouville-space operators
+
+A deterministic physical evolution of density matrices is described by a
+completely positive trace-preserving map,
+
+```math
+\Phi:
+\mathcal{B}(\mathcal{H}_{\mathrm{in}})
+\rightarrow
+\mathcal{B}(\mathcal{H}_{\mathrm{out}}).
 ```
 
-In `ProcessTensors.jl`, this distinction appears through Liouville-space operator suffixes:
+Such maps are quantum channels.
 
-| Suffix     | Meaning                                        | Matrix form                           |
-| ---------- | ---------------------------------------------- | ------------------------------------- |
-| `_L`       | left action, $A\rho$                           | $I \otimes A$                         |
-| `_R`       | right action, $\rho A$                         | $A^{\mathsf{T}} \otimes I$            |
-| `_Jump`    | jump action, $A\rho A^\dagger$                 | $A^* \otimes A$                       |
-| `_LdagL_L` | left anticommutator piece, $A^\dagger A\rho$   | $I \otimes A^\dagger A$               |
-| `_LdagL_R` | right anticommutator piece, $\rho A^\dagger A$ | $(A^\dagger A)^{\mathsf{T}} \otimes I$ |
+In Hilbert-space notation, a channel is written as a map,
 
-!!! note "Left and right are not interchangeable"
-    The labels `_L` and `_R` refer to whether the physical operator multiplies the density matrix from the left or from the right before vectorisation. Their Kronecker-product forms are fixed by the column-major convention.
+```math
+\rho_{\mathrm{in}}
+\longmapsto
+\Phi(\rho_{\mathrm{in}}).
+```
 
-## Hamiltonian dynamics in Liouville space
+After vectorisation, it becomes a matrix-like object,
+
+```math
+|\rho_{\mathrm{out}}\rangle\rangle
+=
+\Phi
+|\rho_{\mathrm{in}}\rangle\rangle.
+```
+
+This is the computational reason for using Liouville space in this package:
+density matrices become MPS-like objects, while channels and generators become
+MPO-like objects.
+
+!!! info "Trace preservation"
+    A channel is trace preserving when
+
+    ```math
+    \operatorname{Tr}[\Phi(\rho)] = \operatorname{Tr}(\rho)
+    ```
+
+    for all density matrices $\rho$. In Liouville notation this becomes a
+    statement about the vectorised identity:
+
+    ```math
+    \langle\langle I|\Phi
+    =
+    \langle\langle I|.
+    ```
+
+## Dynamics in Liouville space
+
+### Hamiltonian dynamics
 
 Closed-system density matrices obey the von Neumann equation
 
@@ -404,7 +519,7 @@ Here $H_L$ means “left multiplication by $H$” and $H_R$ means “right multi
 !!! tip "Why this is useful"
     Once the density matrix is vectorised, Hamiltonian density-matrix evolution looks like ordinary linear evolution generated by a Liouville-space operator.
 
-## Open Markovian dynamics
+### Open Markovian dynamics
 
 Many Markovian open quantum systems are described by a Master equation in the GKLS form. The most commonly used version is the Local Master Equations (LME), given by
 
@@ -473,7 +588,7 @@ In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R`
 !!! note "Package bridge"
     `OpSum_Liouville` builds a symbolic Liouvillian operator sum, while `MPO_Liouville` builds a Liouville-space MPO. These are the objects used to represent Hamiltonian and dissipative density-matrix evolution in Liouville space.
 
-## Hilbert-to-Liouville dictionary
+### Hilbert-to-Liouville dictionary
 
 The following table summarises the main translations used throughout this documentation.
 
@@ -487,7 +602,7 @@ The following table summarises the main translations used throughout this docume
 | $\operatorname{Tr}(\rho)$ | $\langle\langle I \vert \rho \rangle\rangle$ | trace as identity overlap |
 | $\langle O\rangle=\operatorname{Tr}(O\rho)$ | $\langle\langle O \vert \rho \rangle\rangle$ | expectation as Liouville overlap |
 | $-i[H,\rho]$ | $-iH_{\mathrm{L}}\vert\rho\rangle\rangle + iH_{\mathrm{R}}\vert\rho\rangle\rangle$ | Hamiltonian Liouvillian |
-| $L\rho L^\dagger$ | `_Jump` | Lindblad jump term |
+| $L\rho L^\dagger$ | `_Jump` | jump term |
 | $L^\dagger L\rho$ | `_LdagL_L` | left anticommutator term |
 | $\rho L^\dagger L$ | `_LdagL_R` | right anticommutator term |
 

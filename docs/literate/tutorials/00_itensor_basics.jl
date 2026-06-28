@@ -24,7 +24,7 @@ import LinearAlgebra
 
 roundreal(x; digits=6) = round(real(x); digits=digits)
 
-# ## What is a tensor?
+# ## ITensor indices and objects
 #
 # A rank-3 tensor can be written as
 #
@@ -65,7 +65,7 @@ println("id(i)   = ", id(i))
 #     level, and an internal identity. Tensor contraction depends on index
 #     identity, not just on dimension.
 
-# ## Similar-looking indices are not necessarily the same
+# ### Similar-looking indices are not necessarily the same
 #
 # Let us create another index with the same dimension and the same tags as `i`.
 
@@ -91,7 +91,7 @@ println("i == i_sim:             ", i == i_sim)
 # This rule becomes extremely important later, especially in Liouville-space
 # vectorization and process-tensor contractions.
 
-# ## Creating an ITensor
+# ### Creating an ITensor
 #
 # We now create a tensor
 #
@@ -125,8 +125,9 @@ println("T[i=>2, j=>3, k=>1] = ", T[i => 2, j => 3, k => 1])
 
 # You can also modify tensor entries.
 
-T[i => 1, j => 1, k => 1] = -100
+println("Original T[1,1,1] = ", T[i => 1, j => 1, k => 1])
 
+T[i => 1, j => 1, k => 1] = -100
 println("Modified T[1,1,1] = ", T[i => 1, j => 1, k => 1])
 
 @assert T[i => 1, j => 1, k => 1] == -100
@@ -146,7 +147,9 @@ println("T[i => 2, j => 3, k => 1]: ", T[i => 2, j => 3, k => 1])
 #     When you convert an ITensor into an array, you explicitly say which index
 #     should become the first, second, third, ... array axis.
 
-# ## Contracting tensor indices
+# ## Contractions and the SVD
+
+# ### Contracting tensor indices
 #
 # Tensor contraction means summing over shared indices.
 #
@@ -191,7 +194,7 @@ println("inds(C) = ", inds(C))
 
 # The shared index `b` disappeared because it was summed over.
 
-# ## Tracing two legs with a delta tensor
+# ### Tracing two legs with a delta tensor
 #
 # We can also contract two legs of the same tensor using a Kronecker delta.
 #
@@ -237,7 +240,7 @@ end
 #     A delta tensor is often the cleanest way to express traces, index
 #     identifications, and partial traces in ITensor code.
 
-# ## Tensor SVD
+# ### Tensor SVD
 #
 # Singular value decomposition is the basic operation behind tensor-network
 # compression.
