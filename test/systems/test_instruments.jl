@@ -492,13 +492,22 @@ end
     @test same_leg isa SingleLegInstrument
     @test !(same_leg isa ProductInstrument)
     prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
-    @test_throws ArgumentError prep * trace_in
+    @test_throws ArgumentError prep * prep
     @test_throws MethodError obs_z * IdentityOperation()
 
     @test occursin("*", sprint(show, prod1))
 
     in1 = prime(L[1])
     out0 = L[1]
+
+    measure_reprepare = obs_z * prep
+    @test measure_reprepare isa ProductInstrument
+    @test measure_reprepare.output_instr === obs_z
+    @test measure_reprepare.input_instr === prep
+    T_mr = instrument_itensor(measure_reprepare, [in1], [out0], 1)
+    T_mr_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
+    @test isapprox(norm(T_mr - T_mr_ref), 0.0; atol=1e-12)
+
     T_prod = instrument_itensor(prod1, [in1], [out0], 1)
     T_ref = instrument_itensor(trace_in, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
     @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)

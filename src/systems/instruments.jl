@@ -548,9 +548,9 @@ open_output() = OpenOutput()
     ProductInstrument
 
 Two-leg instrument at one evolve slot: an output-leg factor (`plev = 0`, time `step - 1`)
-and an input-leg factor (`plev = 1`, time `step`). Construct by multiplying single-leg
-instruments with `*` (order-independent when one factor is on the output leg and one on
-the input leg).
+and an input-leg factor (`plev = 1`, time `step`). Construct by multiplying any two
+[`SingleLegInstrument`](@ref) factors with `*` when one is on the output leg and one on
+the input leg (order-independent).
 
 # Examples
 ```julia
@@ -559,6 +559,11 @@ O_A += 1.0, "Sz", 1
 O_B += 1.0, "Sx", 1
 prod_instr = observable_measurement(O_B) * observable_measurement(O_A; leg_plev=1)
 add!(seq, prod_instr, 2)
+
+# Measure on the output leg and reprepare on the input leg:
+ρ_up = to_dm(MPS(s, ["Up"]))
+collapse = observable_measurement(O_A) * state_preparation(ρ_up)
+add!(seq, collapse, 2)
 ```
 """
 struct ProductInstrument{I<:SingleLegInstrument,O<:SingleLegInstrument} <: TwoLegInstrument
@@ -712,14 +717,8 @@ function Base.show(io::IO, instr::CustomTwoLegInstrument)
 end
 function Base.:(*)(a::SingleLegInstrument, b::SingleLegInstrument)
     if a.leg_plev == _OUTPUT_PLEV && b.leg_plev == _INPUT_PLEV
-        (a isa StatePreparation || b isa StatePreparation) && throw(
-            ArgumentError("Cannot multiply StatePreparation into a ProductInstrument."),
-        )
         return ProductInstrument(b, a)
     elseif a.leg_plev == _INPUT_PLEV && b.leg_plev == _OUTPUT_PLEV
-        (a isa StatePreparation || b isa StatePreparation) && throw(
-            ArgumentError("Cannot multiply StatePreparation into a ProductInstrument."),
-        )
         return ProductInstrument(a, b)
     elseif a.leg_plev == b.leg_plev
         _is_a_valid_product_instrument(a::SingleLegInstrument) = a isa ObservableMeasurement || a isa StatePreparation || a isa _ComposedSingleLegInstrument
