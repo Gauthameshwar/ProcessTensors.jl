@@ -52,12 +52,15 @@ end
 
     @testset "keyword jump_ops on liouville sites" begin
         L_mpo = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=tuple_jump_vec)
+        @test L_mpo isa MPO{Liouville}
         @test length(L_mpo) == 1
     end
 
     @testset "keyword jump_ops default empty on liouville and physical sites" begin
         L_liouv = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=[])
         L_phys = @test_nowarn MPO_Liouville(os_H, physical_sites; jump_ops=[])
+        @test L_liouv isa MPO{Liouville}
+        @test L_phys isa MPO{Liouville}
         @test length(L_liouv) == 1
         @test length(L_phys) == 1
     end

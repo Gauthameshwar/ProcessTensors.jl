@@ -336,7 +336,7 @@ function _liouvillian_mpo_from_opsum(
         ArgumentError("MPO_Liouville: mixed physical and Liouville indices detected in sites argument."),
     )
     liouv_sites_arg = all_liouv ? sites : liouv_sites(sites)
-    return MPO(os_L, liouv_sites_arg; splitblocks=splitblocks)
+    return MPO{Liouville}(ITensor[], os_L, liouv_sites_arg; splitblocks=splitblocks)
 end
 
 # Build the Liouvillian OpSum from a Hamiltonian OpSum and a vector of jump operators (with rates).
