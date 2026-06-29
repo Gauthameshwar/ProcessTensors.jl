@@ -28,7 +28,7 @@ using ProcessTensors
 
 #
 # `ITensorMPS.jl` already provides MPS/MPO objects, `OpSum`, gate application,
-# TEBD, and TDVP [ITensorMPS time evolution docs](https://docs.itensor.org/ITensorMPS/stable/tutorials/MPSTimeEvolution.html). 
+# TEBD, and TDVP. Refer to the [ITensorMPS time evolution docs](https://docs.itensor.org/ITensorMPS/stable/tutorials/MPSTimeEvolution.html) for more details. 
 # `ProcessTensors.jl` builds on this rather than replacing it.
 #
 # The nontrivial extension here is that the same time-evolution language is made
@@ -94,16 +94,17 @@ println(H)
 @assert ψ0 isa MPS{Hilbert}
 @assert H_mpo isa MPO{Hilbert}
 
+# To perform the classical Exact Diagonalisation (ED) dynamics, we need to construct the dense matrices and vectors
+# from the MPO and MPS objects. Once we have them, we can use LAPACK's `exp` function to compute the unitary operator
+# and use it to predict the time dynamics. 
+# 
 # !!! note "Small dense helper functions"
 #     The next few functions contract MPOs to dense matrices for **validation
-#     only** on this tiny chain. They are not part of the scalable
-#     tensor-network workflow.
+#     only** on this tiny chain. They are not scalable
+#     to larger systems like tensor-networks.
 
 function dense_mpo_matrix(W, sites)
-    T = W[1]
-    for n in 2:length(W)
-        T *= W[n]
-    end
+    T = foldl(*, W)
     D = prod(dim.(sites))
     A = Array(T, prime.(sites)..., sites...)
     return reshape(ComplexF64.(A), D, D)
@@ -131,12 +132,9 @@ H_dense = dense_mpo_matrix(H_mpo, sites)
 Sz_dense = local_sz_matrices(sites, N)
 
 ψ0_dense = let
-    Tψ = ψ0[1]
-    for n in 2:N
-        Tψ *= ψ0[n]
-    end
+    Tψ = foldl(*, ψ0)
     vec(ComplexF64.(Array(Tψ, sites...)))
-end
+end;
 
 # At time $t$ the exact energy and mean magnetization are
 # $E(t)=\operatorname{Tr}(H\rho(t))$ and
@@ -152,7 +150,9 @@ function exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
 end
 
 E0, mz0, _ = exact_energy_and_mz(0.0, H_dense, ψ0_dense, Sz_dense, N)
+E1, mz1, _ = exact_energy_and_mz(1.0, H_dense, ψ0_dense, Sz_dense, N)
 println("Exact reference at t = 0:  E = ", E0, ",  mean ⟨Sz⟩ = ", mz0)
+println("Exact reference at t = 1:  E = ", E1, ",  mean ⟨Sz⟩ = ", mz1)
 
 # ## TEBD time evolution
 #
@@ -180,15 +180,16 @@ println("Exact reference at t = 0:  E = ", E0, ",  mean ⟨Sz⟩ = ", mz0)
 
 # ### Inspecting the Trotter gates
 #
-# `trotter_gates` expands one Trotter step into local ITensor gates. ITensors
-# currently supports this factorization for `Trotter{1}()` and `Trotter{2}()`.
+# `trotter_gates` expands one Trotter step into local ITensor gates. Orders `1`
+# and `2` use the `ITensors.Ops` factorization; even orders `n >= 4` are built
+# recursively with Yoshida's symmetric fractal composition in ProcessTensors.jl.
 # For the specified Hamiltonian, we would have four on-site terms and three 
 # two-site terms corresponding to each term in the Hamiltonian. So in the 
 # first-order Trotter, we would expect a total of seven gates, and for the 
-# second-order Trotter, we would expect a twice of that.
+# second-order Trotter, we would expect twice that.
 
 println("Gates per Trotter step on this chain:")
-for order in (1, 2)
+for order in (1, 2, 4)
     alg = Trotter{order}()
     step_gates = trotter_gates(H, sites, -im * dt; alg=alg)
     println("  Trotter{", order, "}: ", length(step_gates), " gates")
@@ -198,9 +199,8 @@ gates = trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
 println("Indices of the first Trotter{2} gate: ", inds(gates[1]))
 
 # !!! note "Higher Trotter orders"
-#     Types such as `Trotter{4}()` exist in ITensors, but `trotter_gates` is
-#     currently implemented only for orders `1` and `2`. In this tutorial we
-#     compare those two orders in the TEBD accuracy check below.
+#     `Trotter{4}()`, `Trotter{6}()`, and other even orders are supported via
+#     Yoshida fractal composition in this package. Odd orders `>= 3` are not implemented yet.
 
 # ### Evolving with `tebd`
 #
@@ -236,7 +236,7 @@ _, _, ρ_exact_T = exact_energy_and_mz(T, H_dense, ψ0_dense, Sz_dense, N)
 
 println()
 println("TEBD density-matrix error at t = ", T, ":")
-for alg in (Trotter{1}(), Trotter{2}())
+for alg in (Trotter{1}(), Trotter{2}(), Trotter{4}())
     ψ_alg = tebd(ψ0, H, dt, T; alg, maxdim=maxdim, cutoff=cutoff)
     ρ_alg = dense_mpo_matrix(to_dm(ψ_alg), sites)
     err = LinearAlgebra.norm(ρ_alg - ρ_exact_T) / max(LinearAlgebra.norm(ρ_exact_T), eps())
@@ -295,7 +295,12 @@ compare_tebd(sample_times, ψ0, H, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 # \frac{d}{dt}|\psi\rangle = -iH|\psi\rangle
 # ```
 #
-# onto the tangent space of the MPS manifold at the current state.
+# onto the tangent space of the MPS manifold at the current state. This results
+# in a more accurate time dynamics where conserved quantities remain conserved
+# during the dynamics. However, the TDVP algorithm is more computationally expensive
+# and also contains additional projection errors onto the subspace you restrain your 
+# wavefunction to. For more details on the TDVP algorithm, refer to 
+# [TensorNetwork.org](https://tensornetwork.org/mps/algorithms/timeevo/tdvp.html).
 #
 # `ITensorMPS.jl` implements the algorithm. `ProcessTensors.jl` forwards the
 # call on the wrapped `.core` object and returns `MPS{Hilbert}`.
@@ -332,13 +337,16 @@ println("  mean ⟨Sz⟩ = ", mz_tdvp)
 @assert ψ_tdvp isa MPS{Hilbert}
 
 # ### TDVP vs exact evolution
+# 
+# Now we do a direct comparison of our time evolution with ED and print the energy and magnetization 
+# for each time step.
 
 function compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
     ψ = ψ0
     t_prev = 0.0
     println()
     println("TDVP vs exact:")
-    println("  t      E_exact    E_tdvp     mz_exact   mz_tdvp")
+    println("  t        E_exact      E_tdvp     mz_exact   mz_tdvp   ρ_err")
     println("  " * "-"^52)
     for t in sample_times
         if t > 0.0
@@ -364,7 +372,7 @@ function compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_de
                 lpad(round(E_tdvp, digits=4), 9), "  ",
                 lpad(round(mz_ex, digits=4), 9), "  ",
                 lpad(round(mz_tdvp, digits=4), 9),
-                "   ρ_err=", round(ρ_err, digits=4))
+                "   ", round(ρ_err, digits=6))
     end
 end
 
@@ -391,8 +399,6 @@ compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 sites_L = liouv_sites(sites)
 ρL0 = to_liouville(ρ0; sites=sites_L)
 L_mpo = MPO_Liouville(H, sites_L)
-
-@assert ρL0 isa MPS{Liouville}
 
 # ### Evolving with `tdvp` in Liouville space
 #
