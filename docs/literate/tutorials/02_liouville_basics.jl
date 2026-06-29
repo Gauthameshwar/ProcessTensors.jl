@@ -357,7 +357,7 @@ println("  ‖Sx_R |ρ⟩⟩ - vec(ρ Sx)‖ = ",
 #     `"Sx_L"` and `"Sx_R"` multiply the density matrix from different sides
 #     before vectorization. They are not interchangeable.
 
-# ## Liouville superoperators and OpSums
+# ## [Liouville superoperators and OpSums](@id liouville-superoperators-and-opsums)
 #
 # Closed-system evolution uses the commutator superoperator. Open-system
 # generators add jump-operator terms in the same Liouville `OpSum` language.

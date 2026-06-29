@@ -8,4 +8,4 @@
 - Installation and package setup
 - Hilbert-space vs Liouville-space workflow overview
 - Minimal end-to-end example: sites, states, and a first simulation
-- Pointers to theory notes, tutorials (start with [ITensor Basics](tutorials/itensor_basics.md)), and the [API Reference](api.md)
+- Pointers to theory notes, tutorials (start with [ITensor Basics](tutorials/itensor_basics.md)), [examples](examples/spin_chain_unitary.md), and the [API Reference](api.md)

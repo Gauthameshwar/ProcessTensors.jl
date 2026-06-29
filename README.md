@@ -103,6 +103,14 @@ expectation = evaluate_process(pt, seq)
 
 ## Examples
 
-- `scripts/pt_tfim_singlemode.jl`: one system spin coupled to one bath spin
-- `scripts/pt_tfim_multimode.jl`: multi-mode spin bath
-- `scripts/pt_multitime_correlations.jl`: sequential multi-time correlation functions
+Runnable scripts and longer worked examples live under `scripts/` and in the
+[Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/)
+section of the documentation:
+
+| Topic | Script | Docs |
+| ----- | ------ | ---- |
+| Single-mode spin bath | `scripts/pt_tfim_singlemode.jl` | [Single spin-bath process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/single_spin_bath_process_tensor/) |
+| Multimode spin bath | `scripts/pt_tfim_multimode.jl` | [Multimode process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multimode_process_tensor/) |
+| Multi-time correlations | `scripts/pt_multitime_correlations.jl` | [Multi-time correlations](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multitime_correlations/) |
+| TFIM TEBD (dissipative) | `scripts/tebd_tfim.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
+| TFIM TDVP benchmark | `scripts/tdvp_tfim.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |

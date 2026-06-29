@@ -160,8 +160,7 @@ Getting Started
   → Density Matrices
   → Liouville Space
   → Unitary and Dissipative Dynamics
-  → Process Tensors
-  → Instruments and Multi-Time Correlations
+  → Single-Mode Process Tensor
 ```
 
 | Goal                                          | Recommended page                                                                |
@@ -173,10 +172,10 @@ Getting Started
 | I want to build Liouvillian MPOs.             | [Tutorial: Liouville Basics](tutorials/liouville_basics.md)                     |
 | I want to simulate unitary dynamics.          | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)                     |
 | I want to see dissipative dynamics.                  | [Tutorial: Dissipative Dynamics](tutorials/dissipative_dynamics.md)             |
-| I want to see time-dependent driving.                | [Tutorial: Time-Dependent Dynamics](tutorials/time_dependent_dynamics.md)         |
 | I want non-Markovian dynamics (one bath mode).| [Tutorial: Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)  |
-| I want to make a multimode bath with memory.                 | [Tutorial: Multimode Process Tensor](tutorials/process_tensor_multimode.md)     |
-| I want observables and correlations.          | [Tutorial: Multi-Time Correlations](tutorials/multitime_correlations.md)        |
+| I want time-dependent driving or kicked chains.      | [Examples: Driven two-level system](examples/driven_two_level_system.md)        |
+| I want multimode baths or multi-time correlations. | [Examples](examples/multimode_process_tensor.md)                                |
+| I want runnable end-to-end workflows.         | [Examples](examples/spin_chain_unitary.md)                                      |
 | I want the function reference.                | [API Reference](api.md)                                          |
 
 ---

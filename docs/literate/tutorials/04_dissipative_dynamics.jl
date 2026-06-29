@@ -188,7 +188,7 @@ println(ρL0)
 # The Hamiltonian is still written as an ordinary Hilbert-space `OpSum`.
 # Dissipation enters through `jump_ops`, as introduced above.
 # To see how the `OpSum` terms construct a dissipative $\mathcal{L}$, see the
-# [Liouville superoperators and OpSums](../liouville_basics/index.html#Liouville-superoperators-and-OpSums)
+# [Liouville superoperators and OpSums](@ref liouville-superoperators-and-opsums)
 # section of the Liouville space theory page.
 
 H = OpSum()
@@ -497,6 +497,7 @@ println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
 # - trace, Hermiticity, and positivity are the basic sanity checks for
 #   dissipative density-matrix dynamics.
 #
-# The next tutorials move beyond fixed Markovian Liouvillian generators. Process
-# tensors let us describe reduced dynamics with memory, where the environment
-# cannot be compressed into a time-local list of jump operators.
+# The next tutorial, [Single-Mode Process Tensor](@ref), moves beyond fixed
+# Markovian Liouvillian generators. Process tensors describe reduced dynamics
+# with memory, where the environment cannot be compressed into a time-local list
+# of jump operators.
