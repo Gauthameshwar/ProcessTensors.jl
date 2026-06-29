@@ -25,6 +25,7 @@ include(joinpath(@__DIR__, "networks", "test_orthogonality.jl"))
 
 # Time evolution test sets
 include(joinpath(@__DIR__, "time_evolution", "tebd_validation.jl"))
+include(joinpath(@__DIR__, "time_evolution", "test_trotter_orders.jl"))
 include(joinpath(@__DIR__, "time_evolution", "test_liouvillian_propagator.jl"))
 include(joinpath(@__DIR__, "time_evolution", "tebd_tfim_benchmarks.jl"))
 include(joinpath(@__DIR__, "time_evolution", "test_tdvp_forwarding.jl"))

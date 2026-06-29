@@ -2,43 +2,8 @@
 
 import ITensors: ITensor, Index, exp, replaceind
 import ITensors: exp as itensor_exp
-import ITensors.Ops: Exact, Trotter, Prod
+import ITensors.Ops: Exact, Trotter
 import ITensorMPS: OpSum, apply as mps_apply
-
-# Tier C: `Exact` and `Trotter` are re-exported from `ITensors.Ops` (see API page).
-
-"""
-    trotter_gates(os, sites, τ; alg=Trotter{2}())
-
-Factorize ``\\exp(\\tau \\, \\mathrm{os})`` into a vector of ITensor gates using a
-Trotter decomposition.
-
-Schematically, for `alg = Trotter{2}()` the decomposition has the form
-
-```math
-\\exp(\\tau \\, \\mathrm{os}) \\approx
-\\prod_{\\text{groups}} \\exp\\!\\left(\\frac{\\tau}{2}\\, \\mathrm{os}_{\\text{group}}\\right)
-\\cdots
-\\prod_{\\text{groups}} \\exp\\!\\left(\\frac{\\tau}{2}\\, \\mathrm{os}_{\\text{group}}\\right),
-```
-
-with the exact gate ordering and grouping determined by ITensors for the chosen
-`Trotter{n}()` order. Higher `n` generally improves accuracy at fixed `τ`.
-
-`τ` encodes the full exponent prefactor, including any imaginary unit and sign:
-- Hilbert space: `τ = -im * dt` for unitary evolution `exp(-im H dt)`
-- Liouville space: `τ = dt` (the `-im` factors are already in `OpSum_Liouville`)
-"""
-function trotter_gates(
-    os::OpSum,
-    sites::AbstractVector{<:Index},
-    τ::Number;
-    alg=Trotter{2}(),
-)
-    lazy = exp(τ * os; alg=alg)
-    prod = Prod{ITensor}(lazy, collect(sites))
-    return collect(ITensor, only(prod.args))
-end
 
 """
     propagator_itensor_from_gates(gates, sites; method=:auto)
@@ -164,8 +129,9 @@ Set `liouville_form=true` when `os` is already a Liouville `OpSum`.
 - `Exact()` (default): contract `L` to a dense superoperator matrix and compute
   ``U = \\exp(dt\\,L)`` exactly. Suitable for small Liouville dimensions.
 - `Trotter{n}()`: approximate
-  ``\\exp(dt\\,L) \\approx \\prod_j \\exp(dt\\,L_j)`` using [`trotter_gates`](@ref),
-  then contract the gate list with [`propagator_itensor_from_gates`](@ref).
+  ``\\exp(dt\\,L) \\approx \\prod_j \\exp(dt\\,L_j)`` using [`trotter_gates`](@ref)
+  (orders `1`, `2`, and even `n >= 4`), then contract the gate list with
+  [`propagator_itensor_from_gates`](@ref).
 
 Leg convention: unprimed `sites` are ket/output legs; `prime.(sites)` are
 bra/input legs.
@@ -249,7 +215,8 @@ applies ``U = \\exp(L\\, dt)``.
 
 `alg` must be a `Trotter{n}()` object from `ITensors.Ops`. It controls the
 Suzuki–Trotter factorization of the per-step propagator via
-[`trotter_gates`](@ref); `Trotter{2}()` is the default second-order choice.
+[`trotter_gates`](@ref); supported orders are `1`, `2`, and even `n >= 4`.
+`Trotter{2}()` is the default second-order choice.
 The gates are applied `round(T/dt)` times with optional truncation (`maxdim`,
 `cutoff`).
 

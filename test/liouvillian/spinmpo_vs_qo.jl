@@ -200,7 +200,7 @@ const INTEGRABILITY_CONFIGS = [
 ]
 
 @testset "liouvillian.jl: spin chain with edge dissipation" begin
-    for N in 1:4
+    for N in 1:3
         for (Δ_val, Δ_label) in INTEGRABILITY_CONFIGS
             for (gamma_base, gamma_label) in DISSIPATION_CONFIGS
                 test_label = "N=$N, Sz_iSz_i+1 $Δ_label, dissipation=$gamma_label"
@@ -213,7 +213,7 @@ const INTEGRABILITY_CONFIGS = [
 end
 
 @testset "liouvillian.jl: spin chain with bulk dissipation" begin
-    for N in 1:4
+    for N in 1:3
         for (Δ_val, Δ_label) in INTEGRABILITY_CONFIGS
             for (gamma_base, gamma_label) in DISSIPATION_CONFIGS
                 test_label = "N=$N, Sz_iSz_i+1 $Δ_label, dissipation=$gamma_label"

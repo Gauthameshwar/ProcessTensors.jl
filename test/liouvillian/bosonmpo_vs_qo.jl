@@ -210,7 +210,7 @@ end
 
     @testset "multi-site bosonic chain with hopping=1 and g*n(n-1)" begin
         long_mode = get(ENV, "PT_LONG_TESTS", "0") == "1"
-        configs = long_mode ? [(2, 4), (2, 8), (3, 4), (3, 8)] : [(2, 2), (2, 4), (3, 4)]
+        configs = long_mode ? [(2, 4), (2, 8), (3, 4), (3, 8)] : [(2, 2), (2, 4)]
 
         for (N, D) in configs
             for scenario in (:edge, :all)

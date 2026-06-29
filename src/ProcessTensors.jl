@@ -51,6 +51,7 @@ include("liouvillian.jl")
 # Time Evolution
 
 include("time_evolution/tdvp.jl")
+include("time_evolution/trotter.jl")
 include("time_evolution/tebd.jl")
 
 # ProcessTensors.jl module: Systems / Baths / Instruments
