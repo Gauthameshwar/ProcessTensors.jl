@@ -1,10 +1,15 @@
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ITensorMPS = "0d1a4710-d33b-49a5-8f18-73bdf49b47e2"
+ITensors = "9136182c-28ba-11e9-034c-db9fb085ebd5"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 ProcessTensors = "359c2eb2-a0cb-447a-868d-92de414ddc78"
 
 [compat]
 CairoMakie = "0.15"
 Documenter = "1.17"
+ITensorMPS = "0.3.44, 0.4"
+ITensors = "0.9.25"
 Literate = "2"
+julia = "1.10"
