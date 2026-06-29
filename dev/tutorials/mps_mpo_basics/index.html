@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>MPS and MPO Basics · ProcessTensors.jl</title><meta name="title" content="MPS and MPO Basics · ProcessTensors.jl"/><meta property="og:title" content="MPS and MPO Basics · ProcessTensors.jl"/><meta property="twitter:title" content="MPS and MPO Basics · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/mps_mpo_basics/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/mps_mpo_basics/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/mps_mpo_basics/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../getting_started/">Getting Started</a></li><li><span class="tocitem">Theory</span><ul><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../itensor_basics/">ITensor Basics</a></li><li class="is-active"><a class="tocitem" href>MPS and MPO Basics</a><ul class="internal"><li><a class="tocitem" href="#MPS-from-Tensors"><span>MPS from Tensors</span></a></li><li><a class="tocitem" href="#MPO-and-expectation-values"><span>MPO and expectation values</span></a></li><li><a class="tocitem" href="#Density-matrices,-reduced-density-matrices-and-entropy"><span>Density matrices, reduced density matrices and entropy</span></a></li></ul></li><li><a class="tocitem" href="../liouville_basics/">Liouville-Space Basics</a></li><li><a class="tocitem" href="../unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../dissipative_dynamics/">Dissipative Dynamics</a></li><li><a class="tocitem" href="../process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/spin_chain_unitary/">Unitary spin chain</a></li><li><a class="tocitem" href="../../examples/bose_hubbard_unitary/">Bose-Hubbard dynamics</a></li><li><a class="tocitem" href="../../examples/reduced_density_entropy/">Reduced states and entropy</a></li><li><a class="tocitem" href="../../examples/dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../../examples/dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../../examples/boundary_driven_spin_chain/">Boundary-driven chain</a></li><li><a class="tocitem" href="../../examples/driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../../examples/kicked_ising_chain/">Kicked Ising chain</a></li><li><a class="tocitem" href="../../examples/single_spin_bath_process_tensor/">Single spin-bath process tensor</a></li><li><a class="tocitem" href="../../examples/stochastic_process_tensor/">Stochastic process tensor</a></li><li><a class="tocitem" href="../../examples/multimode_process_tensor/">Multimode process tensor</a></li><li><a class="tocitem" href="../../examples/instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a class="tocitem" href="../../examples/convergence_and_truncation/">Convergence and truncation</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>MPS and MPO Basics</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>MPS and MPO Basics</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/tutorials/01_mps_mpo_basics.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="MPS-and-MPO-Basics"><a class="docs-heading-anchor" href="#MPS-and-MPO-Basics">MPS and MPO Basics</a><a id="MPS-and-MPO-Basics-1"></a><a class="docs-heading-anchor-permalink" href="#MPS-and-MPO-Basics" title="Permalink"></a></h1><p>This tutorial continues from <a href="../itensor_basics/#ITensor-Basics">ITensor Basics</a>. This tutorial will walk you through how to define MPS, MPO, and density matrices in the Hilbert space, and how to compute expectation values and reduced density matrices.</p><p>For the original ITensorMPS tutorial on MPS and MPO objects, see the <a href="https://docs.itensor.org/ITensorMPS/stable/examples/MPSandMPO.html">MPS and MPO examples page</a>.</p><p>A many-body wavefunction on <code>N</code> sites can be written as</p><p class="math-container">\[|\psi\rangle =
+\sum_{\sigma_1,\ldots,\sigma_N}
+c_{\sigma_1\cdots\sigma_N}
+|\sigma_1,\ldots,\sigma_N\rangle.\]</p><p>A matrix product state represents the coefficient tensor</p><p class="math-container">\[c_{\sigma_1\cdots\sigma_N}\]</p><p>as a product of smaller tensors:</p><p class="math-container">\[c_{\sigma_1\cdots\sigma_N}
+=
+A^{\sigma_1}_1
+A^{\sigma_2}_2
+\cdots
+A^{\sigma_N}_N.\]</p><p>This is useful because many physical states can be represented accurately using moderate bond dimensions.</p><h2 id="MPS-from-Tensors"><a class="docs-heading-anchor" href="#MPS-from-Tensors">MPS from Tensors</a><a id="MPS-from-Tensors-1"></a><a class="docs-heading-anchor-permalink" href="#MPS-from-Tensors" title="Permalink"></a></h2><h3 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h3><p>We load <code>ITensors</code> for basic tensor operations and import <code>ITensorMPS</code> only to inspect the object stored inside the <code>ProcessTensors.jl</code> wrappers.</p><p>We use <code>ProcessTensors.jl</code> for the public MPS/MPO interface used throughout the rest of these tutorials.</p><pre><code class="language-julia hljs">using ITensors
+import ITensorMPS
+import LinearAlgebra
+using ProcessTensors
+
+roundreal(x; digits=6) = round(real(x); digits=digits)</code></pre><pre><code class="nohighlight hljs">roundreal (generic function with 1 method)</code></pre><h3 id="Decomposing-a-dense-tensor-into-an-MPS"><a class="docs-heading-anchor" href="#Decomposing-a-dense-tensor-into-an-MPS">Decomposing a dense tensor into an MPS</a><a id="Decomposing-a-dense-tensor-into-an-MPS-1"></a><a class="docs-heading-anchor-permalink" href="#Decomposing-a-dense-tensor-into-an-MPS" title="Permalink"></a></h3><p>Let us first build a dense four-site wavefunction. Each site has dimension 2, so the full coefficient tensor has size <code>2 × 2 × 2 × 2</code>. We fill it with the numbers <code>1, 2, ..., 16</code>, then convert it into an MPS.</p><pre><code class="language-julia hljs">mps_sites = [Index(2, &quot;Qubit,Site,n=$n&quot;) for n in 1:4]
+
+coeffs = reshape(ComplexF64.(1:16), 2, 2, 2, 2)
+
+ψ_dense = MPS(coeffs, mps_sites)
+
+println(ψ_dense)</code></pre><pre><code class="nohighlight hljs">4-element MPS{Hilbert}
+  site dims: 2, 2, 2, 2
+  link dims: 2, 4, 2
+  maxlinkdim: 4
+  combiners: none
+
+  tensors:
+    [1] ((dim=2|id=901|&quot;Qubit,Site,n=1&quot;), (dim=2|id=289|&quot;Link,l=1&quot;))
+    [2] ((dim=2|id=289|&quot;Link,l=1&quot;), (dim=2|id=889|&quot;Qubit,Site,n=2&quot;), (dim=4|id=896|&quot;Link,l=2&quot;))
+    [3] ((dim=4|id=896|&quot;Link,l=2&quot;), (dim=2|id=563|&quot;Qubit,Site,n=3&quot;), (dim=2|id=266|&quot;Link,l=3&quot;))
+    [4] ((dim=2|id=266|&quot;Link,l=3&quot;), (dim=2|id=908|&quot;Qubit,Site,n=4&quot;))
+
+</code></pre><p>Each ITensor core in this MPS contains physical indices (the <code>mps_sites</code>), and link indices connecting the cores. One can access these indices from the MPS object using the <code>siteinds</code> and <code>linkinds</code> functions.</p><p>The MPS stores the same state as the dense tensor, but in factorized form. To check this, we contract all MPS tensors back into one full tensor and compare the coefficients.</p><pre><code class="language-julia hljs">function dense_array_from_mps(ψ)
+    full_tensor = ITensor(1.0)
+    for n in eachindex(ψ)
+        full_tensor *= ψ[n]
+    end
+    return Array(full_tensor, siteinds(ψ)...)
+end
+
+coeffs_from_mps = dense_array_from_mps(ψ_dense)
+
+basis_index = (1, 2, 2, 1)
+
+println(&quot;Dense coefficient at $basis_index: &quot;, coeffs[basis_index...])
+println(&quot;MPS coefficient at $basis_index:   &quot;, coeffs_from_mps[basis_index...])
+
+@assert isapprox(coeffs[basis_index...], coeffs_from_mps[basis_index...]; atol=1e-10)</code></pre><pre><code class="nohighlight hljs">Dense coefficient at (1, 2, 2, 1): 7.0 + 0.0im
+MPS coefficient at (1, 2, 2, 1):   6.9999999999999964 + 0.0im
+</code></pre><h3 id="Physical-site-indices-with-siteinds"><a class="docs-heading-anchor" href="#Physical-site-indices-with-siteinds">Physical site indices with <code>siteinds</code></a><a id="Physical-site-indices-with-siteinds-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-site-indices-with-siteinds" title="Permalink"></a></h3><p>For the sake of illustration, from now on, let us focus on a physical system and define everything in the context of spin-1/2 chains. The first ingredient we need to define a spin system wavefunction are the physical spin indices. <code>siteinds(&quot;S=1/2&quot;, N)</code> creates the physical Hilbert-space indices for a spin chain of length <code>N</code>.</p><pre><code class="language-julia hljs">N = 6
+sites = siteinds(&quot;S=1/2&quot;, N)
+
+println(&quot;Spin-chain site indices:&quot;)
+foreach(println, sites)
+
+println(&quot;First spin site:&quot;)
+println(&quot;  index = &quot;, sites[1])
+println(&quot;  dim   = &quot;, dim(sites[1]))
+println(&quot;  tags  = &quot;, tags(sites[1]))
+
+@assert length(sites) == N
+@assert all(s -&gt; dim(s) == 2, sites)</code></pre><pre><code class="nohighlight hljs">Spin-chain site indices:
+(dim=2|id=94|&quot;S=1/2,Site,n=1&quot;)
+(dim=2|id=897|&quot;S=1/2,Site,n=2&quot;)
+(dim=2|id=233|&quot;S=1/2,Site,n=3&quot;)
+(dim=2|id=932|&quot;S=1/2,Site,n=4&quot;)
+(dim=2|id=426|&quot;S=1/2,Site,n=5&quot;)
+(dim=2|id=405|&quot;S=1/2,Site,n=6&quot;)
+First spin site:
+  index = (dim=2|id=94|&quot;S=1/2,Site,n=1&quot;)
+  dim   = 2
+  tags  = &quot;S=1/2,Site,n=1&quot;
+</code></pre><div class="admonition is-success" id="Pro-tip-b923f68eda2336c"><header class="admonition-header">Pro tip<a class="admonition-anchor" href="#Pro-tip-b923f68eda2336c" title="Permalink"></a></header><div class="admonition-body"><p>Create <code>sites</code> once and reuse them. Your states, operators, density matrices, and later Liouville-space objects should all be built from compatible site indices.</p></div></div><div class="admonition is-info" id="Beyond-spin-systems-c89c9b87379711ee"><header class="admonition-header">Beyond spin systems<a class="admonition-anchor" href="#Beyond-spin-systems-c89c9b87379711ee" title="Permalink"></a></header><div class="admonition-body"><p>ITensorMPS has support to define spin, boson, fermion, electron, and other systems. See the <a href="https://docs.itensor.org/ITensorMPS/stable/IncludedSiteTypes.html">ITensorMPS SiteTypes page</a> for the list of supported site types and how to create them.</p></div></div><h3 id="A-product-state-MPS"><a class="docs-heading-anchor" href="#A-product-state-MPS">A product-state MPS</a><a id="A-product-state-MPS-1"></a><a class="docs-heading-anchor-permalink" href="#A-product-state-MPS" title="Permalink"></a></h3><p>Consider the Néel state</p><p class="math-container">\[|\psi_{\mathrm{N\acute eel}}\rangle
+=
+|\uparrow\downarrow\uparrow\downarrow\uparrow\downarrow\rangle.\]</p><p>In ITensorMPS syntax, this is very direct.</p><pre><code class="language-julia hljs">neel_config = [&quot;Up&quot;, &quot;Dn&quot;, &quot;Up&quot;, &quot;Dn&quot;, &quot;Up&quot;, &quot;Dn&quot;]
+
+ψ_neel = MPS(sites, neel_config)
+
+println(ψ_neel)</code></pre><pre><code class="nohighlight hljs">6-element MPS{Hilbert}
+  site dims: 2, 2, 2, 2, 2, 2
+  link dims: 1, 1, 1, 1, 1
+  maxlinkdim: 1
+  combiners: none
+
+  tensors:
+    [1] ((dim=2|id=94|&quot;S=1/2,Site,n=1&quot;), (dim=1|id=638|&quot;Link,l=1&quot;))
+    [2] ((dim=1|id=638|&quot;Link,l=1&quot;), (dim=2|id=897|&quot;S=1/2,Site,n=2&quot;), (dim=1|id=528|&quot;Link,l=2&quot;))
+    [3] ((dim=1|id=528|&quot;Link,l=2&quot;), (dim=2|id=233|&quot;S=1/2,Site,n=3&quot;), (dim=1|id=457|&quot;Link,l=3&quot;))
+    [4] ((dim=1|id=457|&quot;Link,l=3&quot;), (dim=2|id=932|&quot;S=1/2,Site,n=4&quot;), (dim=1|id=936|&quot;Link,l=4&quot;))
+    [5] ((dim=1|id=936|&quot;Link,l=4&quot;), (dim=2|id=426|&quot;S=1/2,Site,n=5&quot;), (dim=1|id=408|&quot;Link,l=5&quot;))
+    [6] ((dim=1|id=408|&quot;Link,l=5&quot;), (dim=2|id=405|&quot;S=1/2,Site,n=6&quot;))
+
+</code></pre><p><code>ProcessTensors.jl</code> prints this as an <code>MPS{Hilbert}</code>.</p><p>This means:</p><ul><li>the object is an ordinary Hilbert-space MPS,</li><li>the underlying ITensorMPS object is stored in <code>.core</code>,</li><li>common MPS functions are forwarded to <code>.core</code>.</li></ul><pre><code class="language-julia hljs">println(&quot;Wrapper type: &quot;, typeof(ψ_neel))
+println(&quot;Core type:    &quot;, typeof(ψ_neel.core))
+
+@assert ψ_neel isa MPS{Hilbert}
+@assert ψ_neel.core isa ITensorMPS.MPS
+@assert maxlinkdim(ψ_neel) == 1</code></pre><pre><code class="nohighlight hljs">Wrapper type: MPS{Hilbert, Nothing}
+Core type:    ITensorMPS.MPS
+</code></pre><div class="admonition is-info" id="Why-does-ProcessTensors.jl-wrap-MPS-objects?-7962c91a9552ff79"><header class="admonition-header">Why does ProcessTensors.jl wrap MPS objects?<a class="admonition-anchor" href="#Why-does-ProcessTensors.jl-wrap-MPS-objects?-7962c91a9552ff79" title="Permalink"></a></header><div class="admonition-body"><p>The wrapper lets the package distinguish ordinary Hilbert-space states from Liouville-space states later. For this tutorial, you can use the wrapped object almost exactly like an ordinary <code>ITensorMPS.MPS</code>.</p></div></div><p>Let us inspect one local MPS tensor and see if it contains the expected site and link indices.</p><pre><code class="language-julia hljs">middle = 3
+println(&quot;Indices of ψ_neel[$middle]:&quot;)
+println(inds(ψ_neel[middle]))
+
+@assert siteind(ψ_neel, middle) in collect(inds(ψ_neel[middle]))</code></pre><pre><code class="nohighlight hljs">Indices of ψ_neel[3]:
+((dim=1|id=528|&quot;Link,l=2&quot;), (dim=2|id=233|&quot;S=1/2,Site,n=3&quot;), (dim=1|id=457|&quot;Link,l=3&quot;))
+</code></pre><h3 id="Entanglement-entropy-of-a-pure-MPS"><a class="docs-heading-anchor" href="#Entanglement-entropy-of-a-pure-MPS">Entanglement entropy of a pure MPS</a><a id="Entanglement-entropy-of-a-pure-MPS-1"></a><a class="docs-heading-anchor-permalink" href="#Entanglement-entropy-of-a-pure-MPS" title="Permalink"></a></h3><p>For a pure state <span>$|\psi\rangle,$</span> the entanglement entropy across a bipartition <code>A|B</code> is</p><p class="math-container">\[S_A =
+-\operatorname{Tr}(\rho_A \log \rho_A),
+\qquad
+\rho_A =
+\operatorname{Tr}_B |\psi\rangle\langle\psi|.\]</p><p>In MPS language, this entropy is computed from the singular values across a bond.</p><p>For the product Néel state, the entanglement entropy across every cut should be zero.</p><pre><code class="language-julia hljs">S_neel = [entropy(ψ_neel, b) for b in 1:(N - 1)]
+
+println(&quot;Bond entropies of the Néel state:&quot;)
+println(roundreal.(S_neel))
+
+@assert maximum(abs.(S_neel)) &lt; 1e-12</code></pre><pre><code class="nohighlight hljs">Bond entropies of the Néel state:
+[0.0, 0.0, 0.0, 0.0, 0.0]
+</code></pre><p>Let us also build a small GHZ state,</p><p class="math-container">\[|\mathrm{GHZ}\rangle =
+\frac{1}{\sqrt{2}}
+\left(
+|\uparrow\uparrow\cdots\uparrow\rangle
++
+|\downarrow\downarrow\cdots\downarrow\rangle
+\right).\]</p><p>Every bipartition of this state has entropy <code>log(2)</code>.</p><pre><code class="language-julia hljs">function ghz_state(sites)
+    N = length(sites)
+    all_ups = fill(&quot;Up&quot;, N)
+    all_dns = fill(&quot;Dn&quot;, N)
+    ghz = (MPS(sites, all_ups) + MPS(sites, all_dns)) / sqrt(2)
+    return ghz
+end
+
+ψ_ghz = ghz_state(sites)
+
+S_ghz = [entropy(ψ_ghz, b) for b in 1:(N - 1)]
+
+println(&quot;Bond entropies of the GHZ state:&quot;)
+println(roundreal.(S_ghz))
+
+@assert all(S -&gt; isapprox(S, log(2); atol=1e-10), S_ghz)</code></pre><pre><code class="nohighlight hljs">Bond entropies of the GHZ state:
+[0.693147, 0.693147, 0.693147, 0.693147, 0.693147]
+</code></pre><h2 id="MPO-and-expectation-values"><a class="docs-heading-anchor" href="#MPO-and-expectation-values">MPO and expectation values</a><a id="MPO-and-expectation-values-1"></a><a class="docs-heading-anchor-permalink" href="#MPO-and-expectation-values" title="Permalink"></a></h2><h3 id="Local-observables"><a class="docs-heading-anchor" href="#Local-observables">Local observables</a><a id="Local-observables-1"></a><a class="docs-heading-anchor-permalink" href="#Local-observables" title="Permalink"></a></h3><p>The local magnetization is</p><p class="math-container">\[\langle S^z_j \rangle
+=
+\langle \psi | S^z_j | \psi \rangle.\]</p><p>For the Néel state, the answer should alternate between <code>+1/2</code> and <code>-1/2</code>. The function <code>expect</code> performs the tensor-network contractions for all local one-site observables.</p><pre><code class="language-julia hljs">mz = expect(ψ_neel, &quot;Sz&quot;)
+mx = expect(ψ_neel, &quot;Sx&quot;)
+
+println(&quot;⟨Sz_j⟩:&quot;)
+println(roundreal.(mz))
+
+println(&quot;⟨Sx_j⟩:&quot;)
+println(roundreal.(mx))
+
+@assert isapprox.(real.(mz), [0.5, -0.5, 0.5, -0.5, 0.5, -0.5]; atol=1e-12) |&gt; all
+@assert all(abs.(mx) .&lt; 1e-12)</code></pre><pre><code class="nohighlight hljs">⟨Sz_j⟩:
+[0.5, -0.5, 0.5, -0.5, 0.5, -0.5]
+⟨Sx_j⟩:
+[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+</code></pre><div class="admonition is-info" id="Connection-to-the-theory-page-bdefcfccc2841db7"><header class="admonition-header">Connection to the theory page<a class="admonition-anchor" href="#Connection-to-the-theory-page-bdefcfccc2841db7" title="Permalink"></a></header><div class="admonition-body"><p>This is the code version of the formula <code>⟨O⟩ = ⟨ψ|O|ψ⟩</code>.</p></div></div><p>The same expectation value can also be obtained by building the local operator explicitly as an MPO. For example, the one-site operator</p><p class="math-container">\[O = S^z_3\]</p><p>can be written as an <code>OpSum</code>, converted to an MPO, and contracted with the state.</p><pre><code class="language-julia hljs">function local_observable_mpo(opname::String, n::Integer, sites)
+    os = OpSum()
+    os += 1.0, opname, n
+    return MPO(os, sites)
+end
+
+Sz3_mpo = local_observable_mpo(&quot;Sz&quot;, 3, sites)
+
+sz3_from_mpo = inner(ψ_neel&#39;, Sz3_mpo, ψ_neel)
+
+println(&quot;⟨Sz₃⟩ from local MPO: &quot;, roundreal(sz3_from_mpo))
+println(&quot;⟨Sz₃⟩ from expect:    &quot;, roundreal(mz[3]))
+
+@assert isapprox(sz3_from_mpo, mz[3]; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">⟨Sz₃⟩ from local MPO: 0.5
+⟨Sz₃⟩ from expect:    0.5
+</code></pre><p>Equivalently, we can apply the MPO to the state first:</p><p class="math-container">\[|\phi\rangle = S^z_3 |\psi\rangle,\]</p><p>then compute</p><p class="math-container">\[\langle \psi | \phi \rangle.\]</p><pre><code class="language-julia hljs">ϕ = apply(Sz3_mpo, ψ_neel; cutoff=0.0)
+
+sz3_from_apply = inner(ψ_neel, ϕ)
+
+println(&quot;⟨ψ|Sz₃|ψ⟩ using apply: &quot;, roundreal(sz3_from_apply))
+
+@assert isapprox(sz3_from_apply, mz[3]; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">⟨ψ|Sz₃|ψ⟩ using apply: 0.5
+</code></pre><div class="admonition is-info" id="What-did-apply-return?-b4d6482198ff9477"><header class="admonition-header">What did `apply` return?<a class="admonition-anchor" href="#What-did-apply-return?-b4d6482198ff9477" title="Permalink"></a></header><div class="admonition-body"><p>Applying an MPO to an MPS returns another MPS. In <code>ProcessTensors.jl</code>, the result is rewrapped as an <code>MPS{Hilbert}</code>.</p></div></div><pre><code class="language-julia hljs">@assert ϕ isa MPS{Hilbert}</code></pre><h3 id="Building-Hamiltonians-with-OpSum"><a class="docs-heading-anchor" href="#Building-Hamiltonians-with-OpSum">Building Hamiltonians with <code>OpSum</code></a><a id="Building-Hamiltonians-with-OpSum-1"></a><a class="docs-heading-anchor-permalink" href="#Building-Hamiltonians-with-OpSum" title="Permalink"></a></h3><p>Now consider a simple spin-chain Hamiltonian:</p><p class="math-container">\[H =
+h_x \sum_{j=1}^{N} S^x_j
++
+J_z \sum_{j=1}^{N-1} S^z_j S^z_{j+1}.\]</p><p>The <code>OpSum</code> object lets us write this in a physics-friendly way.</p><pre><code class="language-julia hljs">function spin_chain_opsum(N; hx=0.7, Jz=1.0)
+    os = OpSum()
+    for n in 1:N
+        os += hx, &quot;Sx&quot;, n
+    end
+    for n in 1:(N - 1)
+        os += Jz, &quot;Sz&quot;, n, &quot;Sz&quot;, n + 1
+    end
+    return os
+end
+
+hx = 0.7
+Jz = 1.0
+
+H_os = spin_chain_opsum(N; hx, Jz)
+
+println(&quot;Hamiltonian OpSum:&quot;)
+println(H_os)</code></pre><pre><code class="nohighlight hljs">Hamiltonian OpSum:
+sum(
+  0.7 Sx(1,)
+  0.7 Sx(2,)
+  0.7 Sx(3,)
+  0.7 Sx(4,)
+  0.7 Sx(5,)
+  0.7 Sx(6,)
+  1.0 Sz(1,) Sz(2,)
+  1.0 Sz(2,) Sz(3,)
+  1.0 Sz(3,) Sz(4,)
+  1.0 Sz(4,) Sz(5,)
+  1.0 Sz(5,) Sz(6,)
+)
+</code></pre><div class="admonition is-info" id="What-is-an-OpSum?-8ad91f1d6532dd69"><header class="admonition-header">What is an OpSum?<a class="admonition-anchor" href="#What-is-an-OpSum?-8ad91f1d6532dd69" title="Permalink"></a></header><div class="admonition-body"><p>An <code>OpSum</code> is a symbolic/lazy sum of local operator terms. It contains only the metadata of what operator exists at which site, and with what coefficient. It is not yet an MPO. The MPO tensors are constructed when we call <code>MPO(H_os, sites)</code>.</p></div></div><h3 id="Matrix-product-operators"><a class="docs-heading-anchor" href="#Matrix-product-operators">Matrix product operators</a><a id="Matrix-product-operators-1"></a><a class="docs-heading-anchor-permalink" href="#Matrix-product-operators" title="Permalink"></a></h3><p>A matrix product operator represents an operator as a tensor network:</p><p class="math-container">\[\hat{O}
+=
+\sum_{\boldsymbol{\sigma},\boldsymbol{\sigma}&#39;}
+W^{\sigma_1,\sigma&#39;_1}_1
+W^{\sigma_2,\sigma&#39;_2}_2
+\cdots
+W^{\sigma_N,\sigma&#39;_N}_N
+|\boldsymbol{\sigma}\rangle
+\langle \boldsymbol{\sigma}&#39;|.\]</p><p>Constructing MPOs by hand can be difficult because the operator may need nontrivial internal bond dimensions.</p><p>ITensorMPS has an efficient algorithm for constructing an MPO from an <code>OpSum</code>.</p><pre><code class="language-julia hljs">H_mpo = MPO(H_os, sites)
+
+println(H_mpo)
+
+println(&quot;MPO wrapper type: &quot;, typeof(H_mpo))
+println(&quot;MPO core type:    &quot;, typeof(H_mpo.core))
+println(&quot;MPO link dimensions: &quot;, collect(linkdims(H_mpo)))
+
+@assert H_mpo isa MPO{Hilbert}
+@assert H_mpo.core isa ITensorMPS.MPO</code></pre><pre><code class="nohighlight hljs">6-element MPO{Hilbert}
+  site dims: 2, 2, 2, 2, 2, 2
+  link dims: 3, 3, 3, 3, 3
+  maxlinkdim: 3
+  combiners: none
+
+  tensors:
+    [1] ((dim=3|id=347|&quot;Link,l=1&quot;), (dim=2|id=94|&quot;S=1/2,Site,n=1&quot;)&#39;, (dim=2|id=94|&quot;S=1/2,Site,n=1&quot;))
+    [2] ((dim=3|id=347|&quot;Link,l=1&quot;), (dim=3|id=39|&quot;Link,l=2&quot;), (dim=2|id=897|&quot;S=1/2,Site,n=2&quot;)&#39;, (dim=2|id=897|&quot;S=1/2,Site,n=2&quot;))
+    [3] ((dim=3|id=39|&quot;Link,l=2&quot;), (dim=3|id=873|&quot;Link,l=3&quot;), (dim=2|id=233|&quot;S=1/2,Site,n=3&quot;)&#39;, (dim=2|id=233|&quot;S=1/2,Site,n=3&quot;))
+    [4] ((dim=3|id=873|&quot;Link,l=3&quot;), (dim=3|id=358|&quot;Link,l=4&quot;), (dim=2|id=932|&quot;S=1/2,Site,n=4&quot;)&#39;, (dim=2|id=932|&quot;S=1/2,Site,n=4&quot;))
+    [5] ((dim=3|id=358|&quot;Link,l=4&quot;), (dim=3|id=483|&quot;Link,l=5&quot;), (dim=2|id=426|&quot;S=1/2,Site,n=5&quot;)&#39;, (dim=2|id=426|&quot;S=1/2,Site,n=5&quot;))
+    [6] ((dim=3|id=483|&quot;Link,l=5&quot;), (dim=2|id=405|&quot;S=1/2,Site,n=6&quot;)&#39;, (dim=2|id=405|&quot;S=1/2,Site,n=6&quot;))
+
+MPO wrapper type: MPO{Hilbert, Nothing}
+MPO core type:    ITensorMPS.MPO
+MPO link dimensions: [3, 3, 3, 3, 3]
+</code></pre><div class="admonition is-success" id="Pro-tip-b137573d5db75d7c"><header class="admonition-header">Pro tip<a class="admonition-anchor" href="#Pro-tip-b137573d5db75d7c" title="Permalink"></a></header><div class="admonition-body"><p>Write operators as <code>OpSum</code>s whenever possible. Let ITensorMPS construct the MPO cores for you. ITensorMPS has efficient algorithms to construct the MPO cores from the OpSum object with good accuracy and low memory overhead.</p></div></div><h3 id="Energy-expectation-value"><a class="docs-heading-anchor" href="#Energy-expectation-value">Energy expectation value</a><a id="Energy-expectation-value-1"></a><a class="docs-heading-anchor-permalink" href="#Energy-expectation-value" title="Permalink"></a></h3><p>The energy of a state is</p><p class="math-container">\[E =
+\langle \psi | H | \psi \rangle.\]</p><p>In code:</p><pre><code class="language-julia hljs">E_neel = inner(ψ_neel&#39;, H_mpo, ψ_neel)
+
+println(&quot;Energy of the Néel state: &quot;, roundreal(E_neel))</code></pre><pre><code class="nohighlight hljs">Energy of the Néel state: -1.25
+</code></pre><p>We can predict this value analytically.</p><p>In the Néel state,</p><p class="math-container">\[\langle S^x_j \rangle = 0\]</p><p>and each nearest-neighbor pair is anti-aligned:</p><p class="math-container">\[\langle S^z_j S^z_{j+1} \rangle = -\frac{1}{4}.\]</p><p>Therefore</p><p class="math-container">\[E =
+J_z (N-1)\left(-\frac{1}{4}\right).\]</p><pre><code class="language-julia hljs">E_expected = -Jz * (N - 1) / 4
+
+println(&quot;Expected energy: &quot;, E_expected)
+
+@assert isapprox(real(E_neel), E_expected; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">Expected energy: -1.25
+</code></pre><h2 id="Density-matrices,-reduced-density-matrices-and-entropy"><a class="docs-heading-anchor" href="#Density-matrices,-reduced-density-matrices-and-entropy">Density matrices, reduced density matrices and entropy</a><a id="Density-matrices,-reduced-density-matrices-and-entropy-1"></a><a class="docs-heading-anchor-permalink" href="#Density-matrices,-reduced-density-matrices-and-entropy" title="Permalink"></a></h2><p>We now move from pure states to density matrices. A pure state has density matrix</p><p class="math-container">\[\rho = |\psi\rangle\langle\psi|.\]</p><p>A classical mixture of two pure states is</p><p class="math-container">\[\rho =
+p |\psi_1\rangle\langle\psi_1|
++
+(1-p) |\psi_2\rangle\langle\psi_2|.\]</p><p><code>ProcessTensors.jl</code> provides <code>to_dm</code> for exactly this purpose.</p><h3 id="A-pure-density-MPO"><a class="docs-heading-anchor" href="#A-pure-density-MPO">A pure density MPO</a><a id="A-pure-density-MPO-1"></a><a class="docs-heading-anchor-permalink" href="#A-pure-density-MPO" title="Permalink"></a></h3><pre><code class="language-julia hljs">ρ_neel = to_dm(ψ_neel)
+
+println(ρ_neel)
+println(&quot;Tr(ρ_neel) = &quot;, roundreal(tr(ρ_neel)))
+
+@assert ρ_neel isa MPO{Hilbert}
+@assert isapprox(real(tr(ρ_neel)), 1.0; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">6-element MPO{Hilbert}
+  site dims: 2, 2, 2, 2, 2, 2
+  link dims: 1, 1, 1, 1, 1
+  maxlinkdim: 1
+  combiners: none
+
+  tensors:
+    [1] ((dim=2|id=94|&quot;S=1/2,Site,n=1&quot;)&#39;, (dim=2|id=94|&quot;S=1/2,Site,n=1&quot;), (dim=1|id=965|&quot;Link,l=1&quot;))
+    [2] ((dim=2|id=897|&quot;S=1/2,Site,n=2&quot;)&#39;, (dim=2|id=897|&quot;S=1/2,Site,n=2&quot;), (dim=1|id=154|&quot;Link,l=2&quot;), (dim=1|id=965|&quot;Link,l=1&quot;))
+    [3] ((dim=2|id=233|&quot;S=1/2,Site,n=3&quot;)&#39;, (dim=2|id=233|&quot;S=1/2,Site,n=3&quot;), (dim=1|id=813|&quot;Link,l=3&quot;), (dim=1|id=154|&quot;Link,l=2&quot;))
+    [4] ((dim=2|id=932|&quot;S=1/2,Site,n=4&quot;)&#39;, (dim=2|id=932|&quot;S=1/2,Site,n=4&quot;), (dim=1|id=175|&quot;Link,l=4&quot;), (dim=1|id=813|&quot;Link,l=3&quot;))
+    [5] ((dim=2|id=426|&quot;S=1/2,Site,n=5&quot;)&#39;, (dim=2|id=426|&quot;S=1/2,Site,n=5&quot;), (dim=1|id=79|&quot;Link,l=5&quot;), (dim=1|id=175|&quot;Link,l=4&quot;))
+    [6] ((dim=2|id=405|&quot;S=1/2,Site,n=6&quot;)&#39;, (dim=2|id=405|&quot;S=1/2,Site,n=6&quot;), (dim=1|id=79|&quot;Link,l=5&quot;))
+
+Tr(ρ_neel) = 1.0
+</code></pre><div class="admonition is-info" id="Why-is-a-density-matrix-an-MPO?-639d0cee8bda56cb"><header class="admonition-header">Why is a density matrix an MPO?<a class="admonition-anchor" href="#Why-is-a-density-matrix-an-MPO?-639d0cee8bda56cb" title="Permalink"></a></header><div class="admonition-body"><p>A density matrix has one ket index and one bra index per site. That makes it naturally an operator-valued tensor network, i.e. an MPO.</p></div></div><h3 id="A-mixed-density-MPO"><a class="docs-heading-anchor" href="#A-mixed-density-MPO">A mixed density MPO</a><a id="A-mixed-density-MPO-1"></a><a class="docs-heading-anchor-permalink" href="#A-mixed-density-MPO" title="Permalink"></a></h3><p>Let us mix two product states:</p><p class="math-container">\[|\psi_1\rangle =
+|\uparrow\downarrow\uparrow\downarrow\cdots\rangle,\]</p><p>and</p><p class="math-container">\[|\psi_2\rangle =
+|\downarrow\uparrow\downarrow\uparrow\cdots\rangle.\]</p><p>Define</p><p class="math-container">\[\rho =
+p|\psi_1\rangle\langle\psi_1|
++
+(1-p)|\psi_2\rangle\langle\psi_2|.\]</p><pre><code class="language-julia hljs">flipped_pattern = [&quot;Dn&quot;, &quot;Up&quot;, &quot;Dn&quot;, &quot;Up&quot;, &quot;Dn&quot;, &quot;Up&quot;]
+ψ_flipped = MPS(sites, flipped_pattern)
+
+p = 0.3
+
+ρ_mix = to_dm([ψ_neel, ψ_flipped]; coeffs=[p, 1 - p])
+
+println(&quot;Tr(ρ_mix) = &quot;, roundreal(tr(ρ_mix)))
+
+@assert ρ_mix isa MPO{Hilbert}
+@assert isapprox(real(tr(ρ_mix)), 1.0; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">Tr(ρ_mix) = 1.0
+</code></pre><h3 id="One-site-reduced-density-matrix"><a class="docs-heading-anchor" href="#One-site-reduced-density-matrix">One-site reduced density matrix</a><a id="One-site-reduced-density-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#One-site-reduced-density-matrix" title="Permalink"></a></h3><p>Let us compute the reduced density matrix at one site.</p><p>For a pure state,</p><p class="math-container">\[\rho_j =
+\operatorname{Tr}_{\bar{j}}
+|\psi\rangle\langle\psi|.\]</p><p>For an MPS, we can do this by constructing the pure density matrix and contracting the bra/ket indices of the sites we wish to trace out.</p><pre><code class="language-julia hljs">function one_site_reduced_density_matrix(ρ, sites, site_number::Integer=1)
+    ρ_tensor = ITensor(1.0)
+    for n in eachindex(ρ)
+        ρ_tensor *= ρ[n]
+        if n != site_number
+            ρ_tensor *= delta(sites[n], prime(sites[n]))
+        end
+    end
+    return Array(ρ_tensor, prime(sites[site_number]), sites[site_number])
+end
+
+ρ1_red = one_site_reduced_density_matrix(ρ_mix, sites, 1)
+
+@assert isapprox(LinearAlgebra.tr(ρ1_red), 1.0 + 0im; atol=1e-12)
+display(roundreal.(ρ1_red))</code></pre><h3 id="Physical-entropy-of-the-one-site-mixed-state"><a class="docs-heading-anchor" href="#Physical-entropy-of-the-one-site-mixed-state">Physical entropy of the one-site mixed state</a><a id="Physical-entropy-of-the-one-site-mixed-state-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-entropy-of-the-one-site-mixed-state" title="Permalink"></a></h3><p>The physical von Neumann entropy is</p><p class="math-container">\[S(\rho) =
+-\operatorname{Tr}(\rho \log \rho).\]</p><p>Since <code>ρ1_red</code> is a <code>2 × 2</code> dense matrix, we can compute its eigenvalues directly.</p><pre><code class="language-julia hljs">function von_neumann_entropy(ρ::AbstractMatrix)
+    vals = real.(LinearAlgebra.eigvals(LinearAlgebra.Hermitian(ρ)))
+    return -sum(λ -&gt; λ &gt; 1e-14 ? λ * log(λ) : 0.0, vals)
+end
+
+ρ1_mix = Matrix(ρ1_red)
+
+S_ρ1_mix = von_neumann_entropy(ρ1_mix)
+
+S_expected = -(p * log(p) + (1 - p) * log(1 - p))
+
+println(&quot;S(ρ1_mix) = &quot;, roundreal(S_ρ1_mix))
+println(&quot;Expected binary entropy = &quot;, roundreal(S_expected))
+
+@assert isapprox(S_ρ1_mix, S_expected; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">S(ρ1_mix) = 0.610864
+Expected binary entropy = 0.610864
+</code></pre><div class="admonition is-info" id="Mixed-state-entropy-is-not-pure-state-entanglement-a0b75088dc786074"><header class="admonition-header">Mixed-state entropy is not pure-state entanglement<a class="admonition-anchor" href="#Mixed-state-entropy-is-not-pure-state-entanglement-a0b75088dc786074" title="Permalink"></a></header><div class="admonition-body"><p>The entropy above is physical von Neumann entropy of a one-site mixed state. It contains classical uncertainty from the mixture. This is generally different from the pure-state entanglement entropy computed from <code>entropy(ψ, b)</code>.</p></div></div><h3 id="MPO-bond-entropy-as-a-compression-diagnostic"><a class="docs-heading-anchor" href="#MPO-bond-entropy-as-a-compression-diagnostic">MPO bond entropy as a compression diagnostic</a><a id="MPO-bond-entropy-as-a-compression-diagnostic-1"></a><a class="docs-heading-anchor-permalink" href="#MPO-bond-entropy-as-a-compression-diagnostic" title="Permalink"></a></h3><p>We can still call <code>entropy</code> on the density MPO.</p><p>This computes an SVD-based bond entropy of the MPO tensor network. It tells us how much operator-space structure the density MPO carries across a cut.</p><pre><code class="language-julia hljs">middle_bond = div(N, 2)
+S_operator_bond = entropy(ρ_mix, middle_bond)
+
+println(&quot;MPO bond entropy of ρ_mix across bond $middle_bond:&quot;)
+println(roundreal(S_operator_bond))</code></pre><pre><code class="nohighlight hljs">MPO bond entropy of ρ_mix across bond 3:
+0.566257
+</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>In this tutorial, we learned the basic ITensorMPS workflow used throughout <code>ProcessTensors.jl</code> for Hilbert-space states and operators.</p><p>We saw that:</p><ul><li>dense coefficient tensors can be decomposed into MPS form,</li><li><code>siteinds</code> creates physical spin-chain site indices,</li><li><code>MPS</code> creates Hilbert-space many-body states,</li><li><code>OpSum</code> expresses many-body operators compactly,</li><li><code>MPO</code> converts an <code>OpSum</code> into a matrix product operator,</li><li><code>expect</code> computes local expectation values,</li><li><code>correlation_matrix</code> computes two-point functions,</li><li><code>entropy(ψ, b)</code> computes pure-state bond entanglement,</li><li><code>to_dm</code> constructs Hilbert-space density MPOs.</li></ul><p>The main convention to remember is:</p><blockquote><p>Reuse the correct indices. ITensors makes contractions safe because tensor legs are labelled objects, not anonymous array axes.</p></blockquote><p>In the next tutorial, <a href="../liouville_basics/#Liouville-Space-Basics">Liouville-Space Basics</a>, we take a density MPO and vectorize it into Liouville space.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../itensor_basics/">« ITensor Basics</a><a class="docs-footer-nextpage" href="../liouville_basics/">Liouville-Space Basics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 29 June 2026 13:40">Monday 29 June 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Single-Mode Process Tensor · ProcessTensors.jl</title><meta name="title" content="Single-Mode Process Tensor · ProcessTensors.jl"/><meta property="og:title" content="Single-Mode Process Tensor · ProcessTensors.jl"/><meta property="twitter:title" content="Single-Mode Process Tensor · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../getting_started/">Getting Started</a></li><li><span class="tocitem">Theory</span><ul><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../liouville_basics/">Liouville-Space Basics</a></li><li><a class="tocitem" href="../unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../dissipative_dynamics/">Dissipative Dynamics</a></li><li class="is-active"><a class="tocitem" href>Single-Mode Process Tensor</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Ingredients-to-build-a-process-tensor"><span>Ingredients to build a process tensor</span></a></li><li><a class="tocitem" href="#Building-the-process-tensor"><span>Building the process tensor</span></a></li><li><a class="tocitem" href="#Evolving-reduced-states"><span>Evolving reduced states</span></a></li><li><a class="tocitem" href="#Instrument-schedules"><span>Instrument schedules</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/spin_chain_unitary/">Unitary spin chain</a></li><li><a class="tocitem" href="../../examples/bose_hubbard_unitary/">Bose-Hubbard dynamics</a></li><li><a class="tocitem" href="../../examples/reduced_density_entropy/">Reduced states and entropy</a></li><li><a class="tocitem" href="../../examples/dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../../examples/dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../../examples/boundary_driven_spin_chain/">Boundary-driven chain</a></li><li><a class="tocitem" href="../../examples/driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../../examples/kicked_ising_chain/">Kicked Ising chain</a></li><li><a class="tocitem" href="../../examples/single_spin_bath_process_tensor/">Single spin-bath process tensor</a></li><li><a class="tocitem" href="../../examples/stochastic_process_tensor/">Stochastic process tensor</a></li><li><a class="tocitem" href="../../examples/multimode_process_tensor/">Multimode process tensor</a></li><li><a class="tocitem" href="../../examples/instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a class="tocitem" href="../../examples/convergence_and_truncation/">Convergence and truncation</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Single-Mode Process Tensor</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Single-Mode Process Tensor</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/tutorials/05_process_tensor_singlemode.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Single-Mode-Process-Tensor"><a class="docs-heading-anchor" href="#Single-Mode-Process-Tensor">Single-Mode Process Tensor</a><a id="Single-Mode-Process-Tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Single-Mode-Process-Tensor" title="Permalink"></a></h1><p>The previous tutorials described density matrices, Liouville-space dynamics, unitary evolution, and dissipative Lindblad evolution.</p><p>Those descriptions are still time-local. At each time step, we apply a fixed map to the current density matrix:</p><p class="math-container">\[|\rho(t+\Delta t)\rangle\rangle
+=
+\mathcal{E}_{\Delta t}
+|\rho(t)\rangle\rangle.\]</p><p>A process tensor is more general. It stores how a system responds to a whole sequence of interventions over time.</p><p>Instead of asking only for a state trajectory, we can ask:</p><ul><li>What happens if I prepare this state at the beginning?</li><li>What if I insert an observable at an intermediate time?</li><li>What if I leave one output open and inspect the reduced state?</li><li>What if I postselect on an outcome?</li><li>What if I use the same environment influence with different instruments?</li></ul><p>In <code>ProcessTensors.jl</code>, a process tensor is represented as a Liouville-space MPO over time legs.</p><pre><code class="language-text hljs">time 0        time 1        time 2
+
+ input        input         input
+   |            |             |
+ [ PT ] —— memory —— [ PT ] —— memory —— [ PT ]
+   |            |             |
+output       output        output</code></pre><p>The memory links carry the influence of the environment from one time step to the next. Instruments are then contracted onto the input/output legs.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using ITensors
+import LinearAlgebra
+using ProcessTensors
+
+roundreal(x; digits=8) = round(real(x); digits=digits)</code></pre><pre><code class="nohighlight hljs">roundreal (generic function with 1 method)</code></pre><h2 id="Ingredients-to-build-a-process-tensor"><a class="docs-heading-anchor" href="#Ingredients-to-build-a-process-tensor">Ingredients to build a process tensor</a><a id="Ingredients-to-build-a-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Ingredients-to-build-a-process-tensor" title="Permalink"></a></h2><p>A process tensor needs four physical ingredients:</p><ul><li>a system,</li><li>an environment,</li><li>a system-environment coupling,</li><li>a time grid.</li></ul><p>In this tutorial, the system is one spin:</p><p class="math-container">\[H_S = h S^x_S.\]</p><p>The environment is one spin bath mode:</p><p class="math-container">\[H_B = \omega_B S^z_B.\]</p><p>The system and bath interact through</p><p class="math-container">\[H_{SB} = g S^z_B S^z_S.\]</p><p>This is the smallest nontrivial setting where the process tensor has a memory link. The environment is finite, so it can carry information from one time to another.</p><h3 id="System"><a class="docs-heading-anchor" href="#System">System</a><a id="System-1"></a><a class="docs-heading-anchor-permalink" href="#System" title="Permalink"></a></h3><p>We build the system from ordinary Hilbert-space spin sites. The constructor <code>spin_system</code> converts them internally to canonical Liouville sites.</p><pre><code class="language-julia hljs">system_sites = siteinds(&quot;S=1/2&quot;, 1)
+
+h = 0.7
+
+H_S = OpSum()
+H_S += h, &quot;Sx&quot;, 1
+
+system = spin_system(system_sites, H_S)
+
+println(&quot;System:&quot;)
+println(system)
+
+@assert system isa SpinSystem
+@assert length(system.sites) == 1
+@assert dim(only(system.sites)) == 4</code></pre><pre><code class="nohighlight hljs">System:
+ProcessTensors.SpinSystem
+  sites: 1
+  space: Liouville
+  site dims: 4
+  dissipative: false
+
+</code></pre><p>The initial system state is</p><p class="math-container">\[|+\rangle =
+\frac{|\uparrow\rangle + |\downarrow\rangle}{\sqrt{2}}.\]</p><pre><code class="language-julia hljs">ψS0 = MPS(ComplexF64[1 / sqrt(2), 1 / sqrt(2)], system_sites)
+ρS0 = to_dm(ψS0)
+
+@assert ρS0 isa MPO{Hilbert}
+@assert abs(tr(ρS0) - 1) &lt; 1e-12</code></pre><h3 id="Bath-mode"><a class="docs-heading-anchor" href="#Bath-mode">Bath mode</a><a id="Bath-mode-1"></a><a class="docs-heading-anchor-permalink" href="#Bath-mode" title="Permalink"></a></h3><p>The bath mode is also a spin. Bath modes are stored in Liouville space because the process tensor is built from density matrices and superoperators.</p><pre><code class="language-julia hljs">bath_sites = siteinds(&quot;S=1/2&quot;, 1)
+bath_sites_L = liouv_sites(bath_sites)
+
+ωB = 1.1
+
+H_B = OpSum()
+H_B += (ωB / 2), &quot;Sz&quot;, 1
+
+ψB0 = MPS(bath_sites, [&quot;Dn&quot;])
+ρB0 = to_dm(ψB0)
+ρB0_L = to_liouville(ρB0; sites=bath_sites_L)
+
+@assert ρB0_L isa MPS{Liouville}</code></pre><p>The coupling OpSum is written in a local two-site convention:</p><ul><li>site <code>1</code> is the bath mode,</li><li>site <code>2</code> is the system coupling site.</li></ul><p>This local convention lets the same coupling be inserted into the joint bath-system Liouville propagator.</p><pre><code class="language-julia hljs">g = 0.35
+
+H_SB = OpSum()
+H_SB += g, &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+mode = spin_mode(
+    bath_sites_L,
+    H_B,
+    ρB0_L;
+    coupling=H_SB,
+)
+
+environment = spin_bath([mode])
+
+println(&quot;Environment:&quot;)
+println(environment)
+
+@assert mode isa SpinMode
+@assert environment isa SpinBath</code></pre><pre><code class="nohighlight hljs">Environment:
+ProcessTensors.SpinBath
+  modes: 1
+  space: Liouville
+  site dims: 4
+  bath Liouville dimension: 4
+
+  mode summary:
+    [1] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+
+</code></pre><div class="admonition is-success" id="Nearby-variation:-use-a-bosonic-mode-718f51e3e7eb18d4"><header class="admonition-header">Nearby variation: use a bosonic mode<a class="admonition-anchor" href="#Nearby-variation:-use-a-bosonic-mode-718f51e3e7eb18d4" title="Permalink"></a></header><div class="admonition-body"><p>The spin bath can be changed into a bosonic bath by changing only the mode constructor and the site family.</p><pre><code class="language-julia hljs">boson_sites = siteinds(&quot;Boson&quot;, 1; dim=4)
+boson_sites_L = liouv_sites(boson_sites)
+
+H_boson = OpSum()
+H_boson += Ω, &quot;N&quot;, 1
+
+ψb0 = MPS(boson_sites, [&quot;0&quot;])
+ρb0_L = to_liouville(to_dm(ψb0); sites=boson_sites_L)
+
+coupling_boson = OpSum()
+coupling_boson += g, &quot;N&quot;, 1, &quot;Sz&quot;, 2
+
+mode_b = bosonic_mode(
+    boson_sites_L,
+    H_boson,
+    ρb0_L;
+    n_max=3,
+    coupling=coupling_boson,
+)
+
+environment_b = bosonic_bath([mode_b])</code></pre><p>The process-tensor construction call is unchanged. Only the bath model has changed.</p></div></div><h2 id="Building-the-process-tensor"><a class="docs-heading-anchor" href="#Building-the-process-tensor">Building the process tensor</a><a id="Building-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Building-the-process-tensor" title="Permalink"></a></h2><p>The time grid is set by <code>dt</code> and <code>nsteps</code>.</p><p>The call</p><pre><code class="language-julia hljs">pt = build_process_tensor(system; environment, dt, nsteps)</code></pre><p>builds one process-tensor core per time step.</p><p>By default, the system&#39;s own one-step Liouville propagation is embedded into the cores. This means the default instrument between time steps is the identity operation, not an extra system propagator.</p><pre><code class="language-julia hljs">dt = 0.05
+nsteps = 5
+
+pt = build_process_tensor(
+    system;
+    environment=environment,
+    dt=dt,
+    nsteps=nsteps,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
+)
+
+println(&quot;Process tensor with one spin bath mode:&quot;)
+println(pt)
+
+@assert pt isa ProcessTensor
+@assert pt.nsteps == nsteps
+@assert pt.dt == dt
+@assert pt.environment isa SpinBath
+@assert pt.embed_system_propagation</code></pre><pre><code class="nohighlight hljs">Process tensor with one spin bath mode:
+5-step ProcessTensor{SpinSystem, SpinBath} | dt=0.05 | t_final=0.25 | maxlinkdim=4
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: SpinBath(nmodes=1, D_bath=4, coupling=true)
+  core:        MPO{Liouville}(length=5, linkdims=[4, 4, 4, 4])
+
+</code></pre><p>It is useful to compare this with the no-environment baseline.</p><p>With <code>environment=nothing</code>, the object stores the time-local system propagation without an explicit bath memory link.</p><pre><code class="language-julia hljs">pt_markov = build_process_tensor(
+    system;
+    dt=dt,
+    nsteps=nsteps,
+    sys_alg=Trotter{2}(),
+)
+
+println(&quot;No-environment baseline:&quot;)
+println(pt_markov)
+
+println(&quot;maxlinkdim(pt_markov) = &quot;, maxlinkdim(pt_markov))
+println(&quot;maxlinkdim(pt)        = &quot;, maxlinkdim(pt))
+
+@assert maxlinkdim(pt) &gt;= maxlinkdim(pt_markov)</code></pre><pre><code class="nohighlight hljs">No-environment baseline:
+5-step ProcessTensor{SpinSystem, Nothing} | dt=0.05 | t_final=0.25 | maxlinkdim=1
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: none
+  core:        MPO{Liouville}(length=5, linkdims=none)
+
+maxlinkdim(pt_markov) = 1
+maxlinkdim(pt)        = 4
+</code></pre><p>In the Markovian limit, the process tensor decomposes to a product MPO-like object in time. Since there is no memory link between interventions, the process becomes a product of the same system unitary at each time step.</p><h3 id="Time-legs"><a class="docs-heading-anchor" href="#Time-legs">Time legs</a><a id="Time-legs-1"></a><a class="docs-heading-anchor-permalink" href="#Time-legs" title="Permalink"></a></h3><p>At every process-tensor time label <code>k</code>, there is an input leg and an output leg.</p><p>In this package:</p><ul><li>input legs have prime level <code>1</code>,</li><li>output legs have prime level <code>0</code>,</li><li>both carry a <code>tstep=k</code> tag.</li><li>both have the same <code>tags</code>, <code>ID</code>, and liouville <code>dim</code>.</li></ul><p>These helpers let us inspect the legs without manually searching through ITensor indices.</p><pre><code class="language-julia hljs">println(&quot;Input leg at time 0:&quot;)
+println(input_sites(pt, 0))
+
+println(&quot;Output leg at time 0:&quot;)
+println(output_sites(pt, 0))
+
+println(&quot;Legs connected by the evolve slot at step 1:&quot;)
+println(coupling_times(pt, 1))
+
+@assert plev(only(input_sites(pt, 0))) == 1
+@assert plev(only(output_sites(pt, 0))) == 0</code></pre><pre><code class="nohighlight hljs">Input leg at time 0:
+ITensors.Index[(dim=4|id=526|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)&#39;]
+Output leg at time 0:
+ITensors.Index[(dim=4|id=526|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)]
+Legs connected by the evolve slot at step 1:
+(ITensors.Index[(dim=4|id=526|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)], ITensors.Index[(dim=4|id=493|&quot;Liouv,n=1,ptype=S=1/2,tstep=1&quot;)&#39;])
+</code></pre><p>The <code>coupling_times</code> returns an output index of <code>tstep=0</code> and an input index of <code>tstep=1</code>. This is because while propagating the initial state in a process tensor, we contract the input leg of <code>tstep=0</code> with the output leg of <code>tstep=1</code> of the previous time step. If there is no intervention at this timestep, and we let the system do its unitary evolution, we embed an <code>IdentityOperation</code> at this timestep.</p><div class="admonition is-warning" id="Reuse-Liouville-indices-857de05927fb3ef"><header class="admonition-header">Reuse Liouville indices<a class="admonition-anchor" href="#Reuse-Liouville-indices-857de05927fb3ef" title="Permalink"></a></header><div class="admonition-body"><p>Process-tensor contractions depend on exact ITensor index identity. Use the sites stored by the system, bath modes, and process tensor instead of recreating visually similar indices.</p></div></div><h2 id="Evolving-reduced-states"><a class="docs-heading-anchor" href="#Evolving-reduced-states">Evolving reduced states</a><a id="Evolving-reduced-states-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-reduced-states" title="Permalink"></a></h2><p>The simplest way to use a process tensor is to ask for the reduced system states generated from an initial density matrix.</p><p>The high-level call is:</p><pre><code class="language-julia hljs">trajectory = evolve(pt, ρS0)</code></pre><p>It returns:</p><ul><li><code>trajectory.times</code>,</li><li><code>trajectory.states_liouville</code>,</li><li><code>trajectory.states_hilbert</code>.</li></ul><p>The Hilbert states are density-matrix MPOs reconstructed from the Liouville-space outputs.</p><pre><code class="language-julia hljs">trajectory = evolve(pt, ρS0)
+
+println(&quot;Sample times:&quot;)
+println(trajectory.times)
+
+println(&quot;Number of returned states:&quot;)
+println(length(trajectory.states_hilbert))
+
+@assert length(trajectory.times) == nsteps
+@assert length(trajectory.states_hilbert) == nsteps
+@assert all(ρ -&gt; abs(tr(ρ) - 1) &lt; 1e-8, trajectory.states_hilbert)</code></pre><pre><code class="nohighlight hljs">Sample times:
+[0.0, 0.05, 0.1, 0.15000000000000002, 0.2]
+Number of returned states:
+5
+</code></pre><p>Let us measure one simple observable along the trajectory:</p><p class="math-container">\[\langle S^z(t)\rangle =
+\operatorname{Tr}[S^z\rho(t)]
+= \langle\langle S^z | \rho(t) \rangle\rangle.\]</p><p>We vectorize both <span>$\rho(t)$</span> and <span>$S^z$</span> on the <strong>same</strong> Liouville sites, then use the two-argument overlap <code>inner(Sz_L, ρL)</code> from <a href="../liouville_basics/#Liouville-Space-Basics">Liouville-Space Basics</a>.</p><pre><code class="language-julia hljs">Sz = OpSum()
+Sz += 1.0, &quot;Sz&quot;, 1
+
+Sz_mpo = MPO(Sz, system_sites)
+system_sites_L = liouv_sites(system_sites)
+Sz_L = to_liouville(Sz_mpo; sites=system_sites_L)
+
+mz = [
+    begin
+        ρL = to_liouville(ρ; sites=system_sites_L)
+        real(inner(Sz_L, ρL))
+    end
+    for ρ in trajectory.states_hilbert
+]
+
+println(&quot;⟨Sz⟩ along the process-tensor trajectory:&quot;)
+println(roundreal.(mz))
+
+@assert all(isfinite, mz)</code></pre><pre><code class="nohighlight hljs">⟨Sz⟩ along the process-tensor trajectory:
+[-0.00015309, -0.00045908, -0.00091755, -0.00152793, -0.00228941]
+</code></pre><p>Now compare with the no-environment baseline. The code is identical; only the process tensor changes.</p><pre><code class="language-julia hljs">trajectory_markov = evolve(pt_markov, ρS0)
+
+mz_markov = [
+    begin
+        ρL = to_liouville(ρ; sites=system_sites_L)
+        real(inner(Sz_L, ρL))
+    end
+    for ρ in trajectory_markov.states_hilbert
+]
+
+println(&quot;Final ⟨Sz⟩ without explicit bath = &quot;, roundreal(last(mz_markov)))
+println(&quot;Final ⟨Sz⟩ with spin bath        = &quot;, roundreal(last(mz)))</code></pre><pre><code class="nohighlight hljs">Final ⟨Sz⟩ without explicit bath = -0.0
+Final ⟨Sz⟩ with spin bath        = -0.00228941
+</code></pre><p>The two results need not agree. The whole point of the process tensor is that the bath can carry memory between time steps.</p><pre><code class="language-julia hljs">@assert isfinite(last(mz_markov))
+@assert isfinite(last(mz))</code></pre><h2 id="Instrument-schedules"><a class="docs-heading-anchor" href="#Instrument-schedules">Instrument schedules</a><a id="Instrument-schedules-1"></a><a class="docs-heading-anchor-permalink" href="#Instrument-schedules" title="Permalink"></a></h2><p>A process tensor becomes useful when we contract it with instruments.</p><p>An instrument says what we do at a given time leg:</p><ul><li>prepare a state,</li><li>insert an observable,</li><li>connect one time to the next,</li><li>trace out a leg,</li><li>measure an outcome, or</li><li>leave an output open.</li></ul><p>The default schedule for a process tensor with embedded propagation uses <code>IdentityOperation()</code> between time steps.</p><pre><code class="language-julia hljs">seq = default_schedule(pt)
+
+println(&quot;Default schedule:&quot;)
+println(seq)
+
+@assert seq isa InstrumentSeq</code></pre><pre><code class="nohighlight hljs">Default schedule:
+InstrumentSeq(default=IdentityOperation, nsteps=5, 0 explicit entries)
+</code></pre><h3 id="Normalization-as-a-fully-closed-process"><a class="docs-heading-anchor" href="#Normalization-as-a-fully-closed-process">Normalization as a fully closed process</a><a id="Normalization-as-a-fully-closed-process-1"></a><a class="docs-heading-anchor-permalink" href="#Normalization-as-a-fully-closed-process" title="Permalink"></a></h3><p>If every leg is closed, <code>evaluate_process</code> returns a scalar.</p><p>The schedule below prepares <code>ρS0</code> at the beginning and traces the final output. Physically, this asks for the total probability of the process.</p><pre><code class="language-julia hljs">seq_norm = default_schedule(pt)
+add!(seq_norm, StatePreparation(ρS0), 0)
+add!(seq_norm, TraceOut(), pt.nsteps)
+
+norm_val = evaluate_process(pt, seq_norm)
+
+println(&quot;Closed process value:&quot;)
+println(norm_val)
+
+@assert norm_val isa ComplexF64
+@assert abs(norm_val - 1) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">Closed process value:
+1.0000000000000002 + 8.670247021407296e-18im
+</code></pre><h3 id="Leaving-an-output-open"><a class="docs-heading-anchor" href="#Leaving-an-output-open">Leaving an output open</a><a id="Leaving-an-output-open-1"></a><a class="docs-heading-anchor-permalink" href="#Leaving-an-output-open" title="Permalink"></a></h3><p>The same schedule, if leaves the final output leg open, returns the final reduced system state.</p><p>The instrument <code>OpenOutput()</code> traces the current input leg and keeps the previous output leg open. This is useful when we want a reduced state at an intermediate cut.</p><pre><code class="language-julia hljs">seq_open = default_schedule(pt)
+add!(seq_open, StatePreparation(ρS0), 0)
+add!(seq_open, OpenOutput(), 2)
+add!(seq_open, TraceOut(), pt.nsteps)
+
+open_result = evaluate_process(pt, seq_open)
+
+println(&quot;Open-output result type:&quot;)
+println(typeof(open_result))
+
+@assert open_result isa MPO{Liouville}</code></pre><pre><code class="nohighlight hljs">Open-output result type:
+MPO{Liouville, Vector{ITensors.ITensor}}
+</code></pre><h3 id="Final-expectation-value"><a class="docs-heading-anchor" href="#Final-expectation-value">Final expectation value</a><a id="Final-expectation-value-1"></a><a class="docs-heading-anchor-permalink" href="#Final-expectation-value" title="Permalink"></a></h3><p>To compute a final observable, replace the final trace with an observable insertion.</p><p>This gives</p><p class="math-container">\[\operatorname{Tr}[S^z\rho(t_{\mathrm{final}})]
+= \langle\langle \rho(t_{\mathrm{final}}) | S^z \rangle\rangle.\]</p><pre><code class="language-julia hljs">seq_final_sz = default_schedule(pt)
+add!(seq_final_sz, StatePreparation(ρS0), 0)
+add!(seq_final_sz, ObservableMeasurement(Sz), pt.nsteps)
+
+final_sz_from_schedule = evaluate_process(pt, seq_final_sz)
+
+println(&quot;Final ⟨Sz⟩ from schedule:&quot;)
+println(final_sz_from_schedule)
+
+println(&quot;Final ⟨Sz⟩ from evolve:&quot;)
+println(last(mz))
+
+@assert abs(real(final_sz_from_schedule) - last(mz)) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">Final ⟨Sz⟩ from schedule:
+-0.002289410787279539 - 7.300773725171498e-19im
+Final ⟨Sz⟩ from evolve:
+-0.002289410787279539
+</code></pre><p>For ordinary state trajectories, prefer <code>evolve(pt, ρ0)</code>. <code>OpenOutput</code> is the lower-level schedule ingredient that makes such state extraction possible.</p><h3 id="Lazy-instruments-and-dense-instruments"><a class="docs-heading-anchor" href="#Lazy-instruments-and-dense-instruments">Lazy instruments and dense instruments</a><a id="Lazy-instruments-and-dense-instruments-1"></a><a class="docs-heading-anchor-permalink" href="#Lazy-instruments-and-dense-instruments" title="Permalink"></a></h3><p>Every schedule above used instruments <strong>lazily</strong>: <code>add!</code> stores what we want to do, and the package materializes the corresponding ITensor only when the process tensor is contracted — much like an <code>OpSum</code> before <code>MPO(...)</code>.</p><p>Sometimes we want to inspect or define the dense map ourselves. The package supports both paths:</p><ul><li><strong>lazy path:</strong> high-level instruments such as <code>ObservableMeasurement</code>, <code>IdentityOperation</code>, <code>OpenOutput</code>, and <code>left_right_operator</code>,</li><li><strong>dense path:</strong> materialize with <code>instrument_itensor</code>, or wrap a custom map in <code>CustomTwoLegInstrument</code>.</li></ul><p>The same trace-reducing postselection illustrates both paths.</p><p>A spin-up projector is</p><p class="math-container">\[P_\uparrow =
+|\uparrow\rangle\langle\uparrow|
+=
+\frac{1}{2}I + S^z,\]</p><p>and the corresponding map is <span>$\rho \mapsto P_\uparrow \rho P_\uparrow$</span>. This map is not trace preserving; the closed scalar from <code>evaluate_process</code> is the probability that postselection succeeds.</p><pre><code class="language-julia hljs">Pup = OpSum()
+Pup += 0.5, &quot;Id&quot;, 1
+Pup += 1.0, &quot;Sz&quot;, 1
+
+Pup_mpo = MPO(Pup, system_sites)
+
+lazy_filter = left_right_operator(Pup_mpo, Pup_mpo)
+
+seq_filter_lazy = default_schedule(pt)
+add!(seq_filter_lazy, StatePreparation(ρS0), 0)
+add!(seq_filter_lazy, lazy_filter, 2)
+add!(seq_filter_lazy, TraceOut(), pt.nsteps)
+
+prob_filter_lazy = evaluate_process(pt, seq_filter_lazy)
+
+println(&quot;Postselected trace from lazy instrument:&quot;)
+println(prob_filter_lazy)
+
+@assert 0 &lt;= real(prob_filter_lazy) &lt;= 1 + 1e-10</code></pre><pre><code class="nohighlight hljs">Postselected trace from lazy instrument:
+0.499540923879634 + 2.9508741047425885e-18im
+</code></pre><p>Materialize the same instrument on the concrete process-tensor legs. <code>coupling_times(pt, step)</code> returns <code>(out_prev, in_curr)</code>: the output leg at <code>step - 1</code> and the input leg at <code>step</code>.</p><pre><code class="language-julia hljs">out_prev, in_curr = coupling_times(pt, 2)
+
+dense_filter_tensor = instrument_itensor(
+    lazy_filter,
+    in_curr,
+    out_prev,
+    2,
+)
+
+println(&quot;Dense filter instrument:&quot;)
+println(dense_filter_tensor)
+
+dense_filter = CustomTwoLegInstrument(
+    dense_filter_tensor,
+    in_curr,
+    out_prev,
+)
+
+seq_filter_dense = default_schedule(pt)
+add!(seq_filter_dense, StatePreparation(ρS0), 0)
+add!(seq_filter_dense, dense_filter, 2)
+add!(seq_filter_dense, TraceOut(), pt.nsteps)
+
+prob_filter_dense = evaluate_process(pt, seq_filter_dense)
+
+println(&quot;Postselected trace from dense custom instrument:&quot;)
+println(prob_filter_dense)
+
+@assert abs(prob_filter_dense - prob_filter_lazy) &lt; 1e-10</code></pre><pre><code class="nohighlight hljs">Dense filter instrument:
+ITensor ord=2
+Dim 1: (dim=4|id=61|&quot;Liouv,n=1,ptype=S=1/2,tstep=2&quot;)&#39;
+Dim 2: (dim=4|id=493|&quot;Liouv,n=1,ptype=S=1/2,tstep=1&quot;)
+NDTensors.Dense{ComplexF64, Vector{ComplexF64}}
+ 4×4
+ 1.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im
+ 0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im
+ 0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im
+ 0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im  0.0 + 0.0im
+
+Postselected trace from dense custom instrument:
+0.499540923879634 + 2.9508741047425885e-18im
+</code></pre><p>We can also contract the materialized tensors by hand. Most users should prefer <code>evaluate_process</code>; the loop below shows what the high-level call is doing.</p><pre><code class="language-julia hljs">prob_filter_manual = let
+    dense_instruments = create_instruments(pt, seq_filter_dense)
+    manual_result = pt.core[1] * dense_instruments[1]
+    for step in 1:(pt.nsteps - 1)
+        manual_result *= dense_instruments[step + 1]
+        manual_result *= pt.core[step + 1]
+    end
+    final_instr = resolve_instrument(
+        seq_filter_dense,
+        pt.nsteps,
+        seq_filter_dense.default,
+    )
+    final_out, _ = coupling_times(pt, pt.nsteps)
+    manual_result *= instrument_itensor(
+        final_instr,
+        final_out,
+        pt.nsteps - 1,
+    )
+    ComplexF64(scalar(manual_result))
+end
+
+println(&quot;Postselected trace from manual dense contraction:&quot;)
+println(prob_filter_manual)
+
+@assert abs(prob_filter_manual - prob_filter_lazy) &lt; 1e-10</code></pre><pre><code class="nohighlight hljs">Postselected trace from manual dense contraction:
+0.499540923879634 + 2.9508741047425885e-18im
+</code></pre><div class="admonition is-info" id="Lazy-versus-dense-instruments-e7ee6f348453f48c"><header class="admonition-header">Lazy versus dense instruments<a class="admonition-anchor" href="#Lazy-versus-dense-instruments-e7ee6f348453f48c" title="Permalink"></a></header><div class="admonition-body"><p>The lazy path is the recommended interface:</p><pre><code class="language-julia hljs">add!(seq, left_right_operator(Pup_mpo, Pup_mpo), 2)</code></pre><p>The dense path is useful when you want to inspect the ITensor, define a custom operation, or debug a contraction:</p><pre><code class="language-julia hljs">dense = instrument_itensor(instr, in_curr, out_prev, step)
+custom = CustomTwoLegInstrument(dense, in_curr, out_prev)</code></pre><p>Both paths describe the same physical intervention when the dense tensor is materialized from the same lazy instrument.</p></div></div><h3 id="Collapse-and-reprepare-at-one-time-step"><a class="docs-heading-anchor" href="#Collapse-and-reprepare-at-one-time-step">Collapse and reprepare at one time step</a><a id="Collapse-and-reprepare-at-one-time-step-1"></a><a class="docs-heading-anchor-permalink" href="#Collapse-and-reprepare-at-one-time-step" title="Permalink"></a></h3><p>A causal intervention can filter the state leaving time step <code>k-1</code> and set the state entering time step <code>k</code>. For a spin-up measurement followed by repreparing <span>$|\!\uparrow\rangle$</span>, use a <a href="../../api/#ProcessTensors.Instruments.ProductInstrument"><code>ProductInstrument</code></a>:</p><ul><li><a href="../../api/#ProcessTensors.Instruments.observable_measurement"><code>observable_measurement</code></a> on the <strong>output</strong> leg (<code>plev=0</code>),</li><li><a href="../../api/#ProcessTensors.Instruments.state_preparation"><code>state_preparation</code></a> on the <strong>input</strong> leg (<code>plev=1</code>, the default).</li></ul><p>The product order does not matter as long as the two factors sit on opposite legs.</p><p>This is a completely positive map. It is <strong>not</strong> trace preserving when the measurement is probabilistic: the closed scalar from <code>evaluate_process</code> is the probability of the outcome, not <code>1</code>.</p><p>This post-selection step says we measure the system in the spin-up state, and then prepare the system in the spin-up state after realising that outcome.</p><pre><code class="language-julia hljs">Pup = OpSum()
+Pup += 0.5, &quot;Id&quot;, 1
+Pup += 1.0, &quot;Sz&quot;, 1
+
+ρ_up = to_dm(MPS(system_sites, [&quot;Up&quot;]))
+
+seq_filter = default_schedule(pt)
+add!(seq_filter, StatePreparation(ρS0), 0)
+add!(seq_filter, observable_measurement(Pup) * state_preparation(ρ_up), 2)
+add!(seq_filter, TraceOut(), pt.nsteps)
+
+prob_filter = evaluate_process(pt, seq_filter)
+
+println(&quot;Probability of spin-up and reprepare at t=2:&quot;)
+println(prob_filter)
+
+@assert 0 &lt;= real(prob_filter) &lt;= 1 + 1e-10</code></pre><pre><code class="nohighlight hljs">Probability of spin-up and reprepare at t=2:
+0.499540923879634 + 2.9508741047425885e-18im
+</code></pre><div class="admonition is-info" id="ProductInstrument-rules-6491511dc4c3d78"><header class="admonition-header">ProductInstrument rules<a class="admonition-anchor" href="#ProductInstrument-rules-6491511dc4c3d78" title="Permalink"></a></header><div class="admonition-body"><p>Multiply any two single-leg instruments with <code>*</code> when one targets the output leg (<code>plev=0</code>) and one the input leg (<code>plev=1</code>). Indices can be bound lazily at <code>add!</code> or supplied explicitly on each factor. Prepare the initial state at time zero separately with <code>StatePreparation</code>, as above.</p></div></div><h3 id="Two-time-correlation-preview"><a class="docs-heading-anchor" href="#Two-time-correlation-preview">Two-time correlation preview</a><a id="Two-time-correlation-preview-1"></a><a class="docs-heading-anchor-permalink" href="#Two-time-correlation-preview" title="Permalink"></a></h3><p>Two-time correlations are built from instrument schedules too. The function <code>two_time_correlation_seq</code> constructs the instrument schedule for</p><p class="math-container">\[\langle A(t_A)B(t_B)\rangle.\]</p><p>Here we only show the usage pattern. A full discussion of multi-time correlations belongs in the examples section.</p><pre><code class="language-julia hljs">seq_corr = two_time_correlation_seq(
+    pt,
+    (Sz, 1),
+    (Sz, 3);
+    rho0=ρS0,
+)
+
+corr = evaluate_process(pt, seq_corr)
+
+println(&quot;Two-time correlation preview:&quot;)
+println(corr)
+
+@assert corr isa ComplexF64
+@assert isfinite(real(corr))</code></pre><pre><code class="nohighlight hljs">Two-time correlation preview:
+0.2493877617820916 - 0.017477351105553665im
+</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>In this tutorial, we learned that:</p><ul><li>a process tensor stores a multi-time open-system process,</li><li><code>build_process_tensor</code> needs a system, an optional environment, <code>dt</code>, and <code>nsteps</code>,</li><li>a bath mode stores its initial state, Hamiltonian, Liouville sites, and system-mode coupling,</li><li>input/output time legs are exposed by <code>input_sites</code> and <code>output_sites</code>,</li><li><code>evolve(pt, ρ0)</code> returns reduced density states over time,</li><li><code>evaluate_process(pt, seq)</code> contracts a process tensor with an instrument schedule,</li><li>fully closed schedules return scalars,</li><li>open-output schedules return state-like Liouville objects,</li><li>observables, collapse maps, and two-time correlations are all expressed as instrument schedules,</li><li>lazy instruments defer materialization until contraction; use <code>instrument_itensor</code> and <code>CustomTwoLegInstrument</code> for dense control,</li></ul><p>The examples section takes these same concepts further:</p><ul><li>time-dependent Hamiltonians,</li><li>two-time and multi-time correlations,</li><li>multimode process tensors,</li><li>custom interventions and causal breaks.</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../dissipative_dynamics/">« Dissipative Dynamics</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 29 June 2026 13:40">Monday 29 June 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

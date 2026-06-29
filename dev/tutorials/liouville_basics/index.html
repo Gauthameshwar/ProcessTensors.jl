@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Liouville-Space Basics · ProcessTensors.jl</title><meta name="title" content="Liouville-Space Basics · ProcessTensors.jl"/><meta property="og:title" content="Liouville-Space Basics · ProcessTensors.jl"/><meta property="twitter:title" content="Liouville-Space Basics · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/liouville_basics/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/liouville_basics/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/liouville_basics/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../getting_started/">Getting Started</a></li><li><span class="tocitem">Theory</span><ul><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../mps_mpo_basics/">MPS and MPO Basics</a></li><li class="is-active"><a class="tocitem" href>Liouville-Space Basics</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Liouville-states-from-vectorisation"><span>Liouville states from vectorisation</span></a></li><li><a class="tocitem" href="#Trace-and-expectation-values"><span>Trace and expectation values</span></a></li><li><a class="tocitem" href="#liouville-superoperators-and-opsums"><span>Liouville superoperators and OpSums</span></a></li></ul></li><li><a class="tocitem" href="../unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../dissipative_dynamics/">Dissipative Dynamics</a></li><li><a class="tocitem" href="../process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/spin_chain_unitary/">Unitary spin chain</a></li><li><a class="tocitem" href="../../examples/bose_hubbard_unitary/">Bose-Hubbard dynamics</a></li><li><a class="tocitem" href="../../examples/reduced_density_entropy/">Reduced states and entropy</a></li><li><a class="tocitem" href="../../examples/dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../../examples/dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../../examples/boundary_driven_spin_chain/">Boundary-driven chain</a></li><li><a class="tocitem" href="../../examples/driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../../examples/kicked_ising_chain/">Kicked Ising chain</a></li><li><a class="tocitem" href="../../examples/single_spin_bath_process_tensor/">Single spin-bath process tensor</a></li><li><a class="tocitem" href="../../examples/stochastic_process_tensor/">Stochastic process tensor</a></li><li><a class="tocitem" href="../../examples/multimode_process_tensor/">Multimode process tensor</a></li><li><a class="tocitem" href="../../examples/instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a class="tocitem" href="../../examples/convergence_and_truncation/">Convergence and truncation</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Liouville-Space Basics</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Liouville-Space Basics</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/tutorials/02_liouville_basics.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Liouville-Space-Basics"><a class="docs-heading-anchor" href="#Liouville-Space-Basics">Liouville-Space Basics</a><a id="Liouville-Space-Basics-1"></a><a class="docs-heading-anchor-permalink" href="#Liouville-Space-Basics" title="Permalink"></a></h1><p>This tutorial continues from <a href="../mps_mpo_basics/#MPS-and-MPO-Basics">MPS and MPO Basics</a>. We saw how a pure state <span>$|\psi\rangle$</span> can be converted into a density matrix <span>$\rho = |\psi\rangle\langle\psi|$</span> in Hilbert space. In this tutorial, we take the next step: we treat density matrices themselves as state-like vectors in a new space.</p><p>Density matrices are more general than state vectors. They can describe coherent quantum superpositions, but also classical uncertainty:</p><p class="math-container">\[\rho =
+\sum_i p_i |\psi_i\rangle\langle\psi_i|,
+\qquad
+p_i \geq 0,
+\qquad
+\sum_i p_i = 1.\]</p><p>If a density matrix describes the state of a system, then a deterministic physical time evolution should map it to another valid density matrix:</p><p class="math-container">\[\rho \longmapsto \Phi(\rho).\]</p><p>Such maps are called <em>quantum channels</em> when they are completely positive and trace-preserving (<em>CPTP</em>).</p><p>In ordinary Hilbert-space notation, <span>$\Phi$</span> looks like a function that takes a matrix as input. In Liouville space, the same map becomes an operator acting on a vectorized density matrix:</p><p class="math-container">\[|\rho\rangle\rangle \longmapsto \Phi |\rho\rangle\rangle.\]</p><p>This is why Liouville space is useful:</p><blockquote><p>density matrices become state-like vectors, and quantum channels become operator-like objects.</p></blockquote><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><p>We load <code>ITensors</code>, <code>ITensorMPS</code>, and <code>ProcessTensors</code> for Hilbert/Liouville conversions and Liouvillian construction. The helper below contracts a one-site <code>MPO</code> into a dense matrix for cross-checks against package routines.</p><pre><code class="language-julia hljs">using ITensors
+import LinearAlgebra
+using ProcessTensors
+import ITensorMPS
+
+function dense_mpo_matrix(W, sites)
+    T = ITensor(1.0)
+    for n in eachindex(W)
+        T *= W[n]
+    end
+    dims = dim.(sites)
+    D = prod(dims)
+    A = Array(T, prime.(sites)..., sites...)
+    return reshape(ComplexF64.(A), D, D)
+end</code></pre><pre><code class="nohighlight hljs">dense_mpo_matrix (generic function with 1 method)</code></pre><h2 id="Liouville-states-from-vectorisation"><a class="docs-heading-anchor" href="#Liouville-states-from-vectorisation">Liouville states from vectorisation</a><a id="Liouville-states-from-vectorisation-1"></a><a class="docs-heading-anchor-permalink" href="#Liouville-states-from-vectorisation" title="Permalink"></a></h2><p>Let <span>$\mathcal{H}$</span> be a finite-dimensional Hilbert space. The set of linear operators on <span>$\mathcal{H}$</span> is written</p><p class="math-container">\[\mathcal{B}(\mathcal{H}).\]</p><p>A density matrix is an element of this operator space:</p><p class="math-container">\[\rho \in \mathcal{B}(\mathcal{H}).\]</p><p>The important observation is that this operator space is itself a Hilbert space when equipped with the Hilbert-Schmidt inner product:</p><p class="math-container">\[\langle\langle A | B \rangle\rangle
+=
+\operatorname{Tr}(A^\dagger B).\]</p><p>This operator Hilbert space is what we call <strong>Liouville space</strong>.</p><p>In a chosen basis, we vectorize basis operators as</p><p class="math-container">\[|j\rangle\langle k|
+\longmapsto
+|j\rangle \otimes |k\rangle.\]</p><div class="admonition is-info" id="Terminology-ee70362477a6de3c"><header class="admonition-header">Terminology<a class="admonition-anchor" href="#Terminology-ee70362477a6de3c" title="Permalink"></a></header><div class="admonition-body"><p>In this package, a Hilbert-space density matrix is an <code>MPO{Hilbert}</code>. After vectorization it becomes an <code>MPS{Liouville}</code>.</p></div></div><h3 id="A-one-site-density-matrix"><a class="docs-heading-anchor" href="#A-one-site-density-matrix">A one-site density matrix</a><a id="A-one-site-density-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#A-one-site-density-matrix" title="Permalink"></a></h3><p>We build a <strong>complex</strong> pure state so the resulting <span>$\rho$</span> has distinct matrix elements.</p><p class="math-container">\[|\psi\rangle = 0.6\,|\uparrow\rangle + 0.8 i\,|\downarrow\rangle.\]</p><pre><code class="language-julia hljs">sites = siteinds(&quot;S=1/2&quot;, 1)
+ψ = MPS(ComplexF64[0.6, 0.8im], sites)
+
+ρ = to_dm(ψ)
+ρ_dense = dense_mpo_matrix(ρ, sites)
+
+println(&quot;Dense ρ from to_dm(ψ):&quot;)
+println(ρ_dense)
+println()
+println(&quot;Tr(ρ)           = &quot;, LinearAlgebra.tr(ρ_dense))
+println(&quot;‖ρ - ρ†‖         = &quot;, LinearAlgebra.norm(ρ_dense - ρ_dense&#39;))
+println(&quot;ρ₁₁, ρ₂₂ differ? = &quot;, ρ_dense[1, 1] != ρ_dense[2, 2])
+println(&quot;Off-diagonal ρ₁₂ = &quot;, ρ_dense[1, 2])
+
+@assert ρ isa MPO{Hilbert}
+@assert isapprox(LinearAlgebra.tr(ρ_dense), 1.0 + 0im; atol=1e-12)
+@assert isapprox(ρ_dense, ρ_dense&#39;; atol=1e-12)
+@assert !isapprox(ρ_dense[1, 1], ρ_dense[2, 2]; atol=1e-6)
+@assert abs(imag(ρ_dense[1, 2])) &gt; 1e-6</code></pre><pre><code class="nohighlight hljs">Dense ρ from to_dm(ψ):
+ComplexF64[0.36 + 0.0im 0.0 - 0.48im; 0.0 + 0.48im 0.6400000000000001 + 0.0im]
+
+Tr(ρ)           = 1.0 + 0.0im
+‖ρ - ρ†‖         = 0.0
+ρ₁₁, ρ₂₂ differ? = true
+Off-diagonal ρ₁₂ = 0.0 - 0.48im
+</code></pre><h3 id="Column-major-vectorization"><a class="docs-heading-anchor" href="#Column-major-vectorization">Column-major vectorization</a><a id="Column-major-vectorization-1"></a><a class="docs-heading-anchor-permalink" href="#Column-major-vectorization" title="Permalink"></a></h3><p>Different communities use different vectorisation conventions. The convention matters because it determines the Kronecker-product formulas for left and right multiplication.</p><p><code>ProcessTensors.jl</code> uses <strong>column-major vectorisation</strong>, matching Julia&#39;s native array ordering. For a one-site density matrix</p><p class="math-container">\[\rho =
+\begin{pmatrix}
+\rho_{11} &amp; \rho_{12} \\
+\rho_{21} &amp; \rho_{22}
+\end{pmatrix},\]</p><p>the vectorised state is</p><p class="math-container">\[|\rho\rangle\rangle =
+\operatorname{vec}(\rho) =
+\begin{pmatrix}
+\rho_{11} \\ \rho_{21} \\ \rho_{12} \\ \rho_{22}
+\end{pmatrix}.\]</p><p>Equivalently, the <strong>first matrix index changes fastest</strong> when you read down the columns of <span>$\rho$</span>.</p><pre><code class="language-julia hljs">ρ_vec_dense = vec(ρ_dense)
+
+println(&quot;Column-major vec(ρ):&quot;)
+println(ρ_vec_dense)
+println()
+println(&quot;Compare with matrix entries:&quot;)
+println(&quot;  vec[1] should equal ρ₁₁ = &quot;, ρ_dense[1, 1])
+println(&quot;  vec[2] should equal ρ₂₁ = &quot;, ρ_dense[2, 1])
+println(&quot;  vec[3] should equal ρ₁₂ = &quot;, ρ_dense[1, 2])
+println(&quot;  vec[4] should equal ρ₂₂ = &quot;, ρ_dense[2, 2])
+
+@assert isapprox(ρ_vec_dense[1], ρ_dense[1, 1]; atol=1e-12)
+@assert isapprox(ρ_vec_dense[2], ρ_dense[2, 1]; atol=1e-12)
+@assert isapprox(ρ_vec_dense[3], ρ_dense[1, 2]; atol=1e-12)
+@assert isapprox(ρ_vec_dense[4], ρ_dense[2, 2]; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">Column-major vec(ρ):
+ComplexF64[0.36 + 0.0im, 0.0 + 0.48im, 0.0 - 0.48im, 0.6400000000000001 + 0.0im]
+
+Compare with matrix entries:
+  vec[1] should equal ρ₁₁ = 0.36 + 0.0im
+  vec[2] should equal ρ₂₁ = 0.0 + 0.48im
+  vec[3] should equal ρ₁₂ = 0.0 - 0.48im
+  vec[4] should equal ρ₂₂ = 0.6400000000000001 + 0.0im
+</code></pre><div class="admonition is-warning" id="Convention-matters-23521a91f7bca382"><header class="admonition-header">Convention matters<a class="admonition-anchor" href="#Convention-matters-23521a91f7bca382" title="Permalink"></a></header><div class="admonition-body"><p>Row-major and column-major vectorization lead to different Kronecker product formulas. This tutorial uses the column-major convention assumed by <code>ProcessTensors.jl</code>.</p></div></div><h3 id="Liouville-site-indices-and-vectorization"><a class="docs-heading-anchor" href="#Liouville-site-indices-and-vectorization">Liouville site indices and vectorization</a><a id="Liouville-site-indices-and-vectorization-1"></a><a class="docs-heading-anchor-permalink" href="#Liouville-site-indices-and-vectorization" title="Permalink"></a></h3><p>A spin-1/2 site has Hilbert dimension <span>$d=2$</span> and Liouville dimension <span>$d^2=4$</span>. The function <code>liouv_sites(sites)</code> creates the enlarged local indices used by Liouville-space MPS and MPO objects.</p><p><strong>Important:</strong> create <code>sites_L = liouv_sites(sites)</code> once at the start of a workflow and reuse the same <code>Index</code> objects everywhere. Two separate calls to <code>liouv_sites</code> return different index objects even when their tags and dimensions match.</p><pre><code class="language-julia hljs">sites_L = liouv_sites(sites)
+
+println(&quot;Hilbert site:   &quot;, sites[1])
+println(&quot;Liouville site: &quot;, sites_L[1])
+println(&quot;dim(Hilbert) = &quot;, dim(sites[1]), &quot;,  dim(Liouville) = &quot;, dim(sites_L[1]))
+
+@assert dim(sites_L[1]) == dim(sites[1])^2
+
+ρL = to_liouville(ρ; sites=sites_L)
+ρ_vec_pkg = ComplexF64.(Array(ρL[1], sites_L[1]))
+
+println()
+println(&quot;Vector from ProcessTensors.jl to_liouville:&quot;)
+println(ρ_vec_pkg)
+println()
+println(&quot;Max |difference| with vec(ρ_dense) = &quot;,
+        maximum(abs.(ρ_vec_pkg - ρ_vec_dense)))
+
+@assert ρL isa MPS{Liouville}
+@assert isapprox(ρ_vec_pkg, ρ_vec_dense; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">Hilbert site:   (dim=2|id=997|&quot;S=1/2,Site,n=1&quot;)
+Liouville site: (dim=4|id=787|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;)
+dim(Hilbert) = 2,  dim(Liouville) = 4
+
+Vector from ProcessTensors.jl to_liouville:
+ComplexF64[0.36 + 0.0im, 0.0 + 0.48im, 0.0 - 0.48im, 0.6400000000000001 + 0.0im]
+
+Max |difference| with vec(ρ_dense) = 0.0
+</code></pre><p>The reverse operation is <code>to_hilbert</code>. It unzips the Liouville site back to the original Hilbert-space bra/ket MPO.</p><pre><code class="language-julia hljs">ρ_back = to_hilbert(ρL)
+ρ_back_dense = dense_mpo_matrix(ρ_back, sites)
+
+println()
+println(&quot;Round-trip error ‖ρ - to_hilbert(to_liouville(ρ))‖ = &quot;,
+        LinearAlgebra.norm(ρ_back_dense - ρ_dense))
+
+@assert isapprox(ρ_back_dense, ρ_dense; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">
+Round-trip error ‖ρ - to_hilbert(to_liouville(ρ))‖ = 0.0
+</code></pre><div class="admonition is-info" id="What-happened-to-the-MPO?-51a206ccb797f60a"><header class="admonition-header">What happened to the MPO?<a class="admonition-anchor" href="#What-happened-to-the-MPO?-51a206ccb797f60a" title="Permalink"></a></header><div class="admonition-body"><p><code>to_liouville</code> fuses the ket and bra legs of an <code>MPO{Hilbert}</code> into one enlarged Liouville leg. <code>to_hilbert</code> reverses that fusion. The round-trip above confirms that no information is lost in this conversion on a one-site system.</p></div></div><h2 id="Trace-and-expectation-values"><a class="docs-heading-anchor" href="#Trace-and-expectation-values">Trace and expectation values</a><a id="Trace-and-expectation-values-1"></a><a class="docs-heading-anchor-permalink" href="#Trace-and-expectation-values" title="Permalink"></a></h2><p>Once operators and density matrices share the same Liouville index set, traces and expectations become Hilbert–Schmidt overlaps. In Liouville space, quantities such as <span>$\operatorname{Tr}(\rho)$</span> and <span>$\operatorname{Tr}(O\rho)$</span> are computed as overlaps with vectorised operators. This is why identity operators and observable insertions appear naturally as contractions in tensor-network diagrams.</p><h3 id="Trace-and-local-expectations"><a class="docs-heading-anchor" href="#Trace-and-local-expectations">Trace and local expectations</a><a id="Trace-and-local-expectations-1"></a><a class="docs-heading-anchor-permalink" href="#Trace-and-local-expectations" title="Permalink"></a></h3><p>The two central identities are</p><p class="math-container">\[\operatorname{Tr}(\rho) = \langle\langle I | \rho \rangle\rangle,
+\qquad
+\langle O\rangle = \operatorname{Tr}(O\rho) = \langle\langle O | \rho \rangle\rangle.\]</p><p>We build one-site Hilbert MPOs for the identity and <span>$S_z$</span>, vectorize them on the <strong>same</strong> <code>sites_L</code> used for <span>$\rho$</span>, and compare with dense-matrix formulas.</p><pre><code class="language-julia hljs">Id_os = OpSum()
+Id_os += 1.0, &quot;Id&quot;, 1
+Id_mpo = MPO(Id_os, sites)
+
+Sz_os = OpSum()
+Sz_os += 1.0, &quot;Sz&quot;, 1
+Sz_mpo = MPO(Sz_os, sites)
+
+Id_L = to_liouville(Id_mpo; sites=sites_L)
+Sz_L = to_liouville(Sz_mpo; sites=sites_L)
+Sz_dense = dense_mpo_matrix(Sz_mpo, sites)
+
+trace_from_dense = LinearAlgebra.tr(ρ_dense)
+trace_from_liouville = inner(Id_L, ρL)
+
+expect_from_dense = LinearAlgebra.tr(Sz_dense * ρ_dense)
+expect_from_liouville = inner(Sz_L, ρL)
+
+println(&quot;Trace check:&quot;)
+println(&quot;  Tr(ρ) from dense matrix:         &quot;, trace_from_dense)
+println(&quot;  ⟨⟨I|ρ⟩⟩ from Liouville overlap:  &quot;, trace_from_liouville)
+println()
+println(&quot;Expectation value check:&quot;)
+println(&quot;  Tr(Sz ρ) from dense matrices:       &quot;, expect_from_dense)
+println(&quot;  ⟨⟨Sz|ρ⟩⟩ from Liouville overlap:  &quot;, expect_from_liouville)
+
+@assert isapprox(trace_from_liouville, trace_from_dense; atol=1e-12)
+@assert isapprox(expect_from_liouville, expect_from_dense; atol=1e-12)
+@assert isapprox(expect_from_liouville, -0.14; atol=1e-12)</code></pre><pre><code class="nohighlight hljs">Trace check:
+  Tr(ρ) from dense matrix:         1.0 + 0.0im
+  ⟨⟨I|ρ⟩⟩ from Liouville overlap:  1.0 + 0.0im
+
+Expectation value check:
+  Tr(Sz ρ) from dense matrices:       -0.14000000000000007 + 0.0im
+  ⟨⟨Sz|ρ⟩⟩ from Liouville overlap:  -0.14000000000000007 + 0.0im
+</code></pre><h3 id="Left-and-right-multiplication"><a class="docs-heading-anchor" href="#Left-and-right-multiplication">Left and right multiplication</a><a id="Left-and-right-multiplication-1"></a><a class="docs-heading-anchor-permalink" href="#Left-and-right-multiplication" title="Permalink"></a></h3><p>A superoperator is a linear map acting on operators. After vectorisation, it becomes an ordinary operator acting on Liouville-space vectors. The central identity is</p><p class="math-container">\[\operatorname{vec}(A\rho B) = (B^{\mathsf{T}}\otimes A)\operatorname{vec}(\rho).\]</p><p>Two special cases are especially important:</p><p class="math-container">\[\operatorname{vec}(A\rho) = (I\otimes A)|\rho\rangle\rangle,
+\qquad
+\operatorname{vec}(\rho B) = (B^{\mathsf{T}}\otimes I)|\rho\rangle\rangle.\]</p><p>In package notation, <code>&quot;Sx_L&quot;</code> means left multiplication by <span>$S_x$</span> and <code>&quot;Sx_R&quot;</code> means right multiplication by <span>$S_x$</span> <strong>before</strong> vectorisation. The suffixes <code>_L</code> and <code>_R</code> do not mean “left tensor leg” and “right tensor leg”.</p><pre><code class="language-julia hljs">s = sites[1]
+sL = sites_L[1]
+A = Matrix(Array(op(&quot;Sx&quot;, s), prime(s), s))
+
+A_left_dense = kron(Matrix{ComplexF64}(LinearAlgebra.I, 2, 2), A)
+A_right_dense = kron(transpose(A), Matrix{ComplexF64}(LinearAlgebra.I, 2, 2))
+
+left_expected = vec(A * ρ_dense)
+right_expected = vec(ρ_dense * A)
+
+left_from_kron = A_left_dense * ρ_vec_dense
+right_from_kron = A_right_dense * ρ_vec_dense
+
+println(&quot;Left multiplication Sx ρ:&quot;)
+println(&quot;  ‖vec(Sx ρ) - (I⊗Sx) vec(ρ)‖ = &quot;,
+        LinearAlgebra.norm(left_expected - left_from_kron))
+println()
+println(&quot;Right multiplication ρ Sx:&quot;)
+println(&quot;  ‖vec(ρ Sx) - (Sxᵀ⊗I) vec(ρ)‖ = &quot;,
+        LinearAlgebra.norm(right_expected - right_from_kron))
+
+@assert LinearAlgebra.norm(left_expected - left_from_kron) &lt; 1e-12
+@assert LinearAlgebra.norm(right_expected - right_from_kron) &lt; 1e-12
+
+Sx_L_dense = Matrix(Array(op(&quot;Sx_L&quot;, sL), prime(sL), sL))
+Sx_R_dense = Matrix(Array(op(&quot;Sx_R&quot;, sL), prime(sL), sL))
+
+left_from_pkg = Sx_L_dense * ρ_vec_pkg
+right_from_pkg = Sx_R_dense * ρ_vec_pkg
+
+println()
+println(&quot;Package Liouville operators:&quot;)
+println(&quot;  ‖Sx_L |ρ⟩⟩ - vec(Sx ρ)‖ = &quot;,
+        LinearAlgebra.norm(left_from_pkg - left_expected))
+println(&quot;  ‖Sx_R |ρ⟩⟩ - vec(ρ Sx)‖ = &quot;,
+        LinearAlgebra.norm(right_from_pkg - right_expected))
+
+@assert LinearAlgebra.norm(left_from_pkg - left_expected) &lt; 1e-12
+@assert LinearAlgebra.norm(right_from_pkg - right_expected) &lt; 1e-12</code></pre><pre><code class="nohighlight hljs">Left multiplication Sx ρ:
+  ‖vec(Sx ρ) - (I⊗Sx) vec(ρ)‖ = 0.0
+
+Right multiplication ρ Sx:
+  ‖vec(ρ Sx) - (Sxᵀ⊗I) vec(ρ)‖ = 0.0
+
+Package Liouville operators:
+  ‖Sx_L |ρ⟩⟩ - vec(Sx ρ)‖ = 0.0
+  ‖Sx_R |ρ⟩⟩ - vec(ρ Sx)‖ = 0.0
+</code></pre><div class="admonition is-warning" id="Left-and-right-are-different-fadb6df761998f6b"><header class="admonition-header">Left and right are different<a class="admonition-anchor" href="#Left-and-right-are-different-fadb6df761998f6b" title="Permalink"></a></header><div class="admonition-body"><p><code>&quot;Sx_L&quot;</code> and <code>&quot;Sx_R&quot;</code> multiply the density matrix from different sides before vectorization. They are not interchangeable.</p></div></div><h2 id="liouville-superoperators-and-opsums"><a class="docs-heading-anchor" href="#liouville-superoperators-and-opsums">Liouville superoperators and OpSums</a><a id="liouville-superoperators-and-opsums-1"></a><a class="docs-heading-anchor-permalink" href="#liouville-superoperators-and-opsums" title="Permalink"></a></h2><p>Closed-system evolution uses the commutator superoperator. Open-system generators add jump-operator terms in the same Liouville <code>OpSum</code> language. Once the density matrix is vectorised, Hamiltonian density-matrix evolution looks like ordinary linear evolution generated by a Liouville-space operator.</p><h3 id="Hamiltonian-commutator-generator"><a class="docs-heading-anchor" href="#Hamiltonian-commutator-generator">Hamiltonian commutator generator</a><a id="Hamiltonian-commutator-generator-1"></a><a class="docs-heading-anchor-permalink" href="#Hamiltonian-commutator-generator" title="Permalink"></a></h3><p>Unitary Schrödinger evolution of a pure state becomes Liouville-space evolution</p><p class="math-container">\[\frac{d\rho}{dt} = -i[H,\rho]
+\quad\Longleftrightarrow\quad
+\frac{d}{dt}|\rho\rangle\rangle = \mathcal{L}_H|\rho\rangle\rangle,\]</p><p>where <span>$\mathcal{L}_H = -iH_L + iH_R$</span> in the package suffix language. Here <span>$H_L$</span> means “left multiplication by <span>$H$</span>” and <span>$H_R$</span> means “right multiplication by <span>$H$</span>”.</p><pre><code class="language-julia hljs">H = OpSum()
+H += 0.7, &quot;Sx&quot;, 1
+H += 0.2, &quot;Sz&quot;, 1
+
+L_os = OpSum_Liouville(H)
+
+println()
+println(&quot;Liouville-space OpSum for -i[H, .]:&quot;)
+println(L_os)
+
+L_mpo = MPO_Liouville(H, sites_L)
+
+H_dense = dense_mpo_matrix(MPO(H, sites), sites)
+dρ_vec_dense = vec(-1im * (H_dense * ρ_dense - ρ_dense * H_dense))
+dρ_vec_pkg = ComplexF64.(Array(apply(L_mpo, ρL; cutoff=0.0)[1], sites_L[1]))
+
+commutator_error = LinearAlgebra.norm(dρ_vec_pkg - dρ_vec_dense)
+
+println(&quot;Hamiltonian commutator generator:&quot;)
+println(&quot;  ‖package Liouvillian action - dense commutator‖ = &quot;, commutator_error)
+
+@assert commutator_error &lt; 1e-10</code></pre><pre><code class="nohighlight hljs">
+Liouville-space OpSum for -i[H, .]:
+sum(
+  0.0 - 0.7im Sx_L(1,)
+  0.0 + 0.7im Sx_R(1,)
+  0.0 - 0.2im Sz_L(1,)
+  0.0 + 0.2im Sz_R(1,)
+)
+Hamiltonian commutator generator:
+  ‖package Liouvillian action - dense commutator‖ = 0.0
+</code></pre><h3 id="Open-system-generator-with-a-jump-term"><a class="docs-heading-anchor" href="#Open-system-generator-with-a-jump-term">Open-system generator with a jump term</a><a id="Open-system-generator-with-a-jump-term-1"></a><a class="docs-heading-anchor-permalink" href="#Open-system-generator-with-a-jump-term" title="Permalink"></a></h3><p>Markovian open-system master equations add terms such as <span>$L\rho L^\dagger - \tfrac{1}{2}\{L^\dagger L,\rho\}$</span>. In <code>ProcessTensors.jl</code> a local jump is supplied as a tuple, e.g. <code>(γ, &quot;S-&quot;, 1)</code>.</p><pre><code class="language-julia hljs">γ = 0.1
+L_os_open = OpSum_Liouville(H; jump_ops=[(γ, &quot;S-&quot;, 1)])
+
+println(&quot;OpSum entries for the open-system Liouville generator:&quot;)
+println(L_os_open)
+
+L_mpo_open = MPO_Liouville(H, sites_L; jump_ops=[(γ, &quot;S-&quot;, 1)])
+
+println()
+println(&quot;Open-system Liouville MPO built on the shared `sites_L` indices.&quot;)
+println(&quot;MPO type: &quot;, typeof(L_mpo_open))</code></pre><pre><code class="nohighlight hljs">OpSum entries for the open-system Liouville generator:
+sum(
+  0.0 - 0.7im Sx_L(1,)
+  0.0 + 0.7im Sx_R(1,)
+  0.0 - 0.2im Sz_L(1,)
+  0.0 + 0.2im Sz_R(1,)
+  0.1 S-_Jump(1,)
+  -0.05 S-_LdagL_L(1,)
+  -0.05 S-_LdagL_R(1,)
+)
+
+Open-system Liouville MPO built on the shared `sites_L` indices.
+MPO type: MPO{Liouville, Vector{ITensors.ITensor}}
+</code></pre><h3 id="Common-mistakes"><a class="docs-heading-anchor" href="#Common-mistakes">Common mistakes</a><a id="Common-mistakes-1"></a><a class="docs-heading-anchor-permalink" href="#Common-mistakes" title="Permalink"></a></h3><div class="admonition is-warning" id="Do-not-recreate-Liouville-sites-casually-4edbf5cc82a31dd7"><header class="admonition-header">Do not recreate Liouville sites casually<a class="admonition-anchor" href="#Do-not-recreate-Liouville-sites-casually-4edbf5cc82a31dd7" title="Permalink"></a></header><div class="admonition-body"><p>Two calls to <code>liouv_sites(sites)</code> return different <code>Index</code> objects even when their tags and dimensions match.</p></div></div><p>A frequent mistake is to vectorize a density matrix with one Liouville site set, then build <code>MPO_Liouville(H, sites)</code> from <strong>Hilbert</strong> sites. That constructor creates a fresh internal Liouville index that does not match the one already stored in <code>ρL</code>:</p><pre><code class="language-julia hljs">sites_L_for_state = liouv_sites(sites)
+ρL_demo = to_liouville(ρ; sites=sites_L_for_state)
+L_from_hilbert_sites = MPO_Liouville(H, sites)
+sL_on_generator = only(siteinds(L_from_hilbert_sites))
+
+println(&quot;Index on ρL:              &quot;, sites_L_for_state[1])
+println(&quot;Index on MPO_Liouville:   &quot;, sL_on_generator)
+println(&quot;Same index object?       &quot;, sites_L_for_state[1] == sL_on_generator)
+
+@assert sites_L_for_state[1] != sL_on_generator
+
+try
+    apply(L_from_hilbert_sites, ρL_demo)
+    error(&quot;expected apply to fail on mismatched Liouville indices&quot;)
+catch err
+    println(&quot;apply fails as expected: &quot;, typeof(err).name.name)
+end</code></pre><pre><code class="nohighlight hljs">Index on ρL:              (dim=4|id=853|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;)
+Index on MPO_Liouville:   ((dim=4|id=347|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;)&#39;, (dim=4|id=347|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;))
+Same index object?       false
+apply fails as expected: ErrorException
+</code></pre><p>Contractions such as <code>apply(L_from_hilbert_sites, ρL_demo)</code> then fail because ITensors matches legs by index identity, not by appearance. The fix is to pass the <strong>same</strong> Liouville sites to every constructor:</p><pre><code class="language-julia hljs">sites_L = liouv_sites(sites)
+ρL = to_liouville(ρ; sites=sites_L)
+L_mpo = MPO_Liouville(H, sites_L)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><ul><li>Liouville space vectorizes density matrices as <code>MPS{Liouville}</code>.</li><li><code>ProcessTensors.jl</code> uses column-major vectorization and <code>liouv_sites</code>.</li><li>Traces and expectations are Liouville overlaps: <code>inner(O_L, ρL)</code>.</li><li>Left/right actions use <code>&quot;Op_L&quot;</code> / <code>&quot;Op_R&quot;</code> suffixes on Liouville sites.</li><li><code>OpSum_Liouville</code> and <code>MPO_Liouville</code> build superoperators on <strong>shared</strong> Liouville indices.</li></ul><p>In the next tutorial, <a href="../unitary_dynamics/#Unitary-Dynamics">Unitary Dynamics</a>, we use this machinery for unitary time evolution and compare Hilbert-space and Liouville-space dynamics.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../mps_mpo_basics/">« MPS and MPO Basics</a><a class="docs-footer-nextpage" href="../unitary_dynamics/">Unitary Dynamics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 29 June 2026 13:40">Monday 29 June 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

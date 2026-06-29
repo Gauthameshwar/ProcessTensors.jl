@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Unitary Dynamics · ProcessTensors.jl</title><meta name="title" content="Unitary Dynamics · ProcessTensors.jl"/><meta property="og:title" content="Unitary Dynamics · ProcessTensors.jl"/><meta property="twitter:title" content="Unitary Dynamics · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/unitary_dynamics/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/unitary_dynamics/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/unitary_dynamics/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../getting_started/">Getting Started</a></li><li><span class="tocitem">Theory</span><ul><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../liouville_basics/">Liouville-Space Basics</a></li><li class="is-active"><a class="tocitem" href>Unitary Dynamics</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Model-and-exact-diagonalization"><span>Model and exact diagonalization</span></a></li><li><a class="tocitem" href="#TEBD-time-evolution"><span>TEBD time evolution</span></a></li><li><a class="tocitem" href="#TDVP-time-evolution"><span>TDVP time evolution</span></a></li><li><a class="tocitem" href="#Hilbert-versus-Liouville-evolution"><span>Hilbert versus Liouville evolution</span></a></li></ul></li><li><a class="tocitem" href="../dissipative_dynamics/">Dissipative Dynamics</a></li><li><a class="tocitem" href="../process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/spin_chain_unitary/">Unitary spin chain</a></li><li><a class="tocitem" href="../../examples/bose_hubbard_unitary/">Bose-Hubbard dynamics</a></li><li><a class="tocitem" href="../../examples/reduced_density_entropy/">Reduced states and entropy</a></li><li><a class="tocitem" href="../../examples/dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../../examples/dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../../examples/boundary_driven_spin_chain/">Boundary-driven chain</a></li><li><a class="tocitem" href="../../examples/driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../../examples/kicked_ising_chain/">Kicked Ising chain</a></li><li><a class="tocitem" href="../../examples/single_spin_bath_process_tensor/">Single spin-bath process tensor</a></li><li><a class="tocitem" href="../../examples/stochastic_process_tensor/">Stochastic process tensor</a></li><li><a class="tocitem" href="../../examples/multimode_process_tensor/">Multimode process tensor</a></li><li><a class="tocitem" href="../../examples/instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a class="tocitem" href="../../examples/convergence_and_truncation/">Convergence and truncation</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Unitary Dynamics</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Unitary Dynamics</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/tutorials/03_unitary_dynamics.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Unitary-Dynamics"><a class="docs-heading-anchor" href="#Unitary-Dynamics">Unitary Dynamics</a><a id="Unitary-Dynamics-1"></a><a class="docs-heading-anchor-permalink" href="#Unitary-Dynamics" title="Permalink"></a></h1><p>This tutorial continues from <a href="../liouville_basics/#Liouville-Space-Basics">Liouville-Space Basics</a>.</p><p>So far we know how to build MPS/MPO objects and vectorize density matrices. Now we <strong>evolve</strong> them in time for a closed spin chain.</p><p>The central question is: If we evolve a pure state in Hilbert space, and evolve its density matrix in Liouville space, do we get the same observables?</p><p>For unitary dynamics the answer should be yes. We will check this on a tiny four-site chain where exact diagonalization (ED) is still possible.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using ITensors
+import ITensorMPS
+import LinearAlgebra
+using ProcessTensors</code></pre><p><code>ITensorMPS.jl</code> already provides MPS/MPO objects, <code>OpSum</code>, gate application, TEBD, and TDVP. Refer to the <a href="https://docs.itensor.org/ITensorMPS/stable/tutorials/MPSTimeEvolution.html">ITensorMPS time evolution docs</a> for more details. <code>ProcessTensors.jl</code> builds on this rather than replacing it.</p><p>The nontrivial extension here is that the same time-evolution language is made available for:</p><ul><li>Hilbert-space states, <code>MPS{Hilbert}</code>,</li><li>Hilbert-space operators, <code>MPO{Hilbert}</code>,</li><li>vectorized density matrices, <code>MPS{Liouville}</code>,</li><li>Liouville-space generators, <code>MPO{Liouville}</code>.</li></ul><p>This tutorial first reviews Hilbert-space TEBD/TDVP, then shows how the same physics can be evolved in Liouville space.</p><h2 id="Model-and-exact-diagonalization"><a class="docs-heading-anchor" href="#Model-and-exact-diagonalization">Model and exact diagonalization</a><a id="Model-and-exact-diagonalization-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-exact-diagonalization" title="Permalink"></a></h2><p>We use a transverse-field Ising chain on <span>$N=4$</span> spins:</p><p class="math-container">\[H = H_X + H_{ZZ},
+\qquad
+H_{ZZ} = -J\sum_{j=1}^{N-1} S^z_j S^z_{j+1},
+\qquad
+H_X = -h\sum_{j=1}^{N} S^x_j.\]</p><p>The initial state is the product state <span>$|\uparrow\rangle^{\otimes N}$</span>.</p><p>Because <span>$2^4 = 16$</span>, we can form the dense Hamiltonian matrix and compare tensor-network evolution against the exact unitary</p><p class="math-container">\[|\psi(t)\rangle = e^{-iHt}|\psi(0)\rangle.\]</p><pre><code class="language-julia hljs">N = 4
+J = 1.0
+h = 1.2
+dt = 0.05
+T = 1.0
+maxdim = 32
+cutoff = 1e-10
+sample_times = collect(range(0, T; length=5))
+
+function tfim_hamiltonian(N; J=1.0, h=1.2)
+    os = OpSum()
+    for j in 1:(N - 1)
+        os += -J, &quot;Sz&quot;, j, &quot;Sz&quot;, j + 1
+    end
+    for j in 1:N
+        os += -h, &quot;Sx&quot;, j
+    end
+    return os
+end
+
+sites = siteinds(&quot;S=1/2&quot;, N)
+H = tfim_hamiltonian(N; J, h)
+H_mpo = MPO(H, sites)
+ψ0 = MPS(sites, fill(&quot;Up&quot;, N))
+
+println(&quot;Hamiltonian OpSum:&quot;)
+println(H)
+
+@assert ψ0 isa MPS{Hilbert}
+@assert H_mpo isa MPO{Hilbert}</code></pre><pre><code class="nohighlight hljs">Hamiltonian OpSum:
+sum(
+  -1.0 Sz(1,) Sz(2,)
+  -1.0 Sz(2,) Sz(3,)
+  -1.0 Sz(3,) Sz(4,)
+  -1.2 Sx(1,)
+  -1.2 Sx(2,)
+  -1.2 Sx(3,)
+  -1.2 Sx(4,)
+)
+</code></pre><p>To perform the classical Exact Diagonalisation (ED) dynamics, we need to construct the dense matrices and vectors from the MPO and MPS objects. Once we have them, we can use LAPACK&#39;s <code>exp</code> function to compute the unitary operator and use it to predict the time dynamics.</p><div class="admonition is-info" id="Small-dense-helper-functions-a4f233739963d6f4"><header class="admonition-header">Small dense helper functions<a class="admonition-anchor" href="#Small-dense-helper-functions-a4f233739963d6f4" title="Permalink"></a></header><div class="admonition-body"><p>The next few functions contract MPOs to dense matrices for <strong>validation only</strong> on this tiny chain. They are not scalable to larger systems like tensor-networks.</p></div></div><pre><code class="language-julia hljs">function dense_mpo_matrix(W, sites)
+    T = foldl(*, W)
+    D = prod(dim.(sites))
+    A = Array(T, prime.(sites)..., sites...)
+    return reshape(ComplexF64.(A), D, D)
+end
+
+function local_sz_matrices(sites, N)
+    mats = Vector{Matrix{ComplexF64}}(undef, N)
+    for j in 1:N
+        os = OpSum()
+        os += 1.0, &quot;Sz&quot;, j
+        mats[j] = dense_mpo_matrix(MPO(os, sites), sites)
+    end
+    return mats
+end
+
+function mean_sz_from_density(ρ_dense, Sz_dense, N)
+    total = 0.0
+    for j in 1:N
+        total += real(LinearAlgebra.tr(Sz_dense[j] * ρ_dense))
+    end
+    return total / N
+end
+
+H_dense = dense_mpo_matrix(H_mpo, sites)
+Sz_dense = local_sz_matrices(sites, N)
+
+ψ0_dense = let
+    Tψ = foldl(*, ψ0)
+    vec(ComplexF64.(Array(Tψ, sites...)))
+end;</code></pre><p>At time <span>$t$</span> the exact energy and mean magnetization are <span>$E(t)=\operatorname{Tr}(H\rho(t))$</span> and <span>$\langle S^z\rangle = \frac{1}{N}\sum_j \operatorname{Tr}(S^z_j \rho(t))$</span>, computed fully in the dense ED reference below.</p><pre><code class="language-julia hljs">function exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
+    ψt = iszero(t) ? ψ0_dense : LinearAlgebra.exp(-1im * t * H_dense) * ψ0_dense
+    ρ = ψt * ψt&#39;
+    E = real(LinearAlgebra.tr(H_dense * ρ))
+    mz = mean_sz_from_density(ρ, Sz_dense, N)
+    return E, mz, ρ
+end
+
+E0, mz0, _ = exact_energy_and_mz(0.0, H_dense, ψ0_dense, Sz_dense, N)
+E1, mz1, _ = exact_energy_and_mz(1.0, H_dense, ψ0_dense, Sz_dense, N)
+println(&quot;Exact reference at t = 0:  E = &quot;, E0, &quot;,  mean ⟨Sz⟩ = &quot;, mz0)
+println(&quot;Exact reference at t = 1:  E = &quot;, E1, &quot;,  mean ⟨Sz⟩ = &quot;, mz1)</code></pre><pre><code class="nohighlight hljs">Exact reference at t = 0:  E = -0.75,  mean ⟨Sz⟩ = 0.5
+Exact reference at t = 1:  E = -0.7499999999999998,  mean ⟨Sz⟩ = 0.19488315590977712
+</code></pre><h2 id="TEBD-time-evolution"><a class="docs-heading-anchor" href="#TEBD-time-evolution">TEBD time evolution</a><a id="TEBD-time-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#TEBD-time-evolution" title="Permalink"></a></h2><p><strong>Time-evolving block decimation (TEBD)</strong> approximates the short-time propagator</p><p class="math-container">\[U(\Delta t) = e^{-iH\Delta t}\]</p><p>by a product of <strong>local gates</strong>. The gates come from a Suzuki–Trotter factorization of <span>$H = H_X + H_{ZZ}$</span>.</p><p>For a second-order Trotter step (<code>Trotter{2}()</code>), schematically</p><p class="math-container">\[e^{-i(H_X + H_{ZZ})\Delta t} \approx
+e^{-iH_X \Delta t/2}\,
+e^{-iH_{ZZ}\Delta t}\,
+e^{-iH_X \Delta t/2}
++ \mathcal{O}(\Delta t^3).\]</p><p><code>ProcessTensors.jl</code> builds these gates through <code>trotter_gates</code> and applies them repeatedly in <code>tebd</code>.</p><h3 id="Inspecting-the-Trotter-gates"><a class="docs-heading-anchor" href="#Inspecting-the-Trotter-gates">Inspecting the Trotter gates</a><a id="Inspecting-the-Trotter-gates-1"></a><a class="docs-heading-anchor-permalink" href="#Inspecting-the-Trotter-gates" title="Permalink"></a></h3><p><code>trotter_gates</code> expands one Trotter step into local ITensor gates. Orders <code>1</code> and <code>2</code> use the <code>ITensors.Ops</code> factorization; even orders <code>n &gt;= 4</code> are built recursively with Yoshida&#39;s symmetric fractal composition in ProcessTensors.jl. For the specified Hamiltonian, we would have four on-site terms and three two-site terms corresponding to each term in the Hamiltonian. So in the first-order Trotter, we would expect a total of seven gates, and for the second-order Trotter, we would expect twice that.</p><pre><code class="language-julia hljs">println(&quot;Gates per Trotter step on this chain:&quot;)
+for order in (1, 2, 4)
+    alg = Trotter{order}()
+    step_gates = trotter_gates(H, sites, -im * dt; alg=alg)
+    println(&quot;  Trotter{&quot;, order, &quot;}: &quot;, length(step_gates), &quot; gates&quot;)
+end
+
+gates = trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+println(&quot;Indices of the first Trotter{2} gate: &quot;, inds(gates[1]))</code></pre><pre><code class="nohighlight hljs">Gates per Trotter step on this chain:
+  Trotter{1}: 7 gates
+  Trotter{2}: 14 gates
+  Trotter{4}: 42 gates
+Indices of the first Trotter{2} gate: ((dim=2|id=901|&quot;S=1/2,Site,n=1&quot;), (dim=2|id=997|&quot;S=1/2,Site,n=2&quot;), (dim=2|id=901|&quot;S=1/2,Site,n=1&quot;)&#39;, (dim=2|id=997|&quot;S=1/2,Site,n=2&quot;)&#39;)
+</code></pre><div class="admonition is-info" id="Higher-Trotter-orders-614b4bc70323fb26"><header class="admonition-header">Higher Trotter orders<a class="admonition-anchor" href="#Higher-Trotter-orders-614b4bc70323fb26" title="Permalink"></a></header><div class="admonition-body"><p><code>Trotter{4}()</code>, <code>Trotter{6}()</code>, and other even orders are supported via Yoshida fractal composition in this package. Odd orders <code>&gt;= 3</code> are not implemented yet.</p></div></div><h3 id="Evolving-with-tebd"><a class="docs-heading-anchor" href="#Evolving-with-tebd">Evolving with <code>tebd</code></a><a id="Evolving-with-tebd-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-with-tebd" title="Permalink"></a></h3><p>The call</p><pre><code class="language-julia hljs">tebd(ψ, H, dt, Δt; alg=Trotter{2}())</code></pre><p>applies <code>round(Δt/dt)</code> Trotter steps to evolve from the current MPS for a duration <code>Δt</code>. Truncation is controlled by <code>maxdim</code> and <code>cutoff</code>.</p><p>The energy is <span>$\langle H\rangle = \langle\psi|H|\psi\rangle$</span>, computed as <code>real(inner(ψ&#39;, H_mpo, ψ))</code>.</p><pre><code class="language-julia hljs">ψ1 = tebd(ψ0, H, dt, dt; alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff)
+
+E1 = real(inner(ψ1&#39;, H_mpo, ψ1))
+mz1 = sum(expect(ψ1, &quot;Sz&quot;)) / N
+
+println(&quot;After one TEBD step (Δt = &quot;, dt, &quot;):&quot;)
+println(&quot;  energy    = &quot;, E1)
+println(&quot;  mean ⟨Sz⟩ = &quot;, mz1)
+
+@assert ψ1 isa MPS{Hilbert}</code></pre><pre><code class="nohighlight hljs">After one TEBD step (Δt = 0.05):
+  energy    = -0.749996552683614
+  mean ⟨Sz⟩ = 0.49910026996760215
+</code></pre><h3 id="Trotter-order-comparison"><a class="docs-heading-anchor" href="#Trotter-order-comparison">Trotter order comparison</a><a id="Trotter-order-comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Trotter-order-comparison" title="Permalink"></a></h3><p>Higher Trotter order usually reduces splitting error at fixed <code>dt</code>. Here is a compact check at the final time <span>$T$</span>:</p><pre><code class="language-julia hljs">_, _, ρ_exact_T = exact_energy_and_mz(T, H_dense, ψ0_dense, Sz_dense, N)
+
+println()
+println(&quot;TEBD density-matrix error at t = &quot;, T, &quot;:&quot;)
+for alg in (Trotter{1}(), Trotter{2}(), Trotter{4}())
+    ψ_alg = tebd(ψ0, H, dt, T; alg, maxdim=maxdim, cutoff=cutoff)
+    ρ_alg = dense_mpo_matrix(to_dm(ψ_alg), sites)
+    err = LinearAlgebra.norm(ρ_alg - ρ_exact_T) / max(LinearAlgebra.norm(ρ_exact_T), eps())
+    println(&quot;  &quot;, typeof(alg), &quot;  ρ_err = &quot;, round(err, digits=4))
+end</code></pre><pre><code class="nohighlight hljs">
+TEBD density-matrix error at t = 1.0:
+  Trotter{1}  ρ_err = 0.0161
+  Trotter{2}  ρ_err = 0.0005
+  Trotter{4}  ρ_err = 0.0001
+</code></pre><p>We must note, however, that this accuracy comes at a cost of more gate operations while contracting them with the state. In principle, we could go to even higher-order Trotter, but the numerical cost would be significant.</p><h3 id="TEBD-vs-exact-evolution"><a class="docs-heading-anchor" href="#TEBD-vs-exact-evolution">TEBD vs exact evolution</a><a id="TEBD-vs-exact-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#TEBD-vs-exact-evolution" title="Permalink"></a></h3><p>Instead of looking only at the final time, let us sample the trajectory. This shows whether the tensor-network evolution follows the exact curve, not just whether it lands close at one point.</p><pre><code class="language-julia hljs">function compare_tebd(sample_times, ψ0, H, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
+    ψ = ψ0
+    t_prev = 0.0
+    println()
+    println(&quot;TEBD vs exact (Trotter{2}):&quot;)
+    println(&quot;  t      E_exact    E_tebd     mz_exact   mz_tebd&quot;)
+    println(&quot;  &quot; * &quot;-&quot;^52)
+    for t in sample_times
+        if t &gt; 0.0
+            ψ = tebd(ψ, H, dt, t - t_prev; alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff)
+            t_prev = t
+        end
+        E_ex, mz_ex, ρ_ex = exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
+        E_tebd = real(inner(ψ&#39;, H_mpo, ψ))
+        mz_tebd = sum(expect(ψ, &quot;Sz&quot;)) / N
+        ρ_tebd = dense_mpo_matrix(to_dm(ψ), sites)
+        ρ_err = LinearAlgebra.norm(ρ_tebd - ρ_ex) / max(LinearAlgebra.norm(ρ_ex), eps())
+        println(&quot;  $(lpad(round(t, digits=2), 5))  &quot;,
+                lpad(round(E_ex, digits=4), 9), &quot;  &quot;,
+                lpad(round(E_tebd, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_ex, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_tebd, digits=4), 9),
+                &quot;   ρ_err=&quot;, round(ρ_err, digits=4))
+    end
+end
+
+compare_tebd(sample_times, ψ0, H, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)</code></pre><pre><code class="nohighlight hljs">
+TEBD vs exact (Trotter{2}):
+  t      E_exact    E_tebd     mz_exact   mz_tebd
+  ----------------------------------------------------
+    0.0      -0.75      -0.75        0.5        0.5   ρ_err=0.0
+   0.25      -0.75    -0.7499     0.4777     0.4777   ρ_err=0.0001
+    0.5      -0.75    -0.7497     0.4137     0.4137   ρ_err=0.0002
+   0.75      -0.75    -0.7494     0.3158     0.3157   ρ_err=0.0004
+    1.0      -0.75    -0.7492     0.1949     0.1949   ρ_err=0.0005
+</code></pre><div class="admonition is-info" id="Energy-conservation-and-numerical-drift-9afd59e88c8e1483"><header class="admonition-header">Energy conservation and numerical drift<a class="admonition-anchor" href="#Energy-conservation-and-numerical-drift-9afd59e88c8e1483" title="Permalink"></a></header><div class="admonition-body"><p>In exact unitary dynamics with a time-independent Hamiltonian, energy is conserved. Any drift in the TEBD/TDVP energy is a numerical error from Trotter splitting, time-step error, or MPS truncation.</p></div></div><h2 id="TDVP-time-evolution"><a class="docs-heading-anchor" href="#TDVP-time-evolution">TDVP time evolution</a><a id="TDVP-time-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#TDVP-time-evolution" title="Permalink"></a></h2><p><strong>Time-dependent variational principle (TDVP)</strong> takes a different view. Instead of applying a product of fixed gates, TDVP projects the Schrödinger equation</p><p class="math-container">\[\frac{d}{dt}|\psi\rangle = -iH|\psi\rangle\]</p><p>onto the tangent space of the MPS manifold at the current state. This results in a more accurate time dynamics where conserved quantities remain conserved during the dynamics. However, the TDVP algorithm is more computationally expensive and also contains additional projection errors onto the subspace you restrain your wavefunction to. For more details on the TDVP algorithm, refer to <a href="https://tensornetwork.org/mps/algorithms/timeevo/tdvp.html">TensorNetwork.org</a>.</p><p><code>ITensorMPS.jl</code> implements the algorithm. <code>ProcessTensors.jl</code> forwards the call on the wrapped <code>.core</code> object and returns <code>MPS{Hilbert}</code>.</p><p>The Hamiltonian is passed as an <code>MPO{Hilbert}</code> and the evolution time enters as a <strong>complex</strong> number:</p><p class="math-container">\[|\psi(t)\rangle \approx \mathrm{TDVP}\big(H,\,-it,\,|\psi(0)\rangle\big).\]</p><p>So the second argument is <code>-im * t</code>, and the integrator step is <code>-im * dt</code>.</p><h3 id="Evolving-with-tdvp"><a class="docs-heading-anchor" href="#Evolving-with-tdvp">Evolving with <code>tdvp</code></a><a id="Evolving-with-tdvp-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-with-tdvp" title="Permalink"></a></h3><pre><code class="language-julia hljs">ψ_tdvp = tdvp(
+    H_mpo,
+    -im * dt,
+    ψ0;
+    time_step=-im * dt,
+    nsite=2,
+    maxdim=maxdim,
+    cutoff=cutoff,
+    outputlevel=0,
+)
+
+E_tdvp = real(inner(ψ_tdvp&#39;, H_mpo, ψ_tdvp))
+mz_tdvp = sum(expect(ψ_tdvp, &quot;Sz&quot;)) / N
+
+println(&quot;After one TDVP step (Δt = &quot;, dt, &quot;):&quot;)
+println(&quot;  energy    = &quot;, E_tdvp)
+println(&quot;  mean ⟨Sz⟩ = &quot;, mz_tdvp)
+
+@assert ψ_tdvp isa MPS{Hilbert}</code></pre><pre><code class="nohighlight hljs">After one TDVP step (Δt = 0.05):
+  energy    = -0.750000000001754
+  mean ⟨Sz⟩ = 0.4991003870438473
+</code></pre><h3 id="TDVP-vs-exact-evolution"><a class="docs-heading-anchor" href="#TDVP-vs-exact-evolution">TDVP vs exact evolution</a><a id="TDVP-vs-exact-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#TDVP-vs-exact-evolution" title="Permalink"></a></h3><p>Now we do a direct comparison of our time evolution with ED and print the energy and magnetization for each time step.</p><pre><code class="language-julia hljs">function compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
+    ψ = ψ0
+    t_prev = 0.0
+    println()
+    println(&quot;TDVP vs exact:&quot;)
+    println(&quot;  t        E_exact      E_tdvp     mz_exact   mz_tdvp   ρ_err&quot;)
+    println(&quot;  &quot; * &quot;-&quot;^52)
+    for t in sample_times
+        if t &gt; 0.0
+            ψ = tdvp(
+                H_mpo,
+                -im * (t - t_prev),
+                ψ;
+                time_step=-im * dt,
+                nsite=2,
+                maxdim=maxdim,
+                cutoff=cutoff,
+                outputlevel=0,
+            )
+            t_prev = t
+        end
+        E_ex, mz_ex, ρ_ex = exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
+        E_tdvp = real(inner(ψ&#39;, H_mpo, ψ))
+        mz_tdvp = sum(expect(ψ, &quot;Sz&quot;)) / N
+        ρ_tdvp = dense_mpo_matrix(to_dm(ψ), sites)
+        ρ_err = LinearAlgebra.norm(ρ_tdvp - ρ_ex) / max(LinearAlgebra.norm(ρ_ex), eps())
+        println(&quot;  $(lpad(round(t, digits=2), 5))  &quot;,
+                lpad(round(E_ex, digits=4), 9), &quot;  &quot;,
+                lpad(round(E_tdvp, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_ex, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_tdvp, digits=4), 9),
+                &quot;   &quot;, round(ρ_err, digits=6))
+    end
+end
+
+compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)</code></pre><pre><code class="nohighlight hljs">
+TDVP vs exact:
+  t        E_exact      E_tdvp     mz_exact   mz_tdvp   ρ_err
+  ----------------------------------------------------
+    0.0      -0.75      -0.75        0.5        0.5   0.0
+   0.25      -0.75      -0.75     0.4777     0.4777   5.0e-6
+    0.5      -0.75      -0.75     0.4137     0.4137   5.0e-6
+   0.75      -0.75      -0.75     0.3158     0.3158   1.6e-5
+    1.0      -0.75      -0.75     0.1949     0.1949   8.0e-5
+</code></pre><h2 id="Hilbert-versus-Liouville-evolution"><a class="docs-heading-anchor" href="#Hilbert-versus-Liouville-evolution">Hilbert versus Liouville evolution</a><a id="Hilbert-versus-Liouville-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-versus-Liouville-evolution" title="Permalink"></a></h2><p>The same unitary physics can be written in Liouville space. A pure state <span>$\rho = |\psi\rangle\langle\psi|$</span> obeys</p><p class="math-container">\[\frac{d\rho}{dt} = -i[H,\rho],
+\qquad
+|\rho(t)\rangle\rangle = e^{\mathcal{L}_H t}|\rho(0)\rangle\rangle,\]</p><p>with <span>$\mathcal{L}_H = -iH_L + iH_R$</span>. The Liouville generator is available as <code>MPO_Liouville(H, sites_L)</code>.</p><p>For TDVP the time argument is <strong><code>T</code></strong>, not <code>-im * T</code>, because the factor <span>$-i$</span> is already inside the Liouville MPO.</p><pre><code class="language-julia hljs">ρ0 = to_dm(ψ0)
+sites_L = liouv_sites(sites)
+ρL0 = to_liouville(ρ0; sites=sites_L)
+L_mpo = MPO_Liouville(H, sites_L)</code></pre><pre><code class="nohighlight hljs">4-element MPO{Liouville}
+  site dims: 4, 4, 4, 4
+  link dims: 4, 4, 4
+  maxlinkdim: 4
+  combiners: 0 ITensors
+
+  tensors:
+    [1] ((dim=4|id=535|&quot;Link,l=1&quot;), (dim=4|id=489|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;)&#39;, (dim=4|id=489|&quot;Liouv,Site,n=1,ptype=S=1/2&quot;))
+    [2] ((dim=4|id=535|&quot;Link,l=1&quot;), (dim=4|id=765|&quot;Link,l=2&quot;), (dim=4|id=124|&quot;Liouv,Site,n=2,ptype=S=1/2&quot;)&#39;, (dim=4|id=124|&quot;Liouv,Site,n=2,ptype=S=1/2&quot;))
+    [3] ((dim=4|id=765|&quot;Link,l=2&quot;), (dim=4|id=109|&quot;Link,l=3&quot;), (dim=4|id=825|&quot;Liouv,Site,n=3,ptype=S=1/2&quot;)&#39;, (dim=4|id=825|&quot;Liouv,Site,n=3,ptype=S=1/2&quot;))
+    [4] ((dim=4|id=109|&quot;Link,l=3&quot;), (dim=4|id=208|&quot;Liouv,Site,n=4,ptype=S=1/2&quot;)&#39;, (dim=4|id=208|&quot;Liouv,Site,n=4,ptype=S=1/2&quot;))
+</code></pre><h3 id="Evolving-with-tdvp-in-Liouville-space"><a class="docs-heading-anchor" href="#Evolving-with-tdvp-in-Liouville-space">Evolving with <code>tdvp</code> in Liouville space</a><a id="Evolving-with-tdvp-in-Liouville-space-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-with-tdvp-in-Liouville-space" title="Permalink"></a></h3><p>The Liouville analogue of the Hilbert TDVP call is</p><pre><code class="language-julia hljs">tdvp(L_mpo, Δt, ρL0; time_step=dt, nsite=2, maxdim, cutoff)</code></pre><p>Here <code>ρL0</code> is an <code>MPS{Liouville}</code> and <code>L_mpo</code> is the Liouville generator from <code>MPO_Liouville</code>. The time argument is <strong><code>Δt</code></strong>, not <code>-im * Δt</code>.</p><pre><code class="language-julia hljs">ρL1 = tdvp(
+    L_mpo,
+    dt,
+    ρL0;
+    time_step=dt,
+    nsite=2,
+    maxdim=maxdim,
+    cutoff=cutoff,
+    outputlevel=0,
+)
+
+ρ1_liouville = dense_mpo_matrix(to_hilbert(ρL1), sites)
+E_l1 = real(LinearAlgebra.tr(H_dense * ρ1_liouville))
+mz_l1 = mean_sz_from_density(ρ1_liouville, Sz_dense, N)
+
+println(&quot;After one Liouville TDVP step (Δt = &quot;, dt, &quot;):&quot;)
+println(&quot;  energy    = &quot;, E_l1)
+println(&quot;  mean ⟨Sz⟩ = &quot;, mz_l1)
+println(&quot;  Tr(ρ)     = &quot;, LinearAlgebra.tr(ρ1_liouville))
+
+@assert ρL1 isa MPS{Liouville}</code></pre><pre><code class="nohighlight hljs">After one Liouville TDVP step (Δt = 0.05):
+  energy    = -0.7499999999592573
+  mean ⟨Sz⟩ = 0.4991003870385855
+  Tr(ρ)     = 0.9999999994735931 + 4.39051983476658e-18im
+</code></pre><h3 id="Hilbert-vs-Liouville-TDVP"><a class="docs-heading-anchor" href="#Hilbert-vs-Liouville-TDVP">Hilbert vs Liouville TDVP</a><a id="Hilbert-vs-Liouville-TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-vs-Liouville-TDVP" title="Permalink"></a></h3><p>Here we perform the time evolution of our initial state in a TFIM in both the Hilbert and Liouville spaces and see if they match. The strongest check is whether the density matrices agree, not just individual observables. We also print <span>$\operatorname{Tr}(\rho)$</span> from the Liouville route.</p><pre><code class="language-julia hljs">function compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_dense)
+    ψ = ψ0
+    ρL = ρL0
+    t_prev = 0.0
+    println()
+    println(&quot;Hilbert vs Liouville TDVP:&quot;)
+    println(&quot;  t      E_Hilbert  E_Liouv    mz_Hilbert mz_Liouv   Tr(ρ_L)   ρ_err&quot;)
+    println(&quot;  &quot; * &quot;-&quot;^68)
+    for t in sample_times
+        if t &gt; 0.0
+            Δt = t - t_prev
+            ψ = tdvp(
+                H_mpo,
+                -im * Δt,
+                ψ;
+                time_step=-im * dt,
+                nsite=2,
+                maxdim=maxdim,
+                cutoff=cutoff,
+                outputlevel=0,
+            )
+            ρL = tdvp(
+                L_mpo,
+                Δt,
+                ρL;
+                time_step=dt,
+                nsite=2,
+                maxdim=maxdim,
+                cutoff=cutoff,
+                outputlevel=0,
+            )
+            t_prev = t
+        end
+        E_h = real(inner(ψ&#39;, H_mpo, ψ))
+        mz_h = sum(expect(ψ, &quot;Sz&quot;)) / N
+        ρ_h = dense_mpo_matrix(to_dm(ψ), sites)
+        ρ_l = dense_mpo_matrix(to_hilbert(ρL), sites)
+        E_l = real(LinearAlgebra.tr(H_dense * ρ_l))
+        mz_l = mean_sz_from_density(ρ_l, Sz_dense, N)
+        tr_ρ_l = LinearAlgebra.tr(ρ_l)
+        ρ_hl_err = LinearAlgebra.norm(ρ_h - ρ_l) / max(LinearAlgebra.norm(ρ_h), eps())
+        println(&quot;  $(lpad(round(t, digits=2), 5))  &quot;,
+                lpad(round(E_h, digits=4), 9), &quot;  &quot;,
+                lpad(round(E_l, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_h, digits=4), 9), &quot;  &quot;,
+                lpad(round(mz_l, digits=4), 9), &quot;  &quot;,
+                lpad(round(real(tr_ρ_l), digits=4), 7), &quot;  &quot;,
+                round(ρ_hl_err, digits=4))
+    end
+end
+
+compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_dense)</code></pre><pre><code class="nohighlight hljs">
+Hilbert vs Liouville TDVP:
+  t      E_Hilbert  E_Liouv    mz_Hilbert mz_Liouv   Tr(ρ_L)   ρ_err
+  --------------------------------------------------------------------
+    0.0      -0.75      -0.75        0.5        0.5      1.0  0.0
+   0.25      -0.75      -0.75     0.4777     0.4777      1.0  0.0
+    0.5      -0.75      -0.75     0.4137     0.4137   0.9999  0.0
+   0.75      -0.75      -0.75     0.3158     0.3158   0.9999  0.0
+    1.0      -0.75      -0.75     0.1949     0.1949   0.9999  0.0
+</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><ul><li><code>ITensorMPS.jl</code> provides TEBD/TDVP; <code>ProcessTensors.jl</code> extends them to typed Hilbert/Liouville MPS and MPO objects.</li><li>TEBD approximates <span>$e^{-iH\Delta t}$</span> by Trotter gates from <code>OpSum</code>.</li><li>TDVP projects Schrödinger evolution onto the MPS manifold; pass <code>-im * t</code>.</li><li>Liouville TDVP evolves <code>MPS{Liouville}</code> with <code>MPO_Liouville</code>; pass <code>T</code>.</li><li>Reuse <code>sites_L</code> across <code>to_liouville</code> and <code>MPO_Liouville</code>.</li></ul><p>Next: <a href="../dissipative_dynamics/#Dissipative-Dynamics">Dissipative Dynamics</a>, where jump terms make Liouville space essential.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../liouville_basics/">« Liouville-Space Basics</a><a class="docs-footer-nextpage" href="../dissipative_dynamics/">Dissipative Dynamics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 29 June 2026 13:40">Monday 29 June 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
