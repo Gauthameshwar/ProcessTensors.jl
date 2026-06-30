@@ -12,6 +12,10 @@ if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
     include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
 end
 
+if !isdefined(Main, :JULIA_PROCESSTENSORS_RUN_SLOW)
+    const JULIA_PROCESSTENSORS_RUN_SLOW = get(ENV, "JULIA_PROCESSTENSORS_RUN_SLOW", "true") == "true"
+end
+
 
 @testset "process_tensor: bath-only evolution traces out to unchanged system" begin
     nmodes = 2
@@ -45,8 +49,8 @@ end
     end
 end
 
-for nmodes in (2, 3)
-    @testset "process_tensor: nontrivial nmodes=$nmodes PT vs joint full-H exact ED" begin
+@testset "process_tensor: nontrivial nmodes=2 PT vs joint full-H exact ED" begin
+    nmodes = 2
         sys_phys = siteinds("S=1/2", 1)
         env_phys = siteinds("S=1/2", nmodes)
         env_liouv = liouv_sites(env_phys)
@@ -130,6 +134,94 @@ for nmodes in (2, 3)
         @test maximum(obs_errs) < 0.05
         @test maximum(trace_errs) < 0.05
         @test maximum(density_errs) < 0.05
+end
+
+# Slow multimode ED (`nmodes=3`): skipped when `JULIA_PROCESSTENSORS_RUN_SLOW=false`.
+if JULIA_PROCESSTENSORS_RUN_SLOW
+    @testset "process_tensor: nontrivial nmodes=3 PT vs joint full-H exact ED [slow]" begin
+    nmodes = 3
+    sys_phys = siteinds("S=1/2", 1)
+    env_phys = siteinds("S=1/2", nmodes)
+    env_liouv = liouv_sites(env_phys)
+
+    H_sys = OpSum()
+    H_sys += 0.7, "Sx", 1
+    system = spin_system(sys_phys, H_sys)
+
+    mode_h_coeffs = [0.25 + 0.1 * m for m in 1:nmodes]
+    mode_cpl_coeffs = [0.03 + 0.01 * m for m in 1:nmodes]
+
+    modes = SpinMode[]
+    for m in 1:nmodes
+        rho_env_h = to_dm(MPS([env_phys[m]], ["Up"]))
+        rho_env_l = to_liouville(rho_env_h; sites=[env_liouv[m]])
+        H_mode = OpSum()
+        H_mode += mode_h_coeffs[m], "Sx", 1
+        cpl_mode = OpSum()
+        cpl_mode += mode_cpl_coeffs[m], "Sz", 1, "Sz", 2
+        mode = spin_mode([env_liouv[m]], H_mode, rho_env_l; coupling=cpl_mode)
+        @test mode.coupling != OpSum()
+        push!(modes, mode)
+    end
+    bath = spin_bath(modes)
+    @test length(bath.modes) == nmodes
+
+    dt = 0.1
+    nsteps = 6
+    pt = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
+    @test pt isa ProcessTensor
+    @test length(pt.core) == nsteps
+
+    rho_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
+    trajectory = evolve(pt, rho_sys0_h)
+    @test length(trajectory.states_liouville) == nsteps
+
+    denv = 2^nmodes
+    joint_sites = _joint_phys_sites(sys_phys, env_phys)
+    H_bg = _build_multimode_bath_opsum(nmodes, mode_h_coeffs, mode_cpl_coeffs)
+    H_full = _build_joint_full_opsum(H_sys, H_bg)
+    rho_joint = _joint_initial_density(sys_phys, env_phys)
+
+    joint_errs = Float64[]
+    O_sys = OpSum() + (1.0, "Sz", 1)
+    default_instr = _schedule_default_instr_pt(pt)
+    obs_errs = Float64[]
+    trace_errs = Float64[]
+    density_errs = Float64[]
+
+    for k in 0:(nsteps - 1)
+        t = k * dt
+        rho_ed = _reduced_system_joint_full(rho_joint, t, H_full, joint_sites, 2, denv)
+
+        rho_l = trajectory.states_liouville[k + 1]
+        rho_h = to_hilbert(rho_l)
+        rho_pt = hilbert_mpo_to_dense(rho_h, _physical_sites_from_hilbert_mpo(rho_h))
+        push!(joint_errs, norm(rho_pt - rho_ed))
+
+        pt_k = build_process_tensor(
+            system, system.sites[1]; environment=bath, dt=dt, nsteps=k + 1,
+        )
+        seq_obs = _seq_observable_terminal(rho_sys0_h, O_sys, k + 1, default_instr)
+        val_obs = evaluate_process(pt_k, seq_obs; default_instr=default_instr)
+        push!(obs_errs, abs(val_obs - _ed_expectation(rho_ed, O_sys, sys_phys)))
+
+        seq_tr = _seq_trace_terminal(rho_sys0_h, k + 1, default_instr)
+        val_tr = evaluate_process(pt_k, seq_tr; default_instr=default_instr)
+        push!(trace_errs, abs(val_tr - real(tr(rho_ed))))
+
+        seq_rho = InstrumentSeq(default=default_instr, nsteps=k + 1)
+        add!(seq_rho, StatePreparation(rho_sys0_h), 0)
+        rho_eval_h = to_hilbert(evaluate_process(pt_k, seq_rho; default_instr=default_instr))
+        rho_eval = _hilbert_mpo_to_dense_one_site(rho_eval_h)
+        push!(density_errs, norm(rho_eval - rho_ed))
+
+        val_evolve = _ed_expectation(rho_pt, O_sys, sys_phys)
+        @test isapprox(val_obs, val_evolve; atol=1e-9, rtol=1e-7)
+    end
+    @test maximum(joint_errs) < 0.05
+    @test maximum(obs_errs) < 0.05
+    @test maximum(trace_errs) < 0.05
+    @test maximum(density_errs) < 0.05
     end
 end
 

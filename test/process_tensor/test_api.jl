@@ -8,15 +8,9 @@ struct _UnsupportedPTInstrument <: AbstractInstrument end
 if !isdefined(Main, :liouville_state_to_dense)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end
-
-function _one_site_hilbert_mpo_to_dense(mpo::AbstractMPO{Hilbert})
-    site = only(filter(i -> plev(i) == 0, collect(inds(mpo.core[1]))))
-    d = dim(site)
-    return reshape(ComplexF64.(Array(mpo.core[1], prime(site), site)), d, d)
+if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
+    include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
 end
-
-_one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
-    _one_site_hilbert_mpo_to_dense(to_hilbert(ρ))
 
 @testset "process_tensor.jl: single-site rebuild API" begin
     @testset "build_process_tensor uses explicit coupling_site::Index" begin
@@ -142,6 +136,71 @@ _one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
             @test _one_site_liouville_state_to_dense(trajectory.states_liouville[i]) ≈
                   _one_site_liouville_state_to_dense(manual[i + 1]) atol=1e-10
         end
+    end
+
+    @testset "dissipative Markovian PT states match tebd_trajectory" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.55, "Sz", 1)
+        L = OpSum() + (0.12, "S-", 1)
+        system = spin_system(s, H; jump_ops=[L])
+        pt = build_process_tensor(system; dt=0.05, nsteps=4)
+        psi0 = MPS(s, ["Up"])
+        rho0_l = to_liouville(to_dm(psi0); sites=system.sites)
+
+        trj_pt = evolve(pt, psi0)
+        trj_tebd = tebd_trajectory(
+            rho0_l,
+            H,
+            0.05,
+            4;
+            jump_ops=[L],
+            maxdim=32,
+            cutoff=1e-12,
+            alg=Trotter{2}(),
+        )
+
+        for i in 1:pt.nsteps
+            ρ_pt = _one_site_liouville_state_to_dense(trj_pt.states_liouville[i])
+            ρ_ref = liouville_state_to_dense(trj_tebd[i + 1], s)
+            @test ρ_pt ≈ ρ_ref atol=1e-9 rtol=1e-8
+        end
+    end
+
+    @testset "Markovian identity propagation with empty H_sys" begin
+        s = siteinds("S=1/2", 1)
+        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+        pt = build_process_tensor(system; dt=0.05, nsteps=5)
+        rho0_h = to_dm(MPS(s, ["+"]))
+        rho0_dense = _one_site_hilbert_mpo_to_dense(rho0_h)
+
+        trj = evolve(pt, rho0_h)
+        for ρ_l in trj.states_liouville
+            ρ_dense = _one_site_liouville_state_to_dense(ρ_l)
+            @test ρ_dense ≈ rho0_dense atol=1e-10 rtol=1e-9
+        end
+    end
+
+    @testset "identity instrument chain matches no-instrument evolve baseline" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.45, "Sz", 1)
+        system = spin_system(s, H)
+        pt = build_process_tensor(system; dt=0.05, nsteps=4)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        trj_base = evolve(pt, rho0_h)
+        seq_id = _identity_instrument_seq(pt, rho0_h)
+        trj_id = evolve(pt, seq_id)
+
+        for i in 1:pt.nsteps
+            ρ_base = _one_site_liouville_state_to_dense(trj_base.states_liouville[i])
+            ρ_id = _one_site_liouville_state_to_dense(trj_id.states_liouville[i])
+            @test ρ_base ≈ ρ_id atol=1e-10 rtol=1e-9
+        end
+
+        rho_eval = to_hilbert(evaluate_process(pt, seq_id))
+        ρ_eval = _one_site_hilbert_mpo_to_dense(rho_eval)
+        ρ_final = _one_site_liouville_state_to_dense(trj_base.states_liouville[end])
+        @test ρ_eval ≈ ρ_final atol=1e-10
     end
 
     @testset "lazy APIs reject embed_system_propagation=false" begin

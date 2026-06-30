@@ -2,6 +2,9 @@ using ProcessTensors
 using Test
 using Aqua
 
+# Fast vs full test runs: set `JULIA_PROCESSTENSORS_RUN_SLOW=false` to skip slow ED / QO suites.
+const JULIA_PROCESSTENSORS_RUN_SLOW = get(ENV, "JULIA_PROCESSTENSORS_RUN_SLOW", "true") == "true"
+
 @testset "Aqua.jl: Code quality checks" begin
     Aqua.test_all(ProcessTensors; piracies=false)
 end
@@ -37,9 +40,12 @@ include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_methods.jl"))
 
 if Base.find_package("QuantumOptics") !== nothing
-    include(joinpath(@__DIR__, "liouvillian", "spinmpo_vs_qo.jl"))
-    include(joinpath(@__DIR__, "liouvillian", "bosonmpo_vs_qo.jl"))
-    nothing
+    if JULIA_PROCESSTENSORS_RUN_SLOW
+        include(joinpath(@__DIR__, "liouvillian", "spinmpo_vs_qo.jl"))
+        include(joinpath(@__DIR__, "liouvillian", "bosonmpo_vs_qo.jl"))
+    else
+        @info "Skipping QuantumOptics comparison tests (JULIA_PROCESSTENSORS_RUN_SLOW=false)."
+    end
 else
     @info "Skipping QuantumOptics comparison tests because QuantumOptics is not installed."
 end

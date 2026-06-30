@@ -198,6 +198,47 @@ if !isdefined(Main, :_schedule_default_instr_pt)
     end
 end
 
+if !isdefined(Main, :_one_site_hilbert_mpo_to_dense)
+    function _one_site_hilbert_mpo_to_dense(mpo::AbstractMPO{Hilbert})
+        site = only(filter(i -> plev(i) == 0, collect(inds(mpo.core[1]))))
+        d = dim(site)
+        return reshape(ComplexF64.(Array(mpo.core[1], prime(site), site)), d, d)
+    end
+end
+
+if !isdefined(Main, :_one_site_liouville_state_to_dense)
+    _one_site_liouville_state_to_dense(ρ::AbstractMPS{Liouville}) =
+        _one_site_hilbert_mpo_to_dense(to_hilbert(ρ))
+end
+
+if !isdefined(Main, :_assert_hermitian_psd)
+    function _assert_hermitian_psd(rho::AbstractMatrix{<:Number}; atol=1e-8)
+        rho = ComplexF64.(rho)
+        @test isapprox(rho, rho'; atol=atol)
+        ev = eigvals(Hermitian(rho))
+        @test minimum(ev) >= -atol
+        return nothing
+    end
+end
+
+if !isdefined(Main, :_assert_trace_one)
+    function _assert_trace_one(rho::AbstractMatrix{<:Number}; atol=1e-8)
+        @test isapprox(real(tr(ComplexF64.(rho))), 1.0; atol=atol)
+        return nothing
+    end
+end
+
+if !isdefined(Main, :_identity_instrument_seq)
+    function _identity_instrument_seq(pt::ProcessTensor, rho0_h)
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        for step in 1:(pt.nsteps - 1)
+            add!(seq, IdentityOperation(), step)
+        end
+        return seq
+    end
+end
+
 if !isdefined(Main, :_seq_observable_terminal)
     """Fully contracted schedule measuring `O` on the terminal system output (time label `nsteps-1`)."""
     function _seq_observable_terminal(

@@ -9,6 +9,13 @@ using ITensors
 using Test
 using LinearAlgebra
 
+if !isdefined(Main, :liouville_state_to_dense)
+    include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
+end
+if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
+    include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
+end
+
 if !isdefined(Main, :_mpo_to_dense)
     function _mpo_to_dense(mpo::AbstractMPO{Hilbert})
         sites = [only(filter(i -> plev(i) == 0, inds(mpo.core[j]))) for j in 1:length(mpo.core)]
@@ -161,6 +168,52 @@ end
 
         for t_idx in 2:nsteps
             _check_causality_triple(pt, rho0_h, t_idx; atol=1e-10)
+        end
+    end
+end
+
+@testset "process_tensor.jl: physicality (Hermitian, PSD, trace-one)" begin
+    @testset "unitary Markovian and bath-coupled trajectories" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.3, "Sx", 1) + (0.2, "Sz", 1)
+        system = spin_system(s, H)
+        pt = build_process_tensor(system; dt=0.05, nsteps=4)
+        trj = evolve(pt, to_dm(MPS(s, ["+"])))
+
+        for ρ_l in trj.states_liouville
+            ρ_dense = _one_site_liouville_state_to_dense(ρ_l)
+            _assert_hermitian_psd(ρ_dense)
+            _assert_trace_one(ρ_dense)
+        end
+
+        env_phys = siteinds("S=1/2", 1)
+        env_liouv = liouv_sites(env_phys)
+        rho_env_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
+        H_env = OpSum() + (0.5, "Sx", 1)
+        cpl = OpSum() + (0.15, "Sz", 1, "Sz", 2)
+        mode = spin_mode(env_liouv, H_env, rho_env_l; coupling=cpl)
+        bath = spin_bath([mode])
+        pt_bath = build_process_tensor(system, system.sites[1]; environment=bath, dt=0.05, nsteps=3)
+        trj_bath = evolve(pt_bath, to_dm(MPS(s, ["Up"])))
+        for ρ_l in trj_bath.states_liouville
+            ρ_dense = _one_site_liouville_state_to_dense(ρ_l)
+            _assert_hermitian_psd(ρ_dense; atol=1e-7)
+            _assert_trace_one(ρ_dense; atol=1e-7)
+        end
+    end
+
+    @testset "dissipative Markovian trajectory" begin
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.4, "Sz", 1)
+        L = OpSum() + (0.08, "S-", 1)
+        system = spin_system(s, H; jump_ops=[L])
+        pt = build_process_tensor(system; dt=0.05, nsteps=5)
+        trj = evolve(pt, to_dm(MPS(s, ["Up"])))
+
+        for ρ_l in trj.states_liouville
+            ρ_dense = _one_site_liouville_state_to_dense(ρ_l)
+            _assert_hermitian_psd(ρ_dense; atol=1e-7)
+            _assert_trace_one(ρ_dense; atol=1e-7)
         end
     end
 end
