@@ -15,6 +15,9 @@
 # For the original ITensorMPS tutorial on MPS and MPO objects, see the
 # [MPS and MPO examples page](https://docs.itensor.org/ITensorMPS/stable/examples/MPSandMPO.html).
 #
+# For MPS/MPO definitions and contraction pictures, see
+# [Tensor Networks in Physics](../theory/tensor_networks.md).
+#
 # A many-body wavefunction on `N` sites can be written as
 #
 # ```math

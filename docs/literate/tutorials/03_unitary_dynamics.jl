@@ -378,7 +378,7 @@ end
 
 compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 
-# ## Hilbert versus Liouville evolution
+# ## [Hilbert versus Liouville evolution](@id hilbert-liouville-tdvp)
 #
 # The same unitary physics can be written in Liouville space. A pure state
 # $\rho = |\psi\rangle\langle\psi|$ obeys

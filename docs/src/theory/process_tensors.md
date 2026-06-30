@@ -289,6 +289,13 @@ The memory bond dimensions determine how much temporal correlation is stored. A 
 !!! note "Temporal tensor network"
     An MPS stores spatial correlations along a chain. A process tensor stores temporal correlations along a sequence of time steps. This is why process tensors can often be represented as matrix-product objects in time.
 
+!!! info "In the package"
+    ```julia
+    pt = build_process_tensor(system; environment, dt, nsteps)
+    ```
+
+    See [Building the process tensor](@ref building-the-process-tensor) in [Single-Mode Process Tensor](@ref).
+
 ### Instruments in process-tensor slots
 
 An instrument is inserted into the open legs of a process tensor. It represents the operation performed on the system at a given time.
@@ -322,6 +329,15 @@ The process tensor itself stores the environment-mediated multi-time structure. 
 
 !!! warning "Instrument is broader than measurement"
     A measurement is one kind of instrument. But in a process tensor calculation, an instrument can also mean preparation, propagation, trace-out, observable insertion, or leaving a leg open.
+
+!!! info "In the package"
+    ```julia
+    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq, StatePreparation(ρ0), 0)
+    add!(seq, IdentityOperation(), 1)
+    ```
+
+    See [Instrument schedules](@ref instrument-schedules) in [Single-Mode Process Tensor](@ref).
 
 ### Evaluating a process tensor
 
@@ -365,13 +381,16 @@ Reduced evolution picture:
 
 In package language, this is the difference between the general and convenience workflows:
 
-```julia
-# General process contraction
-evaluate_process(pt, seq)
+!!! info "In the package"
+    ```julia
+    # General process contraction
+    evaluate_process(pt, seq)
 
-# Common reduced-evolution workflow
-evolve(pt, ρ0)
-```
+    # Common reduced-evolution workflow
+    evolve(pt, ρ0)
+    ```
+
+    See [Instrument schedules](@ref instrument-schedules) and [Evolving reduced states](@ref evolving-reduced-states) in [Single-Mode Process Tensor](@ref).
 
 The second is not a different physical theory. It is a frequently used contraction of the same process tensor.
 
@@ -388,6 +407,13 @@ Two-time operator insertion:
 ```
 
 The precise instrument depends on what correlation is desired. A projective measurement, an observable insertion, and a left/right operator action are not the same operation.
+
+!!! info "In the package"
+    ```julia
+    seq = two_time_correlation_seq(pt, (O, t2), (O, t1); rho0=ρ0)
+    ```
+
+    See the [Multi-time correlations](../examples/multitime_correlations.md) example and [Two-time correlation preview](@ref two-time-correlation-preview) in [Single-Mode Process Tensor](@ref).
 
 !!! warning "Sequential measurements versus operator correlations"
     A sequential measurement correlation is built from actual measured joint probabilities and includes measurement backaction. An operator correlation such as $\langle A(t_2)B(t_1)\rangle$ is an operator-insertion object. These two quantities agree only under specific assumptions.

@@ -15,6 +15,9 @@
 # In this tutorial, we take the next step: we treat density matrices themselves
 # as state-like vectors in a new space.
 #
+# The equations and conventions are summarised in
+# [Quantum States and Liouville Space](../theory/liouville_space.md).
+#
 # Density matrices are more general than state vectors. They can describe
 # coherent quantum superpositions, but also classical uncertainty:
 #
@@ -239,7 +242,7 @@ println("Round-trip error ‖ρ - to_hilbert(to_liouville(ρ))‖ = ",
 #     above confirms that no information is lost in this conversion on a
 #     one-site system.
 
-# ## Trace and expectation values
+# ## [Trace and expectation values](@id liouville-trace-expectations)
 #
 # Once operators and density matrices share the same Liouville index set, traces
 # and expectations become Hilbert–Schmidt overlaps. In Liouville space,

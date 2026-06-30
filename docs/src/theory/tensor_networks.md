@@ -80,6 +80,14 @@ Across a bipartition of the chain, a pure state can be written in Schmidt form a
 
 The Schmidt rank $r$ tells us how many independent left-right components are needed across that cut. The MPS bond dimension across that cut must be large enough to store these components. This is why bond dimension is closely tied to entanglement.
 
+!!! info "In the package"
+    ```julia
+    sites = siteinds("S=1/2", N)
+    ψ = MPS(sites, fill("Up", N))
+    ```
+
+    See [ITensor Basics](@ref) for index conventions and [MPS and MPO Basics](@ref) for `siteinds` and MPS construction.
+
 !!! tip "Practical takeaway"
     In MPS simulations, the bond dimension is one of the main quantities to monitor. If the required bond dimension grows too quickly, the simulation becomes expensive or inaccurate.
 
@@ -129,6 +137,13 @@ In `ProcessTensors.jl`, MPOs appear in several places:
 
 !!! note "MPS versus MPO"
     An MPS represents a vector-like object. An MPO represents a map-like object. Density matrices sit between these viewpoints: in Hilbert space they are operators, while in Liouville space they can be treated as vectorised states.
+
+!!! info "In the package"
+    ```julia
+    H_mpo = MPO(H, sites)
+    ```
+
+    See [MPS and MPO Basics](@ref) for `OpSum` Hamiltonians and MPO assembly.
 
 ## Contractions
 
@@ -183,6 +198,13 @@ ket:              [A]  -- [A]  -- [A]
 
 This contraction viewpoint is important because `ProcessTensors.jl` uses the same idea for process tensors: a process tensor is evaluated by contracting it with a sequence of instruments.
 
+!!! info "In the package"
+    ```julia
+    expect_O = real(inner(ψ', O_mpo, ψ))
+    ```
+
+    See [MPS and MPO Basics](@ref) for expectation values and energy calculations.
+
 ## Truncation and approximation
 
 Tensor-network simulations are powerful because they can compress information. This compression usually happens through singular-value decompositions.
@@ -216,12 +238,28 @@ Keeping only the largest $\lambda_\alpha$ gives an approximate state with smalle
 
 This is the basic compression step behind many tensor-network algorithms. In practice, simulations usually control truncation using parameters such as a maximum bond dimension and a singular-value cutoff.
 
+!!! info "In the package"
+    ```julia
+    ψ = tebd(ψ, H, dt, T; alg=Trotter{2}(), maxdim=32, cutoff=1e-10)
+    ```
+
+    See [Unitary Dynamics](@ref) for TEBD evolution and how `maxdim` / `cutoff` control truncation error.
+
 !!! tip "Learn the SVD machinery of ITensors"
     The official [ITensors](https://docs.itensor.org/ITensors/stable/) documentation has examples of performing SVDs on matrices and higher-order tensors using named indices. This is a good place to learn how tensors are split, how singular values appear, and how contractions rebuild the original object.
 
 ## Tensor networks in `ProcessTensors.jl`
 
 This package builds on the `ITensors.jl` and `ITensorMPS.jl` ecosystem. If you already know how to use `siteinds`, `MPS`, `MPO`, `OpSum`, `apply`, `expect`, or `tdvp`, then much of the syntax will feel familiar.
+
+!!! info "In the package"
+    ```julia
+    ρ = to_dm(ψ)                            # Hilbert density MPO
+    sites_L = liouv_sites(sites)
+    ρL = to_liouville(ρ; sites=sites_L)     # Liouville MPS
+    ```
+
+    See [MPS and MPO Basics](@ref) for density-matrix MPOs and [Liouville-Space Basics](@ref) for Liouville vectorisation.
 
 The package adds a layer of open-system structure on top of that familiar tensor-network language.
 

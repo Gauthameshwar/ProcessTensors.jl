@@ -37,6 +37,15 @@ U(t)=e^{-iHt}.
 
 In tensor-network simulations, $|\psi\rangle$ is often represented as a matrix product state (MPS), while $H$ and other many-body operators are represented as matrix product operators (MPOs).
 
+!!! info "In the package"
+    ```julia
+    sites = siteinds("S=1/2", N)
+    ψ = MPS(sites, fill("Up", N))
+    H_mpo = MPO(H, sites)
+    ```
+
+    See [MPS and MPO Basics](@ref) for `siteinds`, `OpSum`, and Hamiltonian assembly.
+
 ### Observables and expectation values
 
 A physical observable is represented by an operator $O$. For a pure state, its expectation value is
@@ -69,8 +78,24 @@ C_{AB}(i,j)
 
 These are ordinary Hilbert-space quantities. They are the baseline against which density-matrix and Liouville-space formulas should be compared.
 
+!!! info "In the package"
+    ```julia
+    mz = expect(ψ, "Sz")                    # local expectations
+    expect_O = real(inner(ψ', O_mpo, ψ))    # operator expectation
+    ```
+
+    See [MPS and MPO Basics](@ref) for `expect`, MPO insertion, and energy calculations.
+
 !!! note "Package perspective"
     In `ProcessTensors.jl`, Hilbert-space MPS and MPO objects provide the familiar starting point. Density-matrix and Liouville-space tools extend this language to mixed states, dissipative dynamics, and process tensors.
+
+!!! info "In the package"
+    ```julia
+    ρ = to_dm(ψ)                            # pure state → density MPO
+    ρ_mix = to_dm([ψ1, ψ2]; coeffs=[p, 1-p])  # statistical mixture
+    ```
+
+    See [MPS and MPO Basics](@ref) for pure states, density-matrix MPOs, and expectations.
 
 Pure state vectors are not enough for open quantum systems. A subsystem interacting with an environment is generally not described by a single state vector, even if the combined system-environment state is pure.
 
@@ -125,6 +150,14 @@ For a pure state $\rho=|\psi\rangle\langle\psi|$, this reduces to the familiar e
 
 !!! note "Package convention"
     In `ProcessTensors.jl`, a pure MPS can be converted into a density-matrix MPO using `to_dm(ψ)`. Mixtures of MPS states are also supported, provided the probabilities are non-negative and sum to one.
+
+!!! info "In the package"
+    ```julia
+    ρ = to_dm(ψ)
+    ρ_mix = to_dm([ψ_a, ψ_b]; coeffs=[0.7, 0.3])
+    ```
+
+    See [MPS and MPO Basics](@ref) for pure and mixed density-matrix construction and normalization checks.
 
 ### Reduced density matrices and partial traces
 
@@ -201,6 +234,15 @@ Reduced state:
 !!! note "Why this matters for process tensors"
     Process tensors describe reduced system dynamics while keeping track of how the bath remembers past interactions. Reduced density matrices are the first step toward that language.
 
+!!! info "In the package"
+    ```julia
+    ρ = to_dm(ψ)                            # full-chain density MPO
+    # trace out other sites via delta contractions on bra/ket legs (tutorial)
+    ρ1 = one_site_reduced_density_matrix(ρ, sites, 1)
+    ```
+
+    See [MPS and MPO Basics](@ref) for one-site reduced density matrices and entanglement diagnostics.
+
 
 ## Liouville space and vectorisation
 
@@ -237,6 +279,15 @@ state-vector tensor-network tools.
 !!! note "Package perspective"
     In `ProcessTensors.jl`, a Hilbert-space density matrix is represented as an
     `MPO{Hilbert}`. After vectorisation, it becomes an `MPS{Liouville}`.
+
+!!! info "In the package"
+    ```julia
+    sites_L = liouv_sites(sites)            # create once, reuse everywhere
+    ρL = to_liouville(ρ; sites=sites_L)
+    ρ_back = to_hilbert(ρL; sites=sites)    # round-trip check
+    ```
+
+    See [Liouville-Space Basics](@ref) for vectorisation, column-major ordering, and shared `sites_L`.
 
 ### First-level vectorisation
 
@@ -411,6 +462,16 @@ In package notation:
     leg”. They mean multiplication of the density matrix from the left or from
     the right before vectorisation.
 
+!!! info "In the package"
+    ```julia
+    # OpSum terms use _L / _R suffixes before vectorisation
+    os = OpSum_Liouville()
+    os += 1.0im, "Sx_L", 1              # Sx ρ
+    os += -1.0im, "Sx_R", 1             # ρ Sx
+    ```
+
+    See [Liouville superoperators and OpSums](@ref liouville-superoperators-and-opsums) in [Liouville-Space Basics](@ref).
+
 ### Channels as Liouville-space operators
 
 A deterministic physical evolution of density matrices is described by a
@@ -445,6 +506,14 @@ After vectorisation, it becomes a matrix-like object,
 This is the computational reason for using Liouville space in this package:
 density matrices become MPS-like objects, while channels and generators become
 MPO-like objects.
+
+!!! info "In the package"
+    ```julia
+    ρL = to_liouville(ρ; sites=sites_L)   # density matrix as Liouville MPS
+    L_mpo = MPO_Liouville(H, sites_L)     # channel generator as Liouville MPO
+    ```
+
+    See [Liouville-Space Basics](@ref) for the full Hilbert ↔ Liouville workflow.
 
 !!! info "Trace preservation"
     A channel is trace preserving when
@@ -519,6 +588,14 @@ Here $H_L$ means “left multiplication by $H$” and $H_R$ means “right multi
 !!! tip "Why this is useful"
     Once the density matrix is vectorised, Hamiltonian density-matrix evolution looks like ordinary linear evolution generated by a Liouville-space operator.
 
+!!! info "In the package"
+    ```julia
+    L_mpo = MPO_Liouville(H, sites_L)
+    ρL = tdvp(ρL, L_mpo, -1im * dt; alg=TDVP(), maxdim=32)
+    ```
+
+    See [Liouville-Space Basics](@ref) for the commutator generator and [Hilbert versus Liouville evolution](@ref hilbert-liouville-tdvp) in [Unitary Dynamics](@ref).
+
 ### Open Markovian dynamics
 
 Many Markovian open quantum systems are described by a Master equation in the GKLS form. The most commonly used version is the Local Master Equations (LME), given by
@@ -588,6 +665,15 @@ In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R`
 !!! note "Package bridge"
     `OpSum_Liouville` builds a symbolic Liouvillian operator sum, while `MPO_Liouville` builds a Liouville-space MPO. These are the objects used to represent Hamiltonian and dissipative density-matrix evolution in Liouville space.
 
+!!! info "In the package"
+    ```julia
+    jumps = [(γ, "Sm", 1)]                  # jump rate, operator, site
+    L_mpo = MPO_Liouville(H, sites_L; jump_ops=jumps)
+    ρL = tebd(ρL, L_mpo, dt, T; alg=Trotter{2}(), maxdim=32)
+    ```
+
+    See [Dissipative Dynamics](@ref) for a full Lindblad walkthrough and [dissipative Lindblad model](@ref dissipative-lindblad-mpo) for the `MPO_Liouville` construction.
+
 ### Hilbert-to-Liouville dictionary
 
 The following table summarises the main translations used throughout this documentation.
@@ -608,6 +694,16 @@ The following table summarises the main translations used throughout this docume
 
 !!! warning "Trace and expectation values become overlaps"
     In Liouville space, quantities such as $\operatorname{Tr}(\rho)$ and $\operatorname{Tr}(O\rho)$ are computed as overlaps with vectorised operators. This is why identity operators and observable insertions appear naturally as contractions in tensor-network diagrams.
+
+!!! info "In the package"
+    ```julia
+    Id_L = to_liouville(Id_mpo; sites=sites_L)
+    Sz_L = to_liouville(Sz_mpo; sites=sites_L)
+    Tr_ρ = inner(Id_L, ρL)
+    expect_Sz = inner(Sz_L, ρL)           # same sites_L on both factors
+    ```
+
+    See [Trace and expectation values](@ref liouville-trace-expectations) in [Liouville-Space Basics](@ref).
 
 ## Further reading
 

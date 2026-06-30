@@ -13,6 +13,9 @@
 # 
 # For the original ITensors tutorial on basic ITensor objects, see the
 # [ITensor examples page](https://docs.itensor.org/ITensors/stable/examples/ITensor.html).
+#
+# For the tensor-network background behind these objects, see
+# [Tensor Networks in Physics](../theory/tensor_networks.md).
 
 # ## Setup
 #

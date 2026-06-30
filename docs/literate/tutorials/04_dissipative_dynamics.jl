@@ -84,7 +84,7 @@ function density_matrix_properties(ρ::AbstractMatrix)
     return (; trace, hermiticity, min_eig)
 end
 
-# ## A single spin with amplitude damping
+# ## [A single spin with amplitude damping](@id dissipative-lindblad-mpo)
 #
 # We begin with one spin-1/2 system. The Hamiltonian is
 #
@@ -274,7 +274,7 @@ println("‖L|ρ⟩⟩ - analytical formula‖ = ",
 #     superoperator structure from the Hamiltonian and the jump terms. The
 #     single-spin formula lets us see that structure explicitly.
 
-# ## Evolving the density matrix
+# ## [Evolving the density matrix](@id dissipative-evolving-density-matrix)
 #
 # We now time evolve the density matrix.
 #

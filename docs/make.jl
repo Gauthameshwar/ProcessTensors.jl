@@ -21,7 +21,7 @@ mkpath(TUTORIAL_OUT)
 
 tutorial_stems = Set(stem for (_, stem, _) in TUTORIALS)
 for file in readdir(TUTORIAL_OUT)
-    if endswith(file, ".md") && file != "README.md"
+    if endswith(file, ".md") && file ∉ ("README.md", "index.md")
         stem = replace(file, ".md" => "")
         stem ∉ tutorial_stems && rm(joinpath(TUTORIAL_OUT, file); force=true)
     end
@@ -77,16 +77,22 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
-        "Getting Started" => "getting_started.md",
+        "Installation" => "installation.md",
         "Theory" => [
+            "Overview" => "theory/index.md",
             "Tensor Networks in Physics" => "theory/tensor_networks.md",
             "Quantum States and Liouville Space" => "theory/liouville_space.md",
             "Process Tensors" => "theory/process_tensors.md",
         ],
-        "Tutorials" => tutorial_pages,
+        "Tutorials" => [
+            "Overview" => "tutorials/index.md",
+            tutorial_pages...,
+        ],
+        "Examples" => [
+            "Overview" => "examples/index.md",
+            example_pages...,
+        ],
         "API Reference" => "api.md",
-        "Examples" => example_pages,
-        "References" => "references.md",
     ],
 )
 

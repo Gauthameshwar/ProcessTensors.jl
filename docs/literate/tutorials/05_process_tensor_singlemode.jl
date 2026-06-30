@@ -199,7 +199,7 @@ println(environment)
 #     The process-tensor construction call is unchanged. Only the bath model has
 #     changed.
 
-# ## Building the process tensor
+# ## [Building the process tensor](@id building-the-process-tensor)
 #
 # The time grid is set by `dt` and `nsteps`.
 #
@@ -298,7 +298,7 @@ println(coupling_times(pt, 1))
 #     the sites stored by the system, bath modes, and process tensor instead of
 #     recreating visually similar indices.
 
-# ## Evolving reduced states
+# ## [Evolving reduced states](@id evolving-reduced-states)
 #
 # The simplest way to use a process tensor is to ask for the reduced system
 # states generated from an initial density matrix.
@@ -383,7 +383,7 @@ println("Final ⟨Sz⟩ with spin bath        = ", roundreal(last(mz)))
 @assert isfinite(last(mz_markov))
 @assert isfinite(last(mz))
 
-# ## Instrument schedules
+# ## [Instrument schedules](@id instrument-schedules)
 #
 # A process tensor becomes useful when we contract it with instruments.
 #
@@ -647,7 +647,7 @@ println(prob_filter)
 #     bound lazily at `add!` or supplied explicitly on each factor. Prepare the
 #     initial state at time zero separately with `StatePreparation`, as above.
 
-# ### Two-time correlation preview
+# ### [Two-time correlation preview](@id two-time-correlation-preview)
 #
 # Two-time correlations are built from instrument schedules too.
 # The function `two_time_correlation_seq` constructs the instrument schedule for

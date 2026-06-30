@@ -5,9 +5,26 @@ CurrentModule = ProcessTensors
 # ProcessTensors.jl
 
 
-`ProcessTensors.jl` is an MPS-based open quantum dynamics, Liouville-space simulation, and process tensors in Julia. It extends the familiar [`ITensorMPS.jl`](https://github.com/ITensor/ITensorMPS.jl) workflow toward density-matrix dynamics, Liouville-space superoperators, non-Markovian process tensors, and multi-time quantum observables.
+`ProcessTensors.jl` is a Julia package for MPS-based open quantum dynamics, Liouville-space simulation, and process tensors. It extends the familiar [`ITensorMPS.jl`](https://github.com/ITensor/ITensorMPS.jl) workflow toward density-matrix dynamics, Liouville-space superoperators, non-Markovian process tensors, and multi-time quantum observables.
 
 It is designed for users who want to simulate open quantum systems while keeping the language of tensor networks close to the physics: states, operators, baths, instruments, observables, memory, and reduced dynamics.
+
+## Where to start
+
+Most of what makes this package distinctive appears in two tutorials:
+
+- **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `MPO_Liouville`, TEBD/TDVP on density matrices.
+- **[Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)** — process-tensor construction, bath memory, instruments, `evolve`, and `evaluate_process`.
+
+Everything else in the documentation supports those two pages: ITensor syntax, MPS/MPO objects, Hilbert-versus-Liouville conventions, and closed-system dynamics as stepping stones.
+
+Choose a path that suits you best:
+
+| Background | Suggested route |
+| ---------- | --------------- |
+| **You code and know the theory.** | Start with [Dissipative Dynamics](tutorials/dissipative_dynamics.md), then [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md). Skim [Hilbert and Liouville Space](theory/liouville_space.md) and [Process Tensors](theory/process_tensors.md) for conventions only. Use [Examples](examples/spin_chain_unitary.md) for scripts and [API Reference](api.md) for the function list. |
+| **You know the theory but are new to ITensors.** | [ITensor Basics](tutorials/itensor_basics.md) → [MPS and MPO Basics](tutorials/mps_mpo_basics.md) → [Liouville-Space Basics](tutorials/liouville_basics.md) → the two core tutorials above. Use theory pages as a convention dictionary, not the main route. |
+| **You are new to open quantum systems or tensor networks in Julia.** | [Installation](installation.md) → [ITensor Basics](tutorials/itensor_basics.md) → [MPS and MPO Basics](tutorials/mps_mpo_basics.md) → [Liouville-Space Basics](tutorials/liouville_basics.md) → [Unitary Dynamics](tutorials/unitary_dynamics.md) → [Dissipative Dynamics](tutorials/dissipative_dynamics.md) → [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md). Read theory when a concept or notation is unclear. |
 
 ---
 
@@ -57,6 +74,14 @@ The goal is not only to evolve a state, but to ask physically meaningful questio
 * How can density-matrix and Liouville-space calculations be represented as MPS/MPO contractions?
 * How can we evaluate observables, reduced trajectories, and multi-time correlations from the same process object?
 
+!!! tip "Time evolution, not ground-state search"
+    This package builds on the **time-evolution** side of
+    [`ITensorMPS.jl`](https://github.com/ITensor/ITensorMPS.jl): `tebd`, `tdvp`,
+    Liouville propagators, and process-tensor contraction workflows.
+
+    It does **not** cover DMRG, variational ground-state search, or equilibrium
+    spectral methods. 
+
 ---
 
 ## Core features
@@ -86,7 +111,7 @@ The goal is not only to evolve a state, but to ask physically meaningful questio
 
 ## Quick start
 
-The following example builds a simple process tensor for one spin coupled to one spin bath mode.
+If you already know where you are headed, the snippet below builds a one-spin system coupled to one spin bath mode and constructs a process tensor. For context and checks along the way, use [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md).
 
 ```julia
 using ITensors
@@ -109,7 +134,9 @@ Hsys += 1.0, "Sx", 1
 system = spin_system(sys, Hsys)
 
 # Bath initial state
-ρbath0 = to_liouville(to_dm(MPS(bath, ["Up"])); sites=bathL)
+ψmps = MPS(bath, ["Up"])
+ρmpo = to_dm(ψmps)
+ρbath0 = to_liouville(ρmpo; sites=bathL)
 
 # Bath Hamiltonian
 Hbath = OpSum()
@@ -148,35 +175,22 @@ expectation = evaluate_process(pt, seq)
 
 ---
 
-## Where should I start?
+## Find a doc page by topic
 
-If you are new to the package, the recommended path is:
-
-```text
-Getting Started
-  → ITensor Basics
-  → MPS and MPO Basics
-  → Tensor Networks in Physics
-  → Density Matrices
-  → Liouville Space
-  → Unitary and Dissipative Dynamics
-  → Single-Mode Process Tensor
-```
-
-| Goal                                          | Recommended page                                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------- |
-| I want to learn the basic package workflow.   | [Getting Started](getting_started.md)                                           |
-| I want to understand the physics conventions. | [Theory: Hilbert and Liouville Space](theory/liouville_space.md)                |
-| I want to learn ITensors index and contraction syntax. | [Tutorial: ITensor Basics](tutorials/itensor_basics.md) |
-| I want to learn Hilbert-space MPS/MPO basics.        | [Tutorial: MPS and MPO Basics](tutorials/mps_mpo_basics.md)                     |
-| I want to build Liouvillian MPOs.             | [Tutorial: Liouville Basics](tutorials/liouville_basics.md)                     |
-| I want to simulate unitary dynamics.          | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)                     |
-| I want to see dissipative dynamics.                  | [Tutorial: Dissipative Dynamics](tutorials/dissipative_dynamics.md)             |
-| I want non-Markovian dynamics (one bath mode).| [Tutorial: Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)  |
-| I want time-dependent driving or kicked chains.      | [Examples: Driven two-level system](examples/driven_two_level_system.md)        |
-| I want multimode baths or multi-time correlations. | [Examples](examples/multimode_process_tensor.md)                                |
-| I want runnable end-to-end workflows.         | [Examples](examples/spin_chain_unitary.md)                                      |
-| I want the function reference.                | [API Reference](api.md)                                          |
+| Goal | Page |
+|------|------|
+| Open-system / Lindblad evolution (core) | [Dissipative Dynamics](tutorials/dissipative_dynamics.md) |
+| Process tensors, baths, instruments (core) | [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md) |
+| Package setup | [Installation](installation.md) |
+| Physics conventions and notation | [Theory: Hilbert and Liouville Space](theory/liouville_space.md) |
+| ITensor index and contraction syntax | [Tutorial: ITensor Basics](tutorials/itensor_basics.md) |
+| Hilbert-space MPS/MPO | [Tutorial: MPS and MPO Basics](tutorials/mps_mpo_basics.md) |
+| Vectorized density matrices | [Tutorial: Liouville Basics](tutorials/liouville_basics.md) |
+| Closed-system TEBD/TDVP | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md) |
+| Time-dependent or kicked models | [Examples](examples/driven_two_level_system.md) |
+| Multimode baths, multi-time correlations | [Examples](examples/multimode_process_tensor.md) |
+| End-to-end scripts | [Examples](examples/spin_chain_unitary.md) |
+| Function reference | [API Reference](api.md) |
 
 ---
 
@@ -205,6 +219,6 @@ Getting Started
 
 ## Citing and contributing
 
-`ProcessTensors.jl` is under active development. Contributions, issues, examples, and discussions are welcome.
+`ProcessTensors.jl` is under active development. We would greatly benefit from contributions by expert developers, issues or bugs raised by users, and an active discussion on improving this package. Contributions, issues, examples, and discussions are welcome.
 
-If you use the package in research, please cite the package repository and any relevant process-tensor or tensor-network literature listed in the [References](references.md) page.
+If you use the package in research, please cite the [ProcessTensors.jl repository](https://github.com/Gauthameshwar/ProcessTensors.jl) and any relevant process-tensor or tensor-network literature cited in the theory pages.
