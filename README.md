@@ -20,6 +20,12 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://Gauthameshwar.github.io/ProcessTensors.jl">
+    <img src="https://img.shields.io/badge/Read%20the%20Documentation-ProcessTensors.jl%20Docs-9558B2?style=for-the-badge&logo=julia&logoColor=white" alt="Read the Documentation"/>
+  </a>
+</p>
+
 `ProcessTensors.jl` is a Julia package for constructing and contracting process tensors
 as matrix-product objects. It extends the familiar `ITensorMPS.jl` workflow with
 Hilbert/Liouville-space wrappers, system and bath abstractions, instrument sequences,
