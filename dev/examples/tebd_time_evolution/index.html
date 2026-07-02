@@ -170,32 +170,32 @@ for n in trotter_orders, dt in dt_list
 end</code></pre><pre><code class="nohighlight hljs">Hilbert-space TEBD
 ------------------
 Hilbert TEBD(1) with dt=0.20
-  Total time taken: 1.214 s
+  Total time taken: 1.408 s
   |ρ - ρ_ED|:       3.688e-01
   max bond dim:     4
 
 Hilbert TEBD(1) with dt=0.10
-  Total time taken: 2.385 s
+  Total time taken: 2.747 s
   |ρ - ρ_ED|:       1.182e-01
   max bond dim:     4
 
 Hilbert TEBD(1) with dt=0.05
-  Total time taken: 4.722 s
+  Total time taken: 5.463 s
   |ρ - ρ_ED|:       4.884e-02
   max bond dim:     4
 
 Hilbert TEBD(2) with dt=0.20
-  Total time taken: 1.315 s
+  Total time taken: 1.497 s
   |ρ - ρ_ED|:       3.293e-01
   max bond dim:     4
 
 Hilbert TEBD(2) with dt=0.10
-  Total time taken: 2.468 s
+  Total time taken: 2.840 s
   |ρ - ρ_ED|:       8.122e-02
   max bond dim:     4
 
 Hilbert TEBD(2) with dt=0.05
-  Total time taken: 4.944 s
+  Total time taken: 5.792 s
   |ρ - ρ_ED|:       2.020e-02
   max bond dim:     4
 
@@ -249,33 +249,33 @@ end
 )</code></pre><pre><code class="nohighlight hljs">Liouville-space TEBD
 --------------------
 Liouville TEBD(1) with dt=0.20
-  Total time taken: 6.773 s
+  Total time taken: 5.376 s
   |ρ - ρ_ED|:       3.688e-01
   max bond dim:     16
 
 Liouville TEBD(1) with dt=0.10
-  Total time taken: 2.535 s
+  Total time taken: 3.034 s
   |ρ - ρ_ED|:       1.182e-01
   max bond dim:     16
 
 Liouville TEBD(1) with dt=0.05
-  Total time taken: 5.039 s
+  Total time taken: 5.906 s
   |ρ - ρ_ED|:       4.884e-02
   max bond dim:     16
 
 Liouville TEBD(2) with dt=0.20
-  Total time taken: 1.427 s
+  Total time taken: 1.648 s
   |ρ - ρ_ED|:       3.293e-01
   max bond dim:     16
 
 Liouville TEBD(2) with dt=0.10
-  Total time taken: 2.820 s
+  Total time taken: 3.225 s
   |ρ - ρ_ED|:       8.122e-02
   max bond dim:     16
 
 Liouville TEBD(2) with dt=0.05
-  Total time taken: 5.636 s
+  Total time taken: 6.395 s
   |ρ - ρ_ED|:       2.020e-02
   max bond dim:     16
 
-</code></pre><p><img src="../../assets/examples/tebd_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tebd_tfim_unitary_liouville_rho_error.png" alt="Liouville-space density-matrix error"/></p><div class="admonition is-category-summary" id="Example-takeaways-61950c4f1dbf65b6"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-61950c4f1dbf65b6" title="Permalink"></a></header><div class="admonition-body"><ul><li>The same unitary TFIM dynamics can be evolved as an MPS state in Hilbert space or as a vectorized density matrix in Liouville space.</li><li>Second-order Trotter (<code>Trotter{2}()</code>) is usually more accurate than first order at the same time step.</li><li>Smaller <code>dt</code> reduces Trotter error; the ED reference in this page is only a small-system audit, not the scalable method.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/process_tensor_singlemode/">« Single-Mode Process Tensor</a><a class="docs-footer-nextpage" href="../tdvp_time_evolution/">TDVP time evolution »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 14:19">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre><p><img src="../../assets/examples/tebd_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tebd_tfim_unitary_liouville_rho_error.png" alt="Liouville-space density-matrix error"/></p><div class="admonition is-category-summary" id="Example-takeaways-61950c4f1dbf65b6"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-61950c4f1dbf65b6" title="Permalink"></a></header><div class="admonition-body"><ul><li>The same unitary TFIM dynamics can be evolved as an MPS state in Hilbert space or as a vectorized density matrix in Liouville space.</li><li>Second-order Trotter (<code>Trotter{2}()</code>) is usually more accurate than first order at the same time step.</li><li>Smaller <code>dt</code> reduces Trotter error; the ED reference in this page is only a small-system audit, not the scalable method.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/process_tensor_singlemode/">« Single-Mode Process Tensor</a><a class="docs-footer-nextpage" href="../tdvp_time_evolution/">TDVP time evolution »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 18:12">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

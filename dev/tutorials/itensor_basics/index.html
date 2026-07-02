@@ -15,13 +15,13 @@ println(&quot;Index k: &quot;, k)
 println(&quot;dim(i)  = &quot;, dim(i))
 println(&quot;tags(i) = &quot;, tags(i))
 println(&quot;plev(i) = &quot;, plev(i))
-println(&quot;id(i)   = &quot;, id(i))</code></pre><pre><code class="nohighlight hljs">Index i: (dim=2|id=333|&quot;i&quot;)
-Index j: (dim=3|id=588|&quot;j&quot;)
-Index k: (dim=2|id=95|&quot;k&quot;)
+println(&quot;id(i)   = &quot;, id(i))</code></pre><pre><code class="nohighlight hljs">Index i: (dim=2|id=89|&quot;i&quot;)
+Index j: (dim=3|id=643|&quot;j&quot;)
+Index k: (dim=2|id=804|&quot;k&quot;)
 dim(i)  = 2
 tags(i) = &quot;i&quot;
 plev(i) = 0
-id(i)   = 12414219663045823333
+id(i)   = 3245460217812664089
 </code></pre><div class="admonition is-info" id="What-is-an-ITensor-Index?-887f981b9c862613"><header class="admonition-header">What is an ITensor Index?<a class="admonition-anchor" href="#What-is-an-ITensor-Index?-887f981b9c862613" title="Permalink"></a></header><div class="admonition-body"><p>An <code>Index</code> is a labelled tensor leg. It has a dimension, tags, a prime level, and an internal identity. Tensor contraction depends on index identity, not just on dimension.</p></div></div><h3 id="Similar-looking-indices-are-not-necessarily-the-same"><a class="docs-heading-anchor" href="#Similar-looking-indices-are-not-necessarily-the-same">Similar-looking indices are not necessarily the same</a><a id="Similar-looking-indices-are-not-necessarily-the-same-1"></a><a class="docs-heading-anchor-permalink" href="#Similar-looking-indices-are-not-necessarily-the-same" title="Permalink"></a></h3><p>Let us create another index with the same dimension and the same tags as <code>i</code>.</p><pre><code class="language-julia hljs">i_sim = sim(i)
 
 println(&quot;Original index i: &quot;, i)
@@ -34,8 +34,8 @@ println(&quot;i == i_sim:             &quot;, i == i_sim)
 
 @assert dim(i) == dim(i_sim)
 @assert tags(i) == tags(i_sim)
-@assert i != i_sim</code></pre><pre><code class="nohighlight hljs">Original index i: (dim=2|id=333|&quot;i&quot;)
-Similar index:    (dim=2|id=355|&quot;i&quot;)
+@assert i != i_sim</code></pre><pre><code class="nohighlight hljs">Original index i: (dim=2|id=89|&quot;i&quot;)
+Similar index:    (dim=2|id=909|&quot;i&quot;)
 dim(i) == dim(i_sim):   true
 tags(i) == tags(i_sim): true
 id(i) == id(i_sim):     false
@@ -45,7 +45,7 @@ T = ITensor(A, i, j, k)
 
 println(&quot;T has indices:&quot;)
 println(inds(T))</code></pre><pre><code class="nohighlight hljs">T has indices:
-((dim=2|id=333|&quot;i&quot;), (dim=3|id=588|&quot;j&quot;), (dim=2|id=95|&quot;k&quot;))
+((dim=2|id=89|&quot;i&quot;), (dim=3|id=643|&quot;j&quot;), (dim=2|id=804|&quot;k&quot;))
 </code></pre><p>Accessing a component looks like the mathematical notation:</p><p class="math-container">\[T_{2,3,1}.\]</p><pre><code class="language-julia hljs">println(&quot;T[i=&gt;2, j=&gt;3, k=&gt;1] = &quot;, T[i =&gt; 2, j =&gt; 3, k =&gt; 1])
 
 @assert T[i =&gt; 2, j =&gt; 3, k =&gt; 1] == 6</code></pre><pre><code class="nohighlight hljs">T[i=&gt;2, j=&gt;3, k=&gt;1] = 6.0
@@ -82,9 +82,9 @@ println(&quot;inds(C) = &quot;, inds(C))
 
 @assert a in collect(inds(C))
 @assert c in collect(inds(C))
-@assert !(b in collect(inds(C)))</code></pre><pre><code class="nohighlight hljs">inds(A) = ((dim=2|id=597|&quot;a&quot;), (dim=3|id=349|&quot;b&quot;))
-inds(B) = ((dim=3|id=349|&quot;b&quot;), (dim=4|id=853|&quot;c&quot;))
-inds(C) = ((dim=2|id=597|&quot;a&quot;), (dim=4|id=853|&quot;c&quot;))
+@assert !(b in collect(inds(C)))</code></pre><pre><code class="nohighlight hljs">inds(A) = ((dim=2|id=757|&quot;a&quot;), (dim=3|id=959|&quot;b&quot;))
+inds(B) = ((dim=3|id=959|&quot;b&quot;), (dim=4|id=926|&quot;c&quot;))
+inds(C) = ((dim=2|id=757|&quot;a&quot;), (dim=4|id=926|&quot;c&quot;))
 </code></pre><p>The shared index <code>b</code> disappeared because it was summed over.</p><h3 id="Tracing-two-legs-with-a-delta-tensor"><a class="docs-heading-anchor" href="#Tracing-two-legs-with-a-delta-tensor">Tracing two legs with a delta tensor</a><a id="Tracing-two-legs-with-a-delta-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Tracing-two-legs-with-a-delta-tensor" title="Permalink"></a></h3><p>We can also contract two legs of the same tensor using a Kronecker delta.</p><p>Suppose</p><p class="math-container">\[T_{ijk}\]</p><p>has <code>dim(i) = dim(k)</code>. Then</p><p class="math-container">\[v_j
 =
 \sum_{a=1}^{\dim(i)} T_{aja}\]</p><p>is obtained by inserting a delta tensor</p><p class="math-container">\[\delta_{ik}.\]</p><p>In code:</p><pre><code class="language-julia hljs">δik = delta(i, k)
@@ -92,7 +92,7 @@ v = δik * T
 
 println(&quot;inds(delta(i,k) * T) = &quot;, inds(v))
 println(&quot;v as an array over j:&quot;)
-println(Array(v, j))</code></pre><pre><code class="nohighlight hljs">inds(delta(i,k) * T) = ((dim=3|id=588|&quot;j&quot;),)
+println(Array(v, j))</code></pre><pre><code class="nohighlight hljs">inds(delta(i,k) * T) = ((dim=3|id=643|&quot;j&quot;),)
 v as an array over j:
 [-92.0, 13.0, 17.0]
 </code></pre><p>Let us check the formula manually.</p><pre><code class="language-julia hljs">manual_v = zeros(Float64, dim(j))
@@ -120,4 +120,4 @@ svals_dense = LinearAlgebra.svdvals(T_matrix)
 println(&quot;Singular values of T[(i,j),k]:&quot;)
 println(roundreal.(svals_dense))</code></pre><pre><code class="nohighlight hljs">Singular values of T[(i,j),k]:
 [100.573979, 23.10573]
-</code></pre><div class="admonition is-info" id="Why-SVD-matters-df060eba865c2d95"><header class="admonition-header">Why SVD matters<a class="admonition-anchor" href="#Why-SVD-matters-df060eba865c2d95" title="Permalink"></a></header><div class="admonition-body"><p>Tensor SVD is the local move behind MPS construction, MPS compression, MPO compression, TEBD, TDVP, and the memory compression ideas that appear later in process-tensor algorithms.</p></div></div><p><strong>Next:</strong> <a href="../mps_mpo_basics/#MPS-and-MPO-Basics">MPS and MPO Basics</a> applies these ideas to many-body states and operators on spin chains.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../theory/process_tensors/">« Process Tensors</a><a class="docs-footer-nextpage" href="../mps_mpo_basics/">MPS and MPO Basics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 14:19">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre><div class="admonition is-info" id="Why-SVD-matters-df060eba865c2d95"><header class="admonition-header">Why SVD matters<a class="admonition-anchor" href="#Why-SVD-matters-df060eba865c2d95" title="Permalink"></a></header><div class="admonition-body"><p>Tensor SVD is the local move behind MPS construction, MPS compression, MPO compression, TEBD, TDVP, and the memory compression ideas that appear later in process-tensor algorithms.</p></div></div><p><strong>Next:</strong> <a href="../mps_mpo_basics/#MPS-and-MPO-Basics">MPS and MPO Basics</a> applies these ideas to many-body states and operators on spin chains.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../theory/process_tensors/">« Process Tensors</a><a class="docs-footer-nextpage" href="../mps_mpo_basics/">MPS and MPO Basics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 18:12">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
