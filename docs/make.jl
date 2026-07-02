@@ -67,6 +67,7 @@ const LITERATE_EXAMPLES = [
     ("tebd_time_evolution.jl", "tebd_time_evolution", "TEBD time evolution"),
     ("tdvp_time_evolution.jl", "tdvp_time_evolution", "TDVP time evolution"),
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
+    ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
 
 const EXAMPLE_GROUPS = [
@@ -141,6 +142,7 @@ stage_example_figures([
     "tdvp_tfim_unitary_liouville_rho_error.png",
     "pt_tfim_singlemode.png",
     "pt_tfim_multimode.png",
+    "pt_multitime_correlations.png",
 ])
 
 makedocs(;

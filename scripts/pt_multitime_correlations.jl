@@ -138,20 +138,23 @@ cases = [
 
 print_section("Main computation")
 
+pt_nsteps = n_times + 1
+pt = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=pt_nsteps,
+)
+
+@printf("process tensor steps   = %d\n", pt_nsteps)
+@printf("PT max bond dim        = %d\n", maxlinkdim(pt))
+
 grids = Vector{Matrix{ComplexF64}}(undef, length(cases))
 titles = Vector{LaTeXString}(undef, length(cases))
 
 for (i, (title, O_A, O_B)) in enumerate(cases)
     println("Case $i/$(length(cases)): $title")
-
-    pt_nsteps = n_times + 1
-    pt = build_process_tensor(
-        system,
-        system.sites[1];
-        environment=bath,
-        dt=dt,
-        nsteps=pt_nsteps,
-    )
 
     grid = fill(NaN + 0im * NaN, n_times, n_times)
     n_pairs = n_times * n_times
@@ -184,10 +187,21 @@ end
 
 print_section("Diagnostics")
 
-finite_fraction = mean(isfinite.(real.(vcat(grids...))))
+all_values = vcat(grids...)
+finite_fraction = mean(isfinite.(real.(all_values)))
+
+Czz = grids[1]
+diag_Czz = diag(Czz)
+diag_real_error = maximum(abs.(real.(diag_Czz) .- 1.0); init=0.0)
+diag_imag_error = maximum(abs.(imag.(diag_Czz)); init=0.0)
+conjugate_defect = maximum(abs.(Czz - Czz'); init=0.0)
+
 @printf("finite correlator fraction = %.3f\n", finite_fraction)
-@printf("max |Re correlator|        = %.6f\n", maximum(abs.(real.(vcat(grids...))); init=0.0))
-@printf("max |Im correlator|        = %.6f\n", maximum(abs.(imag.(vcat(grids...))); init=0.0))
+@printf("max |Re correlator|        = %.6f\n", maximum(abs.(real.(all_values)); init=0.0))
+@printf("max |Im correlator|        = %.6f\n", maximum(abs.(imag.(all_values)); init=0.0))
+@printf("Czz diagonal Re error      = %.3e\n", diag_real_error)
+@printf("Czz diagonal Im magnitude  = %.3e\n", diag_imag_error)
+@printf("Czz conjugate defect       = %.3e\n", conjugate_defect)
 
 @assert finite_fraction > 0.99 "Too many non-finite correlator values."
 

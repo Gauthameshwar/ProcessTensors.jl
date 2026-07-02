@@ -18,6 +18,7 @@ todo*
 /docs/src/examples/tebd_time_evolution.md
 /docs/src/examples/tdvp_time_evolution.md
 /docs/src/examples/spin_bath_process_tensor.md
+/docs/src/examples/multitime_correlations.md
 
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/
