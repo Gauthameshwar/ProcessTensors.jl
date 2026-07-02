@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spin-bath process tensor · ProcessTensors.jl</title><meta name="title" content="Spin-bath process tensor · ProcessTensors.jl"/><meta property="og:title" content="Spin-bath process tensor · ProcessTensors.jl"/><meta property="twitter:title" content="Spin-bath process tensor · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/spin_bath_process_tensor/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/spin_bath_process_tensor/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/spin_bath_process_tensor/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../kicked_ising_chain/">Kicked Ising chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox" checked/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Spin-bath process tensor</a><ul class="internal"><li><a class="tocitem" href="#The-object-we-build"><span>The object we build</span></a></li><li><a class="tocitem" href="#Physical-model"><span>Physical model</span></a></li><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Exact-diagonalization-reference"><span>Exact diagonalization reference</span></a></li><li><a class="tocitem" href="#Single-mode-spin-bath"><span>Single-mode spin bath</span></a></li><li><a class="tocitem" href="#Multimode-spin-bath"><span>Multimode spin bath</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Process tensors</a></li><li class="is-active"><a href>Spin-bath process tensor</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spin-bath process tensor</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/spin_bath_process_tensor.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Spin-bath-process-tensor"><a class="docs-heading-anchor" href="#Spin-bath-process-tensor">Spin-bath process tensor</a><a id="Spin-bath-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Spin-bath-process-tensor" title="Permalink"></a></h1><p>This example builds a process tensor for a spin coupled to a spin bath. We first use a single bath mode, then repeat the same idea with several bath modes.</p><p>The point of the example is not only to reproduce reduced dynamics. The point is to see the <strong>process tensor itself</strong> as the reusable object. Once the bath has been absorbed into this object, we can probe the system with different preparations, uninterrupted evolution, observable readouts, and later more general instruments.</p><p>See also the <a href="../../tutorials/process_tensor_singlemode/#Single-Mode-Process-Tensor">Single-Mode Process Tensor</a> tutorial and the plotting scripts <code>scripts/pt_tfim_singlemode.jl</code> and <code>scripts/pt_tfim_multimode.jl</code>, which regenerate the figures below.</p><h2 id="The-object-we-build"><a class="docs-heading-anchor" href="#The-object-we-build">The object we build</a><a id="The-object-we-build-1"></a><a class="docs-heading-anchor-permalink" href="#The-object-we-build" title="Permalink"></a></h2><p>A usual reduced-dynamics calculation evolves the joint system-environment state,</p><p class="math-container">\[\rho_{SE}(t)
+=
+U(t)\,\rho_S(0)\otimes\rho_E(0)\,U^\dagger(t),\]</p><p>and then traces out the environment,</p><p class="math-container">\[\rho_S(t) = \operatorname{Tr}_E[\rho_{SE}(t)].\]</p><p>A process tensor reorganizes this computation. Instead of repeating the full system-environment evolution for every system-level question, we integrate out the environment once and store its influence as a tensor network in time.</p><p>Conceptually, a process tensor acts as a multi-time map,</p><p class="math-container">\[\rho_S(t_n)
+=
+\mathcal{T}_{n:0}
+\left[
+\mathcal{A}_{n-1},\ldots,\mathcal{A}_1,\rho_S(0)
+\right],\]</p><p>where the maps <span>$\mathcal{A}_k$</span> are the interventions or instruments inserted on the system at intermediate times.</p><p>In this package, the process tensor is represented as a PT-MPO. Its memory bonds carry the bath influence between different time steps. Once this object is built, the bath no longer appears explicitly in the user-facing reduced calculation.</p><div class="admonition is-info" id="The-perspective-to-keep-1e93c6ef8e415a97"><header class="admonition-header">The perspective to keep<a class="admonition-anchor" href="#The-perspective-to-keep-1e93c6ef8e415a97" title="Permalink"></a></header><div class="admonition-body"><p><code>build_process_tensor(...)</code> is the expensive object-building step. Calls such as <code>evolve(pt, ρ0)</code> and <code>evaluate_process(pt, seq)</code> contract this object with a particular instrument schedule.</p></div></div><h2 id="Physical-model"><a class="docs-heading-anchor" href="#Physical-model">Physical model</a><a id="Physical-model-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-model" title="Permalink"></a></h2><p>We use one system spin with Hamiltonian</p><p class="math-container">\[H_S = S_x.\]</p><p>The bath is made of one or more spin modes. A single mode has Hamiltonian</p><p class="math-container">\[H_B = \omega S_x,\]</p><p>and couples to the system through</p><p class="math-container">\[H_{SB} = g\,S_z^{(B)} S_z^{(S)}.\]</p><p>Both the system and bath modes start in the up state.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Printf
+using ProcessTensors
+using ITensors
+using LinearAlgebra
+using ITensors.Ops: Exact
+
+const dt = 0.1
+const nsteps = 24
+const final_time = dt * nsteps
+const joint_ed_frob_tol_single = 0.08
+const joint_ed_frob_tol_multimode = 0.05
+const dsys = 2
+const denv_single = 2
+const nmodes = 4
+const denv_multimode = 2^nmodes
+const mode_w = [0.5 + 0.1 * m for m in 1:nmodes]
+const mode_g = [0.2 + 0.3 * m for m in 1:nmodes]
+
+function print_pt_summary(label::AbstractString, result, frob_tol::Float64)
+    @printf(&quot;%s\n&quot;, label)
+    @printf(&quot;  max ‖ρ_PT − ρ_joint ED‖_F = %.3e\n&quot;, result.max_frob)
+    @printf(&quot;  ⟨σ_x⟩ at t=0 (PT / ED)     = %.6f / %.6f\n&quot;, result.sx_pt[1], result.sx_ed[1])
+    @printf(&quot;  ⟨σ_x⟩ at t=T (PT / ED)     = %.6f / %.6f\n&quot;, result.sx_pt[end], result.sx_ed[end])
+    println()
+    @assert all(isfinite, result.sx_pt) &amp;&amp; all(isfinite, result.sx_ed)
+    @assert all(isfinite, result.frob_err)
+    @assert result.max_frob &lt; frob_tol
+end</code></pre><pre><code class="nohighlight hljs">print_pt_summary (generic function with 1 method)</code></pre><h2 id="Exact-diagonalization-reference"><a class="docs-heading-anchor" href="#Exact-diagonalization-reference">Exact diagonalization reference</a><a id="Exact-diagonalization-reference-1"></a><a class="docs-heading-anchor-permalink" href="#Exact-diagonalization-reference" title="Permalink"></a></h2><p>To audit the process-tensor construction on this small system, we compare the reduced states from <code>evolve</code> against exact joint Liouville evolution of the combined system and bath,</p><p class="math-container">\[|\rho_{SE}(t)\rangle\rangle = e^{t\mathcal{L}_{SE}}|\rho_{SE}(0)\rangle\rangle,\]</p><p>followed by a partial trace over the bath Hilbert space,</p><p class="math-container">\[\rho_S(t) = \operatorname{Tr}_E[\rho_{SE}(t)].\]</p><p>The helpers below convert Liouville MPS/MPO objects to dense matrices, extract the reduced system state, and report Frobenius errors along the trajectory. They are used only for this validation block.</p><pre><code class="language-julia hljs">σx = ComplexF64[0 1; 1 0]
+σy = ComplexF64[0 -im; im 0]
+σz = ComplexF64[1 0; 0 -1]
+
+function pauli_expectations(ρ::AbstractMatrix{&lt;:Number})
+    return real(tr(ρ * σx)), real(tr(ρ * σy)), real(tr(ρ * σz))
+end
+
+function reduced_system_ρ(state_l, dsys::Int)
+    rho_h = to_hilbert(state_l)
+    sites = [
+        only(filter(i -&gt; plev(i) == 0 &amp;&amp; hastags(i, &quot;Site&quot;), inds(rho_h.core[j])))
+        for j in eachindex(rho_h.core)
+    ]
+    T = foldl(*, rho_h)
+    A = Array(T, prime.(sites)..., sites...)
+    return reshape(ComplexF64.(A), dsys, dsys)
+end
+
+function partial_trace_system(rho_h, dsys::Int, denv::Int)
+    sites = [
+        only(filter(i -&gt; plev(i) == 0 &amp;&amp; hastags(i, &quot;Site&quot;), inds(rho_h.core[j])))
+        for j in eachindex(rho_h.core)
+    ]
+    T = foldl(*, rho_h)
+    A = Array(T, prime.(sites)..., sites...)
+    ρ4 = reshape(ComplexF64.(A), dsys, denv, dsys, denv)
+    ρ_red = zeros(ComplexF64, dsys, dsys)
+    for e in 1:denv
+        ρ_red .+= @view ρ4[:, e, :, e]
+    end
+    return ρ_red
+end
+
+function compare_trajectory_to_joint_ed(trajectory, rho_sys0_h, system, H_full, joint_liouv, rho_joint0_l, denv::Int)
+    sx_pt, sx_ed = Float64[], Float64[]
+    frob_err = Float64[]
+
+    ρ_pt = reduced_system_ρ(to_liouville(rho_sys0_h; sites=system.sites), dsys)
+    ρ_ed = partial_trace_system(to_hilbert(rho_joint0_l), dsys, denv)
+    push!(sx_pt, pauli_expectations(ρ_pt)[1])
+    push!(sx_ed, pauli_expectations(ρ_ed)[1])
+    push!(frob_err, norm(ρ_pt - ρ_ed))
+
+    for k in 1:nsteps
+        t = k * dt
+        ρ_pt = reduced_system_ρ(trajectory.states_liouville[k], dsys)
+        U_L = liouvillian_propagator_itensor(H_full, joint_liouv, t; alg=Exact())
+        rho_joint_l = apply(U_L, copy(rho_joint0_l); cutoff=0.0, maxdim=typemax(Int))
+        ρ_ed = partial_trace_system(to_hilbert(rho_joint_l), dsys, denv)
+        push!(sx_pt, pauli_expectations(ρ_pt)[1])
+        push!(sx_ed, pauli_expectations(ρ_ed)[1])
+        push!(frob_err, norm(ρ_pt - ρ_ed))
+    end
+
+    return (; sx_pt, sx_ed, frob_err, max_frob=maximum(frob_err))
+end</code></pre><pre><code class="nohighlight hljs">compare_trajectory_to_joint_ed (generic function with 1 method)</code></pre><h2 id="Single-mode-spin-bath"><a class="docs-heading-anchor" href="#Single-mode-spin-bath">Single-mode spin bath</a><a id="Single-mode-spin-bath-1"></a><a class="docs-heading-anchor-permalink" href="#Single-mode-spin-bath" title="Permalink"></a></h2><p>We first couple one system spin to one bath spin.</p><pre><code class="language-julia hljs">sys_phys = siteinds(&quot;S=1/2&quot;, 1)
+env_phys = siteinds(&quot;S=1/2&quot;, 1)
+env_liouv = liouv_sites(env_phys)
+
+H_sys = OpSum()
+H_sys += 1.0, &quot;Sx&quot;, 1
+system = spin_system(sys_phys, H_sys)
+
+ρ_env0_h = to_dm(MPS(env_phys, [&quot;Up&quot;]))
+ρ_env0_l = to_liouville(ρ_env0_h; sites=env_liouv)
+
+H_env = OpSum()
+H_env += 1.0, &quot;Sx&quot;, 1
+
+coupling = OpSum()
+coupling += 1.0, &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+mode = spin_mode(env_liouv, H_env, ρ_env0_l; coupling=coupling)
+bath = spin_bath([mode])</code></pre><pre><code class="nohighlight hljs">ProcessTensors.SpinBath
+  modes: 1
+  space: Liouville
+  site dims: 4
+  bath Liouville dimension: 4
+
+  mode summary:
+    [1] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+</code></pre><h3 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h3><p>The bath is integrated out here. The returned <code>ProcessTensor</code> stores the environment influence on the system across all time steps.</p><pre><code class="language-julia hljs">pt_single = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=nsteps,
+)
+
+println(&quot;Single-mode process tensor:&quot;)
+println(pt_single)
+
+@assert pt_single isa ProcessTensor
+@assert pt_single.nsteps == nsteps
+@assert pt_single.dt == dt</code></pre><pre><code class="nohighlight hljs">Single-mode process tensor:
+24-step ProcessTensor{SpinSystem, SpinBath} | dt=0.1 | t_final=2.4 | maxlinkdim=4
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: SpinBath(nmodes=1, D_bath=4, coupling=true)
+  core:        MPO{Liouville}(length=24, linkdims=[4, 4, 4, …, 4])
+
+</code></pre><h3 id="Probe-with-instruments"><a class="docs-heading-anchor" href="#Probe-with-instruments">Probe with instruments</a><a id="Probe-with-instruments-1"></a><a class="docs-heading-anchor-permalink" href="#Probe-with-instruments" title="Permalink"></a></h3><p>Once <code>pt_single</code> exists, reduced questions are asked by contracting it with an instrument schedule.</p><p><code>evolve(pt, ρ0)</code> is the convenience interface for uninterrupted evolution: prepare the initial state, let the system pass through each time step, and read out the reduced states at the requested times.</p><p><code>evaluate_process(pt, seq)</code> exposes the same contraction with an explicit <a href="../../api/#ProcessTensors.Instruments.InstrumentSeq"><code>InstrumentSeq</code></a>. Bind <code>ObservableMeasurement</code> to the PT output leg at the final time label (<code>output_sites(pt, pt.nsteps - 1)</code>) so the instrument ITensor contracts with the reduced state without index warnings.</p><pre><code class="language-julia hljs">ρ_sys0_h = to_dm(MPS(sys_phys, [&quot;Up&quot;]))
+
+trajectory_single = evolve(pt_single, ρ_sys0_h)
+println(&quot;evolve returned $(length(trajectory_single.times)) snapshots&quot;)
+
+Sz = OpSum()
+Sz += 1.0, &quot;Sz&quot;, 1
+k_final = pt_single.nsteps - 1
+final_sites = output_sites(pt_single, k_final)
+
+seq_final_sz = default_schedule(pt_single)
+add!(seq_final_sz, StatePreparation(ρ_sys0_h), 0)
+add!(seq_final_sz, ObservableMeasurement(Sz, final_sites), pt_single.nsteps)
+final_sz_schedule = evaluate_process(pt_single, seq_final_sz)
+
+Sz_obs = instrument_itensor(
+    ObservableMeasurement(Sz, final_sites),
+    final_sites,
+    k_final,
+)
+ρ_final_T = foldl(*, trajectory_single.states_liouville[end])
+final_sz_evolve = real(inner(ρ_final_T, Sz_obs))
+
+println(&quot;Final ⟨σ_z⟩ from evaluate_process: &quot;, real(final_sz_schedule))
+println(&quot;Final ⟨σ_z⟩ from evolve:           &quot;, final_sz_evolve)
+@assert abs(real(final_sz_schedule) - final_sz_evolve) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">evolve returned 24 snapshots
+Final ⟨σ_z⟩ from evaluate_process: -0.28177970572848354
+Final ⟨σ_z⟩ from evolve:           -0.28177970572848354
+</code></pre><h3 id="Validate-against-joint-ED"><a class="docs-heading-anchor" href="#Validate-against-joint-ED">Validate against joint ED</a><a id="Validate-against-joint-ED-1"></a><a class="docs-heading-anchor-permalink" href="#Validate-against-joint-ED" title="Permalink"></a></h3><pre><code class="language-julia hljs">joint_phys = Index[sys_phys[1], env_phys[1]]
+joint_liouv_single = liouv_sites(joint_phys)
+
+H_full_single = OpSum()
+H_full_single += 1.0, &quot;Sx&quot;, 1
+H_full_single += 1.0, &quot;Sx&quot;, 2
+H_full_single += 1.0, &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+psi_joint = MPS(joint_phys, [&quot;Up&quot;, &quot;Up&quot;])
+ρ_joint0_l_single = to_liouville(to_dm(psi_joint); sites=joint_liouv_single)
+
+result_single = compare_trajectory_to_joint_ed(
+    trajectory_single,
+    ρ_sys0_h,
+    system,
+    H_full_single,
+    joint_liouv_single,
+    ρ_joint0_l_single,
+    denv_single,
+)
+print_pt_summary(&quot;Single-mode spin bath&quot;, result_single, joint_ed_frob_tol_single)
+println(&quot;Final ⟨σ_x⟩ (PT): &quot;, result_single.sx_pt[end])</code></pre><pre><code class="nohighlight hljs">Single-mode spin bath
+  max ‖ρ_PT − ρ_joint ED‖_F = 1.384e-02
+  ⟨σ_x⟩ at t=0 (PT / ED)     = 0.000000 / 0.000000
+  ⟨σ_x⟩ at t=T (PT / ED)     = 0.072706 / 0.090215
+
+Final ⟨σ_x⟩ (PT): 0.07270620255130214
+</code></pre><p><img src="../../assets/examples/pt_tfim_singlemode.png" alt="Single-mode spin-bath process tensor"/></p><p>The plotting script compares all Pauli expectations and shows the Frobenius error on a log scale in the lower panel.</p><h2 id="Multimode-spin-bath"><a class="docs-heading-anchor" href="#Multimode-spin-bath">Multimode spin bath</a><a id="Multimode-spin-bath-1"></a><a class="docs-heading-anchor-permalink" href="#Multimode-spin-bath" title="Permalink"></a></h2><p>The multimode case changes the bath, not the process-tensor idea. We couple the same system spin to several independent bath spins,</p><p class="math-container">\[H_B^{(m)} = \omega_m S_x^{(m)},
+\qquad
+H_{SB}^{(m)} = g_m S_z^{(m)} S_z^{(S)}.\]</p><div class="admonition is-info" id="Single-mode-vs-multimode-4341beaef0144acd"><header class="admonition-header">Single mode vs multimode<a class="admonition-anchor" href="#Single-mode-vs-multimode-4341beaef0144acd" title="Permalink"></a></header><div class="admonition-body"><p>Both cases use the same build-then-probe workflow. The difference is the bath memory stored in the PT-MPO, not the user-facing API.</p></div></div><pre><code class="language-julia hljs">env_phys_multi = siteinds(&quot;S=1/2&quot;, nmodes)
+env_liouv_multi = liouv_sites(env_phys_multi)
+
+modes = SpinMode[]
+for m in 1:nmodes
+    ρ_env_h = to_dm(MPS([env_phys_multi[m]], [&quot;Up&quot;]))
+    ρ_env_l = to_liouville(ρ_env_h; sites=[env_liouv_multi[m]])
+
+    H_mode = OpSum()
+    H_mode += mode_w[m], &quot;Sx&quot;, 1
+
+    coupling_m = OpSum()
+    coupling_m += mode_g[m], &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+    push!(modes, spin_mode([env_liouv_multi[m]], H_mode, ρ_env_l; coupling=coupling_m))
+end
+bath_multi = spin_bath(modes)</code></pre><pre><code class="nohighlight hljs">ProcessTensors.SpinBath
+  modes: 4
+  space: Liouville
+  site dims: 4, 4, 4, 4
+  bath Liouville dimension: 256
+
+  mode summary:
+    [1] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+    [2] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+    [3] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+    [4] SpinMode(dim=4, H_terms=1, coupling_terms=1)
+</code></pre><h3 id="Build-the-process-tensor-2"><a class="docs-heading-anchor" href="#Build-the-process-tensor-2">Build the process tensor</a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">pt_multi = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath_multi,
+    dt=dt,
+    nsteps=nsteps,
+)
+
+println(&quot;Multimode process tensor ($nmodes bath spins):&quot;)
+println(pt_multi)
+
+@assert pt_multi isa ProcessTensor
+@assert maxlinkdim(pt_multi) &gt;= maxlinkdim(pt_single)</code></pre><pre><code class="nohighlight hljs">Multimode process tensor (4 bath spins):
+24-step ProcessTensor{SpinSystem, SpinBath} | dt=0.1 | t_final=2.4 | maxlinkdim=256
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: SpinBath(nmodes=4, D_bath=256, coupling=true)
+  core:        MPO{Liouville}(length=24, linkdims=[256, 256, 256, …, 256])
+
+</code></pre><h3 id="Probe-with-instruments-2"><a class="docs-heading-anchor" href="#Probe-with-instruments-2">Probe with instruments</a><a class="docs-heading-anchor-permalink" href="#Probe-with-instruments-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">trajectory_multi = evolve(pt_multi, ρ_sys0_h)
+println(&quot;evolve returned $(length(trajectory_multi.times)) snapshots&quot;)
+
+final_sites_multi = output_sites(pt_multi, pt_multi.nsteps - 1)
+seq_multi_sz = default_schedule(pt_multi)
+add!(seq_multi_sz, StatePreparation(ρ_sys0_h), 0)
+add!(seq_multi_sz, ObservableMeasurement(Sz, final_sites_multi), pt_multi.nsteps)
+final_sz_multi = evaluate_process(pt_multi, seq_multi_sz)
+
+Sz_obs_multi = instrument_itensor(
+    ObservableMeasurement(Sz, final_sites_multi),
+    final_sites_multi,
+    pt_multi.nsteps - 1,
+)
+ρ_final_multi_T = foldl(*, trajectory_multi.states_liouville[end])
+final_sz_multi_evolve = real(inner(ρ_final_multi_T, Sz_obs_multi))
+
+println(&quot;Final ⟨σ_z⟩ from evaluate_process: &quot;, real(final_sz_multi))
+println(&quot;Final ⟨σ_z⟩ from evolve:           &quot;, final_sz_multi_evolve)
+@assert abs(real(final_sz_multi) - final_sz_multi_evolve) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">evolve returned 24 snapshots
+Final ⟨σ_z⟩ from evaluate_process: 0.058771844744097135
+Final ⟨σ_z⟩ from evolve:           0.058771844744097135
+</code></pre><h3 id="Validate-against-joint-ED-2"><a class="docs-heading-anchor" href="#Validate-against-joint-ED-2">Validate against joint ED</a><a class="docs-heading-anchor-permalink" href="#Validate-against-joint-ED-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">joint_phys_multi = Index[sys_phys[1], env_phys_multi...]
+joint_liouv_multi = liouv_sites(joint_phys_multi)
+
+H_full_multi = let
+    H = OpSum()
+    H += 1.0, &quot;Sx&quot;, 1
+    for m in 1:nmodes
+        H += mode_w[m], &quot;Sx&quot;, m + 1
+        H += mode_g[m], &quot;Sz&quot;, m + 1, &quot;Sz&quot;, 1
+    end
+    H
+end
+
+joint_init = vcat([&quot;Up&quot;], fill(&quot;Up&quot;, nmodes))
+psi_joint_multi = MPS(joint_phys_multi, joint_init)
+ρ_joint0_l_multi = to_liouville(to_dm(psi_joint_multi); sites=joint_liouv_multi)
+
+result_multi = compare_trajectory_to_joint_ed(
+    trajectory_multi,
+    ρ_sys0_h,
+    system,
+    H_full_multi,
+    joint_liouv_multi,
+    ρ_joint0_l_multi,
+    denv_multimode,
+)
+print_pt_summary(&quot;Multimode spin bath ($nmodes modes)&quot;, result_multi, joint_ed_frob_tol_multimode)
+println(&quot;Final ⟨σ_x⟩ (PT): &quot;, result_multi.sx_pt[end])</code></pre><pre><code class="nohighlight hljs">Multimode spin bath (4 modes)
+  max ‖ρ_PT − ρ_joint ED‖_F = 4.662e-02
+  ⟨σ_x⟩ at t=0 (PT / ED)     = 0.000000 / 0.000000
+  ⟨σ_x⟩ at t=T (PT / ED)     = 0.392997 / 0.400626
+
+Final ⟨σ_x⟩ (PT): 0.39299716779096566
+</code></pre><p><img src="../../assets/examples/pt_tfim_multimode.png" alt="Multimode spin-bath process tensor"/></p><h3 id="What-controls-the-error?"><a class="docs-heading-anchor" href="#What-controls-the-error?">What controls the error?</a><a id="What-controls-the-error?-1"></a><a class="docs-heading-anchor-permalink" href="#What-controls-the-error?" title="Permalink"></a></h3><p>The main algorithmic error comes from the short-time system-environment propagator used inside <code>build_process_tensor</code>. With a first-order Trotter splitting, smaller <code>dt</code> reduces that construction error. In larger calculations, also monitor PT-MPO bond truncation (<code>cutoff</code>, <code>maxdim</code>) and accumulated roundoff in long contractions.</p><div class="admonition is-category-summary" id="Example-takeaways-9d59d5cbc86518a"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-9d59d5cbc86518a" title="Permalink"></a></header><div class="admonition-body"><ul><li><code>build_process_tensor</code> integrates out the bath once; the returned <code>ProcessTensor</code> is the reusable open-system object.</li><li><code>evolve(pt, ρ0)</code> and <code>evaluate_process(pt, seq)</code> probe that same object with different instrument schedules—no second bath evolution is needed.</li><li>Multimode baths change the PT-MPO memory structure, not the user-facing workflow for preparing states, evolving, or measuring observables.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kicked_ising_chain/">« Kicked Ising chain</a><a class="docs-footer-nextpage" href="../instrument_sequences/">Instrument sequences »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 14:19">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

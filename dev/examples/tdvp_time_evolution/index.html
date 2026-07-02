@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>TDVP time evolution · ProcessTensors.jl</title><meta name="title" content="TDVP time evolution · ProcessTensors.jl"/><meta property="og:title" content="TDVP time evolution · ProcessTensors.jl"/><meta property="twitter:title" content="TDVP time evolution · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/tdvp_time_evolution/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/tdvp_time_evolution/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/tdvp_time_evolution/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox" checked/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li class="is-active"><a class="tocitem" href>TDVP time evolution</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Model-and-initial-state"><span>Model and initial state</span></a></li><li><a class="tocitem" href="#Exact-diagonalization-reference"><span>Exact diagonalization reference</span></a></li><li><a class="tocitem" href="#Hilbert-space-TDVP"><span>Hilbert-space TDVP</span></a></li><li><a class="tocitem" href="#Liouville-space-TDVP"><span>Liouville-space TDVP</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../kicked_ising_chain/">Kicked Ising chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox"/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Time evolution algorithms</a></li><li class="is-active"><a href>TDVP time evolution</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>TDVP time evolution</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/tdvp_time_evolution.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="TDVP-time-evolution"><a class="docs-heading-anchor" href="#TDVP-time-evolution">TDVP time evolution</a><a id="TDVP-time-evolution-1"></a><a class="docs-heading-anchor-permalink" href="#TDVP-time-evolution" title="Permalink"></a></h1><p>In this example, we use the time-dependent variational principle (TDVP) to evolve a transverse-field Ising chain.</p><p>The goal is to compare TDVP as a time-evolution algorithm in two different representations:</p><ol><li>Hilbert space, where the state is an MPS <code>|ψ(t)⟩</code>.</li><li>Liouville space, where the density matrix is vectorized as <code>|ρ(t)⟩⟩</code>.</li></ol><p>For a closed unitary system, both descriptions represent the same physical dynamics. However, the variational geometry seen by TDVP is different in the two cases. This example is designed to make that difference visible.</p><p>We study three TDVP variants in each representation:</p><ul><li>plain 1TDVP,</li><li>1TDVP with global subspace expansion (GSE),</li><li>2TDVP.</li></ul><p>See also the <a href="../../tutorials/unitary_dynamics/#Unitary-Dynamics">Unitary Dynamics</a> tutorial and <code>scripts/tdvp_tfim_unitary.jl</code>, which regenerates the benchmark figures.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Printf
+using ProcessTensors
+using ITensors
+using ITensorMPS: expand, orthogonalize!
+using LinearAlgebra
+
+function tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
+    os = OpSum()
+    for j in 1:(N - 1)
+        os += -J, &quot;Z&quot;, j, &quot;Z&quot;, j + 1
+    end
+    for j in 1:N
+        os += -h, &quot;X&quot;, j
+    end
+    return os
+end
+
+function single_site_pauli_mpos(op::AbstractString, physical_sites)
+    N = length(physical_sites)
+    return MPO{Hilbert}[
+        let os = OpSum()
+            os += 1.0, op, j
+            MPO(os, physical_sites)
+        end for j in 1:N
+    ]
+end</code></pre><pre><code class="nohighlight hljs">single_site_pauli_mpos (generic function with 1 method)</code></pre><p>For larger systems, increase <code>N</code>; the TDVP code is unchanged, while the ED reference should be omitted.</p><pre><code class="language-julia hljs">const N = 4
+const J = 1.0
+const h = 1.2
+const T_max = 4.0
+const dt = 0.05
+const nsteps = round(Int, T_max / dt)
+const maxdim_1site = 50
+const maxdim_2site = 50
+const cutoff = 1e-10
+const gse_every_steps = 10
+const krylovdim = 2
+const gse_cutoff = 1e-8
+const n_exact = 81
+
+function mean_sx(state::AbstractMPS{Hilbert}, x_mpos)
+    return real(sum(inner(state&#39;, O, state) for O in x_mpos) / length(x_mpos))
+end
+
+function mean_sx(state::AbstractMPS{Liouville}, x_mpos)
+    ρ_h = to_hilbert(state)
+    s = 0.0
+    for O in x_mpos
+        ρO = apply(O, ρ_h; alg=&quot;naive&quot;, truncate=false)
+        s += real(tr(ρO))
+    end
+    return s / length(x_mpos)
+end
+
+state_energy(state::AbstractMPS{Hilbert}, H_mpo) = real(inner(state&#39;, H_mpo, state))
+
+function state_energy(state::AbstractMPS{Liouville}, H_mpo)
+    ρ_h = to_hilbert(state)
+    return real(tr(apply(H_mpo, ρ_h; alg=&quot;naive&quot;, truncate=false)))
+end
+
+function trajectory_metrics(states, x_mpos, H_mpo)
+    times = collect(range(0.0, T_max; length=length(states)))
+    rho_errs = Float64[]
+    sx = Float64[]
+    E0 = state_energy(first(states), H_mpo)
+    energy_drift = Float64[]
+    for (t, state) in zip(times, states)
+        ρ_ed = exact_density_at(t, L_dense, vec0, d)
+        push!(rho_errs, density_error(state_to_density_dense(state, physical_sites), ρ_ed))
+        push!(sx, mean_sx(state, x_mpos))
+        push!(energy_drift, state_energy(state, H_mpo) - E0)
+    end
+    return (; times, rho_errs, sx, energy_drift, max_bond=maximum(maxlinkdim, states))
+end
+
+function summarize_run(label::AbstractString, run, x_mpos, H_mpo)
+    return (; label, elapsed=run.elapsed, metrics=trajectory_metrics(run.states, x_mpos, H_mpo))
+end
+
+function print_tdvp_summary(result)
+    max_energy_drift = maximum(abs, result.metrics.energy_drift)
+    @printf(&quot;%s\n&quot;, result.label)
+    @printf(&quot;  Total time taken: %.3f s\n&quot;, result.elapsed)
+    @printf(&quot;  |ρ - ρ_ED|:       %.3e\n&quot;, result.metrics.rho_errs[end])
+    @printf(&quot;  max bond dim:     %d\n&quot;, result.metrics.max_bond)
+    @printf(&quot;  max energy drift: %.3e\n&quot;, max_energy_drift)
+    println()
+end</code></pre><pre><code class="nohighlight hljs">print_tdvp_summary (generic function with 1 method)</code></pre><h2 id="Model-and-initial-state"><a class="docs-heading-anchor" href="#Model-and-initial-state">Model and initial state</a><a id="Model-and-initial-state-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-initial-state" title="Permalink"></a></h2><p>We use the transverse-field Ising model</p><p class="math-container">\[H =
+-J \sum_{j=1}^{N-1} Z_j Z_{j+1}
+-h \sum_{j=1}^{N} X_j .\]</p><p>The initial state is the product state</p><p class="math-container">\[|\psi(0)\rangle = |\uparrow \uparrow \cdots \uparrow\rangle .\]</p><p>We compare the TDVP trajectories against a dense exact-diagonalization reference. The dense reference is only used because this is a small documentation example; the TDVP code itself is the tensor-network method.</p><pre><code class="language-julia hljs">physical_sites = siteinds(&quot;S=1/2&quot;, N)
+liouv_sites_shared = liouv_sites(physical_sites)
+os_H = tfim_hamiltonian(N; J=J, h=h)
+H_mpo = MPO(os_H, physical_sites)
+jump_ops = Tuple{Number, String, Int}[]
+
+ψ0 = MPS(physical_sites, fill(&quot;Up&quot;, N))
+ρ0 = to_dm(ψ0)
+ρ0_vec = to_liouville(ρ0; sites=liouv_sites_shared)
+
+x_mpos = single_site_pauli_mpos(&quot;X&quot;, physical_sites)
+z_mpos = single_site_pauli_mpos(&quot;Z&quot;, physical_sites)
+@assert isapprox(real(sum(inner(ψ0&#39;, O, ψ0) for O in z_mpos) / N), 1.0; atol=1e-10)</code></pre><h2 id="Exact-diagonalization-reference"><a class="docs-heading-anchor" href="#Exact-diagonalization-reference">Exact diagonalization reference</a><a id="Exact-diagonalization-reference-1"></a><a class="docs-heading-anchor-permalink" href="#Exact-diagonalization-reference" title="Permalink"></a></h2><p>We use ED only to make the TDVP approximation error visible. The scalable method is TDVP itself.</p><p>In Liouville space the vectorized density matrix obeys <span>$|\rho(t)\rangle\rangle = e^{t\mathcal{L}}|\rho(0)\rangle\rangle$</span> with <span>$\mathcal{L}\rho = -i[H,\rho]$</span> for closed dynamics.</p><pre><code class="language-julia hljs">function hilbert_mpo_to_dense(ρ::AbstractMPO{Hilbert}, physical_sites)
+    T = foldl(*, ρ)
+    A = Array(T, prime.(physical_sites)..., physical_sites...)
+    return reshape(ComplexF64.(A), prod(dim.(physical_sites)), prod(dim.(physical_sites)))
+end
+
+function hilbert_matrix_to_mpo(M::AbstractMatrix{&lt;:Number}, physical_sites)
+    dims = vcat(dim.(prime.(physical_sites)), dim.(physical_sites))
+    T = ITensor(reshape(ComplexF64.(M), Tuple(dims)), prime.(physical_sites)..., physical_sites...)
+    return MPO(T, physical_sites)
+end
+
+function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
+    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    d = prod(dim.(physical_sites))
+    d2 = d * d
+    L_dense = zeros(ComplexF64, d2, d2)
+    for b in 1:d, a in 1:d
+        q = a + (b - 1) * d
+        E = zeros(ComplexF64, d, d)
+        E[a, b] = 1.0
+        basis_q = to_liouville(hilbert_matrix_to_mpo(E, physical_sites); sites=liouv_sites_shared)
+        σ_q = apply(L_mpo, basis_q; cutoff=0.0, maxdim=typemax(Int))
+        ρ_out = hilbert_mpo_to_dense(to_hilbert(σ_q), physical_sites)
+        L_dense[:, q] = vec(ρ_out)
+    end
+    return L_dense
+end
+
+state_to_density_dense(state::AbstractMPS{Hilbert}, physical_sites) =
+    hilbert_mpo_to_dense(to_dm(state), physical_sites)
+state_to_density_dense(state::AbstractMPS{Liouville}, physical_sites) =
+    hilbert_mpo_to_dense(to_hilbert(state), physical_sites)
+
+density_error(ρ::AbstractMatrix, ρ_ref::AbstractMatrix) =
+    norm(ρ - ρ_ref) / max(norm(ρ_ref), eps(Float64))
+
+function dense_one_site_operator(op_name::AbstractString, physical_sites, site::Int)
+    local_ops = Matrix{ComplexF64}[]
+    for (j, s) in enumerate(physical_sites)
+        if j == site
+            push!(local_ops, Array(op(op_name, s), prime(s), s))
+        else
+            push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
+        end
+    end
+    return foldl(kron, local_ops)
+end
+
+function exact_density_at(t::Real, L_dense::AbstractMatrix, vec0::AbstractVector, d::Int)
+    Lt = ComplexF64.(L_dense)
+    v0 = ComplexF64.(vec0)
+    vt = iszero(t) ? v0 : exp(t * Lt) * v0
+    return reshape(vt, d, d)
+end
+
+function mean_sx_from_density(ρ::AbstractMatrix, x_ops)
+    return real(sum(tr(ρ * O) for O in x_ops) / length(x_ops))
+end
+
+function exact_sx_trajectory(L_dense, vec0, d, x_ops, times::AbstractVector)
+    return Float64[mean_sx_from_density(exact_density_at(t, L_dense, vec0, d), x_ops) for t in times]
+end
+
+println(&quot;Building Liouville ED reference...&quot;)
+d = prod(dim.(physical_sites))
+vec0 = vec(ComplexF64.(hilbert_mpo_to_dense(ρ0, physical_sites)))
+L_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
+x_ops = [dense_one_site_operator(&quot;X&quot;, physical_sites, j) for j in 1:N]
+t_exact = collect(range(0.0, T_max; length=n_exact))
+sx_exact = exact_sx_trajectory(L_dense, vec0, d, x_ops, t_exact)
+println(&quot;Final Sx: &quot;, sx_exact[end])</code></pre><pre><code class="nohighlight hljs">Building Liouville ED reference...
+Final Sx: 0.25318952364501845
+</code></pre><h2 id="Hilbert-space-TDVP"><a class="docs-heading-anchor" href="#Hilbert-space-TDVP">Hilbert-space TDVP</a><a id="Hilbert-space-TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-space-TDVP" title="Permalink"></a></h2><p>We first evolve the pure-state MPS directly under the Hamiltonian MPO.</p><p>The three Hilbert-space runs are:</p><ol><li>plain 1TDVP,</li><li>1TDVP with global subspace expansion,</li><li>2TDVP.</li></ol><h3 id="1TDVP-and-2TDVP"><a class="docs-heading-anchor" href="#1TDVP-and-2TDVP">1TDVP and 2TDVP</a><a id="1TDVP-and-2TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#1TDVP-and-2TDVP" title="Permalink"></a></h3><p>TDVP does not apply local Trotter gates. Instead, it projects the exact time-evolution equation onto the tangent space of the MPS manifold.</p><p>For Hilbert-space Schrödinger evolution,</p><p class="math-container">\[\frac{d}{dt}|\psi(t)\rangle = -iH|\psi(t)\rangle .\]</p><p>If <code>|ψ[A]⟩</code> is restricted to the MPS manifold <code>𝓜_D</code>, TDVP evolves by</p><p class="math-container">\[\frac{d}{dt}|\psi[A]\rangle
+=
+-i P_{T_{|\psi\rangle}\mathcal{M}_D}
+H|\psi[A]\rangle .\]</p><p>In 1TDVP, the bond dimensions remain fixed. This gives good conservation properties in Hilbert space, especially for energy, but it also means that 1TDVP cannot grow the entanglement structure by itself.</p><p>In 2TDVP, two-site tensors are evolved and then factorized again with an SVD. This allows the bond dimension to grow, up to <code>maxdim</code>, but the SVD truncation weakens the exact conservation properties of 1TDVP.</p><pre><code class="language-julia hljs">function tdvp_trajectory(state0, operator, time_step, dt::Float64, nsteps::Int; nsite::Int, maxdim::Int, cutoff::Float64)
+    states = Vector{typeof(state0)}(undef, nsteps + 1)
+    states[1] = copy(state0)
+    current = copy(state0)
+    elapsed = @elapsed begin
+        for step in 1:nsteps
+            current = tdvp(
+                operator,
+                time_step,
+                current;
+                time_step=time_step,
+                nsite=nsite,
+                maxdim=maxdim,
+                cutoff=cutoff,
+                outputlevel=0,
+            )
+            states[step + 1] = current
+        end
+    end
+    return (; states, elapsed)
+end</code></pre><pre><code class="nohighlight hljs">tdvp_trajectory (generic function with 1 method)</code></pre><h3 id="Global-subspace-expansion"><a class="docs-heading-anchor" href="#Global-subspace-expansion">Global subspace expansion</a><a id="Global-subspace-expansion-1"></a><a class="docs-heading-anchor-permalink" href="#Global-subspace-expansion" title="Permalink"></a></h3><p>Plain 1TDVP evolves inside a fixed-bond-dimension manifold. This can be too restrictive if the exact dynamics quickly generates entanglement.</p><p>Global subspace expansion enriches the MPS basis before a 1TDVP step. It adds dynamically relevant directions generated by a Krylov subspace.</p><p>For Hilbert-space dynamics, the relevant Krylov space is</p><p class="math-container">\[\mathcal{K}_m(H,|\psi\rangle)
+=
+\operatorname{span}
+\{|\psi\rangle, H|\psi\rangle, H^2|\psi\rangle,\dots,H^{m-1}|\psi\rangle\}.\]</p><p>The important point is that subspace expansion does not change the physical state intentionally. It changes the available bond basis so that the next 1TDVP step can move in a larger variational manifold:</p><p class="math-container">\[\mathcal{M}_D \longrightarrow \mathcal{M}_{D&#39;}, \qquad D&#39; \ge D .\]</p><pre><code class="language-julia hljs">function gse_expand_state(state::MPS{Hilbert}, operator; krylovdim::Int, gse_cutoff::Float64, gse_maxdim::Int)
+    expanded_core = expand(
+        state.core,
+        operator.core;
+        alg=&quot;global_krylov&quot;,
+        krylovdim=krylovdim,
+        cutoff=gse_cutoff,
+        apply_kwargs=(; maxdim=gse_maxdim),
+    )
+    orthogonalize!(expanded_core, 1)
+    return MPS{Hilbert}(expanded_core)
+end
+
+function tdvp1_gse_trajectory(
+    state0,
+    operator,
+    time_step,
+    dt::Float64,
+    nsteps::Int;
+    maxdim::Int,
+    cutoff::Float64,
+    krylovdim::Int,
+    gse_cutoff::Float64,
+    gse_maxdim::Int,
+    gse_every_steps::Int,
+)
+    states = Vector{typeof(state0)}(undef, nsteps + 1)
+    states[1] = copy(state0)
+    current = copy(state0)
+    elapsed = @elapsed begin
+        for step in 1:nsteps
+            if step == 1 || (gse_every_steps &gt; 0 &amp;&amp; (step - 1) % gse_every_steps == 0)
+                current = gse_expand_state(
+                    current,
+                    operator;
+                    krylovdim=krylovdim,
+                    gse_cutoff=gse_cutoff,
+                    gse_maxdim=gse_maxdim,
+                )
+            end
+            current = tdvp(
+                operator,
+                time_step,
+                current;
+                time_step=time_step,
+                nsite=1,
+                maxdim=maxdim,
+                cutoff=cutoff,
+                outputlevel=0,
+            )
+            states[step + 1] = current
+        end
+    end
+    return (; states, elapsed)
+end
+
+println(&quot;Hilbert-space TDVP&quot;)
+println(&quot;------------------&quot;)
+
+hilbert_runs = NamedTuple[]
+
+for (label, nsite, maxdim, runner, kwargs) in (
+    (&quot;Hilbert 1TDVP&quot;, 1, maxdim_1site, tdvp_trajectory, NamedTuple()),
+    (
+        &quot;Hilbert 1TDVP + GSE&quot;,
+        1,
+        maxdim_1site,
+        tdvp1_gse_trajectory,
+        (;
+            krylovdim=krylovdim,
+            gse_cutoff=gse_cutoff,
+            gse_maxdim=maxdim_1site,
+            gse_every_steps=gse_every_steps,
+        ),
+    ),
+    (&quot;Hilbert 2TDVP&quot;, 2, maxdim_2site, tdvp_trajectory, NamedTuple()),
+)
+    run = if runner === tdvp1_gse_trajectory
+        runner(ψ0, H_mpo, -1im * dt, dt, nsteps; maxdim=maxdim, cutoff=cutoff, kwargs...)
+    else
+        runner(ψ0, H_mpo, -1im * dt, dt, nsteps; nsite=nsite, maxdim=maxdim, cutoff=cutoff)
+    end
+    result = summarize_run(label, run, x_mpos, H_mpo)
+    push!(hilbert_runs, result)
+    print_tdvp_summary(result)
+end</code></pre><pre><code class="nohighlight hljs">Hilbert-space TDVP
+------------------
+Hilbert 1TDVP
+  Total time taken: 0.816 s
+  |ρ - ρ_ED|:       1.163e+00
+  max bond dim:     1
+  max energy drift: 1.288e-14
+
+Hilbert 1TDVP + GSE
+  Total time taken: 5.763 s
+  |ρ - ρ_ED|:       1.421e-04
+  max bond dim:     4
+  max energy drift: 3.064e-14
+
+Hilbert 2TDVP
+  Total time taken: 1.448 s
+  |ρ - ρ_ED|:       4.063e-05
+  max bond dim:     4
+  max energy drift: 1.460e-10
+
+</code></pre><p><img src="../../assets/examples/tdvp_tfim_unitary_hilbert_dynamics_mx.png" alt="Hilbert-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_hilbert_energy_drift.png" alt="Hilbert-space energy drift"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_hilbert_rho_error.png" alt="Hilbert-space density-matrix error"/></p><h2 id="Liouville-space-TDVP"><a class="docs-heading-anchor" href="#Liouville-space-TDVP">Liouville-space TDVP</a><a id="Liouville-space-TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Liouville-space-TDVP" title="Permalink"></a></h2><p>We now repeat the same unitary dynamics in Liouville space.</p><p>In Liouville space, we vectorize the density matrix:</p><p class="math-container">\[\rho \mapsto |\rho\rangle\rangle .\]</p><p>For closed unitary dynamics,</p><p class="math-container">\[\frac{d}{dt}\rho(t) = -i[H,\rho(t)] ,\]</p><p>which becomes</p><p class="math-container">\[\frac{d}{dt}|\rho(t)\rangle\rangle
+=
+\mathcal{L}|\rho(t)\rangle\rangle .\]</p><p>TDVP can also be applied to this Liouville-space MPS. But the conservation story must be read carefully. In Hilbert space, 1TDVP is naturally aligned with the physical Hamiltonian expectation <code>⟨H⟩</code>. In Liouville space, TDVP is applied to the vectorized density matrix under the Liouvillian superoperator. The physical energy</p><p class="math-container">\[E(t) = \operatorname{Tr}(H\rho(t))\]</p><p>is not the same variational object that the Hilbert-space 1TDVP conservation argument protects. Therefore, energy conservation in Liouville-space TDVP should not be interpreted in exactly the same way.</p><p>For Liouville-space dynamics, global subspace expansion uses the Krylov space</p><p class="math-container">\[\mathcal{K}_m(\mathcal{L},|\rho\rangle\rangle)
+=
+\operatorname{span}
+\{|\rho\rangle\rangle,
+\mathcal{L}|\rho\rangle\rangle,
+\mathcal{L}^2|\rho\rangle\rangle,\dots\}.\]</p><p>Since this is a closed system, we pass no jump operators. The Liouvillian MPO therefore represents only the commutator dynamics.</p><pre><code class="language-julia hljs">function gse_expand_state(state::MPS{Liouville}, operator; krylovdim::Int, gse_cutoff::Float64, gse_maxdim::Int)
+    expanded_core = expand(
+        state.core,
+        operator.core;
+        alg=&quot;global_krylov&quot;,
+        krylovdim=krylovdim,
+        cutoff=gse_cutoff,
+        apply_kwargs=(; maxdim=gse_maxdim),
+    )
+    orthogonalize!(expanded_core, 1)
+    return MPS{Liouville}(expanded_core, state.combiners)
+end
+
+L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+
+println(&quot;Liouville-space TDVP&quot;)
+println(&quot;--------------------&quot;)
+
+liouville_runs = NamedTuple[]
+
+for (label, nsite, maxdim, runner, kwargs) in (
+    (&quot;Liouville 1TDVP&quot;, 1, maxdim_1site, tdvp_trajectory, NamedTuple()),
+    (
+        &quot;Liouville 1TDVP + GSE&quot;,
+        1,
+        maxdim_1site,
+        tdvp1_gse_trajectory,
+        (;
+            krylovdim=krylovdim,
+            gse_cutoff=gse_cutoff,
+            gse_maxdim=maxdim_1site,
+            gse_every_steps=gse_every_steps,
+        ),
+    ),
+    (&quot;Liouville 2TDVP&quot;, 2, maxdim_2site, tdvp_trajectory, NamedTuple()),
+)
+    run = if runner === tdvp1_gse_trajectory
+        runner(ρ0_vec, L_mpo, dt, dt, nsteps; maxdim=maxdim, cutoff=cutoff, kwargs...)
+    else
+        runner(ρ0_vec, L_mpo, dt, dt, nsteps; nsite=nsite, maxdim=maxdim, cutoff=cutoff)
+    end
+    result = summarize_run(label, run, x_mpos, H_mpo)
+    push!(liouville_runs, result)
+    print_tdvp_summary(result)
+end
+
+@assert all(isfinite, hilbert_runs[1].metrics.rho_errs)
+@assert isapprox(
+    density_error(state_to_density_dense(ψ0, physical_sites), exact_density_at(0.0, L_dense, vec0, d)),
+    0.0;
+    atol=1e-12,
+)</code></pre><pre><code class="nohighlight hljs">Liouville-space TDVP
+--------------------
+Liouville 1TDVP
+  Total time taken: 0.176 s
+  |ρ - ρ_ED|:       1.163e+00
+  max bond dim:     1
+  max energy drift: 8.882e-15
+
+Liouville 1TDVP + GSE
+  Total time taken: 5.249 s
+  |ρ - ρ_ED|:       4.416e-02
+  max bond dim:     16
+  max energy drift: 3.610e-02
+
+Liouville 2TDVP
+  Total time taken: 6.138 s
+  |ρ - ρ_ED|:       5.709e-05
+  max bond dim:     16
+  max energy drift: 3.813e-05
+
+</code></pre><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png" alt="Liouville-space energy drift"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png" alt="Liouville-space density-matrix error"/></p><div class="admonition is-category-summary" id="Example-takeaways-d8442c32fbbdc67f"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-d8442c32fbbdc67f" title="Permalink"></a></header><div class="admonition-body"><ul><li>Hilbert-space 1TDVP conserves energy most strictly inside a fixed-bond manifold, but may miss entanglement growth needed for accurate observables.</li><li>Global subspace expansion enlarges the 1TDVP basis without switching to full two-site updates; 2TDVP grows bonds but SVD truncation weakens strict conservation.</li><li>Liouville-space TDVP solves the same physics with a different variational geometry; interpret energies through the reconstructed density matrix.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tebd_time_evolution/">« TEBD time evolution</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 14:19">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
