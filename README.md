@@ -118,5 +118,7 @@ section of the documentation:
 | Single-mode spin bath | `scripts/pt_tfim_singlemode.jl` | [Single spin-bath process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/single_spin_bath_process_tensor/) |
 | Multimode spin bath | `scripts/pt_tfim_multimode.jl` | [Multimode process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multimode_process_tensor/) |
 | Multi-time correlations | `scripts/pt_multitime_correlations.jl` | [Multi-time correlations](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multitime_correlations/) |
-| TFIM TEBD (dissipative) | `scripts/tebd_tfim.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
-| TFIM TDVP benchmark | `scripts/tdvp_tfim.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |
+| TFIM TEBD (unitary) | `scripts/tebd_tfim_unitary.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |
+| TFIM TEBD (dissipative) | `scripts/tebd_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
+| TFIM TDVP (unitary) | `scripts/tdvp_tfim_unitary.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |
+| TFIM TDVP (dissipative) | `scripts/tdvp_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |

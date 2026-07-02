@@ -5,6 +5,14 @@ using Literate
 DocMeta.setdocmeta!(ProcessTensors, :DocTestSetup, :(using ProcessTensors); recursive=true)
 
 const DOCS_ROOT = @__DIR__
+const PKG_LOGO = normpath(joinpath(DOCS_ROOT, "..", "logo.svg"))
+const DOCS_LOGO = joinpath(DOCS_ROOT, "src", "assets", "logo.svg")
+
+# Single source of truth: package-root logo.svg (also used by README).
+isfile(PKG_LOGO) || throw(ArgumentError("Package logo not found at $PKG_LOGO"))
+mkpath(dirname(DOCS_LOGO))
+cp(PKG_LOGO, DOCS_LOGO; force=true)
+
 const LITERATE_DIR = joinpath(DOCS_ROOT, "literate", "tutorials")
 const TUTORIAL_OUT = joinpath(DOCS_ROOT, "src", "tutorials")
 

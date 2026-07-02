@@ -10,8 +10,8 @@ jump operators, and Liouville TEBD/TDVP.
 ## Related material
 
 - [Tutorial: Dissipative Dynamics](../tutorials/dissipative_dynamics.md)
-- Script: [`scripts/tebd_tfim.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim.jl)
-- Script: [`scripts/tdvp_tfim.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tdvp_tfim.jl) (dissipative benchmark)
+- Script: [`scripts/tebd_tfim_dissipative.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim_dissipative.jl)
+- Script: [`scripts/tdvp_tfim_dissipative.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tdvp_tfim_dissipative.jl) (dissipative TFIM TDVP benchmark)
 
 !!! note "Documentation in progress"
     A full Literate example for this page is planned.
