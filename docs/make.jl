@@ -15,6 +15,10 @@ cp(PKG_LOGO, DOCS_LOGO; force=true)
 
 const LITERATE_DIR = joinpath(DOCS_ROOT, "literate", "tutorials")
 const TUTORIAL_OUT = joinpath(DOCS_ROOT, "src", "tutorials")
+const LITERATE_EXAMPLE_DIR = joinpath(DOCS_ROOT, "literate", "examples")
+const EXAMPLE_OUT = joinpath(DOCS_ROOT, "src", "examples")
+const EXAMPLE_ASSETS = joinpath(DOCS_ROOT, "src", "assets", "examples")
+const SCRIPT_FIGURES = normpath(joinpath(DOCS_ROOT, "..", "scripts", "figures"))
 
 const TUTORIAL_GROUPS = [
     ("Foundations", [
@@ -59,14 +63,16 @@ tutorial_sidebar = [
     for (group, pages) in TUTORIAL_GROUPS
 ]
 
+const LITERATE_EXAMPLES = [
+    ("tebd_time_evolution.jl", "tebd_time_evolution", "TEBD time evolution"),
+    ("tdvp_time_evolution.jl", "tdvp_time_evolution", "TDVP time evolution"),
+    ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
+]
+
 const EXAMPLE_GROUPS = [
-    ("Closed-system dynamics", [
-        ("Unitary spin chain", "spin_chain_unitary"),
-        ("Bose-Hubbard dynamics", "bose_hubbard_unitary"),
-    ]),
-    ("Reduced states and diagnostics", [
-        ("Reduced states and entropy", "reduced_density_entropy"),
-        ("Convergence and truncation", "convergence_and_truncation"),
+    ("Time evolution algorithms", [
+        ("TEBD time evolution", "tebd_time_evolution"),
+        ("TDVP time evolution", "tdvp_time_evolution"),
     ]),
     ("Dissipative dynamics", [
         ("Dissipative spin", "dissipative_spin"),
@@ -78,9 +84,7 @@ const EXAMPLE_GROUPS = [
         ("Kicked Ising chain", "kicked_ising_chain"),
     ]),
     ("Process tensors", [
-        ("Single spin-bath process tensor", "single_spin_bath_process_tensor"),
-        ("Stochastic process tensor", "stochastic_process_tensor"),
-        ("Multimode process tensor", "multimode_process_tensor"),
+        ("Spin-bath process tensor", "spin_bath_process_tensor"),
     ]),
     ("Instruments and correlations", [
         ("Instrument sequences", "instrument_sequences"),
@@ -88,10 +92,56 @@ const EXAMPLE_GROUPS = [
     ]),
 ]
 
+example_stems = Set(stem for (_, pages) in EXAMPLE_GROUPS for (_, stem) in pages)
+
 example_sidebar = [
     group => ["$title" => "examples/$stem.md" for (title, stem) in pages]
     for (group, pages) in EXAMPLE_GROUPS
 ]
+
+function stage_example_figures(fig_names)
+    mkpath(EXAMPLE_ASSETS)
+    for name in fig_names
+        src = joinpath(SCRIPT_FIGURES, name)
+        isfile(src) || @warn "Example figure not found; run the linked script first." name src
+        isfile(src) && cp(src, joinpath(EXAMPLE_ASSETS, name); force=true)
+    end
+end
+
+mkpath(EXAMPLE_OUT)
+literate_example_stems = Set(stem for (_, stem, _) in LITERATE_EXAMPLES)
+for file in readdir(EXAMPLE_OUT)
+    if endswith(file, ".md")
+        stem = replace(file, ".md" => "")
+        (stem ∈ literate_example_stems || stem ∉ example_stems) && rm(joinpath(EXAMPLE_OUT, file); force=true)
+    end
+end
+
+for (src, stem, _) in LITERATE_EXAMPLES
+    Literate.markdown(
+        joinpath(LITERATE_EXAMPLE_DIR, src),
+        EXAMPLE_OUT;
+        name=stem,
+        documenter=true,
+        credit=false,
+        execute=true,
+    )
+end
+
+stage_example_figures([
+    "tebd_tfim_unitary_hilbert_dynamics_mx.png",
+    "tebd_tfim_unitary_hilbert_rho_error.png",
+    "tebd_tfim_unitary_liouville_dynamics_mx.png",
+    "tebd_tfim_unitary_liouville_rho_error.png",
+    "tdvp_tfim_unitary_hilbert_dynamics_mx.png",
+    "tdvp_tfim_unitary_hilbert_energy_drift.png",
+    "tdvp_tfim_unitary_hilbert_rho_error.png",
+    "tdvp_tfim_unitary_liouville_dynamics_mx.png",
+    "tdvp_tfim_unitary_liouville_energy_drift.png",
+    "tdvp_tfim_unitary_liouville_rho_error.png",
+    "pt_tfim_singlemode.png",
+    "pt_tfim_multimode.png",
+])
 
 makedocs(;
     modules=[

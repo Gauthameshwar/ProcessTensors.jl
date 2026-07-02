@@ -29,11 +29,7 @@ function tdvp_dense_one_site_operator(op_name::AbstractString, physical_sites, s
             push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
         end
     end
-    O = local_ops[1]
-    for j in 2:length(local_ops)
-        O = kron(O, local_ops[j])
-    end
-    return O
+    return foldl(kron, local_ops)
 end
 
 function average_observable_dense(ρ::AbstractMatrix{<:Number}, embedded_ops)

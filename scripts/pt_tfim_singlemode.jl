@@ -68,10 +68,7 @@ function reduced_system_ρ(state_l, dsys)
         only(filter(i -> plev(i) == 0 && hastags(i, "Site"), inds(rho_h.core[j])))
         for j in eachindex(rho_h.core)
     ]
-    T = rho_h.core[1]
-    for j in 2:length(rho_h.core)
-        T *= rho_h.core[j]
-    end
+    T = foldl(*, rho_h)
     A = Array(T, prime.(sites)..., sites...)
     return reshape(ComplexF64.(A), dsys, dsys)
 end
@@ -81,10 +78,7 @@ function partial_trace_system(rho_h, dsys, denv)
         only(filter(i -> plev(i) == 0 && hastags(i, "Site"), inds(rho_h.core[j])))
         for j in eachindex(rho_h.core)
     ]
-    T = rho_h.core[1]
-    for j in 2:length(rho_h.core)
-        T *= rho_h.core[j]
-    end
+    T = foldl(*, rho_h)
     A = Array(T, prime.(sites)..., sites...)
     ρ4 = reshape(ComplexF64.(A), dsys, denv, dsys, denv)
     ρ_red = zeros(ComplexF64, dsys, dsys)

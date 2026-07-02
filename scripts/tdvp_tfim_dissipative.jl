@@ -44,10 +44,7 @@ function finish_status(message::AbstractString = "")
 end
 
 function hilbert_mpo_to_dense(ρ::AbstractMPO{Hilbert}, physical_sites)
-    T = ρ.core[1]
-    for j in 2:length(ρ.core)
-        T *= ρ.core[j]
-    end
+    T = foldl(*, ρ)
     A = Array(T, prime.(physical_sites)..., physical_sites...)
     return reshape(ComplexF64.(A), prod(dim.(physical_sites)), prod(dim.(physical_sites)))
 end
@@ -147,11 +144,7 @@ function dense_one_site_operator(op_name::AbstractString, physical_sites, site::
             push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
         end
     end
-    O = local_ops[1]
-    for j in 2:length(local_ops)
-        O = kron(O, local_ops[j])
-    end
-    return O
+    return foldl(kron, local_ops)
 end
 
 function average_observable_dense(ρ::AbstractMatrix{<:Number}, embedded_ops)

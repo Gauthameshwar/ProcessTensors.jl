@@ -110,15 +110,14 @@ expectation = evaluate_process(pt, seq)
 ## Examples
 
 Runnable scripts and longer worked examples live under `scripts/` and in the
-[Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/)
+[Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/)
 section of the documentation:
 
 | Topic | Script | Docs |
 | ----- | ------ | ---- |
-| Single-mode spin bath | `scripts/pt_tfim_singlemode.jl` | [Single spin-bath process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/single_spin_bath_process_tensor/) |
-| Multimode spin bath | `scripts/pt_tfim_multimode.jl` | [Multimode process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multimode_process_tensor/) |
+| Spin-bath process tensor | `scripts/pt_tfim_singlemode.jl`, `scripts/pt_tfim_multimode.jl` | [Spin-bath process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_bath_process_tensor/) |
 | Multi-time correlations | `scripts/pt_multitime_correlations.jl` | [Multi-time correlations](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multitime_correlations/) |
-| TFIM TEBD (unitary) | `scripts/tebd_tfim_unitary.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |
+| TFIM TEBD (unitary) | `scripts/tebd_tfim_unitary.jl` | [TEBD time evolution](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/) |
 | TFIM TEBD (dissipative) | `scripts/tebd_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
-| TFIM TDVP (unitary) | `scripts/tdvp_tfim_unitary.jl` | [Unitary spin chain](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_chain_unitary/) |
+| TFIM TDVP (unitary) | `scripts/tdvp_tfim_unitary.jl` | [Unitary Dynamics tutorial](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/unitary_dynamics/) |
 | TFIM TDVP (dissipative) | `scripts/tdvp_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |

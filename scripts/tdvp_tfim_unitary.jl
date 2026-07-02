@@ -45,10 +45,7 @@ function finish_status(message::AbstractString = "")
 end
 
 function hilbert_mpo_to_dense(ρ::AbstractMPO{Hilbert}, physical_sites)
-    T = ρ.core[1]
-    for j in 2:length(ρ.core)
-        T *= ρ.core[j]
-    end
+    T = foldl(*, ρ)
     A = Array(T, prime.(physical_sites)..., physical_sites...)
     return reshape(ComplexF64.(A), prod(dim.(physical_sites)), prod(dim.(physical_sites)))
 end
@@ -60,10 +57,7 @@ function hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
 end
 
 function hilbert_mps_to_dense(ψ::AbstractMPS{Hilbert}, physical_sites)
-    T = ψ.core[1]
-    for j in 2:length(ψ.core)
-        T *= ψ.core[j]
-    end
+    T = foldl(*, ψ)
     return vec(ComplexF64.(Array(T, physical_sites...)))
 end
 
@@ -154,16 +148,15 @@ function dense_one_site_operator(op_name::AbstractString, physical_sites, site::
             push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
         end
     end
-    O = local_ops[1]
-    for j in 2:length(local_ops)
-        O = kron(O, local_ops[j])
-    end
-    return O
+    return foldl(kron, local_ops)
 end
 
 function average_observable_dense(ρ::AbstractMatrix{<:Number}, embedded_ops)
     return real(sum(tr(ρ * O) for O in embedded_ops) / length(embedded_ops))
 end
+
+density_error(ρ::AbstractMatrix, ρ_ref::AbstractMatrix) =
+    norm(ComplexF64.(ρ) - ComplexF64.(ρ_ref)) / max(norm(ComplexF64.(ρ_ref)), eps(Float64))
 
 function exact_density_trajectory(H_dense, ψ0_dense::AbstractVector, times::AbstractVector)
     densities = Matrix{ComplexF64}[]
@@ -264,10 +257,11 @@ function tdvp_trajectory(state0, operator, time_step, dt::Float64, nsteps::Int; 
     return states
 end
 
-function tdvp_run_metrics(states, physical_sites, H_mpo, x_mpos, z_mpos)
-    energy, trace_err, herm, min_eig, sx, sz, bond_dims = Float64[], Float64[], Float64[], Float64[], Float64[], Float64[], Int[]
+function tdvp_run_metrics(states, physical_sites, H_mpo, x_mpos, z_mpos, ρ_ed_trajectory)
+    energy, trace_err, herm, min_eig, sx, sz, bond_dims, rho_errs =
+        Float64[], Float64[], Float64[], Float64[], Float64[], Float64[], Int[], Float64[]
     energy0 = state_energy(first(states), H_mpo)
-    for state in states
+    for (ρ_ed, state) in zip(ρ_ed_trajectory, states)
         ρ_dense = state_density_dense(state, physical_sites)
         metrics = dense_density_metrics(ρ_dense)
         push!(energy, state_energy(state, H_mpo))
@@ -277,6 +271,7 @@ function tdvp_run_metrics(states, physical_sites, H_mpo, x_mpos, z_mpos)
         push!(sx, state_mean_pauli(state, x_mpos))
         push!(sz, state_mean_pauli(state, z_mpos))
         push!(bond_dims, maxlinkdim(state))
+        push!(rho_errs, density_error(ρ_dense, ρ_ed))
     end
     return (
         energy=energy,
@@ -287,6 +282,7 @@ function tdvp_run_metrics(states, physical_sites, H_mpo, x_mpos, z_mpos)
         sx=sx,
         sz=sz,
         bond_dims=bond_dims,
+        rho_errs=rho_errs,
     )
 end
 
@@ -350,32 +346,76 @@ const ED_LINEWIDTH = 3.6
 const TDVP2_LINEWIDTH = 2.0
 const TDVP1_LINEWIDTH = 2.4
 
-function plot_observable_comparison(path, times, exact_curve, run_series, observable::Symbol; ylabel, title)
+function plot_observable_comparison(path, times, exact_curve, run_series, observable::Symbol; ylabel, title, space=nothing)
     fig = Figure(size=(900, 520))
     ax = Axis(fig[1, 1]; xlabel=L"$t$", ylabel=ylabel, title=title)
     handles, labels = AbstractPlot[], Any[]
     h_ed = lines!(ax, times, exact_curve; color=:black, linewidth=ED_LINEWIDTH)
     push!(handles, h_ed)
     push!(labels, L"$\mathrm{ED}\,(e^{t L})$")
-    for series in filter(series -> series.space == :liouville, run_series)
+    series_list = space === nothing ? run_series : filter(series -> series.space == space, run_series)
+    for series in series_list
         h = lines!(
             ax,
             times,
             getfield(series.metrics, observable);
             color=METHOD_COLORS[series.method],
-            linestyle=:solid,
+            linestyle=series.space == :liouville ? :solid : :dot,
             linewidth=series.method == :tdvp2 ? TDVP2_LINEWIDTH : TDVP1_LINEWIDTH,
         )
         push!(handles, h)
         push!(labels, series.label)
     end
-    for series in filter(series -> series.space == :hilbert, run_series)
+    axislegend(ax, handles, labels; position=:rt, nbanks=2, fontsize=10)
+    save(path, fig)
+    return path
+end
+
+function plot_rho_error_comparison(path, times, run_series; title, space)
+    fig = Figure(size=(900, 520))
+    ax = Axis(
+        fig[1, 1];
+        xlabel=L"$t$",
+        ylabel="||ρ - ρ_ED|| / ||ρ_ED||",
+        title=title,
+        yscale=log10,
+    )
+    handles, labels = AbstractPlot[], Any[]
+    for series in filter(series -> series.space == space, run_series)
         h = lines!(
             ax,
             times,
-            getfield(series.metrics, observable);
+            max.(series.metrics.rho_errs, eps(Float64));
             color=METHOD_COLORS[series.method],
-            linestyle=:dot,
+            linestyle=series.space == :liouville ? :solid : :dot,
+            linewidth=series.method == :tdvp2 ? TDVP2_LINEWIDTH : TDVP1_LINEWIDTH,
+        )
+        push!(handles, h)
+        push!(labels, series.label)
+    end
+    axislegend(ax, handles, labels; position=:rt, nbanks=2, fontsize=10)
+    save(path, fig)
+    return path
+end
+
+function plot_energy_drift_comparison(path, times, run_series; title, space)
+    fig = Figure(size=(900, 520))
+    ax = Axis(
+        fig[1, 1];
+        xlabel=L"$t$",
+        ylabel=L"$\langle H \rangle(t) - \langle H \rangle(0)$",
+        title=title,
+    )
+    hlines!(ax, [0.0]; color=:black, linewidth=1.2, linestyle=:dash)
+    handles, labels = AbstractPlot[], Any[]
+    for series in filter(series -> series.space == space, run_series)
+        drift = series.metrics.energy .- series.metrics.energy[1]
+        h = lines!(
+            ax,
+            times,
+            drift;
+            color=METHOD_COLORS[series.method],
+            linestyle=series.space == :liouville ? :solid : :dot,
             linewidth=series.method == :tdvp2 ? TDVP2_LINEWIDTH : TDVP1_LINEWIDTH,
         )
         push!(handles, h)
@@ -513,7 +553,7 @@ states_plain_h = tdvp_trajectory(
     cutoff=cutoff,
     label=label_plain_h,
 )
-metrics_plain_h = tdvp_run_metrics(states_plain_h, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_plain_h = tdvp_run_metrics(states_plain_h, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_plain_h, method=:plain, space=:hilbert, metrics=metrics_plain_h))
 
 label_gse_h = "1-TDVP+GSE Hilbert"
@@ -531,7 +571,7 @@ states_gse_h = tdvp1_gse_trajectory(
     label=label_gse_h,
     gse_every_steps=gse_every_steps,
 )
-metrics_gse_h = tdvp_run_metrics(states_gse_h, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_gse_h = tdvp_run_metrics(states_gse_h, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_gse_h, method=:gse10, space=:hilbert, metrics=metrics_gse_h))
 
 label_2site_h = "2-TDVP Hilbert"
@@ -546,7 +586,7 @@ states_2site_h = tdvp_trajectory(
     cutoff=cutoff,
     label=label_2site_h,
 )
-metrics_2site_h = tdvp_run_metrics(states_2site_h, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_2site_h = tdvp_run_metrics(states_2site_h, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_2site_h, method=:tdvp2, space=:hilbert, metrics=metrics_2site_h))
 
 L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
@@ -563,7 +603,7 @@ states_plain_l = tdvp_trajectory(
     cutoff=cutoff,
     label=label_plain_l,
 )
-metrics_plain_l = tdvp_run_metrics(states_plain_l, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_plain_l = tdvp_run_metrics(states_plain_l, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_plain_l, method=:plain, space=:liouville, metrics=metrics_plain_l))
 
 label_gse_l = "1-TDVP+GSE Liouville"
@@ -581,7 +621,7 @@ states_gse_l = tdvp1_gse_trajectory(
     label=label_gse_l,
     gse_every_steps=gse_every_steps,
 )
-metrics_gse_l = tdvp_run_metrics(states_gse_l, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_gse_l = tdvp_run_metrics(states_gse_l, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_gse_l, method=:gse10, space=:liouville, metrics=metrics_gse_l))
 
 label_2site_l = "2-TDVP Liouville"
@@ -596,7 +636,7 @@ states_2site_l = tdvp_trajectory(
     cutoff=cutoff,
     label=label_2site_l,
 )
-metrics_2site_l = tdvp_run_metrics(states_2site_l, physical_sites, H_mpo, x_mpos, z_mpos)
+metrics_2site_l = tdvp_run_metrics(states_2site_l, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_2site_l, method=:tdvp2, space=:liouville, metrics=metrics_2site_l))
 
 # ------------------------------------------------------------------------------
@@ -640,10 +680,38 @@ plot_observable_comparison(
 )
 plot_unitary_conserved(fig_path_cons, times, exact, run_series; title="Unitary TFIM conserved quantities")
 
+hilbert_title = "Hilbert TFIM TDVP (N=$N, J=$J, h=$h, dt=$dt)"
+liouville_title = "Liouville TFIM TDVP (N=$N, J=$J, h=$h, dt=$dt)"
+fig_path_h_x = joinpath(output_dir, "tdvp_tfim_unitary_hilbert_dynamics_mx.png")
+fig_path_h_energy = joinpath(output_dir, "tdvp_tfim_unitary_hilbert_energy_drift.png")
+fig_path_h_rho = joinpath(output_dir, "tdvp_tfim_unitary_hilbert_rho_error.png")
+fig_path_l_x = joinpath(output_dir, "tdvp_tfim_unitary_liouville_dynamics_mx.png")
+fig_path_l_energy = joinpath(output_dir, "tdvp_tfim_unitary_liouville_energy_drift.png")
+fig_path_l_rho = joinpath(output_dir, "tdvp_tfim_unitary_liouville_rho_error.png")
+
+plot_observable_comparison(
+    fig_path_h_x, times, exact.sx, run_series, :sx;
+    ylabel=L"$\langle \overline{\sigma}_x \rangle (t)$", title=hilbert_title, space=:hilbert,
+)
+plot_energy_drift_comparison(fig_path_h_energy, times, run_series; title=hilbert_title, space=:hilbert)
+plot_rho_error_comparison(fig_path_h_rho, times, run_series; title=hilbert_title, space=:hilbert)
+plot_observable_comparison(
+    fig_path_l_x, times, exact.sx, run_series, :sx;
+    ylabel=L"$\langle \overline{\sigma}_x \rangle (t)$", title=liouville_title, space=:liouville,
+)
+plot_energy_drift_comparison(fig_path_l_energy, times, run_series; title=liouville_title, space=:liouville)
+plot_rho_error_comparison(fig_path_l_rho, times, run_series; title=liouville_title, space=:liouville)
+
 println("Saved figures:")
 println("  $fig_path_x")
 println("  $fig_path_z")
 println("  $fig_path_cons")
+println("  $fig_path_h_x")
+println("  $fig_path_h_energy")
+println("  $fig_path_h_rho")
+println("  $fig_path_l_x")
+println("  $fig_path_l_energy")
+println("  $fig_path_l_rho")
 
 # ------------------------------------------------------------------------------
 # 7. Final summary

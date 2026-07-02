@@ -33,11 +33,7 @@ function dense_one_site_operator(op_name::AbstractString, physical_sites, site::
         end
     end
 
-    O = local_ops[1]
-    for j in 2:length(local_ops)
-        O = kron(O, local_ops[j])
-    end
-    return O
+    return foldl(kron, local_ops)
 end
 
 # Average a local observable over all sites for a dense state or density matrix, e.g. mean `⟨Z_i⟩`.

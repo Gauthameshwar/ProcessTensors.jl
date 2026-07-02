@@ -14,6 +14,14 @@ todo*
 /docs/src/tutorials/*.md
 !/docs/src/tutorials/README.md
 
+# Literate-generated example pages (source: docs/literate/examples/*.jl)
+/docs/src/examples/tebd_time_evolution.md
+/docs/src/examples/tdvp_time_evolution.md
+/docs/src/examples/spin_bath_process_tensor.md
+
+# Example figures copied from scripts/figures during docs/make.jl
+/docs/src/assets/examples/
+
 # Auto-provisioned env for plotting scripts (CairoMakie; not part of the library project)
 /scripts/.plot_examples_env/
 
