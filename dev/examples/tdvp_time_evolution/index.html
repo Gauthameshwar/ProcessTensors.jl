@@ -172,7 +172,7 @@ x_ops = [dense_one_site_operator(&quot;X&quot;, physical_sites, j) for j in 1:N]
 t_exact = collect(range(0.0, T_max; length=n_exact))
 sx_exact = exact_sx_trajectory(L_dense, vec0, d, x_ops, t_exact)
 println(&quot;Final Sx: &quot;, sx_exact[end])</code></pre><pre><code class="nohighlight hljs">Building Liouville ED reference...
-Final Sx: 0.25318952364501845
+Final Sx: 0.25318952364501857
 </code></pre><h2 id="Hilbert-space-TDVP"><a class="docs-heading-anchor" href="#Hilbert-space-TDVP">Hilbert-space TDVP</a><a id="Hilbert-space-TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-space-TDVP" title="Permalink"></a></h2><p>We first evolve the pure-state MPS directly under the Hamiltonian MPO.</p><p>The three Hilbert-space runs are:</p><ol><li>plain 1TDVP,</li><li>1TDVP with global subspace expansion,</li><li>2TDVP.</li></ol><h3 id="1TDVP-and-2TDVP"><a class="docs-heading-anchor" href="#1TDVP-and-2TDVP">1TDVP and 2TDVP</a><a id="1TDVP-and-2TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#1TDVP-and-2TDVP" title="Permalink"></a></h3><p>TDVP does not apply local Trotter gates. Instead, it projects the exact time-evolution equation onto the tangent space of the MPS manifold.</p><p>For Hilbert-space Schrödinger evolution,</p><p class="math-container">\[\frac{d}{dt}|\psi(t)\rangle = -iH|\psi(t)\rangle .\]</p><p>If <code>|ψ[A]⟩</code> is restricted to the MPS manifold <code>𝓜_D</code>, TDVP evolves by</p><p class="math-container">\[\frac{d}{dt}|\psi[A]\rangle
 =
 -i P_{T_{|\psi\rangle}\mathcal{M}_D}
@@ -287,19 +287,19 @@ for (label, nsite, maxdim, runner, kwargs) in (
 end</code></pre><pre><code class="nohighlight hljs">Hilbert-space TDVP
 ------------------
 Hilbert 1TDVP
-  Total time taken: 0.738 s
+  Total time taken: 0.776 s
   |ρ - ρ_ED|:       1.163e+00
   max bond dim:     1
-  max energy drift: 1.288e-14
+  max energy drift: 1.510e-14
 
 Hilbert 1TDVP + GSE
-  Total time taken: 5.593 s
+  Total time taken: 5.688 s
   |ρ - ρ_ED|:       1.421e-04
   max bond dim:     4
-  max energy drift: 3.064e-14
+  max energy drift: 6.173e-14
 
 Hilbert 2TDVP
-  Total time taken: 1.644 s
+  Total time taken: 1.829 s
   |ρ - ρ_ED|:       4.063e-05
   max bond dim:     4
   max energy drift: 1.460e-10
@@ -365,21 +365,21 @@ end
 )</code></pre><pre><code class="nohighlight hljs">Liouville-space TDVP
 --------------------
 Liouville 1TDVP
-  Total time taken: 0.162 s
+  Total time taken: 0.185 s
   |ρ - ρ_ED|:       1.163e+00
   max bond dim:     1
-  max energy drift: 8.882e-15
+  max energy drift: 8.438e-15
 
 Liouville 1TDVP + GSE
-  Total time taken: 6.085 s
+  Total time taken: 6.466 s
   |ρ - ρ_ED|:       4.416e-02
   max bond dim:     16
   max energy drift: 3.610e-02
 
 Liouville 2TDVP
-  Total time taken: 7.764 s
+  Total time taken: 8.309 s
   |ρ - ρ_ED|:       5.709e-05
   max bond dim:     16
   max energy drift: 3.813e-05
 
-</code></pre><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png" alt="Liouville-space energy drift"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png" alt="Liouville-space density-matrix error"/></p><div class="admonition is-category-summary" id="Example-takeaways-d8442c32fbbdc67f"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-d8442c32fbbdc67f" title="Permalink"></a></header><div class="admonition-body"><ul><li>Hilbert-space 1TDVP conserves energy most strictly inside a fixed-bond manifold, but may miss entanglement growth needed for accurate observables.</li><li>Global subspace expansion enlarges the 1TDVP basis without switching to full two-site updates; 2TDVP grows bonds but SVD truncation weakens strict conservation.</li><li>Liouville-space TDVP solves the same physics with a different variational geometry; interpret energies through the reconstructed density matrix.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tebd_time_evolution/">« TEBD time evolution</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 2 July 2026 18:12">Thursday 2 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space mean ⟨σ̄_x⟩"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png" alt="Liouville-space energy drift"/></p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png" alt="Liouville-space density-matrix error"/></p><div class="admonition is-category-summary" id="Example-takeaways-d8442c32fbbdc67f"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-d8442c32fbbdc67f" title="Permalink"></a></header><div class="admonition-body"><ul><li>Hilbert-space 1TDVP conserves energy most strictly inside a fixed-bond manifold, but may miss entanglement growth needed for accurate observables.</li><li>Global subspace expansion enlarges the 1TDVP basis without switching to full two-site updates; 2TDVP grows bonds but SVD truncation weakens strict conservation.</li><li>Liouville-space TDVP solves the same physics with a different variational geometry; interpret energies through the reconstructed density matrix.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tebd_time_evolution/">« TEBD time evolution</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 3 July 2026 04:22">Friday 3 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
