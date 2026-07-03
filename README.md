@@ -134,3 +134,8 @@ section of the documentation:
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes. The current release is **v0.1.0** (July 2026).
+
+---
+
+_No tensor indices were harmed during the development of this package.
+Several, however, were accidentally contracted with the wrong ones before eventually finding their soulmate (after three hours of debugging)._
