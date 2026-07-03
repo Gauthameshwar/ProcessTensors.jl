@@ -4,7 +4,14 @@
 
 ## Install the package
 
-From the Julia REPL:
+From the Julia REPL, install the **v0.1.0** release:
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.1.0")
+```
+
+To track the latest development version on `main`:
 
 ```julia
 using Pkg

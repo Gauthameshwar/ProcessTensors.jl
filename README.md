@@ -44,6 +44,15 @@ and high-level routines for reduced dynamics and multi-time correlations.
 
 ## Installation
 
+Install the current release from GitHub (the package is not yet on the General Registry):
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.1.0")
+```
+
+For the latest development version on `main`:
+
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl")
@@ -121,3 +130,7 @@ section of the documentation:
 | TFIM TEBD (dissipative) | `scripts/tebd_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
 | TFIM TDVP (unitary) | `scripts/tdvp_tfim_unitary.jl` | [Unitary Dynamics tutorial](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/unitary_dynamics/) |
 | TFIM TDVP (dissipative) | `scripts/tdvp_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes. The current release is **v0.1.0** (July 2026).

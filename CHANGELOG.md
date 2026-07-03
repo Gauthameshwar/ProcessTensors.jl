@@ -1,0 +1,71 @@
+# Changelog
+
+All notable changes to [ProcessTensors.jl](https://github.com/Gauthameshwar/ProcessTensors.jl) are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## v0.1.0 - 2026-07-03
+
+### First Public Preview of MPS-Based Process Tensors in Julia
+
+This is the first public development release of `ProcessTensors.jl`.
+
+`ProcessTensors.jl` provides MPS/MPO-based tools for open quantum dynamics, Liouville-space simulation, and process-tensor workflows in Julia. The package is built on top of `ITensors.jl` and `ITensorMPS.jl`, adding Hilbert/Liouville-space wrappers, system and bath abstractions, instrument sequences, process-tensor construction, reduced evolution, and multi-time correlation utilities.
+
+This is a `0.1.0` release, so the API should be considered experimental and may change in future minor releases.
+
+### Highlights
+
+* Added `MPS{Hilbert}`, `MPS{Liouville}`, `MPO{Hilbert}`, and `MPO{Liouville}` wrappers around ITensorMPS objects.
+* Added Hilbert-to-Liouville conversion tools, including `liouv_sites`, `to_dm`, `to_liouville`, and `to_hilbert`.
+* Added Liouville-space operator construction through `OpSum_Liouville` and `MPO_Liouville`.
+* Added spin and bosonic system abstractions.
+* Added spin and bosonic bath-mode abstractions.
+* Added dense single-mode and small multimode process-tensor construction.
+* Added instrument-sequence support, including state preparation, observable measurement, trace-out, identity operations, open outputs, and system propagation.
+* Added process-tensor contraction through `evaluate_process`.
+* Added reduced-system evolution through `evolve`.
+* Added sequential multi-time correlation utilities through `two_time_correlation_seq`.
+* Added TEBD/TDVP forwarding and time-evolution support for Hilbert- and Liouville-space workflows.
+* Added tutorials, theory pages, API documentation, and runnable example scripts.
+
+### Documentation
+
+The documentation includes:
+
+* introductory theory pages for tensor networks, Liouville space, and process tensors,
+* tutorials for ITensor basics, MPS/MPO basics, Liouville-space workflows, unitary dynamics, dissipative dynamics, and process tensors,
+* example pages for TEBD/TDVP dynamics, dissipative systems, spin-bath process tensors, and multi-time correlations,
+* an API reference for the public ProcessTensors interface.
+
+### Testing and validation
+
+This release includes tests for:
+
+* MPS/MPO wrappers and constructors,
+* network operations and orthogonality utilities,
+* Hilbert/Liouville conversion,
+* Liouvillian construction,
+* TEBD/TDVP workflows,
+* systems, baths, and instruments,
+* process-tensor structure and contraction,
+* causality checks,
+* dense exact-diagonalization comparisons,
+* multimode spin-bath examples,
+* multi-time correlations,
+* selected comparisons against QuantumOptics.jl.
+
+### Known limitations
+
+* This is an initial development release; the public API is not yet stable.
+* Process-tensor construction currently targets single-mode and small multimode dense workflows.
+* Large-scale non-Markovian environment algorithms such as ACE/PT-TEMPO are planned future extensions.
+* Some documentation and API polishing will continue after this release.
+* Performance tuning and larger benchmark studies are still ongoing.
+
+### Upgrade notes
+
+This is the first tagged release, so there are no previous versions to migrate from.
+
+Users should expect API refinements in future `0.x` releases as the package grows.
