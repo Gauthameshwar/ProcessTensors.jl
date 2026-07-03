@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Multi-time correlations · ProcessTensors.jl</title><meta name="title" content="Multi-time correlations · ProcessTensors.jl"/><meta property="og:title" content="Multi-time correlations · ProcessTensors.jl"/><meta property="twitter:title" content="Multi-time correlations · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/multitime_correlations/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/multitime_correlations/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/multitime_correlations/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin</a></li><li><a class="tocitem" href="../dissipative_boson_cavity/">Dissipative boson cavity</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../driven_two_level_system/">Driven two-level system</a></li><li><a class="tocitem" href="../kicked_ising_chain/">Kicked Ising chain</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox"/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li class="is-active"><a class="tocitem" href>Multi-time correlations</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Physical-model"><span>Physical model</span></a></li><li><a class="tocitem" href="#Build-the-process-tensor"><span>Build the process tensor</span></a></li><li><a class="tocitem" href="#Two-time-instrument-schedules"><span>Two-time instrument schedules</span></a></li><li><a class="tocitem" href="#Correlation-grid"><span>Correlation grid</span></a></li><li><a class="tocitem" href="#Diagnostics"><span>Diagnostics</span></a></li></ul></li></ul></li></ul></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Instruments and correlations</a></li><li class="is-active"><a href>Multi-time correlations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Multi-time correlations</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/multitime_correlations.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Multi-time-correlations"><a class="docs-heading-anchor" href="#Multi-time-correlations">Multi-time correlations</a><a id="Multi-time-correlations-1"></a><a class="docs-heading-anchor-permalink" href="#Multi-time-correlations" title="Permalink"></a></h1><p>Multi-time correlations are one of the places where the process-tensor viewpoint becomes more than a convenient reduced-dynamics tool.</p><p>In a Markovian calculation, it is tempting to imagine that every interval of time is described by an independent channel. In a non-Markovian environment, this is no longer true: an intervention at an earlier time can disturb the system, that disturbance can flow into the bath, and the bath can carry it back to the system later.</p><p>A process tensor stores this memory as a reusable PT-MPO. Once the process tensor is built, a multi-time correlation is obtained by changing the instruments inserted into its time legs.</p><p>In this example, we compute the full grid</p><p class="math-container">\[C_{AB}(t_2,t_1) =
+\langle A(t_2) B(t_1) \rangle\]</p><p>for three pairs of spin operators:</p><p class="math-container">\[\langle \sigma_z(t_2)\sigma_z(t_1)\rangle,\qquad
+\langle \sigma_z(t_2)\sigma_x(t_1)\rangle,\qquad
+\langle \sigma_x(t_2)\sigma_y(t_1)\rangle .\]</p><p>The heatmap below is produced by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/pt_multitime_correlations.jl"><code>scripts/pt_multitime_correlations.jl</code></a> and staged into the docs build. This page runs the same PT contractions and diagnostics without generating plots inline.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Printf
+using Statistics
+using ITensors
+using ProcessTensors
+
+const STATUS_WIDTH = 92
+
+function print_section(title::AbstractString)
+    println()
+    println(title)
+    println(&quot;-&quot; ^ length(title))
+end
+
+function update_status(message::AbstractString)
+    print(&quot;\r&quot;, rpad(message, STATUS_WIDTH))
+    flush(stdout)
+end
+
+function finish_status(message::AbstractString = &quot;&quot;)
+    print(&quot;\r&quot;, &quot; &quot;^STATUS_WIDTH, &quot;\r&quot;)
+    if !isempty(message)
+        println(message)
+    end
+    flush(stdout)
+end
+
+const dt = 0.5
+const tf = 5.5
+const rho_label = &quot;Dn&quot;
+const times = collect(0.0:dt:tf)
+const n_times = length(times)
+const pt_nsteps = n_times + 1</code></pre><pre><code class="nohighlight hljs">13</code></pre><h2 id="Physical-model"><a class="docs-heading-anchor" href="#Physical-model">Physical model</a><a id="Physical-model-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-model" title="Permalink"></a></h2><p>We use the same minimal spin-bath model as in the <a href="../spin_bath_process_tensor/#Spin-bath-process-tensor">Spin-bath process tensor</a> example:</p><p class="math-container">\[H_S = S_x,\qquad
+H_E = S_x,\qquad
+H_{SE} = S_z \otimes S_z .\]</p><p>The system starts in <code>|Dn⟩</code> and the bath spin starts in <code>|Up⟩</code>.</p><pre><code class="language-julia hljs">print_section(&quot;Problem setup&quot;)
+
+println(&quot;Single-mode process tensor: full (t₁, t₂) grid of two-time correlators.&quot;)
+println()
+
+@printf(&quot;time step dt           = %.4f\n&quot;, dt)
+@printf(&quot;final time t_f         = %.4f\n&quot;, tf)
+@printf(&quot;time points            = %d\n&quot;, n_times)
+@printf(&quot;initial system state   = %s\n&quot;, rho_label)
+
+sys_phys = siteinds(&quot;S=1/2&quot;, 1)
+env_phys = siteinds(&quot;S=1/2&quot;, 1)
+env_liouv = liouv_sites(env_phys)
+
+H_sys = OpSum()
+H_sys += 1.0, &quot;Sx&quot;, 1
+system = spin_system(sys_phys, H_sys)
+
+rho_env0_h = to_dm(MPS(env_phys, [&quot;Up&quot;]))
+rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
+
+H_env = OpSum()
+H_env += 1.0, &quot;Sx&quot;, 1
+
+coupling = OpSum()
+coupling += 1.0, &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+mode = spin_mode(env_liouv, H_env, rho_env0_l; coupling=coupling)
+bath = spin_bath([mode])
+
+rho_sys0_h = to_dm(MPS(sys_phys, [rho_label]))
+
+O_Sz = OpSum()
+O_Sz += 2.0, &quot;Sz&quot;, 1
+
+O_Sx = OpSum()
+O_Sx += 2.0, &quot;Sx&quot;, 1
+
+O_Sy = OpSum()
+O_Sy += 2.0, &quot;Sy&quot;, 1
+
+cases = [
+    (&quot;⟨σz(t₂)σz(t₁)⟩&quot;, O_Sz, O_Sz, &quot;σz-σz&quot;),
+    (&quot;⟨σz(t₂)σx(t₁)⟩&quot;, O_Sz, O_Sx, &quot;σz-σx&quot;),
+    (&quot;⟨σx(t₂)σy(t₁)⟩&quot;, O_Sx, O_Sy, &quot;σx-σy&quot;),
+]</code></pre><pre><code class="nohighlight hljs">3-element Vector{Tuple{String, ITensors.LazyApply.Sum{ITensors.LazyApply.Scaled{ComplexF64, ITensors.LazyApply.Prod{ITensors.Ops.Op}}}, ITensors.LazyApply.Sum{ITensors.LazyApply.Scaled{ComplexF64, ITensors.LazyApply.Prod{ITensors.Ops.Op}}}, String}}:
+ (&quot;⟨σz(t₂)σz(t₁)⟩&quot;, sum(
+  2.0 Sz(1,)
+), sum(
+  2.0 Sz(1,)
+), &quot;σz-σz&quot;)
+ (&quot;⟨σz(t₂)σx(t₁)⟩&quot;, sum(
+  2.0 Sz(1,)
+), sum(
+  2.0 Sx(1,)
+), &quot;σz-σx&quot;)
+ (&quot;⟨σx(t₂)σy(t₁)⟩&quot;, sum(
+  2.0 Sx(1,)
+), sum(
+  2.0 Sy(1,)
+), &quot;σx-σy&quot;)</code></pre><h2 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h2><p>The largest time index in the grid is <code>n_times - 1</code>. We build one extra slab so terminal trace-outs and late-time insertions are both well-defined.</p><p>The bath is integrated out here. All correlators below are different instrument contractions of this same PT-MPO.</p><pre><code class="language-julia hljs">print_section(&quot;Build process tensor&quot;)
+
+pt_build_time = @elapsed begin
+    pt = build_process_tensor(
+        system,
+        system.sites[1];
+        environment=bath,
+        dt=dt,
+        nsteps=pt_nsteps,
+    )
+end
+
+println(&quot;Process tensor:&quot;)
+println(pt)
+
+@printf(&quot;process tensor steps   = %d\n&quot;, pt_nsteps)
+@printf(&quot;build time             = %.3f s\n&quot;, pt_build_time)
+@printf(&quot;PT max bond dim        = %d\n&quot;, maxlinkdim(pt))
+
+@assert pt isa ProcessTensor
+@assert pt.nsteps == pt_nsteps
+@assert pt.dt == dt</code></pre><pre><code class="nohighlight hljs">
+Build process tensor
+--------------------
+Process tensor:
+13-step ProcessTensor{SpinSystem, SpinBath} | dt=0.5 | t_final=6.5 | maxlinkdim=4
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: SpinBath(nmodes=1, D_bath=4, coupling=true)
+  core:        MPO{Liouville}(length=13, linkdims=[4, 4, 4, …, 4])
+
+process tensor steps   = 13
+build time             = 0.018 s
+PT max bond dim        = 4
+</code></pre><h2 id="Two-time-instrument-schedules"><a class="docs-heading-anchor" href="#Two-time-instrument-schedules">Two-time instrument schedules</a><a id="Two-time-instrument-schedules-1"></a><a class="docs-heading-anchor-permalink" href="#Two-time-instrument-schedules" title="Permalink"></a></h2><p>A two-time correlator is not computed by first producing a reduced trajectory and then multiplying numbers. The operator insertions are part of the process.</p><p>For <code>t₂ &gt; t₁</code>, the two-time correlation of <code>A</code> and <code>B</code> is given as</p><p class="math-container">\[\begin{aligned}
+\langle A(t_2) B(t_1) \rangle
+    &amp;= \operatorname{Tr}[U^{\dagger}(t_2) A\, U(t_2-t_1)\, B\, U(t_1)\, \rho(0)] \\
+    &amp;= \operatorname{Tr}[U^{\dagger}(t_2-t_1) A\, U(t_2-t_1)\, B\, \rho(t_1)] \\
+    &amp;= \operatorname{Tr}\left[A\, U(t_2-t_1)\, B\, \rho(t_1)\, U^{\dagger}(t_2-t_1)\right] \\
+    &amp;= \operatorname{Tr}\left[A\, U(t_2-t_1)\, \rho_{B_L}(t_1)\, U^{\dagger}(t_2-t_1)\right] \\
+    &amp;= \operatorname{Tr}\left[A\, \rho_{B_L}(t_2)\right].
+\end{aligned}\]</p><p>In simple words, we evolve <span>$\rho(0)$</span> forward to <span>$t_1$</span>, aply B from the <em>left</em>, evolve the resultant object to <span>$t_2$</span>, and measure the expectation of <span>$A$</span>. This can be implemented as the following instrument sequence:</p><pre><code class="language-text hljs">t = 0      : StatePreparation(ρ₀)
+t = t₁    : insert B from the left
+t = t₂    : insert A
+after t₂  : propagate with identity operations and TraceOut</code></pre><p>For <code>t₁ &gt; t₂</code>, the earlier operator and the later operator exchange roles. The implementation must also keep track of whether the early insertion acts from the left or from the right, so that the product ordering in <code>⟨A(t₂)B(t₁)⟩</code> is represented correctly.</p><p>On the diagonal <code>t₂ = t₁</code>, both operators are inserted at the same time. The same-time instrument represents the product at that single time leg.</p><p>The package helper <code>two_time_correlation_seq</code> builds this <code>InstrumentSeq</code> for us, considering all the above cases. Then <code>evaluate_process</code> contracts the process tensor with that sequence.</p><pre><code class="language-julia hljs">seq_demo = two_time_correlation_seq(
+    pt,
+    (O_Sz, 2),
+    (O_Sz, 1);
+    rho0=rho_sys0_h,
+)
+@show seq_demo
+
+demo_value = evaluate_process(pt, seq_demo)
+
+@printf(&quot;example Czz(t₂=%.2f, t₁=%.2f) = %.6f %+.6fi\n&quot;,
+    2dt, dt, real(demo_value), imag(demo_value))</code></pre><pre><code class="nohighlight hljs">seq_demo = InstrumentSeq(default=IdentityOperation, nsteps=13, 13 explicit entries)
+  tstep=0 =&gt; StatePreparation{MPO{Hilbert, Nothing}}
+  tstep=2 =&gt; LeftRightOperator{MPO{Hilbert, Nothing}, MPO{Hilbert, Nothing}}
+  tstep=3 =&gt; LeftRightOperator{MPO{Hilbert, Nothing}, MPO{Hilbert, Nothing}}
+  tstep=4 =&gt; IdentityOperation
+  tstep=5 =&gt; IdentityOperation
+  tstep=6 =&gt; IdentityOperation
+  tstep=7 =&gt; IdentityOperation
+  tstep=8 =&gt; IdentityOperation
+  tstep=9 =&gt; IdentityOperation
+  tstep=10 =&gt; IdentityOperation
+  tstep=11 =&gt; IdentityOperation
+  tstep=12 =&gt; IdentityOperation
+  tstep=13 =&gt; TraceOut
+example Czz(t₂=1.00, t₁=0.50) = 0.877583 -0.071086i
+</code></pre><h2 id="Correlation-grid"><a class="docs-heading-anchor" href="#Correlation-grid">Correlation grid</a><a id="Correlation-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Correlation-grid" title="Permalink"></a></h2><p>We now evaluate every pair of time indices. The row index is <code>t₁</code>; the column index is <code>t₂</code>. Thus <code>grid[n1 + 1, n2 + 1]</code> stores <code>C_AB(t₂=n2*dt, t₁=n1*dt)</code>.</p><pre><code class="language-julia hljs">function correlation_grid(
+    pt,
+    O_A::OpSum,
+    O_B::OpSum,
+    rho0;
+    times::AbstractVector,
+    case_label::AbstractString,
+    case_index::Int,
+    ncases::Int,
+)
+    n_times = length(times)
+    dt_local = times[2] - times[1]
+    grid = Matrix{ComplexF64}(undef, n_times, n_times)
+    n_pairs = n_times * n_times
+    progress_stride = max(1, n_pairs ÷ 20)
+    pair = 0
+
+    elapsed = @elapsed begin
+        for n1 in 0:(n_times - 1)
+            for n2 in 0:(n_times - 1)
+                pair += 1
+                seq = two_time_correlation_seq(
+                    pt,
+                    (O_A, n2),
+                    (O_B, n1);
+                    rho0=rho0,
+                )
+                grid[n1 + 1, n2 + 1] = evaluate_process(pt, seq)
+
+                if pair == 1 || pair == n_pairs || pair % progress_stride == 0
+                    update_status(
+                        @sprintf(
+                            &quot;  case %d/%d %-7s pair %4d/%4d  t₁=%.2f  t₂=%.2f&quot;,
+                            case_index,
+                            ncases,
+                            case_label,
+                            pair,
+                            n_pairs,
+                            n1 * dt_local,
+                            n2 * dt_local,
+                        ),
+                    )
+                end
+            end
+            finish_status(
+                @sprintf(
+                    &quot;  case %d/%d %-7s finished row t₁ = %.2f (%d/%d)&quot;,
+                    case_index,
+                    ncases,
+                    case_label,
+                    n1 * dt_local,
+                    n1 + 1,
+                    n_times,
+                ),
+            )
+        end
+    end
+
+    return (; grid, elapsed)
+end
+
+print_section(&quot;Main computation&quot;)
+
+grids = Vector{Matrix{ComplexF64}}(undef, length(cases))
+case_times = Vector{Float64}(undef, length(cases))
+
+for (i, (_, O_A, O_B, label)) in enumerate(cases)
+    result = correlation_grid(
+        pt,
+        O_A,
+        O_B,
+        rho_sys0_h;
+        times=times,
+        case_label=label,
+        case_index=i,
+        ncases=length(cases),
+    )
+
+    grids[i] = result.grid
+    case_times[i] = result.elapsed
+
+    @printf(&quot;%-7s grid time: %.3f s\n&quot;, label, result.elapsed)
+end</code></pre><pre><code class="nohighlight hljs">
+Main computation
+----------------
+  case 1/3 σz-σz   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 1/3 σz-σz   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 0.00 (1/12)
+  case 1/3 σz-σz   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 1/3 σz-σz   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 0.50 (2/12)
+  case 1/3 σz-σz   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 1/3 σz-σz   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 1.00 (3/12)
+  case 1/3 σz-σz   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 1.50 (4/12)
+  case 1/3 σz-σz   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 1/3 σz-σz   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 2.00 (5/12)
+  case 1/3 σz-σz   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 1/3 σz-σz   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 2.50 (6/12)
+  case 1/3 σz-σz   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 1/3 σz-σz   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 3.00 (7/12)
+  case 1/3 σz-σz   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 3.50 (8/12)
+  case 1/3 σz-σz   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 1/3 σz-σz   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 4.00 (9/12)
+  case 1/3 σz-σz   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 1/3 σz-σz   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 4.50 (10/12)
+  case 1/3 σz-σz   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.00 (11/12)
+  case 1/3 σz-σz   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 1/3 σz-σz   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 1/3 σz-σz   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.50 (12/12)
+σz-σz   grid time: 0.895 s
+  case 2/3 σz-σx   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 2/3 σz-σx   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.00 (1/12)
+  case 2/3 σz-σx   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 2/3 σz-σx   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.50 (2/12)
+  case 2/3 σz-σx   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 2/3 σz-σx   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 1.00 (3/12)
+  case 2/3 σz-σx   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 1.50 (4/12)
+  case 2/3 σz-σx   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 2/3 σz-σx   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 2.00 (5/12)
+  case 2/3 σz-σx   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 2/3 σz-σx   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 2.50 (6/12)
+  case 2/3 σz-σx   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 2/3 σz-σx   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 3.00 (7/12)
+  case 2/3 σz-σx   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 3.50 (8/12)
+  case 2/3 σz-σx   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 2/3 σz-σx   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 4.00 (9/12)
+  case 2/3 σz-σx   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 2/3 σz-σx   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 4.50 (10/12)
+  case 2/3 σz-σx   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.00 (11/12)
+  case 2/3 σz-σx   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 2/3 σz-σx   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 2/3 σz-σx   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.50 (12/12)
+σz-σx   grid time: 0.207 s
+  case 3/3 σx-σy   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 3/3 σx-σy   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.00 (1/12)
+  case 3/3 σx-σy   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 3/3 σx-σy   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.50 (2/12)
+  case 3/3 σx-σy   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 3/3 σx-σy   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 1.00 (3/12)
+  case 3/3 σx-σy   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 1.50 (4/12)
+  case 3/3 σx-σy   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 3/3 σx-σy   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 2.00 (5/12)
+  case 3/3 σx-σy   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 3/3 σx-σy   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 2.50 (6/12)
+  case 3/3 σx-σy   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 3/3 σx-σy   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 3.00 (7/12)
+  case 3/3 σx-σy   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 3.50 (8/12)
+  case 3/3 σx-σy   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 3/3 σx-σy   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 4.00 (9/12)
+  case 3/3 σx-σy   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 3/3 σx-σy   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 4.50 (10/12)
+  case 3/3 σx-σy   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.00 (11/12)
+  case 3/3 σx-σy   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 3/3 σx-σy   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 3/3 σx-σy   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.50 (12/12)
+σx-σy   grid time: 1.025 s
+</code></pre><h2 id="Diagnostics"><a class="docs-heading-anchor" href="#Diagnostics">Diagnostics</a><a id="Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Diagnostics" title="Permalink"></a></h2><p>The first panel is an autocorrelation:</p><p class="math-container">\[C_{zz}(t_2,t_1) =
+\langle \sigma_z(t_2)\sigma_z(t_1)\rangle .\]</p><p>Since <code>σz</code> is Hermitian and <code>σz² = I</code>, the diagonal is a sanity check:</p><p class="math-container">\[C_{zz}(t,t) = 1 .\]</p><p>Therefore the real diagonal should be close to one, and the imaginary diagonal should be close to zero. Off the diagonal, the autocorrelation satisfies the conjugate structure</p><p class="math-container">\[C_{zz}(t_2,t_1)^* = C_{zz}(t_1,t_2),\]</p><p>so the real part is symmetric while the imaginary part is antisymmetric.</p><p>For cross-correlations, the structure is different. For example,</p><p class="math-container">\[\sigma_z\sigma_x = i\sigma_y,\qquad
+\sigma_x\sigma_y = i\sigma_z .\]</p><p>Thus the equal-time diagonal of <code>⟨σz(t₂)σx(t₁)⟩</code> is expected to be mainly imaginary and related to <code>⟨σy(t)⟩</code>, while the equal-time diagonal of <code>⟨σx(t₂)σy(t₁)⟩</code> is related to <code>⟨σz(t)⟩</code>. Away from the diagonal, there is no reason for a single cross-correlation grid to be symmetric; the conjugate partner involves the reversed operator ordering.</p><pre><code class="language-julia hljs">print_section(&quot;Diagnostics&quot;)
+
+all_values = vcat(grids...)
+finite_fraction = mean(isfinite.(real.(all_values)))
+
+Czz = grids[1]
+diag_Czz = diag(Czz)
+diag_real_error = maximum(abs.(real.(diag_Czz) .- 1.0); init=0.0)
+diag_imag_error = maximum(abs.(imag.(diag_Czz)); init=0.0)
+conjugate_defect = maximum(abs.(Czz - Czz&#39;); init=0.0)
+
+@printf(&quot;finite correlator fraction = %.3f\n&quot;, finite_fraction)
+@printf(&quot;max |Re correlator|        = %.6f\n&quot;, maximum(abs.(real.(all_values)); init=0.0))
+@printf(&quot;max |Im correlator|        = %.6f\n&quot;, maximum(abs.(imag.(all_values)); init=0.0))
+@printf(&quot;Czz diagonal Re error      = %.3e\n&quot;, diag_real_error)
+@printf(&quot;Czz diagonal Im magnitude  = %.3e\n&quot;, diag_imag_error)
+@printf(&quot;Czz conjugate defect       = %.3e\n&quot;, conjugate_defect)
+
+@assert finite_fraction &gt; 0.99 &quot;Too many non-finite correlator values.&quot;
+@assert all(isfinite, case_times)</code></pre><pre><code class="nohighlight hljs">
+Diagnostics
+-----------
+finite correlator fraction = 1.000
+max |Re correlator|        = 1.000000
+max |Im correlator|        = 0.981620
+Czz diagonal Re error      = 8.882e-16
+Czz diagonal Im magnitude  = 3.179e-17
+Czz conjugate defect       = 1.927e-15
+</code></pre><p><img src="../../assets/examples/pt_multitime_correlations.png" alt="Two-time correlation heatmaps"/></p><div class="admonition is-category-summary" id="Example-takeaways-ddffbd8592ca52a0"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-ddffbd8592ca52a0" title="Permalink"></a></header><div class="admonition-body"><ul><li>The process tensor is built once; each grid entry is a different <code>two_time_correlation_seq</code> contraction of the same PT-MPO.</li><li>The <code>⟨σz(t₂)σz(t₁)⟩</code> autocorrelation panel checks physicality through its diagonal (<code>Re ≈ 1</code>) and conjugate symmetry.</li><li>Cross-correlation grids are naturally complex because the inserted spin operators do not commute; imaginary parts encode ordering and bath memory.</li><li>Regenerate the figure with <code>julia --project=. scripts/pt_multitime_correlations.jl</code>.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../instrument_sequences/">« Instrument sequences</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 3 July 2026 04:53">Friday 3 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
