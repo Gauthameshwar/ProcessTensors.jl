@@ -14,20 +14,24 @@ end
 
 @testset "process_tensor.jl: single-site rebuild API" begin
     @testset "build_process_tensor uses explicit coupling_site::Index" begin
-        s = siteinds("S=1/2", 2)
+        s = siteinds("S=1/2", 1)
         H = OpSum()
         H += 0.3, "Sz", 1
-        H += -0.1, "Sz", 2
         system = spin_system(s, H)
 
-        pt = build_process_tensor(system, system.sites[2]; dt=0.1, nsteps=3)
+        pt = build_process_tensor(system, system.sites[1]; dt=0.1, nsteps=3)
         @test pt isa ProcessTensor
-        @test pt.coupling_site == system.sites[2]
+        @test pt.coupling_site == system.sites[1]
         @test length(pt.core) == pt.nsteps == 3
         @test length(output_sites(pt, 0)) == 1
         @test length(input_sites(pt, 2)) == 1
 
         @test_throws ArgumentError build_process_tensor(system, Index(dim(system.sites[1])); dt=0.1, nsteps=3)
+
+        s2 = siteinds("S=1/2", 2)
+        H2 = OpSum() + (0.3, "Sz", 1) + (-0.1, "Sz", 2)
+        system2 = spin_system(s2, H2)
+        @test_throws ArgumentError build_process_tensor(system2, system2.sites[1]; dt=0.1, nsteps=3)
     end
 
     @testset "coupling_times / coupling_sites resolve stable PT legs" begin
@@ -129,7 +133,6 @@ end
         trajectory = evolve(pt, psi0)
         manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[], maxdim=32, cutoff=1e-12, alg=Trotter{2}())
 
-        @test pt.embed_system_propagation
         @test trajectory.times ≈ [0.0, 0.05, 0.1] atol=1e-12
         @test length(trajectory.states_liouville) == 3
         for i in 1:pt.nsteps
@@ -203,17 +206,6 @@ end
         @test ρ_eval ≈ ρ_final atol=1e-10
     end
 
-    @testset "lazy APIs reject embed_system_propagation=false" begin
-        s = siteinds("S=1/2", 1)
-        H = OpSum()
-        H += 0.5, "Sz", 1
-        system = spin_system(s, H)
-        psi0 = MPS(s, ["Up"])
-        pt = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
-        @test !pt.embed_system_propagation
-        @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evolve(pt, psi0)
-    end
-
     @testset "ProcessTensor direct single-site constructor" begin
         s = siteinds("S=1/2", 1)
         system = spin_system(s, OpSum() + (0.2, "Sz", 1))
@@ -227,8 +219,7 @@ end
 
         s2 = siteinds("S=1/2", 2)
         system2 = spin_system(s2, OpSum() + (0.1, "Sz", 1))
-        pt_multi = build_process_tensor(system2, system2.sites[1]; dt=0.1, nsteps=2)
-        @test_throws ArgumentError ProcessTensor(pt_multi.core, system2, nothing, 0.1, 2)
+        @test_throws ArgumentError ProcessTensor(pt_ref.core, system2, nothing, 0.1, 3)
     end
 
     @testset "ProcessTensor core property forwarding" begin

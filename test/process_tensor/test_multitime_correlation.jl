@@ -52,7 +52,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=n_late + 1,
-            embed_system_propagation=true,
         )
         for (label, O_A, O_B) in [
             ("Sz(t)Sz(0)", O_Sz, O_Sz),
@@ -82,7 +81,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=4,
-            embed_system_propagation=true,
         )
         val_pt = evaluate_process(
             pt,
@@ -104,7 +102,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=4,
-            embed_system_propagation=true,
         )
         val_pt = evaluate_process(
             pt,
@@ -127,7 +124,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=n_late + 1,
-            embed_system_propagation=true,
         )
         @test pt.nsteps == n_late + 1
         val_pt = evaluate_process(
@@ -151,7 +147,6 @@ end
             environment=bath,
             dt=dt,
             nsteps=5,
-            embed_system_propagation=true,
         )
         @test pt.nsteps > n_late + 1
 

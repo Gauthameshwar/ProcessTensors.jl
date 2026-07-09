@@ -66,11 +66,11 @@ using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, Boso
 include("systems/instruments.jl")
 using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     StatePreparation, ObservableMeasurement,
-                    TraceOut, IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+                    TraceOut, IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument,
                     CustomTwoLegInstrument,
                     LeftRightOperator, left_action, right_action,
                     state_preparation, observable_measurement, trace_out,
-                    left_right_operator, system_propagation, identity_operation, open_output,
+                    left_right_operator, unitary_propagation, identity_operation, open_output,
                     custom_twoleg_instrument,
                     resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
@@ -125,11 +125,11 @@ export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument,
+       IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument,
        CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
        state_preparation, observable_measurement, trace_out,
-       left_right_operator, system_propagation, identity_operation, open_output,
+       left_right_operator, unitary_propagation, identity_operation, open_output,
        custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 

@@ -390,7 +390,7 @@ Main computation
   case 1/3 σz-σz   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 1/3 σz-σz   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 4.50 (10/12)
   case 1/3 σz-σz   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.00 (11/12)
   case 1/3 σz-σz   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 1/3 σz-σz   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 1/3 σz-σz   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.50 (12/12)
-σz-σz   grid time: 0.398 s
+σz-σz   grid time: 0.405 s
   case 2/3 σz-σx   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 2/3 σz-σx   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.00 (1/12)
   case 2/3 σz-σx   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 2/3 σz-σx   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.50 (2/12)
   case 2/3 σz-σx   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 2/3 σz-σx   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 1.00 (3/12)
@@ -403,7 +403,7 @@ Main computation
   case 2/3 σz-σx   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 2/3 σz-σx   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 4.50 (10/12)
   case 2/3 σz-σx   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.00 (11/12)
   case 2/3 σz-σx   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 2/3 σz-σx   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 2/3 σz-σx   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.50 (12/12)
-σz-σx   grid time: 0.245 s
+σz-σx   grid time: 0.121 s
   case 3/3 σx-σy   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 3/3 σx-σy   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.00 (1/12)
   case 3/3 σx-σy   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 3/3 σx-σy   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.50 (2/12)
   case 3/3 σx-σy   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 3/3 σx-σy   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 1.00 (3/12)
@@ -416,7 +416,7 @@ Main computation
   case 3/3 σx-σy   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 3/3 σx-σy   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 4.50 (10/12)
   case 3/3 σx-σy   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.00 (11/12)
   case 3/3 σx-σy   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 3/3 σx-σy   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 3/3 σx-σy   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.50 (12/12)
-σx-σy   grid time: 0.437 s
+σx-σy   grid time: 0.469 s
 
 ````
 

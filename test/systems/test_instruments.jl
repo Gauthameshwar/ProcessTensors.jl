@@ -67,9 +67,9 @@ end
 
     s3 = siteinds("S=1/2", 3)
     H3 = OpSum(); H3 += 0.3, "Sz", 2
-    # Given: lazy SystemPropagation / IdentityOperation (deferred PT legs).
+    # Given: lazy UnitaryPropagation / IdentityOperation (deferred PT legs).
     # Then: zero-length leg vectors are allowed.
-    @test SystemPropagation(spin_system(s3, H3)) isa SystemPropagation
+    @test UnitaryPropagation(spin_system(s3, H3)) isa UnitaryPropagation
     @test IdentityOperation() isa IdentityOperation
     @test OpenOutput() isa OpenOutput
 
@@ -79,10 +79,10 @@ end
     sys1 = spin_system(s1, H1)
     in1 = prime(L1[1])
     out0 = L1[1]
-    prop_bound = SystemPropagation([in1], [out0], sys1)
+    prop_bound = UnitaryPropagation([in1], [out0], sys1)
     @test prop_bound.input_pt_sites == [in1]
     @test prop_bound.output_pt_sites == [out0]
-    @test prop_bound.system === sys1
+    @test prop_bound.sites == sys1.sites
     id_bound = IdentityOperation([in1], [out0])
     @test id_bound.input_pt_sites == [in1]
     @test id_bound.output_pt_sites == [out0]
@@ -93,7 +93,7 @@ end
 
 @testset "Instruments.jl: InstrumentSeq / resolve / add!" begin
     sys = spin_system(siteinds("S=1/2", 1), OpSum() + (0.2, "Sz", 1))
-    def = SystemPropagation(sys)
+    def = UnitaryPropagation(sys)
 
     # Given: unified schedule with default only.
     # When: resolve k ≥ 1 missing from entries.
@@ -126,7 +126,7 @@ end
     # Then: latest wins.
     seq2 = InstrumentSeq(IdentityOperation(), 0)
     add!(seq2, def, 2)
-    other = SystemPropagation(sys)
+    other = UnitaryPropagation(sys)
     add!(seq2, other, 2)
     @test resolve_instrument(seq2, 2) === other
 
@@ -147,7 +147,7 @@ end
 
     # resolve with fallback for k ≥ 1
     seq5 = InstrumentSeq(IdentityOperation(), 0)
-    fb = SystemPropagation(sys)
+    fb = UnitaryPropagation(sys)
     @test resolve_instrument(seq5, 1, fb) === fb
     add!(seq5, def, 1)
     @test resolve_instrument(seq5, 1, fb) === def
@@ -198,7 +198,7 @@ end
     # When: nsteps=4.
     # Then: in/out coverage complete.
     seq_s = InstrumentSeq(iddef, 0; init=prep0)
-    add!(seq_s, SystemPropagation(sys), 3)
+    add!(seq_s, UnitaryPropagation(sys), 3)
     _, _, mis, mos = instrument_leg_maps(seq_s, 4)
     @test isempty(mis) && isempty(mos)
 
@@ -206,7 +206,7 @@ end
     # When: leg maps.
     # Then: maps reference the replaced instrument at that step.
     seq_l = InstrumentSeq(iddef, 0)
-    spA = SystemPropagation(sys); spB = SystemPropagation(sys)
+    spA = UnitaryPropagation(sys); spB = UnitaryPropagation(sys)
     add!(seq_l, spA, 2); add!(seq_l, spB, 2)
     im, om, _, _ = instrument_leg_maps(seq_l, 3)
     @test im[2] === spB
@@ -335,12 +335,12 @@ end
     @test isempty(missing_out)
 end
 
-@testset "Instruments.jl: instrument_itensor — SystemPropagation vs exp(dt * L)" begin
+@testset "Instruments.jl: instrument_itensor — UnitaryPropagation vs exp(dt * L)" begin
     s = siteinds("S=1/2", 1)
     L = liouv_sites(s)
     H = OpSum(); H += 0.6, "Sx", 1
     sys = spin_system(s, H)
-    prop = SystemPropagation(sys)
+    prop = UnitaryPropagation(sys)
     dt = 0.04
     in1 = prime(L[1])
     out0 = L[1]
@@ -357,17 +357,27 @@ end
     @test isapprox(A, Uexp; atol=1e-10, rtol=1e-8)
 
     # Given: empty Hamiltonian (constructor emits a warning by design).
-    # When: SystemPropagation ITensor.
+    # When: UnitaryPropagation ITensor.
     # Then: delta map between in/out legs; warning is captured/asserted by @test_logs.
     sys0 = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
-    idprop = SystemPropagation(sys0)
+    idprop = UnitaryPropagation(sys0)
     Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
     @test isapprox(norm(Tid - delta(in1, out0)), 0.0; atol=1e-12)
 
-    prop_bound = SystemPropagation([in1], [out0], sys)
+    prop_bound = UnitaryPropagation([in1], [out0], sys)
     T_bound = instrument_itensor(prop_bound, Index[], Index[], 1; dt=dt, alg=Trotter{1}())
     @test T_bound isa ITensor
     @test hasind(T_bound, in1) && hasind(T_bound, out0)
+
+    H_of_t(t) = OpSum() + (0.6 + 0.2t, "Sx", 1)
+    prop_t = UnitaryPropagation(H_of_t, L)
+    T_t = instrument_itensor(prop_t, [in1], [out0], 2; dt=dt, alg=Trotter{1}())
+    H_mid = H_of_t(1.5dt)
+    L_mid = MPO_Liouville(H_mid, L; jump_ops=[])
+    T_L_mid = contract_core(L_mid.core)
+    Lmat_mid = reshape(Array(T_L_mid, prime(L[1]), L[1]), d, d)
+    A_mid = reshape(Array(T_t, in1, out0), d, d)
+    @test isapprox(A_mid, exp(dt * Lmat_mid); atol=1e-10, rtol=1e-8)
 end
 
 @testset "Instruments.jl: CustomTwoLegInstrument" begin
@@ -601,21 +611,6 @@ end
         0,
     )
     @test isapprox(norm(T_right - ref_right), 0.0; atol=1e-12)
-end
-
-@testset "Instruments.jl: lazy APIs reject embed_system_propagation=false" begin
-    s = siteinds("S=1/2", 1)
-    system = spin_system(s, OpSum() + (0.3, "Sz", 1))
-    pt = build_process_tensor(system; dt=0.05, nsteps=3, embed_system_propagation=false)
-    rho0_h = to_dm(MPS(s, ["Up"]))
-    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0_h), 0)
-    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evaluate_process(pt, seq)
-    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError evolve(pt, rho0_h)
-    @test_logs (:warn, r"requires embed_system_propagation=true") @test_throws ArgumentError two_time_correlation_seq(
-        pt, (OpSum() + (1.0, "Sz", 1), 1), (OpSum() + (1.0, "Sz", 1), 0);
-        rho0=rho0_h,
-    )
 end
 
 struct InstrumentsTestDummy <: AbstractInstrument end

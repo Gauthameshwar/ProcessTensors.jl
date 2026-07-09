@@ -37,14 +37,13 @@ function _multimode_bath(sys_site)
     return spin_bath([m1, m2])
 end
 
-function _build_pt_case(kind::Symbol, system, sys_site; nsteps::Int, embed::Bool)
+function _build_pt_case(kind::Symbol, system, sys_site; nsteps::Int)
     dt = 0.05
     if kind == :trivial
         return build_process_tensor(
             system;
             dt=dt,
             nsteps=nsteps,
-            embed_system_propagation=embed,
         )
     elseif kind == :bathmode
         return build_process_tensor(
@@ -52,7 +51,6 @@ function _build_pt_case(kind::Symbol, system, sys_site; nsteps::Int, embed::Bool
             environment=_single_mode_bath(sys_site),
             dt=dt,
             nsteps=nsteps,
-            embed_system_propagation=embed,
         )
     elseif kind == :multimode
         return build_process_tensor(
@@ -60,16 +58,14 @@ function _build_pt_case(kind::Symbol, system, sys_site; nsteps::Int, embed::Bool
             environment=_multimode_bath(sys_site),
             dt=dt,
             nsteps=nsteps,
-            embed_system_propagation=embed,
         )
     else
         throw(ArgumentError("unknown build kind: $kind"))
     end
 end
 
-function _closed_seq(pt::ProcessTensor, rho0_h; embed::Bool)
-    default = embed ? IdentityOperation() : SystemPropagation(pt.system)
-    seq = InstrumentSeq(default=default, nsteps=pt.nsteps)
+function _closed_seq(pt::ProcessTensor, rho0_h)
+    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
     add!(seq, StatePreparation(rho0_h), 0)
     add!(seq, TraceOut(), pt.nsteps)
     return seq
@@ -101,10 +97,9 @@ function _topology_closure_tensor(pt::ProcessTensor, seq::InstrumentSeq)
 end
 
 const _STRUCTURE_MATRIX = vcat(
-    [(:trivial, n, true) for n in 2:5],
-    [(:bathmode, n, true) for n in 2:5],
-    [(:multimode, n, true) for n in 2:3],
-    [(:bathmode, n, false) for n in 2:4],
+    [(:trivial, n) for n in 2:5],
+    [(:bathmode, n) for n in 2:5],
+    [(:multimode, n) for n in 2:3],
 )
 
     @testset "process_tensor: structure and topology" begin
@@ -112,16 +107,16 @@ const _STRUCTURE_MATRIX = vcat(
     rho0_h = to_dm(MPS(siteinds("S=1/2", 1), ["Up"]))
 
     @testset "validate_process_tensor_structure" begin
-        for (kind, nsteps, embed) in _STRUCTURE_MATRIX
-            @testset "$(kind), nsteps=$nsteps, embed=$embed" begin
-                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps, embed=embed)
+        for (kind, nsteps) in _STRUCTURE_MATRIX
+            @testset "$(kind), nsteps=$nsteps" begin
+                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps)
                 validate_process_tensor_structure(pt)
             end
         end
     end
 
     @testset "output_sites / input_sites fail closed on stray legs" begin
-        pt = _build_pt_case(:bathmode, system, coupling_site; nsteps=4, embed=true)
+        pt = _build_pt_case(:bathmode, system, coupling_site; nsteps=4)
         validate_process_tensor_structure(pt)
         for k in 0:3
             @test length(output_sites(pt, k)) == 1
@@ -131,11 +126,11 @@ const _STRUCTURE_MATRIX = vcat(
     end
 
     @testset "topology closure (zero open indices)" begin
-        for (kind, nsteps, embed) in _STRUCTURE_MATRIX
-            @testset "$(kind), nsteps=$nsteps, embed=$embed" begin
-                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps, embed=embed)
+        for (kind, nsteps) in _STRUCTURE_MATRIX
+            @testset "$(kind), nsteps=$nsteps" begin
+                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps)
                 validate_process_tensor_structure(pt)
-                seq = _closed_seq(pt, rho0_h; embed=embed)
+                seq = _closed_seq(pt, rho0_h)
                 result = _topology_closure_tensor(pt, seq)
                 @test length(inds(result)) == 0
                 val = scalar(result)
@@ -144,12 +139,11 @@ const _STRUCTURE_MATRIX = vcat(
         end
     end
 
-    @testset "evaluate_process agrees with manual topology closure (embed=true)" begin
-        for (kind, nsteps, embed) in _STRUCTURE_MATRIX
-            embed || continue
+    @testset "evaluate_process agrees with manual topology closure" begin
+        for (kind, nsteps) in _STRUCTURE_MATRIX
             @testset "$(kind), nsteps=$nsteps" begin
-                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps, embed=true)
-                seq = _closed_seq(pt, rho0_h; embed=true)
+                pt = _build_pt_case(kind, system, coupling_site; nsteps=nsteps)
+                seq = _closed_seq(pt, rho0_h)
                 manual = scalar(_topology_closure_tensor(pt, seq))
                 auto = evaluate_process(pt, seq)
                 @test manual ≈ auto

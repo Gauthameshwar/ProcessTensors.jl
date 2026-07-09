@@ -234,7 +234,6 @@ println(pt)
 @assert pt.nsteps == nsteps
 @assert pt.dt == dt
 @assert pt.environment isa SpinBath
-@assert pt.embed_system_propagation
 
 # It is useful to compare this with the no-environment baseline.
 #
@@ -396,8 +395,9 @@ println("Final ⟨Sz⟩ with spin bath        = ", roundreal(last(mz)))
 # - measure an outcome, or
 # - leave an output open.
 #
-# The default schedule for a process tensor with embedded propagation uses
-# `IdentityOperation()` between time steps.
+# The default schedule uses `IdentityOperation()` between time steps: no extra
+# intervention is inserted beyond the propagation already stored in the process
+# tensor.
 
 seq = default_schedule(pt)
 

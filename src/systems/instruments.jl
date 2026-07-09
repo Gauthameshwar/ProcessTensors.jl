@@ -13,10 +13,10 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, SystemPropagation, OpenOutput, ProductInstrument, CustomTwoLegInstrument,
+       IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument, CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
        state_preparation, observable_measurement, trace_out,
-       left_right_operator, system_propagation, identity_operation, open_output,
+       left_right_operator, unitary_propagation, identity_operation, open_output,
        custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
@@ -26,7 +26,7 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
 Abstract interface for operations inserted on process-tensor legs.
 
 Instruments represent state preparations, measurements, traces, identity
-connectors, explicit system propagation, and custom Liouville maps used by
+connectors, explicit unitary control maps, and custom Liouville maps used by
 [`evaluate_process`](@ref ProcessTensors.evaluate_process) and
 [`evolve`](@ref ProcessTensors.evolve).
 """
@@ -49,7 +49,7 @@ abstract type SingleLegInstrument <: AbstractInstrument end
 Instrument connecting one primed input process-tensor leg to one unprimed output leg.
 
 Two-leg instruments represent maps between adjacent evolve slots, such as
-[`IdentityOperation`](@ref), [`SystemPropagation`](@ref), [`LeftRightOperator`](@ref),
+[`IdentityOperation`](@ref), [`UnitaryPropagation`](@ref), [`LeftRightOperator`](@ref),
 and custom Liouville superoperators.
 """
 abstract type TwoLegInstrument <: AbstractInstrument end
@@ -413,52 +413,73 @@ add!(seq, trace_out([coupling_site]; leg_plev=0), pt.nsteps)
 trace_out(args...; kwargs...) = TraceOut(args...; kwargs...)
 
 """
-    SystemPropagation
+    UnitaryPropagation
 
-Two-leg instrument for one timestep of system Liouvillian propagation.
+Two-leg instrument for an explicitly inserted unitary control map.
 """
-struct SystemPropagation{S<:AbstractSystem} <: TwoLegInstrument
+struct UnitaryPropagation{H} <: TwoLegInstrument
     input_pt_sites::Vector{Index}
     output_pt_sites::Vector{Index}
-    system::S
+    H::H
+    sites::Vector{Index}
 end
 """
-    SystemPropagation(input_pt_sites::AbstractVector{<:Index},
-                      output_pt_sites::AbstractVector{<:Index},
-                      system::AbstractSystem)
-    SystemPropagation(system::AbstractSystem)
+    UnitaryPropagation(H::OpSum, sites)
+    UnitaryPropagation(H_of_t::Function, sites)
+    UnitaryPropagation(system::AbstractSystem)
+    UnitaryPropagation(input_pt_sites, output_pt_sites, H, sites)
 
-Two-leg instrument for one timestep of system Liouvillian propagation.
+Construct a two-leg instrument for an additional unitary map inserted between
+adjacent process-tensor legs.
 
-The explicit-site form maps the current input leg to the previous output leg
-using `system.H` and `system.jump_ops`. The one-argument form is lazily bound.
-"""
-function SystemPropagation(
-    input_pt_sites::AbstractVector{<:Index},
-    output_pt_sites::AbstractVector{<:Index},
-    system::S,
-) where {S<:AbstractSystem}
-    input_vec, output_vec = _bind_two_leg_sites("SystemPropagation", input_pt_sites, output_pt_sites)
-    return SystemPropagation{S}(input_vec, output_vec, system)
-end
-
-SystemPropagation(system::AbstractSystem) = SystemPropagation(Index[], Index[], system)
-
-"""
-    system_propagation(input_pt_sites, output_pt_sites, system::AbstractSystem)
-    system_propagation(system::AbstractSystem)
-
-Lowercase alias for [`SystemPropagation`](@ref).
+The process tensor already contains the system's baseline propagation. Use
+`UnitaryPropagation` only for explicit control operations inserted into an
+instrument schedule. A time-dependent `H_of_t` is evaluated at the midpoint
+`(k - 1/2) * dt` for the map connecting output time `k - 1` to input time `k`.
 
 # Examples
 ```julia
-add!(seq, system_propagation(system), 1)           # lazy PT-leg binding
-in_k, out_k = coupling_times(pt, 1)
-add!(seq, system_propagation(in_k, out_k, system), 1)
+seq = default_schedule(pt)
+add!(seq, unitary_propagation(H_drive, system.sites), 2)
+
+H_of_t(t) = OpSum() + (cos(t), "Sx", 1)
+add!(seq, unitary_propagation(H_of_t, system.sites), 3)
 ```
 """
-system_propagation(args...; kwargs...) = SystemPropagation(args...; kwargs...)
-system_propagation(system::AbstractSystem) = SystemPropagation(system)
+function UnitaryPropagation(
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    H,
+    sites::AbstractVector{<:Index},
+)
+    input_vec, output_vec = _bind_two_leg_sites("UnitaryPropagation", input_pt_sites, output_pt_sites; lazy_ok=true)
+    sites_vec = Index[sites...]
+    isempty(sites_vec) && throw(ArgumentError("UnitaryPropagation: sites cannot be empty."))
+    return UnitaryPropagation{typeof(H)}(input_vec, output_vec, H, sites_vec)
+end
+
+UnitaryPropagation(H::OpSum, sites::AbstractVector{<:Index}) =
+    UnitaryPropagation(Index[], Index[], H, sites)
+
+UnitaryPropagation(H_of_t::Function, sites::AbstractVector{<:Index}) =
+    UnitaryPropagation(Index[], Index[], H_of_t, sites)
+
+UnitaryPropagation(input_pt_sites::AbstractVector{<:Index}, output_pt_sites::AbstractVector{<:Index}, system::AbstractSystem) =
+    UnitaryPropagation(input_pt_sites, output_pt_sites, system.H, system.sites)
+
+UnitaryPropagation(system::AbstractSystem) = UnitaryPropagation(system.H, system.sites)
+
+"""
+    unitary_propagation(args...; kwargs...)
+
+Lowercase alias for [`UnitaryPropagation`](@ref).
+
+# Examples
+```julia
+add!(seq, unitary_propagation(H_drive, system.sites), 1)
+```
+"""
+unitary_propagation(args...; kwargs...) = UnitaryPropagation(args...; kwargs...)
 
 """
     IdentityOperation
@@ -877,7 +898,12 @@ function Base.show(io::IO, seq::InstrumentSeq)
     end
 end
 
-# Tier B: map evolve slots to instruments filling primed input / unprimed output PT legs.
+"""
+    instrument_leg_maps(seq, nsteps)
+
+Return dictionaries describing which instruments cover process-tensor input and
+output legs, together with any missing input/output time labels.
+"""
 function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
 
@@ -1196,8 +1222,18 @@ function instrument_itensor(
     return _vectorized_identity_itensor(in_sites)
 end
 
+_unitary_hamiltonian(H::OpSum, k::Int, dt::Real) = H
+
+function _unitary_hamiltonian(H_of_t::Function, k::Int, dt::Real)
+    H = H_of_t((k - 0.5) * dt)
+    H isa OpSum || throw(
+        ArgumentError("UnitaryPropagation: time-dependent Hamiltonian function must return an OpSum; got $(typeof(H))."),
+    )
+    return H
+end
+
 function instrument_itensor(
-    instr::SystemPropagation,
+    instr::UnitaryPropagation,
     input_pt_sites::AbstractVector{<:Index},
     output_pt_sites::AbstractVector{<:Index},
     k::Int;
@@ -1207,14 +1243,15 @@ function instrument_itensor(
 )
     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
-    _validate_two_leg_map("SystemPropagation", in_sites, out_sites)
+    _validate_two_leg_map("UnitaryPropagation", in_sites, out_sites)
     all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-        ArgumentError("SystemPropagation: all input_pt_sites must have tstep=$k when tagged."),
+        ArgumentError("UnitaryPropagation: all input_pt_sites must have tstep=$k when tagged."),
     )
     all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-        ArgumentError("SystemPropagation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+        ArgumentError("UnitaryPropagation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
     )
-    liouv_os = OpSum_Liouville(instr.system.H, instr.system.jump_ops)
+    H = _unitary_hamiltonian(instr.H, k, dt)
+    liouv_os = OpSum_Liouville(H, OpSum[])
     if isempty(ITensors.terms(liouv_os))
         id_map = ITensor(1.0)
         for (sin, sout) in zip(in_sites, out_sites)
@@ -1224,18 +1261,18 @@ function instrument_itensor(
     end
     # liouvillian_propagator_itensor builds on canonical system Liouville sites (with `Site`
     # tag). PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
-    gate_sites = Index[instr.system.sites...]
+    gate_sites = Index[instr.sites...]
     length(gate_sites) == length(out_sites) || throw(
         ArgumentError(
-            "SystemPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
+            "UnitaryPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
         ),
     )
     U_t = liouvillian_propagator_itensor(
-        instr.system.H,
+        H,
         gate_sites,
         dt;
         alg=alg,
-        jump_ops=instr.system.jump_ops,
+        jump_ops=OpSum[],
     )
     # U_t has unprimed gate_sites (output) and prime.(gate_sites) (input).
     # Relabel to PT leg convention: output → out_sites, input → in_sites.

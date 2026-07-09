@@ -148,7 +148,8 @@ if !isdefined(Main, :_evolve_joint_split_exact)
     """
     Exact dense reference for `evolve` split schedule at PT snapshot `k` (`t = k*dt`).
 
-    Matches `states_liouville[k+1]`: each embedded PT slab applies `SystemPropagation`
+    Matches `states_liouville[k+1]`: each PT slab includes the system
+    Liouvillian propagation.
     then a bath core (`exp(-im*dt*H)` recomputed every sub-step).
     """
     function _evolve_joint_split_exact(

@@ -128,6 +128,17 @@ ProcessTensor
 ```
 
 ```@docs
+generate_pt_legs
+input_sites
+output_sites
+coupling_times
+coupling_sites
+default_schedule
+create_instruments
+all_pt_legs_contracted
+```
+
+```@docs
 build_process_tensor(::AbstractSystem, ::Index)
 build_process_tensor(::AbstractSystem)
 ```
@@ -210,8 +221,8 @@ right_action(::OpSum, ::AbstractVector{<:Index})
 ```
 
 ```@docs
-SystemPropagation
-system_propagation
+UnitaryPropagation
+unitary_propagation
 IdentityOperation
 identity_operation
 OpenOutput
@@ -222,6 +233,7 @@ custom_twoleg_instrument
 InstrumentSeq
 resolve_instrument
 add!
+instrument_leg_maps
 instrument_itensor
 ```
 
