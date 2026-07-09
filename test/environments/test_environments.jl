@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/environments/test_environments.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests bath and bath-mode constructors, fields, and environment API contracts.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ProcessTensors.Spectrals: ohmic_sd
 using ITensors

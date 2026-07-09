@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/liouvillian/spinmpo_vs_qo.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that spin Liouville MPOs agree with QuantumOptics dense references.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using LinearAlgebra
 using ProcessTensors

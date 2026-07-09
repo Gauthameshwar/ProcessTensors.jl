@@ -1,4 +1,11 @@
-# src/time_evolution/trotter.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/time_evolution/trotter.jl
+# Contributor: Gauthameshwar S.
+#
+# Implements Trotter gate construction helpers used by TEBD and related
+# propagators.
 
 import ITensors: ITensor, Index, exp
 import ITensors.Ops: Trotter, Prod

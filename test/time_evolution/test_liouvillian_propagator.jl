@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/time_evolution/test_liouvillian_propagator.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests Liouville propagator construction used by TEBD-style time evolution.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

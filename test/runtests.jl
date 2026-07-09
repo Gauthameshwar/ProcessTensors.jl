@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/runtests.jl
+# Contributor: Gauthameshwar S.
+#
+# Runs the ProcessTensors.jl test suite across systems, environments,
+# Liouville-space tools, tensor networks, and process tensors.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using Test
 using Aqua

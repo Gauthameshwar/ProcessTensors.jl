@@ -1,4 +1,11 @@
-# src/systems/systems.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/systems/systems.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines system model abstractions and constructors used in process-tensor
+# construction.
 
 import Base: show
 

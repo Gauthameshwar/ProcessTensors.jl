@@ -1,5 +1,10 @@
-# src/networks/algebra.jl
-# Tier C: algebra forwards to ITensorMPS on `.core` and rewraps (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/networks/algebra.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides network algebra helpers that forward to ITensorMPS and rewrap results.
 
 import ITensors: product, ITensor
 import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract

@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/liouvillian/bosonmpo_vs_qo.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that bosonic Liouville MPOs agree with QuantumOptics dense references.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using Random
 using LinearAlgebra

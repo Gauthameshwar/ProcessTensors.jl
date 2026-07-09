@@ -1,4 +1,11 @@
-# src/time_evolution/tebd.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/time_evolution/tebd.jl
+# Contributor: Gauthameshwar S.
+#
+# Implements TEBD-style time evolution routines used to propagate tensor-network
+# states and operators.
 
 import ITensors: ITensor, Index, exp, replaceind
 import ITensors: exp as itensor_exp

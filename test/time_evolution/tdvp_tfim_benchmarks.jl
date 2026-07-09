@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/time_evolution/tdvp_tfim_benchmarks.jl
+# Contributor: Gauthameshwar S.
+#
+# Benchmarks TDVP accuracy on small transverse-field Ising models.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/mpo/test_mpo.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that MPO wrappers preserve Hilbert/Liouville structure and constructor
+# conventions.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

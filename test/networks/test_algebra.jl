@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/networks/test_algebra.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that network algebra helpers forward to ITensorMPS and rewrap results.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ITensors.Ops: Prod, Trotter

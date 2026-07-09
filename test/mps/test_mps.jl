@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/mps/test_mps.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that MPS wrappers preserve Hilbert/Liouville structure and constructor
+# conventions.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

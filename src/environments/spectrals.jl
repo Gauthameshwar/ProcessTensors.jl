@@ -1,4 +1,11 @@
-# src/environments/spectrals.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/environments/spectrals.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines spectral-density parameter types and constructors for future bath
+# models.
 
 """
     ProcessTensors.Spectrals

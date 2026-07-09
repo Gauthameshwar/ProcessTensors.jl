@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/networks/test_manipulations.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that bond and site manipulation helpers forward and rewrap correctly.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

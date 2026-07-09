@@ -1,4 +1,10 @@
-# src/mps/mps.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mps/mps.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines Hilbert- and Liouville-space MPS wrappers around ITensorMPS cores.
 
 import ITensorMPS: AbstractMPS as CoreAbstractMPS
 import ITensorMPS: MPS as CoreMPS

@@ -1,4 +1,11 @@
-# src/environments/environments.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/environments/environments.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines bath and bath-mode abstractions used to construct process-tensor
+# environments.
 
 module Environments
 

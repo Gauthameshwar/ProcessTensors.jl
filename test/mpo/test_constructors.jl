@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/mpo/test_constructors.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that MPO constructor helpers forward to ITensorMPS and return wrapped
+# Hilbert-space operators.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

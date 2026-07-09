@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/systems/test_systems.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests system model constructors and site-normalization contracts.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

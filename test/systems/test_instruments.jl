@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/systems/test_instruments.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests lazy instrument schedules, composition, and ITensor materialization.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

@@ -1,4 +1,12 @@
-# src/liouvillian.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/liouvillian.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines Liouville-space Hamiltonian and dissipative superoperators for
+# open-system dynamics.
+
 using ITensors, LinearAlgebra
 
 const _LIOUV_PTYPE_PREFIX = "ptype="

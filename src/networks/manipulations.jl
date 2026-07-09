@@ -1,5 +1,10 @@
-# src/networks/manipulations.jl
-# Tier C: bond/site manipulations forward to ITensorMPS and rewrap (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/networks/manipulations.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides bond and site manipulation helpers that forward to ITensorMPS and rewrap.
 
 import ITensorMPS: replacebond, replacebond!, swapbondsites, movesite, movesites
 

@@ -1,8 +1,14 @@
-# Causality tests for process tensors (embedded propagation only).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
 #
-# At snapshot index `t` (1-based, matching `evolve` / `states_hilbert[t]`), the reduced
-# system state should not depend on future interventions. Compare `evolve` with a reference
-# schedule vs a schedule that inserts nontrivial two-leg instruments only after time `t`.
+# File: test/process_tensor/test_causality.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that process-tensor contractions preserve causality under future
+# instrument changes.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
 
 using ProcessTensors
 using ITensors

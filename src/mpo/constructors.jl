@@ -1,4 +1,10 @@
-# src/mpo/constructors.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mpo/constructors.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides MPO constructor helpers that forward to ITensorMPS and wrap results.
 
 """
     random_mpo(sites; kwargs...) -> MPO{Hilbert}

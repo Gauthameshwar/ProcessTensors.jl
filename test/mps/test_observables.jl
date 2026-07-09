@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/mps/test_observables.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that MPS observable helpers forward correctly on wrapped Hilbert-space
+# states.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

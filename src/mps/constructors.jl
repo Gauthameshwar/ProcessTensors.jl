@@ -1,4 +1,10 @@
-# src/mps/constructors.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mps/constructors.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides MPS constructor helpers that forward to ITensorMPS and wrap results.
 
 import ITensorMPS: outer, projector, state
 
@@ -19,6 +25,5 @@ random_mps(sites::Vector{<:Index}, state; kwargs...) = MPS{Hilbert}(ITensorMPS.r
 random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}; kwargs...) = MPS{Hilbert}(ITensorMPS.random_mps(eltype, sites; kwargs...))
 random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}, state; kwargs...) = MPS{Hilbert}(ITensorMPS.random_mps(eltype, sites, state; kwargs...))
 
-# Tier C: `state`, `outer`, and `projector` follow ITensorMPS; wrappers return `MPS{Hilbert}` / `MPO{Hilbert}`.
 outer(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = MPO{Hilbert}(ITensorMPS.outer(m1.core, m2.core; kwargs...))
 projector(m::AbstractMPS; kwargs...) = MPO{Hilbert}(ITensorMPS.projector(m.core; kwargs...))

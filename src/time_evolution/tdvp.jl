@@ -1,5 +1,10 @@
-# src/time_evolution/tdvp.jl
-# Tier C: TDVP helpers re-exported from ITensorMPS; `tdvp` rewraps the returned state (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/time_evolution/tdvp.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides TDVP helpers that forward to ITensorMPS and rewrap evolved states.
 
 import ITensorMPS: tdvp, promote_itensor_eltype, convert_leaf_eltype,
                    argsdict, sim!

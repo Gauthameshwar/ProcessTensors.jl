@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/networks/test_orthogonality.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that orthogonality helpers forward correctly on wrapped MPS objects.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/networks/test_indices.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that network index helpers forward correctly on wrapped MPS and MPO
+# objects.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using Test
 using ITensors
 using ProcessTensors

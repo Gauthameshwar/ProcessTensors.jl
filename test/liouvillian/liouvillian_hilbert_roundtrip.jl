@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/liouvillian/liouvillian_hilbert_roundtrip.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests Liouville site construction and Hilbert/Liouville round-trip conversions.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

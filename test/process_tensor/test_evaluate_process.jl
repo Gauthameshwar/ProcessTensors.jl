@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_evaluate_process.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests process-tensor evaluation against closed Markovian reference schedules.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

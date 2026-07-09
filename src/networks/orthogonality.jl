@@ -1,5 +1,10 @@
-# src/networks/orthogonality.jl
-# Tier C: orthogonality queries and updates forward to ITensorMPS on `.core` (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/networks/orthogonality.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides orthogonality helpers that forward to ITensorMPS on wrapped cores.
 
 import ITensorMPS: isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!,
                    orthogonalize!, orthogonalize, normalize!, @preserve_ortho

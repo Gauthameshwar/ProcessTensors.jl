@@ -1,5 +1,10 @@
-# src/mpo/observables.jl
-# Tier C: trace forwards to ITensorMPS on `.core` (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mpo/observables.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides MPO observable helpers that forward to ITensorMPS on wrapped cores.
 
 import ITensorMPS: tr
 

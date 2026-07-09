@@ -1,5 +1,10 @@
-# src/mpo/manipulations.jl
-# Tier C: `splitblocks` forwards to ITensorMPS and rewraps (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mpo/manipulations.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides MPO manipulation helpers that forward to ITensorMPS and rewrap.
 
 import ITensorMPS: splitblocks
 

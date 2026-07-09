@@ -1,3 +1,15 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/liouvillian/single_spin_analytical.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that single-spin Liouvillian action matches an analytic Bloch-vector
+# formula.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

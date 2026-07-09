@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/time_evolution/tebd_test_utils.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides shared dense-reference helpers used by TEBD and process-tensor tests.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

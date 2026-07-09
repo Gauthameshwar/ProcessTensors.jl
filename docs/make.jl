@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: docs/make.jl
+# Contributor: Gauthameshwar S., Cursor AI and PkgTemplates.jl.
+#
+# Builds the ProcessTensors.jl documentation site using Documenter.jl.
+#
+# Run with:
+#   julia --project=docs docs/make.jl
+
 using ProcessTensors
 using Documenter
 using Literate

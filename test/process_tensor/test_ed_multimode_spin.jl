@@ -1,5 +1,14 @@
-# Multi-mode spin bath: split PT vs exact joint exp(-im * t * H_full).
-# Each mode.coupling uses local OpSum sites 1=bath, 2=system.
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_ed_multimode_spin.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests multimode spin-bath process-tensor evolution against joint dense ED.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

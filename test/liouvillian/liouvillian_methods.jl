@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/liouvillian/liouvillian_methods.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests MPO_Liouville constructor method coverage on small Liouville systems.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

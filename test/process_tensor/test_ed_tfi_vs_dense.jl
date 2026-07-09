@@ -1,4 +1,14 @@
-# 1 system qubit + 1 bath spin: split PT evolution vs exact joint `exp(-im * t * H_full)`.
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_ed_tfi_vs_dense.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests single-mode spin-bath process-tensor evolution against joint dense ED.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

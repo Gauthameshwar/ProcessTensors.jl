@@ -1,4 +1,15 @@
-# Process-tensor two-time correlators ⟨A(t_A) B(t_B)⟩ vs split joint ED.
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_multitime_correlation.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests sequential two-time correlators against joint exact-diagonalization
+# references.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

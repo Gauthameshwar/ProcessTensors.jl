@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/environments/test_spectrals.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests spectral-density structs and helper constructors in ProcessTensors.Spectrals.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ProcessTensors.Spectrals: OhmicSpectralDensity, LorentzianSpectralDensity,
                               ohmic_sd, lorentzian_sd

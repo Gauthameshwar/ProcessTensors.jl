@@ -1,4 +1,14 @@
-# Fast structural / topological checks for process-tensor cores (no ED).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_structure.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests process-tensor core structure and topology without ED comparisons.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

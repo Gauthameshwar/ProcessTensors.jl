@@ -1,4 +1,10 @@
-# src/mpo/mpo.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mpo/mpo.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines Hilbert- and Liouville-space MPO wrappers around ITensorMPS cores.
 
 import ITensorMPS: MPO as CoreMPO
 import ITensorMPS: siteinds, linkdims, maxlinkdim

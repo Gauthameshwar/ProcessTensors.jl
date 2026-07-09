@@ -1,5 +1,10 @@
-# src/mps/observables.jl
-# Tier C: observables forward to ITensorMPS on `.core` (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/mps/observables.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides MPS observable helpers that forward to ITensorMPS on wrapped cores.
 
 import ITensorMPS: inner, dot, ⋅, loginner, logdot, norm, lognorm,
                    expect, correlation_matrix, sample, sample!, entropy

@@ -1,4 +1,14 @@
-# API and smoke tests for single-site process tensors (build, legs, instruments, Markovian path).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_api.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests process-tensor build, leg, instrument, and Markovian API smoke paths.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

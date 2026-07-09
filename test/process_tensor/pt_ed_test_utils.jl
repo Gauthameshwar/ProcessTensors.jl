@@ -1,4 +1,14 @@
-# Shared helpers for process-tensor ED reference tests (included once via !isdefined guard).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/pt_ed_test_utils.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides shared exact-diagonalization helpers for process-tensor reference tests.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using LinearAlgebra

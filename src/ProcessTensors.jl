@@ -1,3 +1,12 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/ProcessTensors.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines the main ProcessTensors.jl module, package imports, includes, exports,
+# and public API surface.
+
 module ProcessTensors
 
 using ITensors

@@ -1,3 +1,14 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/time_evolution/test_tdvp_forwarding.jl
+# Contributor: Gauthameshwar S.
+#
+# Tests that TDVP helpers forward to ITensorMPS and preserve wrapper types.
+#
+# Run with:
+#   julia --project=. test/runtests.jl
+
 using ProcessTensors
 using ITensors
 using Test

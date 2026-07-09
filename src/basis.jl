@@ -1,4 +1,12 @@
-# src/basis.jl
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/basis.jl
+# Contributor: Gauthameshwar S.
+#
+# Defines basis and site-index helpers used to organize Hilbert- and
+# Liouville-space tensor objects.
+
 module Basis
 
 """

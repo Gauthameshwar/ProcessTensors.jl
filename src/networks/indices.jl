@@ -1,5 +1,10 @@
-# src/networks/indices.jl
-# Tier C: site/link index queries and replacements forward to ITensorMPS on `.core` (see API page).
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: src/networks/indices.jl
+# Contributor: Gauthameshwar S.
+#
+# Provides site and link index helpers that forward to ITensorMPS on wrapped cores.
 
 import ITensorMPS: siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
                    common_siteind, common_siteinds, unique_siteind, unique_siteinds,
