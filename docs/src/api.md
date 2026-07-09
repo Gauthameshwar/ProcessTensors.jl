@@ -125,6 +125,8 @@ liouvillian_propagator_itensor
 
 ```@docs
 ProcessTensor
+AbstractPTBuilder
+Dense
 ```
 
 ```@docs
@@ -134,7 +136,6 @@ output_sites
 coupling_times
 coupling_sites
 default_schedule
-create_instruments
 all_pt_legs_contracted
 ```
 
@@ -235,6 +236,7 @@ resolve_instrument
 add!
 instrument_leg_maps
 instrument_itensor
+create_instruments
 ```
 
 ### Time evolution

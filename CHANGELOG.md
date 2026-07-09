@@ -5,6 +5,32 @@ All notable changes to [ProcessTensors.jl](https://github.com/Gauthameshwar/Proc
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.2.0
+
+### Breaking
+
+* **Always-embedded system propagation; `SystemPropagation` → `UnitaryPropagation`.**
+  Process-tensor slabs always include the system's one-step Liouville map.
+  The `embed_system_propagation` keyword is removed.
+  Schedule-side unitary control uses the new public instrument `UnitaryPropagation`
+  (`unitary_propagation`) instead of `SystemPropagation` / `system_propagation`.
+  `default_schedule` inserts `IdentityOperation()` between steps (no extra system
+  propagator). For a bath-only / identity system map, construct the system with an
+  empty `OpSum()` Hamiltonian; the single-mode process-tensor tutorial documents
+  the embedded-propagation and identity-schedule conventions.
+
+### Changed
+
+* Reorganized process-tensor source files into `src/process_tensor/` and dense
+  core construction into `src/builders/`, with `build_process_tensor` dispatching
+  through `method=Dense()` by default.
+* Split instruments into lazy schedule definitions and ITensor materialization
+  files under the existing `Instruments` submodule at `src/instruments/`.
+  `create_instruments` now lives with ITensor instrument materialization while
+  keeping the same public name and behavior.
+* Multi-site `build_process_tensor` currently errors: always-embedded construction
+  requires a single-site system until a multi-site path is added.
+
 ## v0.1.0 - 2026-07-03
 
 ### First Public Preview of MPS-Based Process Tensors in Julia

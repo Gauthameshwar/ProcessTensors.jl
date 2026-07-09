@@ -26,6 +26,11 @@ end
         @test length(output_sites(pt, 0)) == 1
         @test length(input_sites(pt, 2)) == 1
 
+        pt_dense = build_process_tensor(system, system.sites[1]; method=Dense(), dt=0.1, nsteps=3)
+        @test Dense() isa AbstractPTBuilder
+        @test pt_dense isa ProcessTensor
+        @test length(pt_dense.core) == length(pt.core)
+
         @test_throws ArgumentError build_process_tensor(system, Index(dim(system.sites[1])); dt=0.1, nsteps=3)
 
         s2 = siteinds("S=1/2", 2)

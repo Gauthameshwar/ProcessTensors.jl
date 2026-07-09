@@ -63,7 +63,7 @@ include("environments/environments.jl")
 using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
                     bosonic_mode, spin_mode, bosonic_bath, spin_bath,
                     mode_initial_states
-include("systems/instruments.jl")
+include("instruments/Instruments.jl")
 using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     StatePreparation, ObservableMeasurement,
                     TraceOut, IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument,
@@ -72,11 +72,19 @@ using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     state_preparation, observable_measurement, trace_out,
                     left_right_operator, unitary_propagation, identity_operation, open_output,
                     custom_twoleg_instrument,
-                    resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+                    resolve_instrument, InstrumentSeq, add!, instrument_leg_maps
 
 # Process Tensors
 
-include("process_tensor.jl")
+include("process_tensor/process_tensor.jl")
+Base.include(Instruments, joinpath(@__DIR__, "instruments/itensor_instruments.jl"))
+using .Instruments: instrument_itensor, create_instruments
+include("builders/abstract_builders.jl")
+include("builders/dense_process_tensor.jl")
+include("process_tensor/build.jl")
+include("process_tensor/evaluate.jl")
+include("process_tensor/evolve.jl")
+include("process_tensor/multitime.jl")
 
 # Exports (grouped by category)
 
@@ -133,7 +141,8 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
-export ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
+export AbstractPTBuilder, Dense,
+       ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
        two_time_correlation_seq,
        all_pt_legs_contracted,
        coupling_times, coupling_sites, input_sites, output_sites,

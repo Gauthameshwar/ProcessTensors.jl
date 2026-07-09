@@ -2,8 +2,8 @@
 
 module Environments
 
-using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token,
-                       MAX_DENSE_LIOUVILLE_DIM
+import ..ProcessTensors
+using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token
 using ..Spectrals: AbstractSpectralDensity, ohmic_sd
 using ITensors
 using ITensors: dim, terms
@@ -136,8 +136,8 @@ struct BosonicBath{M<:BosonicMode,S<:AbstractSpectralDensity,O<:OpSum} <: Abstra
             coupling == OpSum() &&
             @warn "BosonicBath: no mode-system coupling on modes or inter-mode coupling on bath. This is usually not what you want."
         d_bath = isempty(sites) ? 1 : prod(dim.(collect(sites)))
-        if d_bath > MAX_DENSE_LIOUVILLE_DIM
-            @warn "BosonicBath has bath-only Liouville dimension D_bath=$d_bath (> $MAX_DENSE_LIOUVILLE_DIM). " *
+        if d_bath > ProcessTensors.MAX_DENSE_LIOUVILLE_DIM
+            @warn "BosonicBath has bath-only Liouville dimension D_bath=$d_bath (> $ProcessTensors.MAX_DENSE_LIOUVILLE_DIM). " *
                   "It will fail in dense build_process_tensor once the system coupling site is included."
         end
         new(collect(modes), spectral_density, coupling, Index[sites...])
@@ -194,8 +194,8 @@ struct SpinBath{M<:SpinMode,S<:AbstractSpectralDensity,O<:OpSum} <: AbstractBath
             coupling == OpSum() &&
             @warn "SpinBath: no mode-system coupling on modes or inter-mode coupling on bath. This is usually not what you want."
         d_bath = isempty(sites) ? 1 : prod(dim.(collect(sites)))
-        if d_bath > MAX_DENSE_LIOUVILLE_DIM
-            @warn "SpinBath has bath-only Liouville dimension D_bath=$d_bath (> $MAX_DENSE_LIOUVILLE_DIM). " *
+        if d_bath > ProcessTensors.MAX_DENSE_LIOUVILLE_DIM
+            @warn "SpinBath has bath-only Liouville dimension D_bath=$d_bath (> $ProcessTensors.MAX_DENSE_LIOUVILLE_DIM). " *
                   "It will fail in dense build_process_tensor once the system coupling site is included."
         end
         new(collect(modes), spectral_density, coupling, Index[sites...])
