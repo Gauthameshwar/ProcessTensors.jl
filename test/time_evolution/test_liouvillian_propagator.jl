@@ -64,19 +64,6 @@ function _dense_from_propagator_apply(U::ITensor, phys, liouv)
     return U_mat
 end
 
-# Small TFIM-like Hamiltonian (nearest-neighbour XX + transverse field).
-function _test_hamiltonian(N::Int)
-    H = OpSum()
-    for j in 1:N
-        H += 0.5, "Sx", j
-        H += 0.3, "Sz", j
-    end
-    for j in 1:(N - 1)
-        H += 0.4, "Sx", j, "Sx", j + 1
-    end
-    return H
-end
-
 # -------------------------------------------------------------------------
 # N = 1 tests
 # -------------------------------------------------------------------------

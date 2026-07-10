@@ -259,14 +259,13 @@ end
     end
 
     @testset "create_instruments bond dispatch and invalid types" begin
-        # Mirrors the step loop in create_instruments (process_tensor.jl:721-742).
         function _create_instruments_step_bond(pt, instr, step)
             out_prev, in_curr = coupling_times(pt, step)
             if instr isa TwoLegInstrument
                 return instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt)
             elseif instr isa SingleLegInstrument
                 if instr.leg_plev == 0
-                    return instrument_itensor(instr, out_prev, step)
+                    return instrument_itensor(instr, out_prev, step - 1)
                 else
                     return instrument_itensor(instr, in_curr, step)
                 end
@@ -280,21 +279,22 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        @test _create_instruments_step_bond(pt, TraceOut(; leg_plev=1), 1) isa ITensor
-        @test _create_instruments_step_bond(pt, TraceOut(; leg_plev=1), 2) isa ITensor
         out1, _ = coupling_times(pt, 2)
         op_z = OpSum() + (1.0, "Sz", 1)
         @test instrument_itensor(ObservableMeasurement(op_z; leg_plev=0), out1, 1) isa ITensor
+        @test_throws ArgumentError TraceOut(; leg_plev=1)
 
         seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
         add!(seq, StatePreparation(rho0_h), 0)
         instruments = create_instruments(pt, seq)
-        @test length(instruments) == pt.nsteps
+        @test length(instruments) == pt.nsteps + 1
         @test instruments[1] ≈ instrument_itensor(StatePreparation(rho0_h), input_sites(pt, 0), 0)
         for step in 1:(pt.nsteps - 1)
             expected = _create_instruments_step_bond(pt, IdentityOperation(), step)
             @test instruments[step + 1] ≈ expected
         end
+        @test length(inds(instruments[end])) == 0
+        @test isapprox(scalar(instruments[end]), 1.0; atol=1e-12)
 
         err = @test_throws ArgumentError _create_instruments_step_bond(pt, _UnsupportedPTInstrument(), 1)
         @test occursin("unsupported instrument", lowercase(string(err.value)))

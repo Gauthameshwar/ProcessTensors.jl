@@ -98,6 +98,19 @@ function energy_expectation_mpo(ρ_vec::MPS{Liouville}, H_mpo::MPO{Hilbert})
     return real(expectation_trace_mpo(ρ_vec, H_mpo))
 end
 
+# Small TFIM-like Hamiltonian (nearest-neighbour XX + transverse field).
+function _test_hamiltonian(N::Int)
+    H = OpSum()
+    for j in 1:N
+        H += 0.5, "Sx", j
+        H += 0.3, "Sz", j
+    end
+    for j in 1:(N - 1)
+        H += 0.4, "Sx", j, "Sx", j + 1
+    end
+    return H
+end
+
 # Build a dense Hamiltonian matrix from an OpSum, e.g. for ED against Hilbert-space `tebd`.
 dense_hamiltonian_matrix(os_H::OpSum, physical_sites) =
     hilbert_mpo_to_dense(MPO(os_H, physical_sites), physical_sites)

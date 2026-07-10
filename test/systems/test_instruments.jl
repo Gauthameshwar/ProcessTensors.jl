@@ -61,12 +61,12 @@ end
     # When: construct StatePreparation / TraceOut / ObservableMeasurement.
     # Then: constructors succeed with matching leg prime levels.
     @test StatePreparation(to_liouville(to_dm(psi); sites=L)) isa StatePreparation
-    @test StatePreparation(to_liouville(to_dm(psi); sites=L); leg_plev=0) isa StatePreparation
     @test StatePreparation(to_liouville(to_dm(psi))) isa StatePreparation
+    @test_throws ArgumentError StatePreparation(to_liouville(to_dm(psi); sites=L), leg_plev=0)
 
     @test TraceOut([L[1]]; leg_plev=0) isa TraceOut
-    @test TraceOut([prime(L[1])]; leg_plev=1) isa TraceOut
     @test TraceOut() isa TraceOut
+    @test_throws ArgumentError TraceOut([prime(L[1])]; leg_plev=1)
 
     @test ObservableMeasurement(op_z, [prime(L[1])]; leg_plev=1) isa ObservableMeasurement
     @test ObservableMeasurement(op_z, [L[1]]; leg_plev=0) isa ObservableMeasurement
@@ -97,9 +97,10 @@ end
     id_bound = IdentityOperation([in1], [out0])
     @test id_bound.input_pt_sites == [in1]
     @test id_bound.output_pt_sites == [out0]
-    open_bound = OpenOutput([in1], [out0])
-    @test open_bound.input_pt_sites == [in1]
-    @test open_bound.output_pt_sites == [out0]
+    open_bound = OpenOutput([out0])
+    @test open_bound.pt_sites == [out0]
+    @test open_bound.leg_plev == 0
+    @test_throws ArgumentError OpenOutput([in1]; leg_plev=1)
 end
 
 @testset "Instruments.jl: InstrumentSeq / resolve / add!" begin
@@ -324,21 +325,21 @@ end
     in1 = prime(L[1])
     out0 = L[1]
     open_op = OpenOutput()
-    Topen = instrument_itensor(open_op, [in1], [out0], 1)
-    @test hasind(Topen, in1)
-    @test !hasind(Topen, out0)
+    Topen = instrument_itensor(open_op, [out0], 0)
+    @test length(inds(Topen)) == 0
+    @test isapprox(scalar(Topen), 1.0; atol=1e-12)
 
-    Ttrace_in = instrument_itensor(TraceOut([in1]; leg_plev=1), [in1], 1)
-    @test isapprox(norm(Topen - Ttrace_in), 0.0; atol=1e-12)
+    Ttrace = instrument_itensor(TraceOut([out0]), [out0], 0)
+    @test length(inds(Ttrace)) == 1
+    @test hasind(Ttrace, out0)
 
     Tid = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
-    @test length(inds(Topen)) == 1
     @test length(inds(Tid)) == 2
 
     iddef = IdentityOperation()
     seq = InstrumentSeq(iddef, 2)
     add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
-    add!(seq, OpenOutput(), 1)
+    add!(seq, OpenOutput(), 2)
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, 2)
     @test haskey(in_map, 1)
     @test haskey(out_map, 0)
@@ -483,10 +484,43 @@ end
         seq_pt = InstrumentSeq(default=custom, nsteps=pt.nsteps)
         add!(seq_pt, StatePreparation(rho0_h), 0)
         instruments = create_instruments(pt, seq_pt)
-        @test length(instruments) == pt.nsteps
+        @test length(instruments) == pt.nsteps + 1
         out_prev, in_curr = coupling_times(pt, 1)
         T_id = instrument_itensor(IdentityOperation(), in_curr, out_prev, 1)
         @test isapprox(norm(instruments[2] - T_id), 0.0; atol=1e-12)
+        @test length(inds(instruments[end])) == 0
+        @test isapprox(scalar(instruments[end]), 1.0; atol=1e-12)
+    end
+
+    @testset "create_instruments pairs consecutive single-leg output/input entries" begin
+        system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+        rho1_h = to_dm(MPS(s, ["Dn"]))
+
+        seq_unpaired = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq_unpaired, StatePreparation(rho0_h), 0)
+        add!(seq_unpaired, TraceOut(), 1)
+        err = @test_throws ArgumentError create_instruments(pt, seq_unpaired)
+        @test occursin("single-leg input instrument", lowercase(string(err.value)))
+
+        seq_paired = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq_paired, StatePreparation(rho0_h), 0)
+        add!(seq_paired, TraceOut(), 1)
+        add!(seq_paired, StatePreparation(rho1_h), 2)
+        add!(seq_paired, TraceOut(), 3)
+        instruments = create_instruments(pt, seq_paired)
+        @test length(instruments) == pt.nsteps + 1
+
+        out_prev, in_curr = coupling_times(pt, 1)
+        paired = TraceOut() * StatePreparation(rho1_h)
+        expected = instrument_itensor(paired, in_curr, out_prev, 1)
+        @test isapprox(norm(instruments[2] - expected), 0.0; atol=1e-12)
+
+        out2, in2 = coupling_times(pt, 2)
+        expected2 = instrument_itensor(IdentityOperation(), in2, out2, 2)
+        @test isapprox(norm(instruments[3] - expected2), 0.0; atol=1e-12)
+        @test length(inds(instruments[end])) == 1
     end
 end
 
@@ -499,20 +533,20 @@ end
     op_x += 1.0, "Sx", 1
     obs_z = ObservableMeasurement(op_z)
     obs_x = ObservableMeasurement(op_x)
-    trace_in = TraceOut(; leg_plev=1)
+    trace_out = TraceOut()
+    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
 
-    prod1 = obs_z * trace_in
-    prod2 = trace_in * obs_z
+    prod1 = trace_out * prep
+    prod2 = prep * trace_out
     @test prod1 isa ProductInstrument
     @test prod2 isa ProductInstrument
-    @test prod1.input_instr === trace_in
-    @test prod1.output_instr === obs_z
+    @test prod1.input_instr === prep
+    @test prod1.output_instr === trace_out
     @test prod2 == prod1
 
     same_leg = obs_z * obs_x
     @test same_leg isa SingleLegInstrument
     @test !(same_leg isa ProductInstrument)
-    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
     @test_throws ArgumentError prep * prep
     @test_throws MethodError obs_z * IdentityOperation()
 
@@ -530,7 +564,7 @@ end
     @test isapprox(norm(T_mr - T_mr_ref), 0.0; atol=1e-12)
 
     T_prod = instrument_itensor(prod1, [in1], [out0], 1)
-    T_ref = instrument_itensor(trace_in, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
+    T_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(trace_out, [out0], 0)
     @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)
 
     T_same = instrument_itensor(same_leg, [out0], 1)

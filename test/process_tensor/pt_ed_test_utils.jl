@@ -277,8 +277,9 @@ end
 if !isdefined(Main, :_seq_density_at_snapshot)
     """
     Schedule whose `evaluate_process` result is the system marginal at snapshot `k`
-    (`t = k * dt`, output leg `out_k`). Uses `OpenOutput` for `k < nsteps-1` and the
-    terminal-open schedule when `k == nsteps-1`.
+    (`t = k * dt`, output leg `out_k`).
+
+    Uses a process tensor of length `k + 1` with terminal `OpenOutput`.
     """
     function _seq_density_at_snapshot(
         rho0_h,
@@ -287,15 +288,9 @@ if !isdefined(Main, :_seq_density_at_snapshot)
         default_instr::AbstractInstrument,
     )
         0 <= k < nsteps || throw(ArgumentError("_seq_density_at_snapshot: k=$k out of range for nsteps=$nsteps."))
-        seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
+        seq = InstrumentSeq(default=default_instr, nsteps=k + 1)
         add!(seq, StatePreparation(rho0_h), 0)
-        if k < nsteps - 1
-            add!(seq, OpenOutput(), k + 1)
-            for step in (k + 2):(nsteps - 1)
-                add!(seq, IdentityOperation(), step)
-            end
-            add!(seq, TraceOut(), nsteps)
-        end
+        add!(seq, OpenOutput(), k + 1)
         return seq
     end
 end

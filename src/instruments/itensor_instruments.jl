@@ -242,21 +242,18 @@ end
 
 function instrument_itensor(
     instr::OpenOutput,
-    input_pt_sites::AbstractVector{<:Index},
-    output_pt_sites::AbstractVector{<:Index},
+    pt_sites_arg::AbstractVector{<:Index},
     k::Int;
     kwargs...,
 )
-    in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
-    out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
-    _validate_two_leg_map("OpenOutput", in_sites, out_sites)
-    all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-        ArgumentError("OpenOutput: all input_pt_sites must have tstep=$k when tagged."),
-    )
-    all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-        ArgumentError("OpenOutput: all output_pt_sites must have tstep=$(k - 1) when tagged."),
-    )
-    return _vectorized_identity_itensor(in_sites)
+    sites = isempty(instr.pt_sites) ? Index[pt_sites_arg...] : instr.pt_sites
+    if !isempty(sites)
+        _validate_single_leg_sites("OpenOutput", sites, _OUTPUT_PLEV)
+        all(s -> _tstep_from_site(s) in (nothing, k), sites) || throw(
+            ArgumentError("OpenOutput: all pt_sites must have tstep=$k when tagged."),
+        )
+    end
+    return ITensor(1.0)
 end
 
 _unitary_hamiltonian(H::OpSum, k::Int, dt::Real) = H
@@ -370,10 +367,21 @@ end
 """
     create_instruments(pt, seq; default, alg)
 
-Materialize an `InstrumentSeq` as one `ITensor` per process-tensor timestep.
+Materialize an `InstrumentSeq` as one `ITensor` per schedule slot.
 
-Most users call `evaluate_process` or `evolve` instead of building the
-instrument tensors manually.
+The returned vector has length `pt.nsteps + 1`:
+- index `1` is the `tstep = 0` preparation,
+- indices `2:pt.nsteps` are evolve-slot instruments for steps `1:pt.nsteps-1`,
+- index `pt.nsteps + 1` is the terminal instrument at `tstep = pt.nsteps`
+  (`TraceOut`, `ObservableMeasurement`, or `OpenOutput` / open no-op).
+
+Consecutive single-leg output/input entries are paired into a
+[`ProductInstrument`](@ref) at the output slot; the consumed input slot is
+filled with `default` when it still lies in the evolve range.
+
+[`OpenOutput`](@ref) materializes as the scalar `ITensor(1.0)` so the declared
+output leg stays uncontracted. A terminal [`IdentityOperation`](@ref) is treated
+as `OpenOutput()`.
 """
 function create_instruments(
     pt::ProcessTensors.ProcessTensor,
@@ -381,36 +389,92 @@ function create_instruments(
     default::AbstractInstrument=ProcessTensors._schedule_default_instr(pt),
     alg=Trotter{2}(),
 )
-    ProcessTensors._validate_instrument_schedule!(pt, seq, default, "create_instruments")
-
-    prep = resolve_instrument(seq, 0)
-    instruments = Vector{ITensor}(undef, pt.nsteps)
-    prep_in = ProcessTensors.input_sites(pt, 0)
-    instruments[1] = instrument_itensor(prep, prep_in, 0)
-
+    # Pairing must be checked before schedule coverage: an unpaired single-leg
+    # output leaves a missing input leg that would otherwise report a vaguer error.
     for step in 1:(pt.nsteps - 1)
         instr = resolve_instrument(seq, step, default)
-        out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
-
-        if instr isa TwoLegInstrument
-            instruments[step + 1] = instrument_itensor(
-                instr,
-                in_curr,
-                out_prev,
-                step;
-                dt=pt.dt,
-                alg=alg,
+        if instr isa SingleLegInstrument && instr.leg_plev == 0 && !(instr isa OpenOutput)
+            next_instr = resolve_instrument(seq, step + 1, default)
+            (next_instr isa SingleLegInstrument && next_instr.leg_plev == 1) || throw(
+                ArgumentError(
+                    "create_instruments: single-leg output instrument $(typeof(instr)) at tstep=$step " *
+                    "requires a single-leg input instrument at tstep=$(step + 1); got $(typeof(next_instr)).",
+                ),
             )
-        elseif instr isa SingleLegInstrument
-            if instr.leg_plev == 0
-                instruments[step + 1] = instrument_itensor(instr, out_prev, step)
-            else
-                instruments[step + 1] = instrument_itensor(instr, in_curr, step)
-            end
-        else
-            throw(ArgumentError("create_instruments: unsupported instrument $(typeof(instr)) at step=$step."))
+        elseif instr isa SingleLegInstrument && instr.leg_plev == 1
+            prev_instr = resolve_instrument(seq, step - 1, default)
+            (prev_instr isa SingleLegInstrument && prev_instr.leg_plev == 0 && !(prev_instr isa OpenOutput)) || throw(
+                ArgumentError(
+                    "create_instruments: unpaired single-leg input instrument $(typeof(instr)) at tstep=$step; " *
+                    "expected a single-leg output instrument at tstep=$(step - 1).",
+                ),
+            )
         end
     end
+
+    ProcessTensors._validate_instrument_schedule!(pt, seq, default, "create_instruments")
+
+    instruments = Vector{ITensor}(undef, pt.nsteps + 1)
+    instruments[1] = instrument_itensor(
+        resolve_instrument(seq, 0),
+        ProcessTensors.input_sites(pt, 0),
+        0,
+    )
+
+    step = 1
+    while step <= pt.nsteps - 1
+        out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
+        instr = resolve_instrument(seq, step, default)
+
+        if instr isa OpenOutput
+            instruments[step + 1] = instrument_itensor(instr, out_prev, step - 1)
+            step += 1
+        elseif instr isa TwoLegInstrument
+            instruments[step + 1] = instrument_itensor(
+                instr, in_curr, out_prev, step; dt=pt.dt, alg=alg,
+            )
+            step += 1
+        elseif instr isa SingleLegInstrument && instr.leg_plev == 0
+            next_instr = resolve_instrument(seq, step + 1, default)
+            paired = ProductInstrument(next_instr, instr)
+            instruments[step + 1] = instrument_itensor(
+                paired, in_curr, out_prev, step; dt=pt.dt, alg=alg,
+            )
+            # The input factor lived at tstep=step+1; if that slot is still an
+            # evolve connector, fill it with the schedule default.
+            if step + 1 <= pt.nsteps - 1
+                out2, in2 = ProcessTensors.coupling_times(pt, step + 1)
+                instruments[step + 2] = instrument_itensor(
+                    default, in2, out2, step + 1; dt=pt.dt, alg=alg,
+                )
+            end
+            step += 2
+        else
+            throw(
+                ArgumentError(
+                    "create_instruments: unsupported instrument $(typeof(instr)) at tstep=$step.",
+                ),
+            )
+        end
+    end
+
+    terminal = resolve_instrument(seq, pt.nsteps, default)
+    terminal = terminal isa IdentityOperation ? OpenOutput() : terminal
+    out_final, _ = ProcessTensors.coupling_times(pt, pt.nsteps)
+    if terminal isa TwoLegInstrument
+        throw(
+            ArgumentError(
+                "create_instruments: two-leg instrument $(typeof(terminal)) is not supported at terminal tstep=$(pt.nsteps).",
+            ),
+        )
+    elseif !(terminal isa SingleLegInstrument) || terminal.leg_plev != 0
+        throw(
+            ArgumentError(
+                "create_instruments: unsupported terminal instrument $(typeof(terminal)) at tstep=$(pt.nsteps).",
+            ),
+        )
+    end
+    instruments[pt.nsteps + 1] = instrument_itensor(terminal, out_final, pt.nsteps - 1)
 
     return instruments
 end

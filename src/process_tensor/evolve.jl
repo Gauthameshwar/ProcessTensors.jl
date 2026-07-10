@@ -9,6 +9,40 @@
 
 import ITensors.Ops: Trotter
 
+# Trace every index except `keep`. Multimode PTs may leave fused bath-memory links
+# that must be closed with a fused `vec(I)` rather than a single-site TraceOut.
+function _trace_out_except(t::ITensor, keep::AbstractVector{<:Index}; k::Int=0, environment=nothing)
+    function _is_fused_bath_link(idx::Index, environment)
+        environment isa AbstractBath || return false
+        length(environment.modes) > 1 || return false
+        "Link" in tag_tokens(idx) || return false
+        return dim(idx) == prod(dim(only(mode.sites)) for mode in environment.modes)
+    end
+
+    function _fused_bath_trace_itensor(environment::AbstractBath, fused_link::Index)
+        bath_sites_prime = prime.([only(mode.sites) for mode in environment.modes])
+        comb_primed = combiner(bath_sites_prime...; tags="PT,Link,FusedBath,Prime")
+        bath_trace = ITensor(1.0)
+        for site in bath_sites_prime
+            bath_trace *= Instruments._vectorized_identity_itensor(Index[site])
+        end
+        return replaceind(bath_trace * comb_primed, combinedind(comb_primed), fused_link)
+    end
+
+    keep_vec = Index[keep...]
+    out = t
+    for idx in inds(out)
+        idx in keep_vec && continue
+        trace_tensor = if _is_fused_bath_link(idx, environment)
+            _fused_bath_trace_itensor(environment, idx)
+        else
+            Instruments._vectorized_identity_itensor(Index[idx])
+        end
+        out *= trace_tensor
+    end
+    return out
+end
+
 """
     evolve(pt, seq; default_instr=_schedule_default_instr(pt), alg=Trotter{2}())
 

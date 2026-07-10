@@ -378,44 +378,182 @@ end
 
 Main computation
 ----------------
-  case 1/3 σz-σz   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 1/3 σz-σz   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 0.00 (1/12)
-  case 1/3 σz-σz   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 1/3 σz-σz   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 0.50 (2/12)
-  case 1/3 σz-σz   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 1/3 σz-σz   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 1.00 (3/12)
-  case 1/3 σz-σz   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 1.50 (4/12)
-  case 1/3 σz-σz   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 1/3 σz-σz   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 2.00 (5/12)
-  case 1/3 σz-σz   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 1/3 σz-σz   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 2.50 (6/12)
-  case 1/3 σz-σz   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 1/3 σz-σz   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 3.00 (7/12)
-  case 1/3 σz-σz   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 3.50 (8/12)
-  case 1/3 σz-σz   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 1/3 σz-σz   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 4.00 (9/12)
-  case 1/3 σz-σz   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 1/3 σz-σz   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 4.50 (10/12)
-  case 1/3 σz-σz   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.00 (11/12)
-  case 1/3 σz-σz   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 1/3 σz-σz   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 1/3 σz-σz   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 1/3 σz-σz   finished row t₁ = 5.50 (12/12)
+
+  case 1/3 σz-σz   pair    1/ 144  t₁=0.00  t₂=0.00                                         
+  case 1/3 σz-σz   pair    7/ 144  t₁=0.00  t₂=3.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 0.00 (1/12)
+
+  case 1/3 σz-σz   pair   14/ 144  t₁=0.50  t₂=0.50                                         
+  case 1/3 σz-σz   pair   21/ 144  t₁=0.50  t₂=4.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 0.50 (2/12)
+
+  case 1/3 σz-σz   pair   28/ 144  t₁=1.00  t₂=1.50                                         
+  case 1/3 σz-σz   pair   35/ 144  t₁=1.00  t₂=5.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 1.00 (3/12)
+
+  case 1/3 σz-σz   pair   42/ 144  t₁=1.50  t₂=2.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 1.50 (4/12)
+
+  case 1/3 σz-σz   pair   49/ 144  t₁=2.00  t₂=0.00                                         
+  case 1/3 σz-σz   pair   56/ 144  t₁=2.00  t₂=3.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 2.00 (5/12)
+
+  case 1/3 σz-σz   pair   63/ 144  t₁=2.50  t₂=1.00                                         
+  case 1/3 σz-σz   pair   70/ 144  t₁=2.50  t₂=4.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 2.50 (6/12)
+
+  case 1/3 σz-σz   pair   77/ 144  t₁=3.00  t₂=2.00                                         
+  case 1/3 σz-σz   pair   84/ 144  t₁=3.00  t₂=5.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 3.00 (7/12)
+
+  case 1/3 σz-σz   pair   91/ 144  t₁=3.50  t₂=3.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 3.50 (8/12)
+
+  case 1/3 σz-σz   pair   98/ 144  t₁=4.00  t₂=0.50                                         
+  case 1/3 σz-σz   pair  105/ 144  t₁=4.00  t₂=4.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 4.00 (9/12)
+
+  case 1/3 σz-σz   pair  112/ 144  t₁=4.50  t₂=1.50                                         
+  case 1/3 σz-σz   pair  119/ 144  t₁=4.50  t₂=5.00                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 4.50 (10/12)
+
+  case 1/3 σz-σz   pair  126/ 144  t₁=5.00  t₂=2.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 5.00 (11/12)
+
+  case 1/3 σz-σz   pair  133/ 144  t₁=5.50  t₂=0.00                                         
+  case 1/3 σz-σz   pair  140/ 144  t₁=5.50  t₂=3.50                                         
+  case 1/3 σz-σz   pair  144/ 144  t₁=5.50  t₂=5.50                                         
+                                                                                            
+  case 1/3 σz-σz   finished row t₁ = 5.50 (12/12)
 σz-σz   grid time: 0.405 s
-  case 2/3 σz-σx   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 2/3 σz-σx   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.00 (1/12)
-  case 2/3 σz-σx   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 2/3 σz-σx   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 0.50 (2/12)
-  case 2/3 σz-σx   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 2/3 σz-σx   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 1.00 (3/12)
-  case 2/3 σz-σx   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 1.50 (4/12)
-  case 2/3 σz-σx   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 2/3 σz-σx   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 2.00 (5/12)
-  case 2/3 σz-σx   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 2/3 σz-σx   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 2.50 (6/12)
-  case 2/3 σz-σx   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 2/3 σz-σx   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 3.00 (7/12)
-  case 2/3 σz-σx   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 3.50 (8/12)
-  case 2/3 σz-σx   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 2/3 σz-σx   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 4.00 (9/12)
-  case 2/3 σz-σx   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 2/3 σz-σx   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 4.50 (10/12)
-  case 2/3 σz-σx   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.00 (11/12)
-  case 2/3 σz-σx   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 2/3 σz-σx   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 2/3 σz-σx   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 2/3 σz-σx   finished row t₁ = 5.50 (12/12)
+
+  case 2/3 σz-σx   pair    1/ 144  t₁=0.00  t₂=0.00                                         
+  case 2/3 σz-σx   pair    7/ 144  t₁=0.00  t₂=3.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 0.00 (1/12)
+
+  case 2/3 σz-σx   pair   14/ 144  t₁=0.50  t₂=0.50                                         
+  case 2/3 σz-σx   pair   21/ 144  t₁=0.50  t₂=4.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 0.50 (2/12)
+
+  case 2/3 σz-σx   pair   28/ 144  t₁=1.00  t₂=1.50                                         
+  case 2/3 σz-σx   pair   35/ 144  t₁=1.00  t₂=5.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 1.00 (3/12)
+
+  case 2/3 σz-σx   pair   42/ 144  t₁=1.50  t₂=2.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 1.50 (4/12)
+
+  case 2/3 σz-σx   pair   49/ 144  t₁=2.00  t₂=0.00                                         
+  case 2/3 σz-σx   pair   56/ 144  t₁=2.00  t₂=3.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 2.00 (5/12)
+
+  case 2/3 σz-σx   pair   63/ 144  t₁=2.50  t₂=1.00                                         
+  case 2/3 σz-σx   pair   70/ 144  t₁=2.50  t₂=4.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 2.50 (6/12)
+
+  case 2/3 σz-σx   pair   77/ 144  t₁=3.00  t₂=2.00                                         
+  case 2/3 σz-σx   pair   84/ 144  t₁=3.00  t₂=5.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 3.00 (7/12)
+
+  case 2/3 σz-σx   pair   91/ 144  t₁=3.50  t₂=3.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 3.50 (8/12)
+
+  case 2/3 σz-σx   pair   98/ 144  t₁=4.00  t₂=0.50                                         
+  case 2/3 σz-σx   pair  105/ 144  t₁=4.00  t₂=4.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 4.00 (9/12)
+
+  case 2/3 σz-σx   pair  112/ 144  t₁=4.50  t₂=1.50                                         
+  case 2/3 σz-σx   pair  119/ 144  t₁=4.50  t₂=5.00                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 4.50 (10/12)
+
+  case 2/3 σz-σx   pair  126/ 144  t₁=5.00  t₂=2.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 5.00 (11/12)
+
+  case 2/3 σz-σx   pair  133/ 144  t₁=5.50  t₂=0.00                                         
+  case 2/3 σz-σx   pair  140/ 144  t₁=5.50  t₂=3.50                                         
+  case 2/3 σz-σx   pair  144/ 144  t₁=5.50  t₂=5.50                                         
+                                                                                            
+  case 2/3 σz-σx   finished row t₁ = 5.50 (12/12)
 σz-σx   grid time: 0.121 s
-  case 3/3 σx-σy   pair    1/ 144  t₁=0.00  t₂=0.00                                           case 3/3 σx-σy   pair    7/ 144  t₁=0.00  t₂=3.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.00 (1/12)
-  case 3/3 σx-σy   pair   14/ 144  t₁=0.50  t₂=0.50                                           case 3/3 σx-σy   pair   21/ 144  t₁=0.50  t₂=4.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 0.50 (2/12)
-  case 3/3 σx-σy   pair   28/ 144  t₁=1.00  t₂=1.50                                           case 3/3 σx-σy   pair   35/ 144  t₁=1.00  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 1.00 (3/12)
-  case 3/3 σx-σy   pair   42/ 144  t₁=1.50  t₂=2.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 1.50 (4/12)
-  case 3/3 σx-σy   pair   49/ 144  t₁=2.00  t₂=0.00                                           case 3/3 σx-σy   pair   56/ 144  t₁=2.00  t₂=3.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 2.00 (5/12)
-  case 3/3 σx-σy   pair   63/ 144  t₁=2.50  t₂=1.00                                           case 3/3 σx-σy   pair   70/ 144  t₁=2.50  t₂=4.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 2.50 (6/12)
-  case 3/3 σx-σy   pair   77/ 144  t₁=3.00  t₂=2.00                                           case 3/3 σx-σy   pair   84/ 144  t₁=3.00  t₂=5.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 3.00 (7/12)
-  case 3/3 σx-σy   pair   91/ 144  t₁=3.50  t₂=3.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 3.50 (8/12)
-  case 3/3 σx-σy   pair   98/ 144  t₁=4.00  t₂=0.50                                           case 3/3 σx-σy   pair  105/ 144  t₁=4.00  t₂=4.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 4.00 (9/12)
-  case 3/3 σx-σy   pair  112/ 144  t₁=4.50  t₂=1.50                                           case 3/3 σx-σy   pair  119/ 144  t₁=4.50  t₂=5.00                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 4.50 (10/12)
-  case 3/3 σx-σy   pair  126/ 144  t₁=5.00  t₂=2.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.00 (11/12)
-  case 3/3 σx-σy   pair  133/ 144  t₁=5.50  t₂=0.00                                           case 3/3 σx-σy   pair  140/ 144  t₁=5.50  t₂=3.50                                           case 3/3 σx-σy   pair  144/ 144  t₁=5.50  t₂=5.50                                                                                                                                       case 3/3 σx-σy   finished row t₁ = 5.50 (12/12)
+
+  case 3/3 σx-σy   pair    1/ 144  t₁=0.00  t₂=0.00                                         
+  case 3/3 σx-σy   pair    7/ 144  t₁=0.00  t₂=3.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 0.00 (1/12)
+
+  case 3/3 σx-σy   pair   14/ 144  t₁=0.50  t₂=0.50                                         
+  case 3/3 σx-σy   pair   21/ 144  t₁=0.50  t₂=4.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 0.50 (2/12)
+
+  case 3/3 σx-σy   pair   28/ 144  t₁=1.00  t₂=1.50                                         
+  case 3/3 σx-σy   pair   35/ 144  t₁=1.00  t₂=5.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 1.00 (3/12)
+
+  case 3/3 σx-σy   pair   42/ 144  t₁=1.50  t₂=2.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 1.50 (4/12)
+
+  case 3/3 σx-σy   pair   49/ 144  t₁=2.00  t₂=0.00                                         
+  case 3/3 σx-σy   pair   56/ 144  t₁=2.00  t₂=3.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 2.00 (5/12)
+
+  case 3/3 σx-σy   pair   63/ 144  t₁=2.50  t₂=1.00                                         
+  case 3/3 σx-σy   pair   70/ 144  t₁=2.50  t₂=4.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 2.50 (6/12)
+
+  case 3/3 σx-σy   pair   77/ 144  t₁=3.00  t₂=2.00                                         
+  case 3/3 σx-σy   pair   84/ 144  t₁=3.00  t₂=5.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 3.00 (7/12)
+
+  case 3/3 σx-σy   pair   91/ 144  t₁=3.50  t₂=3.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 3.50 (8/12)
+
+  case 3/3 σx-σy   pair   98/ 144  t₁=4.00  t₂=0.50                                         
+  case 3/3 σx-σy   pair  105/ 144  t₁=4.00  t₂=4.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 4.00 (9/12)
+
+  case 3/3 σx-σy   pair  112/ 144  t₁=4.50  t₂=1.50                                         
+  case 3/3 σx-σy   pair  119/ 144  t₁=4.50  t₂=5.00                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 4.50 (10/12)
+
+  case 3/3 σx-σy   pair  126/ 144  t₁=5.00  t₂=2.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 5.00 (11/12)
+
+  case 3/3 σx-σy   pair  133/ 144  t₁=5.50  t₂=0.00                                         
+  case 3/3 σx-σy   pair  140/ 144  t₁=5.50  t₂=3.50                                         
+  case 3/3 σx-σy   pair  144/ 144  t₁=5.50  t₂=5.50                                         
+                                                                                            
+  case 3/3 σx-σy   finished row t₁ = 5.50 (12/12)
 σx-σy   grid time: 0.469 s
 
 ````

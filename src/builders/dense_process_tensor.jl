@@ -244,7 +244,7 @@ function _build_multimode_pt_cores(
 
     bath_trace = ITensor(1.0)
     for site in bath_sites_prime
-        bath_trace *= instrument_itensor(TraceOut(; leg_plev=plev(site)), Index[site], nsteps)
+        bath_trace *= Instruments._vectorized_identity_itensor(Index[site])
     end
     trace_out = replaceind(bath_trace * comb_primed, combinedind(comb_primed), bath_links[end])
 

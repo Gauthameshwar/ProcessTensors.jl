@@ -427,16 +427,13 @@ println(norm_val)
 
 # ### Leaving an output open
 #
-# The same schedule, if leaves the final output leg open, returns the final reduced system state.
-#
-# The instrument `OpenOutput()` traces the current input leg and keeps the
-# previous output leg open. This is useful when we want a reduced state at an
-# intermediate cut.
+# Leaving the final output leg open returns the final reduced system state.
+# `OpenOutput()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
+# not insert a physical map, so the declared output index stays uncontracted.
 
 seq_open = default_schedule(pt)
 add!(seq_open, StatePreparation(ρS0), 0)
-add!(seq_open, OpenOutput(), 2)
-add!(seq_open, TraceOut(), pt.nsteps)
+add!(seq_open, OpenOutput(), pt.nsteps)
 
 open_result = evaluate_process(pt, seq_open)
 

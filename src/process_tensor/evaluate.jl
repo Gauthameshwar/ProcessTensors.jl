@@ -11,42 +11,7 @@ import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS
 import ITensors: scalar
 import ITensors.Ops: Trotter
 
-# Traces all indices except `keep`; for multimode PT this includes fused bath-memory links.
-function _trace_out_except(t::ITensor, keep::AbstractVector{<:Index}; k::Int=0, environment=nothing)
-    function _is_fused_bath_link(idx::Index, environment)
-        environment isa AbstractBath || return false
-        length(environment.modes) > 1 || return false
-        "Link" in tag_tokens(idx) || return false
-        return dim(idx) == prod(dim(only(mode.sites)) for mode in environment.modes)
-    end
-    
-    function _fused_bath_trace_itensor(environment::AbstractBath, fused_link::Index, k::Int)
-        bath_sites_prime = prime.([only(mode.sites) for mode in environment.modes])
-        comb_primed = combiner(bath_sites_prime...; tags="PT,Link,FusedBath,Prime")
-        bath_trace = ITensor(1.0)
-        for site in bath_sites_prime
-            bath_trace *= instrument_itensor(TraceOut(; leg_plev=plev(site)), Index[site], k)
-        end
-        return replaceind(bath_trace * comb_primed, combinedind(comb_primed), fused_link)
-    end
-    
-    keep_vec = Index[keep...]
-    out = t
-    for idx in inds(out)
-        idx in keep_vec && continue
-        tstep_tag = tag_value(idx, "tstep=")
-        idx_k = isnothing(tstep_tag) ? k : parse(Int, tstep_tag)
-        trace_tensor = if _is_fused_bath_link(idx, environment)
-            _fused_bath_trace_itensor(environment, idx, idx_k)
-        else
-            instrument_itensor(TraceOut(; leg_plev=plev(idx)), Index[idx], idx_k)
-        end
-        out *= trace_tensor
-    end
-    return out
-end
-
-# Wrap a contracted ITensor core (reduced density matrix vector) into an MPS{Liouville} object
+# Wrap a contracted ITensor (reduced density-matrix vector) into an MPS{Liouville}.
 function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:Index})
     length(liouv_sites) == 1 || throw(ArgumentError("_liouville_mps_from_itensor currently supports a single Liouville site."))
     liouv_site = only(liouv_sites)
@@ -79,14 +44,6 @@ function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:I
     return MPS{Liouville}(CoreMPS([t_loc]), ITensor[comb])
 end
 
-function _open_output_steps(seq::InstrumentSeq, nsteps::Int, default::AbstractInstrument)
-    cuts = Int[]
-    for step in 1:(nsteps - 1)
-        resolve_instrument(seq, step, default) isa OpenOutput && push!(cuts, step)
-    end
-    return cuts
-end
-
 """
     all_pt_legs_contracted(pt, seq) -> Bool
 
@@ -94,12 +51,14 @@ Return `true` when the schedule closes every process-tensor leg, so
 [`evaluate_process`](@ref) returns a `ComplexF64` scalar.
 """
 function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
-    !isempty(_open_output_steps(seq, pt.nsteps, seq.default)) && return false
     _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || return false
     isempty(missing_out) || return false
     final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
-    return final_instr isa TraceOut || final_instr isa SingleLegInstrument
+    # Terminal Identity is treated as OpenOutput by create_instruments.
+    final_instr isa IdentityOperation && return false
+    final_instr isa OpenOutput && return false
+    return final_instr isa SingleLegInstrument
 end
 
 """
@@ -108,13 +67,14 @@ end
 Contract a process tensor with an instrument schedule.
 
 Return a scalar when every process-tensor leg is closed, or an
-`MPO{Liouville}` when one system output leg is left open.
+`MPO{Liouville}` when one system output leg is left open by [`OpenOutput`](@ref)
+(or by omitting a terminal closer).
 
 # Examples
 ```julia
 seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
 add!(seq, StatePreparation(ρ0), 0)
-add!(seq, TraceOut(), pt.nsteps)
+add!(seq, OpenOutput(), pt.nsteps)
 result = evaluate_process(pt, seq)
 ```
 """
@@ -127,39 +87,15 @@ function evaluate_process(
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evaluate_process")
 
-    open_cuts = _open_output_steps(seq, pt.nsteps, default_instr)
-    open_keep_k = if isempty(open_cuts)
-        nothing
-    else
-        length(open_cuts) == 1 || throw(
-            ArgumentError(
-                "evaluate_process: expected at most one OpenOutput in the schedule; found at steps $(open_cuts).",
-            ),
-        )
-        open_cuts[1] - 1
-    end
     instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
     legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
 
     result = pt.core[1] * instruments[1]
     for step in 1:(pt.nsteps - 1)
-        instr = resolve_instrument(seq, step, default_instr)
-        out_prev, in_curr = coupling_times(pt, step)
-        if instr isa OpenOutput
-            tmp = copy(pt.core[step + 1])
-            tmp *= instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt, alg=alg)
-            result *= tmp
-        else
-            result *= instruments[step + 1]
-            result *= pt.core[step + 1]
-        end
+        result *= instruments[step + 1]
+        result *= pt.core[step + 1]
     end
-
-    final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
-    if final_instr isa TraceOut || final_instr isa SingleLegInstrument
-        out_prev, _ = coupling_times(pt, pt.nsteps)
-        result *= instrument_itensor(final_instr, out_prev, pt.nsteps - 1)
-    end
+    result *= instruments[pt.nsteps + 1]
 
     if legs_closed
         n_open = length(inds(result))
@@ -172,20 +108,14 @@ function evaluate_process(
         return ComplexF64(scalar(result))
     end
 
-    keep_k = something(open_keep_k, pt.nsteps - 1)
-    keep = output_sites(pt, keep_k)
-    reduced = if open_keep_k === nothing && length(inds(result)) == 1
-        result
-    else
-        _trace_out_except(result, keep; k=keep_k, environment=pt.environment)
-    end
-    n_open = length(inds(reduced))
+    n_open = length(inds(result))
     n_open == 1 || throw(
         ArgumentError(
-            "evaluate_process: expected exactly one open system leg at k=$keep_k, found $n_open.",
+            "evaluate_process: expected exactly one open system leg, found $n_open.",
         ),
     )
-    rho_liouv = _liouville_mps_from_itensor(reduced, keep)
+    keep = Index[only(inds(result))]
+    rho_liouv = _liouville_mps_from_itensor(result, keep)
     return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
 end
 

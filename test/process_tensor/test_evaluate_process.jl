@@ -82,6 +82,7 @@ end
 
         seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
         add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, OpenOutput(), pt.nsteps)
 
         rho_out = evaluate_process(pt, seq)
         @test rho_out isa MPO{Liouville}
@@ -91,6 +92,116 @@ end
         ρ_ref = _mpo_to_dense(to_hilbert(rho_out))
         ρ_final = _mpo_to_dense(trj.states_hilbert[end])
         @test ρ_ref ≈ ρ_final atol=1e-10
+
+        # Implicit terminal open (default Identity) remains supported.
+        seq_implicit = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq_implicit, StatePreparation(rho0_h), 0)
+        @test _mpo_to_dense(to_hilbert(evaluate_process(pt, seq_implicit))) ≈ ρ_final atol=1e-10
+    end
+
+    @testset "OpenOutput lazy → create_instruments → manual contract vs ED" begin
+        if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
+            include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
+        end
+
+        # --- Markovian: exact dense ED at t = (nsteps - 1) * dt ---
+        s = siteinds("S=1/2", 1)
+        H = OpSum() + (0.7, "Sx", 1)
+        system = spin_system(s, H)
+        dt = 0.05
+        nsteps = 4
+        pt = build_process_tensor(system; dt=dt, nsteps=nsteps)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, OpenOutput(), nsteps)
+
+        instruments = create_instruments(pt, seq)
+        @test length(instruments) == nsteps + 1
+        @test length(inds(instruments[end])) == 0
+        @test isapprox(scalar(instruments[end]), 1.0; atol=1e-12)
+        for step in 1:(nsteps - 1)
+            @test length(inds(instruments[step + 1])) == 2
+        end
+
+        result = pt.core[1] * instruments[1]
+        for step in 1:(nsteps - 1)
+            result *= instruments[step + 1]
+            result *= pt.core[step + 1]
+        end
+        result *= instruments[end]
+        keep = output_sites(pt, nsteps - 1)
+        @test length(inds(result)) == 1
+        @test only(inds(result)) == only(keep)
+
+        rho_manual_h = to_hilbert(ProcessTensors._liouville_mps_from_itensor(result, keep))
+        rho_manual = hilbert_mpo_to_dense(
+            rho_manual_h, _physical_sites_from_hilbert_mpo(rho_manual_h),
+        )
+        rho_eval_h = to_hilbert(evaluate_process(pt, seq))
+        rho_eval = hilbert_mpo_to_dense(
+            rho_eval_h, _physical_sites_from_hilbert_mpo(rho_eval_h),
+        )
+        @test rho_manual ≈ rho_eval atol=1e-12
+
+        # Always-embedded PT: each of the `nsteps` cores applies one system map of
+        # duration `dt`, so the final open output is the state at physical time
+        # `nsteps * dt` (evolve labels that snapshot as `(nsteps - 1) * dt`).
+        t_phys = nsteps * dt
+        H_mat = dense_hamiltonian_matrix(H, s)
+        rho0 = hilbert_mpo_to_dense(rho0_h, s)
+        U = exp(-im * t_phys * H_mat)
+        rho_ed = U * rho0 * U'
+        @test rho_manual ≈ rho_ed atol=1e-10
+        @test rho_eval ≈ rho_ed atol=1e-10
+
+        trj = evolve(pt, rho0_h)
+        rho_evolve = hilbert_mpo_to_dense(
+            trj.states_hilbert[end],
+            _physical_sites_from_hilbert_mpo(trj.states_hilbert[end]),
+        )
+        @test rho_manual ≈ rho_evolve atol=1e-12
+
+        # --- Bath PT: same OpenOutput path must match evolve (split PT reference) ---
+        env_phys = siteinds("S=1/2", 1)
+        env_liouv = liouv_sites(env_phys)
+        rho_env0_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
+        H_env = OpSum() + (0.5, "Sx", 1)
+        cpl = OpSum() + (0.3, "Sz", 1, "Sz", 2)
+        bath = spin_bath([spin_mode(env_liouv, H_env, rho_env0_l; coupling=cpl)])
+        pt_b = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
+        seq_b = InstrumentSeq(default=IdentityOperation(), nsteps=nsteps)
+        add!(seq_b, StatePreparation(rho0_h), 0)
+        add!(seq_b, OpenOutput(), nsteps)
+        inst_b = create_instruments(pt_b, seq_b)
+        @test length(inds(inst_b[end])) == 0
+        @test isapprox(scalar(inst_b[end]), 1.0; atol=1e-12)
+
+        result_b = pt_b.core[1] * inst_b[1]
+        for step in 1:(nsteps - 1)
+            result_b *= inst_b[step + 1]
+            result_b *= pt_b.core[step + 1]
+        end
+        result_b *= inst_b[end]
+        keep_b = output_sites(pt_b, nsteps - 1)
+        @test length(inds(result_b)) == 1
+        @test only(inds(result_b)) == only(keep_b)
+        rho_b_manual_h = to_hilbert(ProcessTensors._liouville_mps_from_itensor(result_b, keep_b))
+        rho_b_manual = hilbert_mpo_to_dense(
+            rho_b_manual_h, _physical_sites_from_hilbert_mpo(rho_b_manual_h),
+        )
+        rho_b_eval_h = to_hilbert(evaluate_process(pt_b, seq_b))
+        rho_b_eval = hilbert_mpo_to_dense(
+            rho_b_eval_h, _physical_sites_from_hilbert_mpo(rho_b_eval_h),
+        )
+        trj_b = evolve(pt_b, rho0_h)
+        rho_b_evolve = hilbert_mpo_to_dense(
+            trj_b.states_hilbert[end],
+            _physical_sites_from_hilbert_mpo(trj_b.states_hilbert[end]),
+        )
+        @test rho_b_manual ≈ rho_b_eval atol=1e-12
+        @test rho_b_manual ≈ rho_b_evolve atol=1e-12
     end
 
     @testset "bath PT scalar" begin

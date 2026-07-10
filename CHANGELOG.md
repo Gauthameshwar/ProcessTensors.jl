@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty `OpSum()` Hamiltonian; the single-mode process-tensor tutorial documents
   the embedded-propagation and identity-schedule conventions.
 
+### Fixed
+
+* **`OpenOutput` is bookkeeping only.** It no longer materializes as a
+  `TraceOut` on the next input leg. `instrument_itensor(::OpenOutput)` returns
+  the scalar no-op `ITensor(1.0)`, `create_instruments` includes the terminal
+  schedule slot (`length = nsteps + 1`), and `evaluate_process` contracts the
+  full instrument chain so any open output index remains naturally after the
+  loop (no intermediate cut / early break).
+
 ### Changed
 
 * Reorganized process-tensor source files into `src/process_tensor/` and dense

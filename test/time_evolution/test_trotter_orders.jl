@@ -15,21 +15,13 @@ using ITensors.Ops: Trotter
 using LinearAlgebra
 using Test
 
+if !(@isdefined _test_hamiltonian)
+    include(joinpath(@__DIR__, "tebd_test_utils.jl"))
+end
+
 @testset "ProcessTensors: Yoshida Trotter API loaded" begin
     @test isdefined(ProcessTensors, :trotter_order)
     @test ProcessTensors.trotter_order(Trotter{4}()) == 4
-end
-
-function _test_hamiltonian(N::Int)
-    H = OpSum()
-    for j in 1:N
-        H += 0.5, "Sx", j
-        H += 0.3, "Sz", j
-    end
-    for j in 1:(N - 1)
-        H += 0.4, "Sx", j, "Sx", j + 1
-    end
-    return H
 end
 
 function _exact_unitary_apply(ψ0, os_H::OpSum, sites, dt::Real)
