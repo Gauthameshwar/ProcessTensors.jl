@@ -295,4 +295,49 @@ end
         ρ_final = _mpo_to_dense(trj.states_hilbert[end])
         @test ρ_ref ≈ ρ_final atol=1e-10
     end
+
+    @testset "OpenInOut returns multi-leg ITensor" begin
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.5, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, OpenInOut(), 1)
+        add!(seq, TraceOut(), pt.nsteps)
+
+        info = open_leg_info(pt, seq)
+        @test info.n_open_expected == 2
+        @test 1 in info.open_in
+        @test 0 in info.open_out
+        @test !all_pt_legs_contracted(pt, seq)
+
+        result = evaluate_process(pt, seq)
+        @test result isa ITensor
+        @test length(inds(result)) == 2
+        @test length(inds(result)) == info.n_open_expected
+        @test Set(dim.(inds(result))) == Set(info.open_dims)
+    end
+
+    @testset "OpenInput via ProductInstrument leaves one open input" begin
+        s = siteinds("S=1/2", 1)
+        system = spin_system(s, OpSum() + (0.4, "Sz", 1))
+        pt = build_process_tensor(system; dt=0.05, nsteps=3)
+        rho0_h = to_dm(MPS(s, ["Up"]))
+
+        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        add!(seq, StatePreparation(rho0_h), 0)
+        add!(seq, TraceOut() * OpenInput(), 1)
+        add!(seq, TraceOut(), pt.nsteps)
+
+        info = open_leg_info(pt, seq)
+        @test info.n_open_expected == 1
+        @test 1 in info.open_in
+        @test !all_pt_legs_contracted(pt, seq)
+
+        result = evaluate_process(pt, seq)
+        @test result isa MPO{Liouville}
+        @test length(result.core) == 1
+    end
 end

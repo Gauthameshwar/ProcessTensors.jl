@@ -22,10 +22,12 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument, CustomTwoLegInstrument,
+       IdentityOperation, UnitaryPropagation, OpenOutput, OpenInput, OpenInOut,
+       ProductInstrument, CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
        state_preparation, observable_measurement, trace_out,
-       left_right_operator, unitary_propagation, identity_operation, open_output,
+       left_right_operator, unitary_propagation, identity_operation,
+       open_output, open_input, open_inout,
        custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps,
        create_instruments

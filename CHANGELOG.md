@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty `OpSum()` Hamiltonian; the single-mode process-tensor tutorial documents
   the embedded-propagation and identity-schedule conventions.
 
+### Added
+
+* **`OpenInput` / `OpenInOut` bookkeeping instruments.** Like `OpenOutput`, they
+  materialize as `ITensor(1.0)` and leave declared process-tensor legs
+  uncontracted. Aliases: `open_input`, `open_inout`.
+* **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs with
+  dimensions before contraction.
+* **`instrument_leg_maps(pt, seq)`** thin overload of the seq-first canonical API.
+
+### Changed
+
+* **`instrument_leg_maps`** now uses leg-coverage dispatch from schedule slots
+  (no `ProcessTensor` required for the canonical method).
+* **`create_instruments`** rewrites the schedule (pairing / terminal
+  `IdentityOperation` → `OpenOutput`) then materializes every slot only through
+  `instrument_itensor`, including a `SingleLegInstrument` evolve-slot method that
+  selects the matching PT leg from `leg_plev`.
+* **`evaluate_process`** returns `ComplexF64` / `MPO{Liouville}` / `ITensor`
+  according to the number of uncontracted system legs (0 / 1 / ≥2). Optional
+  `verbose=true` logs expected open legs.
+
 ### Fixed
 
 * **`OpenOutput` is bookkeeping only.** It no longer materializes as a

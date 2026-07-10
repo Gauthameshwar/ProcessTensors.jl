@@ -75,11 +75,13 @@ using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, Boso
 include("instruments/Instruments.jl")
 using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     StatePreparation, ObservableMeasurement,
-                    TraceOut, IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument,
+                    TraceOut, IdentityOperation, UnitaryPropagation,
+                    OpenOutput, OpenInput, OpenInOut, ProductInstrument,
                     CustomTwoLegInstrument,
                     LeftRightOperator, left_action, right_action,
                     state_preparation, observable_measurement, trace_out,
-                    left_right_operator, unitary_propagation, identity_operation, open_output,
+                    left_right_operator, unitary_propagation, identity_operation,
+                    open_output, open_input, open_inout,
                     custom_twoleg_instrument,
                     resolve_instrument, InstrumentSeq, add!, instrument_leg_maps
 
@@ -142,18 +144,19 @@ export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, UnitaryPropagation, OpenOutput, ProductInstrument,
-       CustomTwoLegInstrument,
+       IdentityOperation, UnitaryPropagation, OpenOutput, OpenInput, OpenInOut,
+       ProductInstrument, CustomTwoLegInstrument,
        LeftRightOperator, left_action, right_action,
        state_preparation, observable_measurement, trace_out,
-       left_right_operator, unitary_propagation, identity_operation, open_output,
+       left_right_operator, unitary_propagation, identity_operation,
+       open_output, open_input, open_inout,
        custom_twoleg_instrument,
        resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
 
 export AbstractPTBuilder, Dense,
        ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
        two_time_correlation_seq,
-       all_pt_legs_contracted,
+       all_pt_legs_contracted, open_leg_info,
        coupling_times, coupling_sites, input_sites, output_sites,
        create_instruments, generate_pt_legs
 

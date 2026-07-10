@@ -152,6 +152,10 @@ end
 
 _schedule_default_instr(::ProcessTensor) = IdentityOperation()
 
+# Thin PT wrapper around the seq-first canonical coverage API.
+Instruments.instrument_leg_maps(pt::ProcessTensor, seq::InstrumentSeq) =
+    instrument_leg_maps(seq, pt.nsteps)
+
 # Shared schedule validation for the lazy evaluation pipeline.
 function _validate_instrument_schedule!(
     pt::ProcessTensor,

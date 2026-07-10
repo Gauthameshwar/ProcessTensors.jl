@@ -330,7 +330,6 @@ function left_action(composed::_ComposedSingleLegInstrument, phys_sites::Abstrac
     return left_action(_fold_observable_factors(composed.factors, phys_sites))
 end
 
-# Tier B: ``ρ ↦ ρB`` (identity on the left); returns `LeftRightOperator`.
 """
     right_action(B::AbstractMPO{Hilbert}) -> LeftRightOperator
     right_action(O::OpSum, phys_sites) -> LeftRightOperator
@@ -536,11 +535,11 @@ end
 
 Declare that an output process-tensor leg remains open.
 
-Place at the terminal slot `pt.nsteps` to return the final reduced state. 
-Place it at any other slot to return the reduced state at that time step.
+Place at the terminal slot `pt.nsteps` to return the final reduced state.
 `OpenOutput` materializes as the scalar no-op `ITensor(1.0)`, so the declared
 output index stays uncontracted after a full process-tensor contraction. This
-instrument never contracts with an input leg. 
+instrument never contracts with an input leg. Mid-schedule use requires the
+complementary input leg to be covered separately (or use [`OpenInOut`](@ref)).
 """
 function OpenOutput(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_OUTPUT_PLEV)
     leg_plev == _OUTPUT_PLEV || throw(
@@ -551,7 +550,7 @@ function OpenOutput(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_OU
 end
 
 """
-    open_output(input_pt_sites=Index[], output_pt_sites=Index[])
+    open_output(pt_sites=Index[]; leg_plev=0)
     open_output()
 
 Lowercase alias for [`OpenOutput`](@ref).
@@ -563,6 +562,87 @@ add!(seq, open_output(), pt.nsteps)  # leave the final output leg open
 """
 open_output(args...; kwargs...) = OpenOutput(args...; kwargs...)
 open_output() = OpenOutput()
+
+"""
+    OpenInput
+
+Single-leg bookkeeping instrument that leaves one input process-tensor leg
+uncontracted.
+
+Its materialized tensor is the scalar `ITensor(1.0)`, so the declared input
+index stays open during [`evaluate_process`](@ref ProcessTensors.evaluate_process).
+"""
+struct OpenInput <: SingleLegInstrument
+    pt_sites::Vector{Index}
+    leg_plev::Int
+end
+"""
+    OpenInput(pt_sites=Index[]; leg_plev=1)
+    OpenInput()
+
+Declare that an input process-tensor leg remains open.
+
+`OpenInput` materializes as the scalar no-op `ITensor(1.0)`. Place it on an
+evolve slot whose complementary output leg is covered by another instrument
+(or use [`OpenInOut`](@ref) to leave both legs open). Not valid at the terminal
+slot `pt.nsteps` (no input leg exists there).
+"""
+function OpenInput(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_INPUT_PLEV)
+    leg_plev == _INPUT_PLEV || throw(
+        ArgumentError("OpenInput is fixed to leg_plev=1 (input leg); got leg_plev=$leg_plev."),
+    )
+    pt_sites_vec = _bind_single_leg_sites("OpenInput", pt_sites, _INPUT_PLEV)
+    return OpenInput(pt_sites_vec, _INPUT_PLEV)
+end
+
+"""
+    open_input(pt_sites=Index[]; leg_plev=1)
+    open_input()
+
+Lowercase alias for [`OpenInput`](@ref).
+"""
+open_input(args...; kwargs...) = OpenInput(args...; kwargs...)
+open_input() = OpenInput()
+
+"""
+    OpenInOut
+
+Two-leg bookkeeping instrument that leaves both input and output process-tensor
+legs at one evolve slot uncontracted.
+
+Unlike [`IdentityOperation`](@ref), which inserts `delta(in, out)`, `OpenInOut`
+materializes as `ITensor(1.0)` and does not connect the legs.
+"""
+struct OpenInOut <: TwoLegInstrument
+    input_pt_sites::Vector{Index}
+    output_pt_sites::Vector{Index}
+end
+"""
+    OpenInOut(input_pt_sites=Index[], output_pt_sites=Index[])
+    OpenInOut()
+
+Declare that both legs of an evolve connector remain open.
+
+Not valid at the terminal slot `pt.nsteps`.
+"""
+function OpenInOut(
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    input_vec, output_vec = _bind_two_leg_sites(
+        "OpenInOut", input_pt_sites, output_pt_sites; lazy_ok=true,
+    )
+    return OpenInOut(input_vec, output_vec)
+end
+
+"""
+    open_inout(input_pt_sites=Index[], output_pt_sites=Index[])
+    open_inout()
+
+Lowercase alias for [`OpenInOut`](@ref).
+"""
+open_inout(args...; kwargs...) = OpenInOut(args...; kwargs...)
+open_inout() = OpenInOut()
 
 """
     ProductInstrument
@@ -883,7 +963,6 @@ function add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int)
     return seq
 end
 
-# Tier B: `seq += (instr, tstep)` mirrors `OpSum +=` syntax.
 function Base.:+(seq::InstrumentSeq, entry::Tuple{AbstractInstrument,Int})
     add!(seq, entry[1], entry[2])
     return seq
@@ -901,7 +980,9 @@ end
     instrument_leg_maps(seq, nsteps)
 
 Return dictionaries describing which instruments cover process-tensor input and
-output legs, together with any missing input/output time labels.
+output time labels, together with any missing input/output labels.
+
+Open instruments still claim legs even when they materialize as `ITensor(1.0)`.
 """
 function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
@@ -910,6 +991,29 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     out_map = Dict{Int,AbstractInstrument}()
     consumed = falses(nsteps + 1)
 
+    function _record!(instr::AbstractInstrument, step::Int)
+        if instr isa TwoLegInstrument
+            step <= nsteps - 1 && (in_map[step] = instr)
+            tout = step - 1
+            tout <= nsteps - 2 && (out_map[tout] = instr)
+        elseif instr isa SingleLegInstrument
+            if instr.leg_plev == _OUTPUT_PLEV
+                tout = step - 1
+                tout <= nsteps - 2 && (out_map[tout] = instr)
+            else
+                step <= nsteps - 1 && (in_map[step] = instr)
+            end
+        else
+            throw(
+                ArgumentError(
+                    "instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
+                ),
+            )
+        end
+        return nothing
+    end
+
+    # Physical single-leg pairs (same interpretation as create_instruments).
     for s in 1:(nsteps - 1)
         out_entry = resolve_instrument(seq, s)
         in_entry = resolve_instrument(seq, s + 1)
@@ -918,50 +1022,17 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
         out_entry.leg_plev == _OUTPUT_PLEV || continue
         in_entry.leg_plev == _INPUT_PLEV || continue
         out_entry isa OpenOutput && continue
-        paired = ProductInstrument(in_entry, out_entry)
-        out_map[s - 1] = paired
-        in_map[s] = paired
+        _record!(ProductInstrument(in_entry, out_entry), s)
         consumed[s + 1] = true
-    end
-
-    function _assign_step_legs!(step::Int, instr::AbstractInstrument)
-        if instr isa TwoLegInstrument
-            if step <= nsteps - 1
-                in_map[step] = instr
-            end
-            tout = step - 1
-            if tout <= nsteps - 2
-                out_map[tout] = instr
-            end
-        elseif instr isa ObservableMeasurement ||
-               instr isa _ComposedSingleLegInstrument ||
-               instr isa TraceOut ||
-               instr isa OpenOutput
-            if instr.leg_plev == _OUTPUT_PLEV
-                tout = step - 1
-                if tout <= nsteps - 2
-                    out_map[tout] = instr
-                end
-            elseif step <= nsteps - 1
-                in_map[step] = instr
-            end
-        elseif instr isa StatePreparation
-            step <= nsteps - 1 || throw(
-                ArgumentError(
-                    "instrument_leg_maps: StatePreparation at evolve slot step=$step must target an input leg (step <= nsteps - 1).",
-                ),
-            )
-            in_map[step] = instr
-        end
     end
 
     for step in 1:nsteps
         consumed[step] && continue
-        _assign_step_legs!(step, resolve_instrument(seq, step))
+        _record!(resolve_instrument(seq, step), step)
     end
     for step in 1:nsteps
         consumed[step] || continue
-        _assign_step_legs!(step, seq.default)
+        _record!(seq.default, step)
     end
 
     prep = resolve_instrument(seq, 0)

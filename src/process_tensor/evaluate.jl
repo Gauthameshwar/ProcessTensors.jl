@@ -51,24 +51,88 @@ Return `true` when the schedule closes every process-tensor leg, so
 [`evaluate_process`](@ref) returns a `ComplexF64` scalar.
 """
 function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
-    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
-    isempty(missing_in) || return false
-    isempty(missing_out) || return false
+    info = open_leg_info(pt, seq)
+    info.n_open_expected == 0 || return false
+    isempty(info.missing_in) || return false
+    isempty(info.missing_out) || return false
     final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
-    # Terminal Identity is treated as OpenOutput by create_instruments.
     final_instr isa IdentityOperation && return false
     final_instr isa OpenOutput && return false
     return final_instr isa SingleLegInstrument
 end
 
 """
-    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPO{Liouville}}
+    open_leg_info(pt, seq) -> NamedTuple
+
+Report which process-tensor legs the schedule claims, which remain open, and
+their dimensions.
+
+Returns a named tuple with fields:
+
+- `in_map`, `out_map`, `missing_in`, `missing_out` from [`instrument_leg_maps`](@ref)
+- `open_in`, `open_out`: time labels owned by open bookkeeping instruments
+- `n_open_expected`: expected number of uncontracted system legs after evaluation
+- `open_dims`: dimensions of those expected open legs (from `pt`)
+"""
+function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
+    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    default = seq.default
+
+    open_in = Int[]
+    open_out = Int[]
+    for (tin, instr) in pairs(in_map)
+        tin == 0 && continue
+        if instr isa OpenInput || instr isa OpenInOut ||
+           (instr isa ProductInstrument && instr.input_instr isa OpenInput)
+            push!(open_in, tin)
+        end
+    end
+    for (tout, instr) in pairs(out_map)
+        if instr isa OpenOutput || instr isa OpenInOut ||
+           (instr isa ProductInstrument && instr.output_instr isa OpenOutput)
+            push!(open_out, tout)
+        end
+    end
+
+    final_instr = resolve_instrument(seq, pt.nsteps, default)
+    if final_instr isa OpenOutput || final_instr isa IdentityOperation
+        push!(open_out, pt.nsteps - 1)
+    end
+    unique!(sort!(open_in))
+    unique!(sort!(open_out))
+
+    open_dims = Int[]
+    for tin in open_in
+        append!(open_dims, dim.(input_sites(pt, tin)))
+    end
+    for tout in open_out
+        append!(open_dims, dim.(output_sites(pt, tout)))
+    end
+
+    return (
+        in_map=in_map,
+        out_map=out_map,
+        missing_in=missing_in,
+        missing_out=missing_out,
+        open_in=open_in,
+        open_out=open_out,
+        n_open_expected=length(open_in) + length(open_out),
+        open_dims=open_dims,
+    )
+end
+
+"""
+    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPO{Liouville}, ITensor}
 
 Contract a process tensor with an instrument schedule.
 
-Return a scalar when every process-tensor leg is closed, or an
-`MPO{Liouville}` when one system output leg is left open by [`OpenOutput`](@ref)
-(or by omitting a terminal closer).
+Return type depends on the number of uncontracted system legs after contraction:
+
+| open legs | return |
+|-----------|--------|
+| 0 | `ComplexF64` |
+| 1 | `MPO{Liouville}` |
+| ≥ 2 | `ITensor` |
 
 # Examples
 ```julia
@@ -84,12 +148,16 @@ function evaluate_process(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
+    verbose::Bool=false,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evaluate_process")
 
-    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
-    legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
+    if verbose
+        info = open_leg_info(pt, seq)
+        @info "evaluate_process: expected open legs" n_open = info.n_open_expected open_in = info.open_in open_out = info.open_out open_dims = info.open_dims
+    end
 
+    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
     result = pt.core[1] * instruments[1]
     for step in 1:(pt.nsteps - 1)
         result *= instruments[step + 1]
@@ -97,8 +165,15 @@ function evaluate_process(
     end
     result *= instruments[pt.nsteps + 1]
 
+    n_open = length(inds(result))
+    if verbose
+        @info "evaluate_process: contracted" n_open = n_open open_inds = collect(inds(result))
+    end
+
+    legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
+    
+    # a small type-stability issue here with the return being a Union{ComplexF64, MPO{Liouville}, ITensor}
     if legs_closed
-        n_open = length(inds(result))
         n_open == 0 || throw(
             ArgumentError(
                 "evaluate_process: expected 0 uncontracted indices " *
@@ -106,17 +181,13 @@ function evaluate_process(
             ),
         )
         return ComplexF64(scalar(result))
+    elseif n_open == 1
+        keep = Index[only(inds(result))]
+        rho_liouv = _liouville_mps_from_itensor(result, keep)
+        return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
+    else
+        return result
     end
-
-    n_open = length(inds(result))
-    n_open == 1 || throw(
-        ArgumentError(
-            "evaluate_process: expected exactly one open system leg, found $n_open.",
-        ),
-    )
-    keep = Index[only(inds(result))]
-    rho_liouv = _liouville_mps_from_itensor(result, keep)
-    return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
 end
 
 """

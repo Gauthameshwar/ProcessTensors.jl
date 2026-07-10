@@ -240,6 +240,93 @@ end
     seq_np = InstrumentSeq(iddef, 0)
     _, _, mi_np, _ = instrument_leg_maps(seq_np, 3)
     @test 0 in mi_np
+
+    # Open bookkeeping coverage and pt wrapper.
+    system = spin_system(s_leg, OpSum() + (0.2, "Sz", 1))
+    pt = build_process_tensor(system; dt=0.05, nsteps=3)
+    rho0_h = to_dm(MPS(s_leg, ["Up"]))
+
+    seq_closed = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_closed, StatePreparation(rho0_h), 0)
+    add!(seq_closed, TraceOut(), pt.nsteps)
+    in_a, out_a, mi_a, mo_a = instrument_leg_maps(seq_closed, pt.nsteps)
+    in_b, out_b, mi_b, mo_b = instrument_leg_maps(pt, seq_closed)
+    @test isempty(mi_a) && isempty(mo_a)
+    @test mi_a == mi_b && mo_a == mo_b
+    @test keys(in_a) == keys(in_b)
+    @test keys(out_a) == keys(out_b)
+
+    seq_oo = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_oo, StatePreparation(rho0_h), 0)
+    add!(seq_oo, OpenInOut(), 1)
+    add!(seq_oo, TraceOut(), pt.nsteps)
+    in_o, out_o, mi_o, mo_o = instrument_leg_maps(seq_oo, pt.nsteps)
+    @test isempty(mi_o) && isempty(mo_o)
+    @test in_o[1] isa OpenInOut
+    @test out_o[0] isa OpenInOut
+
+    seq_out_only = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_out_only, StatePreparation(rho0_h), 0)
+    add!(seq_out_only, OpenOutput(), 1)
+    # OpenOutput at step 1 claims out[0]; in[1] is missing.
+    _, _, mi_only, mo_out = instrument_leg_maps(seq_out_only, pt.nsteps)
+    @test 1 in mi_only
+    @test !(0 in mo_out)
+
+    seq_in_only = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_in_only, StatePreparation(rho0_h), 0)
+    add!(seq_in_only, OpenInput(), 1)
+    _, _, mi_in, mo_in = instrument_leg_maps(seq_in_only, pt.nsteps)
+    @test 0 in mo_in
+    @test !(1 in mi_in)
+
+    seq_pair = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_pair, StatePreparation(rho0_h), 0)
+    add!(seq_pair, TraceOut(), 1)
+    add!(seq_pair, StatePreparation(to_dm(MPS(s_leg, ["Dn"]))), 2)
+    add!(seq_pair, TraceOut(), 3)
+    _, _, mi_p, mo_p = instrument_leg_maps(seq_pair, pt.nsteps)
+    @test isempty(mi_p) && isempty(mo_p)
+
+    @test_throws ArgumentError instrument_leg_maps(seq_closed, 0)
+end
+
+@testset "Instruments.jl: OpenInput / OpenInOut materialization" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    in1 = prime(L[1])
+    out0 = L[1]
+
+    @test OpenInput() isa OpenInput
+    @test OpenInOut() isa OpenInOut
+    @test OpenInput().leg_plev == 1
+    @test OpenOutput().leg_plev == 0
+    @test_throws ArgumentError OpenInput(; leg_plev=0)
+    @test_throws ArgumentError OpenInOut([out0], [in1])  # wrong plev order
+
+    Tin = instrument_itensor(OpenInput(), [in1], 1)
+    @test length(inds(Tin)) == 0
+    @test isapprox(scalar(Tin), 1.0; atol=1e-12)
+
+    Tio = instrument_itensor(OpenInOut(), [in1], [out0], 1)
+    @test length(inds(Tio)) == 0
+    @test isapprox(scalar(Tio), 1.0; atol=1e-12)
+
+    system = spin_system(s, OpSum() + (0.3, "Sz", 1))
+    pt = build_process_tensor(system; dt=0.05, nsteps=3)
+    rho0_h = to_dm(MPS(s, ["Up"]))
+    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq, StatePreparation(rho0_h), 0)
+    add!(seq, OpenInOut(), 1)
+    add!(seq, TraceOut(), 3)
+    instruments = create_instruments(pt, seq)
+    @test length(instruments) == pt.nsteps + 1
+    @test length(inds(instruments[2])) == 0
+
+    seq_bad = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+    add!(seq_bad, StatePreparation(rho0_h), 0)
+    add!(seq_bad, OpenInput(), pt.nsteps)
+    @test_throws ArgumentError create_instruments(pt, seq_bad)
 end
 
 @testset "Instruments.jl: instrument_itensor — StatePreparation & dense data" begin

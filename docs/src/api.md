@@ -137,6 +137,7 @@ coupling_times
 coupling_sites
 default_schedule
 all_pt_legs_contracted
+open_leg_info
 ```
 
 ```@docs
@@ -228,6 +229,10 @@ IdentityOperation
 identity_operation
 OpenOutput
 open_output
+OpenInput
+open_input
+OpenInOut
+open_inout
 ProductInstrument
 CustomTwoLegInstrument
 custom_twoleg_instrument
