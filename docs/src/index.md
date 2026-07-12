@@ -174,7 +174,7 @@ expectation = evaluate_process(pt, seq)
 | Hilbert-space MPS/MPO                       | [Tutorial: MPS and MPO Basics](tutorials/mps_mpo_basics.md)          |
 | Vectorized density matrices                 | [Tutorial: Liouville Basics](tutorials/liouville_basics.md)          |
 | Closed-system TEBD/TDVP                     | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)          |
-| Time-dependent or kicked models             | [Examples](examples/driven_two_level_system.md)                      |
+| Time-dependent Hamiltonians                 | [Laser-driven TDVP dynamics](examples/laser_driven_tdvp.md)         |
 | Multimode baths and multi-time correlations | [Spin-bath process tensor](examples/spin_bath_process_tensor.md)   |
 | End-to-end scripts                          | [Examples](examples/tebd_time_evolution.md)                           |
 | Function reference                          | [API Reference](api.md)                                              |
