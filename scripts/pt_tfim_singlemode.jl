@@ -34,7 +34,7 @@ using CairoMakie
 using LaTeXStrings
 using ITensors
 using LinearAlgebra
-using ITensors.Ops: Exact
+using ITensors.Ops: Exact, Trotter
 using ProcessTensors
 
 # ------------------------------------------------------------------------------
@@ -118,12 +118,14 @@ print_section("Problem setup")
 
 println("One system spin coupled to one bath spin; compare split process-tensor evolution")
 println("against exact joint Liouville propagation with partial trace.")
+println("PT timestep sandwich: sys_alg=Trotter{2}() (symmetric M(Δt/2)·Q·M(Δt/2)).")
 println()
 
 @printf("time step dt           = %.4f\n", dt)
 @printf("number of steps        = %d\n", nsteps)
 @printf("final time             = %.4f\n", final_time)
 @printf("system / bath dim      = %d / %d\n", dsys, denv)
+@printf("sys_alg                = Trotter{2}()\n")
 
 sys_phys = siteinds("S=1/2", 1)
 env_phys = siteinds("S=1/2", 1)
@@ -161,7 +163,11 @@ rho_joint0_l = to_liouville(to_dm(psi_joint); sites=joint_liouv)
 print_section("Main computation")
 
 println("Building process tensor...")
-pt = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
+pt = build_process_tensor(
+    system, system.sites[1];
+    environment=bath, dt=dt, nsteps=nsteps,
+    alg=Exact(), sys_alg=Trotter{2}(),
+)
 
 println("Evolving reduced system with `evolve`...")
 trajectory = evolve(pt, rho_sys0_h)

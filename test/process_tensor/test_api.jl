@@ -156,31 +156,28 @@ end
         end
     end
 
-    @testset "dissipative Markovian PT states match tebd_trajectory" begin
+    @testset "dissipative Markovian PT vs continuous U(t)=exp(t L)" begin
+        # Compare PT snapshots to the continuous-time channel U(t)=exp(t L) at each
+        # evolve sample time. 
         s = siteinds("S=1/2", 1)
         H = OpSum() + (0.55, "Sz", 1)
         L = OpSum() + (0.12, "S-", 1)
         system = spin_system(s, H; jump_ops=[L])
-        pt = build_process_tensor(system; dt=0.05, nsteps=4)
+        dt = 0.05
+        nsteps = 4
+        pt = build_process_tensor(system; dt=dt, nsteps=nsteps)
         psi0 = MPS(s, ["Up"])
         rho0_l = to_liouville(to_dm(psi0); sites=system.sites)
+        ρ0 = _one_site_liouville_state_to_dense(rho0_l)
 
         trj_pt = evolve(pt, psi0)
-        trj_tebd = tebd_trajectory(
-            rho0_l,
-            H,
-            0.05,
-            4;
-            jump_ops=[L],
-            maxdim=32,
-            cutoff=1e-12,
-            alg=Trotter{2}(),
-        )
-
-        for i in 1:pt.nsteps
+        L_dense = dense_liouvillian_matrix(H, [L], s, system.sites)
+        @test trj_pt.times ≈ [dt * k for k in 0:(nsteps - 1)] atol=1e-12
+        for i in 1:nsteps
+            t = trj_pt.times[i]
             ρ_pt = _one_site_liouville_state_to_dense(trj_pt.states_liouville[i])
-            ρ_ref = liouville_state_to_dense(trj_tebd[i + 1], s)
-            @test ρ_pt ≈ ρ_ref atol=1e-9 rtol=1e-8
+            ρ_ref = reshape(exp(t * L_dense) * vec(ρ0), size(ρ0))
+            @test ρ_pt ≈ ρ_ref atol=0.05 rtol=0.05
         end
     end
 

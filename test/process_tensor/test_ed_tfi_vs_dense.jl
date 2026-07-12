@@ -11,6 +11,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Exact, Trotter
 using Test
 using LinearAlgebra
 
@@ -254,4 +255,71 @@ end
         rho_pt = hilbert_mpo_to_dense(rho_h, _physical_sites_from_hilbert_mpo(rho_h))
         @test rho_pt ≈ rho_up atol=1e-6 rtol=1e-6
     end
+end
+
+@testset "process tensor: sys_alg Trotter{2} vs Trotter{1} vs joint ED" begin
+    # Coarse Δt so first-order splitting error is visible; fixed total time T.
+    # Tolerance: err(Trotter{2}) ≤ 0.1 * err(Trotter{1}) (one decimal-order gain).
+    sys_phys = siteinds("S=1/2", 1)
+    env_phys = siteinds("S=1/2", 1)
+    sys_liouv = liouv_sites(sys_phys)
+    env_liouv = liouv_sites(env_phys)
+
+    H_sys = OpSum() + (1.2, "Sx", 1)
+    system = spin_system(sys_phys, H_sys)
+
+    rho_env0_h = to_dm(MPS(env_phys, ["Up"]))
+    rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
+    H_env = OpSum() + (0.8, "Sx", 1)
+    cpl = OpSum() + (1.5, "Sz", 1, "Sz", 2)
+    bath = spin_bath([spin_mode(env_liouv, H_env, rho_env0_l; coupling=cpl)])
+
+    dt = 0.25
+    nsteps = 4
+    # Each PT slab embeds one full timestep; after `nsteps` slabs the physical time is
+    # `nsteps * dt` (evolve's time labels are offset by one step — compare to ED at the
+    # physical duration).
+    T = nsteps * dt
+    rho0_h = to_dm(MPS(sys_phys, ["Up"]))
+
+    @test_throws ArgumentError build_process_tensor(
+        system; environment=bath, dt=dt, nsteps=nsteps, sys_alg=Exact(),
+    )
+
+    pt1 = build_process_tensor(
+        system; environment=bath, dt=dt, nsteps=nsteps, alg=Exact(), sys_alg=Trotter{1}(),
+    )
+    pt2 = build_process_tensor(
+        system; environment=bath, dt=dt, nsteps=nsteps, alg=Exact(), sys_alg=Trotter{2}(),
+    )
+
+    trj1 = evolve(pt1, rho0_h)
+    trj2 = evolve(pt2, rho0_h)
+
+    H_bg = OpSum() + (0.8, "Sx", 2) + (1.5, "Sz", 1, "Sz", 2)
+    joint_sites = _joint_phys_sites(sys_phys, env_phys)
+    H_full = _build_joint_full_opsum(H_sys, H_bg)
+    rho_joint0 = kron(
+        hilbert_mpo_to_dense(rho0_h, sys_phys),
+        hilbert_mpo_to_dense(rho_env0_h, env_phys),
+    )
+    rho_ed = _partial_trace_env(
+        _evolve_joint_full_exact(rho_joint0, T, H_full, joint_sites),
+        2,
+        2,
+    )
+
+    rho1 = hilbert_mpo_to_dense(
+        to_hilbert(trj1.states_liouville[end]),
+        _physical_sites_from_hilbert_mpo(to_hilbert(trj1.states_liouville[end])),
+    )
+    rho2 = hilbert_mpo_to_dense(
+        to_hilbert(trj2.states_liouville[end]),
+        _physical_sites_from_hilbert_mpo(to_hilbert(trj2.states_liouville[end])),
+    )
+
+    err1 = norm(rho1 - rho_ed)
+    err2 = norm(rho2 - rho_ed)
+    @test err1 > 1e-4  # coarse Δt: asymmetric error must be nontrivial
+    @test err2 ≤ 0.1 * err1
 end

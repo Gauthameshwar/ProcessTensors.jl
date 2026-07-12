@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+* **`sys_alg` is the PT timestep sandwich order**, not a TEBD
+  factorization of the free-system map. Single-site system maps in dense PT
+  cores are always Exact ED. Default `sys_alg=Trotter{1}()` keeps the asymmetric
+  bake-in ``Q·M(Δt)``; `Trotter{2}()` uses ``M(Δt/2)·Q·M(Δt/2)``. Prefer
+  `sys_alg=Trotter{2}()` when time-discretization error dominates.
 * **Always-embedded system propagation; `SystemPropagation` → `UnitaryPropagation`.**
   Process-tensor slabs always include the system's one-step Liouville map.
   The `embed_system_propagation` keyword is removed.

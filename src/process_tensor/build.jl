@@ -38,8 +38,7 @@ function _build_process_tensor_cores(
             system,
             coupling_site,
             dt,
-            nsteps;
-            alg=sys_alg,
+            nsteps,
         )
     end
 
@@ -73,7 +72,7 @@ end
 
 """
     build_process_tensor(system, coupling_site; method=Dense(), environment=nothing,
-                         dt, nsteps, alg=Exact(), sys_alg=Trotter{2}())
+                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}())
 
 Build a single-coupling-site process tensor.
 
@@ -85,6 +84,11 @@ bath, and instruments so later contractions match by exact index identity.
 [`Dense`](@ref) backend builds exact joint-Liouville cores for no-bath,
 single-mode, and small multimode environments.
 
+`alg` selects how the joint bath(+coupling) slab is built. `sys_alg` selects the
+*timestep sandwich order* of free-system maps around that bath core
+(`Trotter{1}()` asymmetric ``Q·M(Δt)``, `Trotter{2}()` symmetric
+``M(Δt/2)·Q·M(Δt/2)``). 
+
 System propagation is always embedded in each process-tensor slab. Insert
 additional unitary control maps with [`UnitaryPropagation`](@ref) rather than
 building a process tensor without system propagation.
@@ -92,7 +96,7 @@ building a process tensor without system propagation.
 # Examples
 ```julia
 pt = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8)
-pt_dense = build_process_tensor(system, coupling_site; method=Dense(), dt=0.1, nsteps=8)
+pt_sym = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8, sys_alg=Trotter{2}())
 ```
 """
 function build_process_tensor(
@@ -103,7 +107,7 @@ function build_process_tensor(
     dt::Real,
     nsteps::Integer,
     alg=Exact(),
-    sys_alg=Trotter{2}(),
+    sys_alg=Trotter{1}(),
 )
     nsteps_int = Int(nsteps)
     nsteps_int >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
@@ -113,6 +117,7 @@ function build_process_tensor(
             "system propagation is always embedded in the process tensor.",
         ),
     )
+    ProcessTensors._validate_sys_alg(sys_alg)
 
     cores = _build_process_tensor_cores(
         method,
@@ -130,7 +135,7 @@ end
 
 """
     build_process_tensor(system; method=Dense(), environment=nothing,
-                         dt, nsteps, alg=Exact(), sys_alg=Trotter{2}())
+                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}())
 
 Build a process tensor for a single-site system by using its only Liouville
 site as the coupling site.
@@ -142,7 +147,7 @@ function build_process_tensor(
     dt::Real,
     nsteps::Integer,
     alg=Exact(),
-    sys_alg=Trotter{2}(),
+    sys_alg=Trotter{1}(),
 )
     length(system.sites) == 1 || throw(
         ArgumentError(

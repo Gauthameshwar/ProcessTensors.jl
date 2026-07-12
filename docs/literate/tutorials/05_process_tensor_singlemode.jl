@@ -214,6 +214,16 @@ println(environment)
 # By default, the system's own one-step Liouville propagation is embedded into
 # the cores. This means the default instrument between time steps is the identity
 # operation, not an extra system propagator.
+#
+# `sys_alg` chooses the *timestep sandwich order* of those Exact free-system maps
+# around the bath(+coupling) core:
+#
+# - `Trotter{1}()` (default): asymmetric ``Q · M(Δt)``
+# - `Trotter{2}()`: symmetric ``M(Δt/2) · Q · M(Δt/2)`` (usually smaller
+#   time-discretization error at fixed coarse ``Δt``)
+#
+# This is not a TEBD gate decomposition of the system Liouvillian; single-site
+# system maps are always Exact ED. 
 
 dt = 0.05
 nsteps = 5
@@ -244,7 +254,6 @@ pt_markov = build_process_tensor(
     system;
     dt=dt,
     nsteps=nsteps,
-    sys_alg=Trotter{2}(),
 )
 
 println("No-environment baseline:")

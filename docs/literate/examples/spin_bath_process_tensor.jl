@@ -93,7 +93,7 @@ using Printf
 using ProcessTensors
 using ITensors
 using LinearAlgebra
-using ITensors.Ops: Exact
+using ITensors.Ops: Exact, Trotter
 
 const dt = 0.1
 const nsteps = 24
@@ -224,6 +224,11 @@ bath = spin_bath([mode])
 #
 # The bath is integrated out here. The returned `ProcessTensor` stores the
 # environment influence on the system across all time steps.
+#
+# `sys_alg=Trotter{2}()` uses the second-order timestep sandwich
+# ``M(Δt/2)·Q·M(Δt/2)`` of free-system maps around each bath core
+# (smaller time-discretization error than the default asymmetric
+# `Trotter{1}()` layout).
 
 pt_single = build_process_tensor(
     system,
@@ -231,6 +236,8 @@ pt_single = build_process_tensor(
     environment=bath,
     dt=dt,
     nsteps=nsteps,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
 )
 
 println("Single-mode process tensor:")
@@ -354,6 +361,8 @@ pt_multi = build_process_tensor(
     environment=bath_multi,
     dt=dt,
     nsteps=nsteps,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
 )
 
 println("Multimode process tensor ($nmodes bath spins):")
@@ -422,11 +431,69 @@ println("Final ⟨σ_x⟩ (PT): ", result_multi.sx_pt[end])
 #
 # ### What controls the error?
 #
-# The main algorithmic error comes from the short-time system-environment
-# propagator used inside `build_process_tensor`. With a first-order Trotter
-# splitting, smaller `dt` reduces that construction error. In larger calculations,
-# also monitor PT-MPO bond truncation (`cutoff`, `maxdim`) and accumulated
-# roundoff in long contractions.
+# The main algorithmic error comes from the short-time system–bath split inside
+# `build_process_tensor`. Prefer `sys_alg=Trotter{2}()` (second-order sandwich)
+# over the default `Trotter{1}()` asymmetric layout when time-discretization
+# error dominates; smaller `dt` further reduces that residual. In larger
+# calculations, also monitor PT-MPO bond truncation (`cutoff`, `maxdim`) and
+# accumulated roundoff in long contractions.
+#
+# Here is a direct comparison at fixed ``Δt`` up to ``t = 1.5``. We build two
+# single-mode process tensors that differ only in `sys_alg`, ask
+# `evaluate_process` for the final ``⟨S^x⟩`` (ITensor `S=1/2` spin operator),
+# and compare both answers to joint continuous-time ED.
+
+T_cmp = 1.5
+nsteps_cmp = round(Int, T_cmp / dt)
+@assert isapprox(nsteps_cmp * dt, T_cmp; atol=1e-12)
+
+pt_order1 = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=nsteps_cmp,
+    alg=Exact(),
+    sys_alg=Trotter{1}(),
+)
+pt_order2 = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=nsteps_cmp,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
+)
+
+Sx = OpSum()
+Sx += 1.0, "Sx", 1
+
+function final_sx_evaluate(pt)
+    out = output_sites(pt, pt.nsteps - 1)
+    seq = default_schedule(pt)
+    add!(seq, StatePreparation(ρ_sys0_h), 0)
+    add!(seq, ObservableMeasurement(Sx, out), pt.nsteps)
+    return real(evaluate_process(pt, seq))
+end
+
+sx_t1 = final_sx_evaluate(pt_order1)
+sx_t2 = final_sx_evaluate(pt_order2)
+
+U_ed = liouvillian_propagator_itensor(H_full_single, joint_liouv_single, T_cmp; alg=Exact())
+ρ_joint_ed = apply(U_ed, copy(ρ_joint0_l_single); cutoff=0.0, maxdim=typemax(Int))
+ρ_ed = partial_trace_system(to_hilbert(ρ_joint_ed), dsys, denv_single)
+
+sx_ed = real(tr(ρ_ed * (σx / 2)))
+
+err_t1 = abs(sx_t1 - sx_ed)
+err_t2 = abs(sx_t2 - sx_ed)
+
+@printf("⟨Sˣ⟩(t=%.1f)  Trotter{1} / Trotter{2} / ED = %.6f / %.6f / %.6f\n", T_cmp, sx_t1, sx_t2, sx_ed)
+@printf("|⟨Sˣ⟩_PT − ⟨Sˣ⟩_ED|  Trotter{1} = %.3e,  Trotter{2} = %.3e\n", err_t1, err_t2)
+@assert err_t2 < err_t1
+@assert err_t2 < 0.1 * err_t1
+
 #
 # !!! summary "Example takeaways"
 #     - `build_process_tensor` integrates out the bath once; the returned
@@ -435,3 +502,5 @@ println("Final ⟨σ_x⟩ (PT): ", result_multi.sx_pt[end])
 #       with different instrument schedules—no second bath evolution is needed.
 #     - Multimode baths change the PT-MPO memory structure, not the user-facing
 #       workflow for preparing states, evolving, or measuring observables.
+#     - At fixed ``Δt``, `sys_alg=Trotter{2}()` typically reduces the
+#       system–bath split error relative to `Trotter{1}()`.

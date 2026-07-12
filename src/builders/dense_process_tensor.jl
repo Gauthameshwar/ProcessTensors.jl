@@ -23,40 +23,90 @@ function _validate_dense_liouville_budget(d_joint::Integer; context::AbstractStr
     )
 end
 
-# Internal prime level for the system propagator fused into a core.
+function _validate_sys_alg(sys_alg)
+    (sys_alg isa Trotter{1} || sys_alg isa Trotter{2}) && return nothing
+    throw(
+        ArgumentError(
+            "build_process_tensor: sys_alg must be Trotter{1}() or Trotter{2}() " *
+            "(timestep sandwich order of free-system maps around the bath core); " *
+            "got $(typeof(sys_alg)). System maps themselves are always Exact (single site).",
+        ),
+    )
+end
+
+# Internal prime level for mid-legs when fusing free-system maps into a bath core.
 const _INTERNAL_PLEV = 2
 
-# One-step embedded system Liouville map on PT legs `(in_k, out_k)`.
+# One-step free-system Liouville map on PT legs `(in_k, out_k)` (always Exact ED).
 function _system_liouvillian_pt_core(
     system::AbstractSystem,
     in_k::Index,
     out_k::Index,
-    dt::Real;
-    alg=Trotter{2}(),
+    dt::Real,
 )
+    # Empty free-system generator → identity channel on the PT legs.
+    if isempty(ITensors.terms(system.H)) && isempty(system.jump_ops)
+        return delta(in_k, out_k)
+    end
+    gate_site = only(system.sites)
     U = liouvillian_propagator_itensor(
         system.H,
         system.sites,
         dt;
-        alg=alg,
+        alg=Exact(),
         jump_ops=system.jump_ops,
     )
-    gate_site = only(system.sites)
-    return replaceind(replaceind(U, prime(gate_site), in_k), gate_site, out_k)
+    # Exact `itensor_exp` uses the ITensor gate convention: unprimed = input,
+    # primed = output. Map those onto the PT legs `(in_k, out_k)`.
+    return replaceind(replaceind(U, gate_site, in_k), prime(gate_site), out_k)
 end
 
-# Build Markovian PT cores with embedded system propagation on each `(in_k, out_k)` pair.
+# Asymmetric Trotter{1} sandwich: Q_bath · M_sys(Δt) on the output leg (current default layout).
+function _embed_system_map(
+    core::ITensor,
+    system::AbstractSystem,
+    in_k::Index,
+    out_k::Index,
+    dt::Real,
+    ::Trotter{1},
+)
+    mid = prime(out_k, _INTERNAL_PLEV)
+    core_mid = replaceind(core, out_k, mid)
+    M = replaceind(_system_liouvillian_pt_core(system, in_k, out_k, dt), in_k, mid)
+    return core_mid * M
+end
+
+# symmetric Trotter{2} sandwich: M_sys(Δt/2) · Q_bath · M_sys(Δt/2) on input and output legs.
+function _embed_system_map(
+    core::ITensor,
+    system::AbstractSystem,
+    in_k::Index,
+    out_k::Index,
+    dt::Real,
+    ::Trotter{2},
+)
+    mid_in = prime(in_k, _INTERNAL_PLEV)
+    mid_out = prime(out_k, _INTERNAL_PLEV)
+    half = dt / 2
+    # Build half-step maps on temporary PT legs, then retarget the Q-facing leg to `mid_*`.
+    M_in = replaceind(_system_liouvillian_pt_core(system, in_k, out_k, half), out_k, mid_in)
+    M_out = replaceind(_system_liouvillian_pt_core(system, in_k, out_k, half), in_k, mid_out)
+    core_mid = replaceind(replaceind(core, in_k, mid_in), out_k, mid_out)
+    return M_in * core_mid * M_out
+end
+
+# Build Markovian PT cores with embedded Exact system propagation on each `(in_k, out_k)` pair.
 function _build_trivial_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
     dt::Real,
     nsteps::Int;
-    alg=Trotter{2}(),
+    kwargs...,
 )
     cores = ITensor[]
     for k in 0:(nsteps - 1)
         in_k, out_k = generate_pt_legs(coupling_site, k)
-        push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt; alg=alg))
+        push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
     end
     return cores
 end
@@ -64,7 +114,7 @@ end
 joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
-# Build one PT core per timestep by embedding a joint bath-system propagator and retaining one bath memory link.
+# Build one PT core per timestep by embedding a joint bath(+coupling) propagator and retaining one bath memory link.
 function _build_bathmode_pt_cores(
     system::AbstractSystem,
     coupling_site::Index,
@@ -73,9 +123,10 @@ function _build_bathmode_pt_cores(
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
-    sys_alg=Trotter{2}(),
+    sys_alg=Trotter{1}(),
     kwargs...
 )
+    _validate_sys_alg(sys_alg)
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
     )
@@ -86,7 +137,7 @@ function _build_bathmode_pt_cores(
     _validate_dense_liouville_budget(d_joint; context="_build_bathmode_pt_cores")
 
     coupling_term = bathmode.coupling == OpSum() ? bath_coupling : bathmode.coupling
-    # Joint physical Hamiltonian on [bath, system]; mode coupling uses sites 1=bath, 2=system.
+    # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
     U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
@@ -111,16 +162,9 @@ function _build_bathmode_pt_cores(
         push!(cores, core_k)
     end
     for k in 0:(nsteps - 1)
-        in_k = inputs[k + 1]
-        out_k = outputs[k + 1]
-        internal_out = prime(out_k, _INTERNAL_PLEV)
-        core_k = replaceind(cores[k + 1], out_k, internal_out)
-        sys_prop = replaceind(
-            _system_liouvillian_pt_core(system, in_k, out_k, dt; alg=sys_alg),
-            in_k,
-            internal_out,
+        cores[k + 1] = _embed_system_map(
+            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
         )
-        cores[k + 1] = core_k * sys_prop
     end
     # Contract the first and last bath links with the initial bath state and the trace out
     initial_bath_state = instrument_itensor(StatePreparation(bathmode.rho0), [bath_links[1]'], 0)
@@ -141,9 +185,10 @@ function _build_multimode_pt_cores(
     dt::Real,
     nsteps::Int;
     alg=Exact(),
-    sys_alg=Trotter{2}(),
+    sys_alg=Trotter{1}(),
     kwargs...
 )
+    _validate_sys_alg(sys_alg)
     isempty(environment.modes) && throw(ArgumentError("_build_multimode_pt_cores: environment must contain at least one mode."))
 
     modes = environment.modes
@@ -220,16 +265,9 @@ function _build_multimode_pt_cores(
         push!(cores, core_k)
     end
     for k in 0:(nsteps - 1)
-        in_k = inputs[k + 1]
-        out_k = outputs[k + 1]
-        internal_out = prime(out_k, _INTERNAL_PLEV)
-        core_k = replaceind(cores[k + 1], out_k, internal_out)
-        sys_prop = replaceind(
-            _system_liouvillian_pt_core(system, in_k, out_k, dt; alg=sys_alg),
-            in_k,
-            internal_out,
+        cores[k + 1] = _embed_system_map(
+            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
         )
-        cores[k + 1] = core_k * sys_prop
     end
 
     bath_state = ITensor(1.0)

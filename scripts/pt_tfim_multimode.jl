@@ -34,7 +34,7 @@ using CairoMakie
 using LaTeXStrings
 using ITensors
 using LinearAlgebra
-using ITensors.Ops: Exact
+using ITensors.Ops: Exact, Trotter
 using ProcessTensors
 
 # ------------------------------------------------------------------------------
@@ -122,6 +122,7 @@ mode_g = [0.2 + 0.3 * m for m in 1:nmodes]
 print_section("Problem setup")
 
 println("One system spin coupled to $nmodes bath spins with fused process-tensor memory.")
+println("PT timestep sandwich: sys_alg=Trotter{2}() (symmetric M(Δt/2)·Q·M(Δt/2)).")
 println()
 
 @printf("time step dt           = %.4f\n", dt)
@@ -129,6 +130,7 @@ println()
 @printf("final time             = %.4f\n", final_time)
 @printf("bath modes             = %d\n", nmodes)
 @printf("joint Hilbert dim      = %d\n", dsys * denv)
+@printf("sys_alg                = Trotter{2}()\n")
 
 nmodes == 4 || @warn "This example is tuned for nmodes=4; using nmodes=$nmodes"
 
@@ -178,7 +180,11 @@ rho_joint0_l = to_liouville(to_dm(psi_joint); sites=joint_liouv)
 print_section("Main computation")
 
 println("Building multimode process tensor...")
-pt = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
+pt = build_process_tensor(
+    system, system.sites[1];
+    environment=bath, dt=dt, nsteps=nsteps,
+    alg=Exact(), sys_alg=Trotter{2}(),
+)
 
 println("Evolving reduced system with `evolve`...")
 trajectory = evolve(pt, rho_sys0_h)
