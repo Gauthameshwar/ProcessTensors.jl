@@ -10,7 +10,7 @@ U(t)\,\rho_S(0)\otimes\rho_E(0)\,U^\dagger(t),\]</p><p>and then traces out the e
 using ProcessTensors
 using ITensors
 using LinearAlgebra
-using ITensors.Ops: Exact
+using ITensors.Ops: Exact, Trotter
 
 const dt = 0.1
 const nsteps = 24
@@ -115,12 +115,14 @@ bath = spin_bath([mode])</code></pre><pre><code class="nohighlight hljs">Process
 
   mode summary:
     [1] SpinMode(dim=4, H_terms=1, coupling_terms=1)
-</code></pre><h3 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h3><p>The bath is integrated out here. The returned <code>ProcessTensor</code> stores the environment influence on the system across all time steps.</p><pre><code class="language-julia hljs">pt_single = build_process_tensor(
+</code></pre><h3 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h3><p>The bath is integrated out here. The returned <code>ProcessTensor</code> stores the environment influence on the system across all time steps.</p><p><code>sys_alg=Trotter{2}()</code> uses the second-order timestep sandwich <span>$M(Δt/2)·Q·M(Δt/2)$</span> of free-system maps around each bath core (smaller time-discretization error than the default asymmetric <code>Trotter{1}()</code> layout).</p><pre><code class="language-julia hljs">pt_single = build_process_tensor(
     system,
     system.sites[1];
     environment=bath,
     dt=dt,
     nsteps=nsteps,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
 )
 
 println(&quot;Single-mode process tensor:&quot;)
@@ -161,8 +163,8 @@ final_sz_evolve = real(inner(ρ_final_T, Sz_obs))
 println(&quot;Final ⟨σ_z⟩ from evaluate_process: &quot;, real(final_sz_schedule))
 println(&quot;Final ⟨σ_z⟩ from evolve:           &quot;, final_sz_evolve)
 @assert abs(real(final_sz_schedule) - final_sz_evolve) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">evolve returned 24 snapshots
-Final ⟨σ_z⟩ from evaluate_process: -0.28177970572848354
-Final ⟨σ_z⟩ from evolve:           -0.28177970572848354
+Final ⟨σ_z⟩ from evaluate_process: -0.28156767945567823
+Final ⟨σ_z⟩ from evolve:           -0.28156767945567823
 </code></pre><h3 id="Validate-against-joint-ED"><a class="docs-heading-anchor" href="#Validate-against-joint-ED">Validate against joint ED</a><a id="Validate-against-joint-ED-1"></a><a class="docs-heading-anchor-permalink" href="#Validate-against-joint-ED" title="Permalink"></a></h3><pre><code class="language-julia hljs">joint_phys = Index[sys_phys[1], env_phys[1]]
 joint_liouv_single = liouv_sites(joint_phys)
 
@@ -185,11 +187,11 @@ result_single = compare_trajectory_to_joint_ed(
 )
 print_pt_summary(&quot;Single-mode spin bath&quot;, result_single, joint_ed_frob_tol_single)
 println(&quot;Final ⟨σ_x⟩ (PT): &quot;, result_single.sx_pt[end])</code></pre><pre><code class="nohighlight hljs">Single-mode spin bath
-  max ‖ρ_PT − ρ_joint ED‖_F = 1.384e-02
+  max ‖ρ_PT − ρ_joint ED‖_F = 2.466e-04
   ⟨σ_x⟩ at t=0 (PT / ED)     = 0.000000 / 0.000000
-  ⟨σ_x⟩ at t=T (PT / ED)     = 0.072706 / 0.090215
+  ⟨σ_x⟩ at t=T (PT / ED)     = 0.090204 / 0.090215
 
-Final ⟨σ_x⟩ (PT): 0.07270620255130214
+Final ⟨σ_x⟩ (PT): 0.0902041798481248
 </code></pre><p><img src="../../assets/examples/pt_tfim_singlemode.png" alt="Single-mode spin-bath process tensor"/></p><p>The plotting script compares all Pauli expectations and shows the Frobenius error on a log scale in the lower panel.</p><h2 id="Multimode-spin-bath"><a class="docs-heading-anchor" href="#Multimode-spin-bath">Multimode spin bath</a><a id="Multimode-spin-bath-1"></a><a class="docs-heading-anchor-permalink" href="#Multimode-spin-bath" title="Permalink"></a></h2><p>The multimode case changes the bath, not the process-tensor idea. We couple the same system spin to several independent bath spins,</p><p class="math-container">\[H_B^{(m)} = \omega_m S_x^{(m)},
 \qquad
 H_{SB}^{(m)} = g_m S_z^{(m)} S_z^{(S)}.\]</p><div class="admonition is-info" id="Single-mode-vs-multimode-4341beaef0144acd"><header class="admonition-header">Single mode vs multimode<a class="admonition-anchor" href="#Single-mode-vs-multimode-4341beaef0144acd" title="Permalink"></a></header><div class="admonition-body"><p>Both cases use the same build-then-probe workflow. The difference is the bath memory stored in the PT-MPO, not the user-facing API.</p></div></div><pre><code class="language-julia hljs">env_phys_multi = siteinds(&quot;S=1/2&quot;, nmodes)
@@ -225,6 +227,8 @@ bath_multi = spin_bath(modes)</code></pre><pre><code class="nohighlight hljs">Pr
     environment=bath_multi,
     dt=dt,
     nsteps=nsteps,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
 )
 
 println(&quot;Multimode process tensor ($nmodes bath spins):&quot;)
@@ -258,8 +262,8 @@ final_sz_multi_evolve = real(inner(ρ_final_multi_T, Sz_obs_multi))
 println(&quot;Final ⟨σ_z⟩ from evaluate_process: &quot;, real(final_sz_multi))
 println(&quot;Final ⟨σ_z⟩ from evolve:           &quot;, final_sz_multi_evolve)
 @assert abs(real(final_sz_multi) - final_sz_multi_evolve) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">evolve returned 24 snapshots
-Final ⟨σ_z⟩ from evaluate_process: 0.058771844744097135
-Final ⟨σ_z⟩ from evolve:           0.058771844744097135
+Final ⟨σ_z⟩ from evaluate_process: 0.07629696177989598
+Final ⟨σ_z⟩ from evolve:           0.07629696177989598
 </code></pre><h3 id="Validate-against-joint-ED-2"><a class="docs-heading-anchor" href="#Validate-against-joint-ED-2">Validate against joint ED</a><a class="docs-heading-anchor-permalink" href="#Validate-against-joint-ED-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">joint_phys_multi = Index[sys_phys[1], env_phys_multi...]
 joint_liouv_multi = liouv_sites(joint_phys_multi)
 
@@ -288,9 +292,60 @@ result_multi = compare_trajectory_to_joint_ed(
 )
 print_pt_summary(&quot;Multimode spin bath ($nmodes modes)&quot;, result_multi, joint_ed_frob_tol_multimode)
 println(&quot;Final ⟨σ_x⟩ (PT): &quot;, result_multi.sx_pt[end])</code></pre><pre><code class="nohighlight hljs">Multimode spin bath (4 modes)
-  max ‖ρ_PT − ρ_joint ED‖_F = 4.662e-02
+  max ‖ρ_PT − ρ_joint ED‖_F = 1.453e-03
   ⟨σ_x⟩ at t=0 (PT / ED)     = 0.000000 / 0.000000
-  ⟨σ_x⟩ at t=T (PT / ED)     = 0.392997 / 0.400626
+  ⟨σ_x⟩ at t=T (PT / ED)     = 0.400195 / 0.400626
 
-Final ⟨σ_x⟩ (PT): 0.39299716779096566
-</code></pre><p><img src="../../assets/examples/pt_tfim_multimode.png" alt="Multimode spin-bath process tensor"/></p><h3 id="What-controls-the-error?"><a class="docs-heading-anchor" href="#What-controls-the-error?">What controls the error?</a><a id="What-controls-the-error?-1"></a><a class="docs-heading-anchor-permalink" href="#What-controls-the-error?" title="Permalink"></a></h3><p>The main algorithmic error comes from the short-time system-environment propagator used inside <code>build_process_tensor</code>. With a first-order Trotter splitting, smaller <code>dt</code> reduces that construction error. In larger calculations, also monitor PT-MPO bond truncation (<code>cutoff</code>, <code>maxdim</code>) and accumulated roundoff in long contractions.</p><div class="admonition is-category-summary" id="Example-takeaways-9d59d5cbc86518a"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-9d59d5cbc86518a" title="Permalink"></a></header><div class="admonition-body"><ul><li><code>build_process_tensor</code> integrates out the bath once; the returned <code>ProcessTensor</code> is the reusable open-system object.</li><li><code>evolve(pt, ρ0)</code> and <code>evaluate_process(pt, seq)</code> probe that same object with different instrument schedules—no second bath evolution is needed.</li><li>Multimode baths change the PT-MPO memory structure, not the user-facing workflow for preparing states, evolving, or measuring observables.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kicked_ising_chain/">« Kicked Ising chain</a><a class="docs-footer-nextpage" href="../instrument_sequences/">Instrument sequences »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 3 July 2026 04:47">Friday 3 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+Final ⟨σ_x⟩ (PT): 0.40019494558570556
+</code></pre><p><img src="../../assets/examples/pt_tfim_multimode.png" alt="Multimode spin-bath process tensor"/></p><h3 id="What-controls-the-error?"><a class="docs-heading-anchor" href="#What-controls-the-error?">What controls the error?</a><a id="What-controls-the-error?-1"></a><a class="docs-heading-anchor-permalink" href="#What-controls-the-error?" title="Permalink"></a></h3><p>The main algorithmic error comes from the short-time system–bath split inside <code>build_process_tensor</code>. Prefer <code>sys_alg=Trotter{2}()</code> (second-order sandwich) over the default <code>Trotter{1}()</code> asymmetric layout when time-discretization error dominates; smaller <code>dt</code> further reduces that residual. In larger calculations, also monitor PT-MPO bond truncation (<code>cutoff</code>, <code>maxdim</code>) and accumulated roundoff in long contractions.</p><p>Here is a direct comparison at fixed <span>$Δt$</span> up to <span>$t = 1.5$</span>. We build two single-mode process tensors that differ only in <code>sys_alg</code>, ask <code>evaluate_process</code> for the final <span>$⟨S^x⟩$</span> (ITensor <code>S=1/2</code> spin operator), and compare both answers to joint continuous-time ED.</p><pre><code class="language-julia hljs">T_cmp = 1.5
+nsteps_cmp = round(Int, T_cmp / dt)
+@assert isapprox(nsteps_cmp * dt, T_cmp; atol=1e-12)
+
+pt_order1 = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=nsteps_cmp,
+    alg=Exact(),
+    sys_alg=Trotter{1}(),
+)
+pt_order2 = build_process_tensor(
+    system,
+    system.sites[1];
+    environment=bath,
+    dt=dt,
+    nsteps=nsteps_cmp,
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
+)
+
+Sx = OpSum()
+Sx += 1.0, &quot;Sx&quot;, 1
+
+function final_sx_evaluate(pt)
+    out = output_sites(pt, pt.nsteps - 1)
+    seq = default_schedule(pt)
+    add!(seq, StatePreparation(ρ_sys0_h), 0)
+    add!(seq, ObservableMeasurement(Sx, out), pt.nsteps)
+    return real(evaluate_process(pt, seq))
+end
+
+sx_t1 = final_sx_evaluate(pt_order1)
+sx_t2 = final_sx_evaluate(pt_order2)
+
+U_ed = liouvillian_propagator_itensor(H_full_single, joint_liouv_single, T_cmp; alg=Exact())
+ρ_joint_ed = apply(U_ed, copy(ρ_joint0_l_single); cutoff=0.0, maxdim=typemax(Int))
+ρ_ed = partial_trace_system(to_hilbert(ρ_joint_ed), dsys, denv_single)
+
+sx_ed = real(tr(ρ_ed * (σx / 2)))
+
+err_t1 = abs(sx_t1 - sx_ed)
+err_t2 = abs(sx_t2 - sx_ed)
+
+@printf(&quot;⟨Sˣ⟩(t=%.1f)  Trotter{1} / Trotter{2} / ED = %.6f / %.6f / %.6f\n&quot;, T_cmp, sx_t1, sx_t2, sx_ed)
+@printf(&quot;|⟨Sˣ⟩_PT − ⟨Sˣ⟩_ED|  Trotter{1} = %.3e,  Trotter{2} = %.3e\n&quot;, err_t1, err_t2)
+@assert err_t2 &lt; err_t1
+@assert err_t2 &lt; 0.1 * err_t1</code></pre><pre><code class="nohighlight hljs">⟨Sˣ⟩(t=1.5)  Trotter{1} / Trotter{2} / ED = 0.108877 / 0.117688 / 0.117576
+|⟨Sˣ⟩_PT − ⟨Sˣ⟩_ED|  Trotter{1} = 8.698e-03,  Trotter{2} = 1.125e-04
+</code></pre><div class="admonition is-category-summary" id="Example-takeaways-fef6869b4bccfd99"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-fef6869b4bccfd99" title="Permalink"></a></header><div class="admonition-body"><ul><li><code>build_process_tensor</code> integrates out the bath once; the returned <code>ProcessTensor</code> is the reusable open-system object.</li><li><code>evolve(pt, ρ0)</code> and <code>evaluate_process(pt, seq)</code> probe that same object with different instrument schedules—no second bath evolution is needed.</li><li>Multimode baths change the PT-MPO memory structure, not the user-facing workflow for preparing states, evolving, or measuring observables.</li><li>At fixed <span>$Δt$</span>, <code>sys_alg=Trotter{2}()</code> typically reduces the system–bath split error relative to <code>Trotter{1}()</code>.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kicked_ising_chain/">« Kicked Ising chain</a><a class="docs-footer-nextpage" href="../instrument_sequences/">Instrument sequences »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 13 July 2026 07:09">Monday 13 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
