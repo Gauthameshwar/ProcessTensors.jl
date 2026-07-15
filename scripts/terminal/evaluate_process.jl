@@ -23,7 +23,7 @@ pt = build_process_tensor(
     environment=problem.bath,
     dt=problem.dt,
     nsteps=problem.nsteps,
-    progress=false,
+    progress=true,
 )
 
 Sz = OpSum() + (1.0, "Sz", 1)

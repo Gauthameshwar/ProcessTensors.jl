@@ -19,7 +19,7 @@ function _build_process_tensor_cores(
     nsteps::Int,
     alg,
     sys_alg,
-    reporter,
+    run,
 )
     throw(ArgumentError("build_process_tensor: process-tensor builder $(typeof(method)) is not implemented."))
 end
@@ -33,7 +33,7 @@ function _build_process_tensor_cores(
     nsteps::Int,
     alg,
     sys_alg,
-    reporter,
+    run,
 )
     if environment === nothing
         return _build_trivial_pt_cores(
@@ -41,7 +41,7 @@ function _build_process_tensor_cores(
             coupling_site,
             dt,
             nsteps,
-            reporter=reporter,
+            run=run,
         )
     end
 
@@ -60,7 +60,7 @@ function _build_process_tensor_cores(
             bath_coupling=bath.coupling,
             alg=alg,
             sys_alg=sys_alg,
-            reporter=reporter,
+            run=run,
         )
     end
     return _build_multimode_pt_cores(
@@ -71,7 +71,7 @@ function _build_process_tensor_cores(
         nsteps;
         alg=alg,
         sys_alg=sys_alg,
-        reporter=reporter,
+        run=run,
     )
 end
 
@@ -130,12 +130,14 @@ function build_process_tensor(
     )
     ProcessTensors._validate_sys_alg(sys_alg)
 
-    reporter = _progress_reporter(progress)
     started = time()
+    run = @progress_start progress verbose "Building process tensor" (
+        method=_info_text(string(nameof(typeof(method)))),
+        nsteps=nsteps_int,
+        dt=dt,
+        environment=_info_text(_environment_summary(environment)),
+    )
     try
-        # Cover startup, validation, and first-method compilation before builders
-        # rewrite the caption to more specific construction stages.
-        _ensure_spinner!(reporter, "Building process tensor — starting")
         cores = _build_process_tensor_cores(
             method,
             system,
@@ -145,15 +147,16 @@ function build_process_tensor(
             nsteps=nsteps_int,
             alg=alg,
             sys_alg=sys_alg,
-            reporter=reporter,
+            run=run,
         )
-        # Drop transient meters before durable logs / object construction.
-        _clear_stage!(reporter)
         pt = ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps_int, coupling_site)
-        verbose && @info "Built process tensor" method=_info_text(string(nameof(typeof(method)))) dt nsteps=pt.nsteps environment=_info_text(_environment_summary(environment)) maxlinkdim=maxlinkdim(pt.core) elapsed_seconds=(time() - started)
+        @progress_stage run "Built process tensor" (
+            maxlinkdim=maxlinkdim(pt.core),
+            elapsed_seconds=(time() - started),
+        )
         return pt
     finally
-        _clear_stage!(reporter)
+        @progress_finish run
     end
 end
 

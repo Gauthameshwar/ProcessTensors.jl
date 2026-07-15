@@ -101,22 +101,17 @@ function _build_trivial_pt_cores(
     coupling_site::Index,
     dt::Real,
     nsteps::Int;
-    reporter::Union{Nothing,_ProgressReporter}=nothing,
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...,
 )
-    _ensure_spinner!(reporter, "Building process tensor — starting")
     cores = ITensor[]
-    assemble = function (update!)
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
             in_k, out_k = generate_pt_legs(coupling_site, k)
             push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
-            update!(k + 1)
+            step = k + 1
+            @progress_update run step
         end
-    end
-    if reporter === nothing
-        assemble(_ -> nothing)
-    else
-        _with_progress(assemble, reporter, "Building process tensor — assembling cores", nsteps)
     end
     return cores
 end
@@ -134,12 +129,9 @@ function _build_bathmode_pt_cores(
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
     sys_alg=Trotter{1}(),
-    reporter::Union{Nothing,_ProgressReporter}=nothing,
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
-    # Keep "starting" through validation, OpSum assembly, and the first propagator
-    # call — that call often includes method compilation and is the first long wait.
-    _ensure_spinner!(reporter, "Building process tensor — starting")
     _validate_sys_alg(sys_alg)
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
@@ -155,6 +147,7 @@ function _build_bathmode_pt_cores(
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
 
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
     U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
@@ -163,7 +156,7 @@ function _build_bathmode_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    assemble = function (update!)
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
             in_k, out_k = generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
@@ -177,16 +170,12 @@ function _build_bathmode_pt_cores(
             core_k = replaceind(core_k, coupling_site, out_k)
             cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
             push!(cores, cores_k)
-            update!(k + 1)
+            step = k + 1
+            @progress_update run step
         end
     end
-    if reporter === nothing
-        assemble(_ -> nothing)
-    else
-        _with_progress(assemble, reporter, "Building process tensor — assembling cores", nsteps)
-    end
 
-    _ensure_spinner!(reporter, "Building process tensor — closing bath boundaries")
+    @progress_stage run "Closing bath boundaries"
     # Contract the first and last bath links with the initial bath state and the trace out
     initial_bath_state = instrument_itensor(StatePreparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
@@ -207,12 +196,9 @@ function _build_multimode_pt_cores(
     nsteps::Int;
     alg=Exact(),
     sys_alg=Trotter{1}(),
-    reporter::Union{Nothing,_ProgressReporter}=nothing,
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
-    # Keep "starting" through setup and the first propagator call (often includes
-    # compilation); more specific captions begin at core assembly.
-    _ensure_spinner!(reporter, "Building process tensor — starting")
     _validate_sys_alg(sys_alg)
     isempty(environment.modes) && throw(ArgumentError("_build_multimode_pt_cores: environment must contain at least one mode."))
 
@@ -260,6 +246,7 @@ function _build_multimode_pt_cores(
     end
     joint_ops += environment.coupling
 
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
     U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
@@ -276,7 +263,7 @@ function _build_multimode_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    assemble = function (update!)
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
             in_k, out_k = generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
@@ -290,16 +277,12 @@ function _build_multimode_pt_cores(
             core_k = replaceind(core_k, fused_right, right)
             cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
             push!(cores, cores_k)
-            update!(k + 1)
+            step = k + 1
+            @progress_update run step
         end
     end
-    if reporter === nothing
-        assemble(_ -> nothing)
-    else
-        _with_progress(assemble, reporter, "Building process tensor — assembling cores", nsteps)
-    end
 
-    _ensure_spinner!(reporter, "Building process tensor — closing bath boundaries")
+    @progress_stage run "Closing bath boundaries"
     bath_state = ITensor(1.0)
     for mode in modes
         site = only(mode.sites)

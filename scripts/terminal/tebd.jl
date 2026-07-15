@@ -17,7 +17,7 @@ using ITensors.Ops: Trotter
 progress = true
 verbose = true
 dt = 0.05
-T = 20.0
+T = 5.0
 
 @info "Defining the system and Hamiltonian..."
 N = 12

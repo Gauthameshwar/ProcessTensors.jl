@@ -440,8 +440,7 @@ function _create_instruments(
     seq::InstrumentSeq;
     default::AbstractInstrument=ProcessTensors._schedule_default_instr(pt),
     alg=Trotter{2}(),
-    reporter=nothing,
-    progress_desc::AbstractString="Materializing instrument schedule",
+    run::ProcessTensors._AbstractRunReporter=ProcessTensors._NO_RUN_REPORTER,
 )
     n = pt.nsteps
     slots = Vector{AbstractInstrument}(undef, n + 1)
@@ -502,29 +501,21 @@ function _create_instruments(
     ProcessTensors._validate_instrument_schedule!(pt, seq, default, "create_instruments")
 
     instruments = Vector{ITensor}(undef, n + 1)
-    materialize = function (update!)
+    ProcessTensors.@progress_bar run "Materializing instruments" (n + 1) begin
         instruments[1] = instrument_itensor(slots[1], ProcessTensors.input_sites(pt, 0), 0)
-        update!(1)
+        ProcessTensors.@progress_update run 1
         for step in 1:(n - 1)
             out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
             instruments[step + 1] = instrument_itensor(
                 slots[step + 1], in_curr, out_prev, step; dt=pt.dt, alg=alg,
             )
-            update!(step + 1)
+            slot = step + 1
+            ProcessTensors.@progress_update run slot
         end
         out_final, _ = ProcessTensors.coupling_times(pt, n)
         instruments[n + 1] = instrument_itensor(slots[end], out_final, n - 1)
-        update!(n + 1)
-    end
-    if reporter === nothing
-        materialize(_ -> nothing)
-    else
-        ProcessTensors._with_progress(
-            materialize,
-            reporter,
-            progress_desc,
-            n + 1,
-        )
+        final_slot = n + 1
+        ProcessTensors.@progress_update run final_slot
     end
 
     return instruments
@@ -546,22 +537,25 @@ function create_instruments(
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
-    reporter = ProcessTensors._progress_reporter(progress)
     started = time()
+    run = ProcessTensors.@progress_start progress verbose "Materializing instrument schedule" (
+        nsteps=pt.nsteps,
+    )
     try
-        ProcessTensors._ensure_spinner!(reporter, "Materializing instruments — starting")
         instruments = _create_instruments(
             pt,
             seq;
             default=default,
             alg=alg,
-            reporter=reporter,
-            progress_desc="Materializing instruments — building ITensors",
+            run=run,
         )
-        ProcessTensors._clear_stage!(reporter)
-        verbose && @info "Materialized instrument schedule" nsteps=pt.nsteps slots=length(instruments) elapsed_seconds=(time() - started)
+        ProcessTensors.@progress_stage run "Materialized instrument schedule" (
+            nsteps=pt.nsteps,
+            slots=length(instruments),
+            elapsed_seconds=(time() - started),
+        )
         return instruments
     finally
-        ProcessTensors._clear_stage!(reporter)
+        ProcessTensors.@progress_finish run
     end
 end

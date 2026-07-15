@@ -68,18 +68,18 @@ function evolve(
     verbose::Bool=false,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evolve")
-    reporter = _progress_reporter(progress)
     started = time()
+    run = @progress_start progress verbose "Evolving reduced system" (
+        nsteps=pt.nsteps,
+        dt=pt.dt,
+    )
     try
-        # Cover validation and schedule rewrite before instrument ITensors are built.
-        _ensure_spinner!(reporter, "Evolving reduced system — starting")
         instruments = Instruments._create_instruments(
             pt,
             seq;
             default=default_instr,
             alg=alg,
-            reporter=reporter,
-            progress_desc="Evolving reduced system — materializing instruments",
+            run=run,
         )
 
         # Exactly `nsteps` reduced states: index `j` is the snapshot after PT slab `j-1`
@@ -88,10 +88,10 @@ function evolve(
         states_hilbert = Vector{MPO{Hilbert}}(undef, pt.nsteps)
         times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
 
-        _ensure_spinner!(reporter, "Evolving reduced system — preparing trajectory")
+        @progress_stage run "Preparing trajectory"
         prev_pt_core = pt.core[1] * instruments[1]
 
-        snapshots = function (update!)
+        @progress_bar run "Computing reduced snapshots" pt.nsteps begin
             for k in 0:(pt.nsteps - 1)
                 if k > 0
                     step = k
@@ -104,28 +104,21 @@ function evolve(
                 rho_liouv = _liouville_mps_from_itensor(reduced, out_sites)
                 states_liouville[k + 1] = rho_liouv
                 states_hilbert[k + 1] = to_hilbert(rho_liouv)
-                # Keep a single-line ProgressMeter layout (no showvalues). Extra
-                # value lines leave residue after cleanup and desync the header spinner.
-                _set_spinner_desc!(
-                    reporter,
-                    "Evolving reduced system — computing snapshots (t=$(times[k + 1]))",
-                )
-                update!(k + 1)
+                snapshot = k + 1
+                @progress_update run snapshot (t=times[snapshot],)
             end
         end
-        _with_progress(
-            snapshots,
-            reporter,
-            "Evolving reduced system — computing snapshots",
-            pt.nsteps,
-        )
 
-        _clear_stage!(reporter)
         result = (times=times, states_liouville=states_liouville, states_hilbert=states_hilbert)
-        verbose && @info "Evolved reduced system" nsteps=pt.nsteps dt=pt.dt snapshots=pt.nsteps elapsed_seconds=(time() - started)
+        @progress_stage run "Evolved reduced system" (
+            nsteps=pt.nsteps,
+            dt=pt.dt,
+            snapshots=pt.nsteps,
+            elapsed_seconds=(time() - started),
+        )
         return result
     finally
-        _clear_stage!(reporter)
+        @progress_finish run
     end
 end
 

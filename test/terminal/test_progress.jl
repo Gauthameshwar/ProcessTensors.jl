@@ -4,199 +4,316 @@
 # File: test/terminal/test_progress.jl
 # Contributor: Gauthameshwar S.
 #
-# Tests terminal progress enablement, refresh behavior, and cleanup after
-# successful and failing progress scopes.
+# Tests the terminal progress backend: strict no-op guarantees, spinner and bar
+# lifecycles, cleanup after success and failure, verbose combinations, macro
+# hygiene, and dependency isolation of terminal mechanics.
 #
 # Run with:
 # julia --project=. test/runtests.jl
 
 using ProcessTensors
 using ITensors
+using Logging
 using Test
 
-@testset "terminal progress reporter" begin
-    @testset "enablement" begin
-        quiet_output = IOBuffer()
-        quiet = ProcessTensors._progress_reporter(false; output=quiet_output)
-        @test !quiet.enabled
-
-        forced_output = IOBuffer()
-        forced = ProcessTensors._progress_reporter(true; output=forced_output)
-        @test forced.enabled
-
-        auto = ProcessTensors._progress_reporter(:auto; output=IOBuffer())
-        @test !auto.enabled
-        @test_throws ArgumentError ProcessTensors._progress_reporter(:unsupported)
-    end
-
-    @testset "determinate refresh and cleanup" begin
-        output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
-        snapshots = String[]
-        println(output, "[ Info: before progress")
-        ProcessTensors._with_progress(reporter, "Testing bar", 20) do update!
-            for step in 1:20
-                update!(step)
-                sleep(0.01)
-                push!(snapshots, String(take!(copy(output))))
+# Dummy tracked workflow used to exercise the full five-macro integration
+# pattern (also validates that a new builder can add reporting with macros only).
+function _dummy_tracked_workflow(;
+    nsteps::Int=3,
+    progress::Union{Bool,Symbol},
+    verbose::Bool,
+    output::IO=IOBuffer(),
+)
+    run = ProcessTensors._run_reporter(progress, verbose; output=output)
+    ProcessTensors._progress_start!(run, "Running dummy workflow"; nsteps=nsteps)
+    try
+        ProcessTensors.@progress_stage run "Preparing dummy workspace"
+        total = 0
+        ProcessTensors.@progress_bar run "Advancing dummy trajectory" nsteps begin
+            for step in 1:nsteps
+                total += step
+                ProcessTensors.@progress_update run step (t=step,)
             end
         end
-        println(output, "[ Info: after progress")
-        final_output = String(take!(output))
-        @test reporter.bar === nothing
-        @test !reporter.spinner_active
-        @test length(unique(snapshots)) > 1
-        @test endswith(final_output, "\n")
-        @test occursin("[ Info: before progress", final_output)
-        @test occursin("[ Info: after progress", final_output)
-        @test occursin("\e[2K", final_output)
+        ProcessTensors.@progress_stage run "Finished dummy workflow" (total=total,)
+        return total
+    finally
+        ProcessTensors.@progress_finish run
+    end
+end
+
+@testset "terminal progress backend" begin
+    @testset "reporter construction" begin
+        @test ProcessTensors._run_reporter(false, false) isa ProcessTensors._NoRunReporter
+        @test ProcessTensors._run_reporter(false, true).verbose
+        @test ProcessTensors._run_reporter(true, false; output=IOBuffer()) isa
+              ProcessTensors._TTYRunReporter
+        # :auto never activates on a non-TTY output.
+        @test ProcessTensors._run_reporter(:auto, false; output=IOBuffer()) isa
+              ProcessTensors._NoRunReporter
+        @test_throws ArgumentError ProcessTensors._run_reporter(:unsupported, false)
     end
 
-    @testset "showvalues bar cleanup leaves no residue before logs" begin
+    @testset "no-op guarantees when progress is disabled" begin
         output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
-        ProcessTensors._ensure_spinner!(reporter, "Stage — running")
-        ProcessTensors._with_progress(reporter, "Stage — barred", 6) do update!
-            for step in 1:6
-                update!(step; showvalues=() -> [("time", 0.1 * step)])
+        run = ProcessTensors._run_reporter(false, false; output=output)
+        ProcessTensors._progress_start!(run, "Silent operation"; nsteps=2)
+        ProcessTensors.@progress_stage run "Silent stage"
+        executed = 0
+        ProcessTensors.@progress_bar run "Silent bar" 3 begin
+            for step in 1:3
+                executed += 1
+                ProcessTensors.@progress_update run step (t=step,)
             end
         end
-        ProcessTensors._clear_stage!(reporter)
-        println(output, "[ Info: after showvalues progress")
-        final_output = String(take!(output))
-        @test reporter.bar === nothing
-        @test !reporter.spinner_active
-        @test occursin("[ Info: after showvalues progress", final_output)
-        # Durable log text after cleanup must not carry a leftover finished-bar fragment.
-        info_match = match(r"\[ Info: after showvalues progress[^\n]*", final_output)
-        @test info_match !== nothing
-        @test !occursin("100%", info_match.match)
-        @test !occursin("ETA:", info_match.match)
-        @test !occursin("Time: 0:", info_match.match)
+        ProcessTensors.@progress_finish run
+        @test executed == 3
+        @test isempty(String(take!(output)))
     end
 
-    @testset "spinner refresh and cleanup" begin
+    @testset "spinner lifecycle" begin
         output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
-        ProcessTensors._with_spinner(reporter, "Testing spinner") do
-            sleep(0.25)
-        end
+        run = ProcessTensors._run_reporter(true, false; output=output)
+        @test run.state == ProcessTensors._ProgressIdle
+
+        ProcessTensors._progress_start!(run, "Demo operation")
+        @test run.state == ProcessTensors._ProgressSpinner
+        @test run.task !== nothing
+        # The first frame is painted synchronously before the worker starts.
+        @test occursin("Demo operation", String(take!(copy(output))))
+
+        ProcessTensors.@progress_stage run "Working stage"
+        @test run.description == "Working stage"
+
+        sleep(3 * ProcessTensors._SPINNER_INTERVAL + 0.1)
+        @test run.frame > 0
+
+        ProcessTensors.@progress_finish run
+        @test run.state == ProcessTensors._ProgressClosed
+        @test run.task === nothing
         final_output = String(take!(output))
-        @test !reporter.spinner_active
+        @test occursin("Working stage", final_output)
+        # Final cleanup leaves the header line erased with the cursor at column 0.
+        @test endswith(final_output, "\r\e[2K")
+
+        # Repeated finish is safe and stays closed.
+        ProcessTensors.@progress_finish run
+        @test run.state == ProcessTensors._ProgressClosed
+    end
+
+    @testset "thread selection for the spinner worker" begin
+        output = IOBuffer()
+        run = ProcessTensors._run_reporter(true, false; output=output)
+        ProcessTensors._progress_start!(run, "Thread policy")
+        task = run.task
+        @test task isa Task
+        @test !istaskdone(task)
+        n_default = Threads.nthreads(:default)
+        n_interactive = Threads.nthreads(:interactive)
+        if n_default + n_interactive <= 1
+            # Cooperative fallback on the only Julia thread.
+            @test task.sticky
+        elseif n_interactive > 0
+            # Default-pool background worker (main lives in the interactive pool).
+            @test !istaskdone(task)
+        else
+            # Sticky pin onto a non-main default thread.
+            @test task.sticky
+        end
+        ProcessTensors.@progress_finish run
+    end
+
+    @testset "bar value formatting is fixed-width" begin
+        @test ProcessTensors._format_bar_value(1.1) == "1.10"
+        @test ProcessTensors._format_bar_value(1.15) == "1.15"
+        @test ProcessTensors._format_bar_value(1.0 + 2.345im) == "1.00+2.35im"
+        @test ProcessTensors._format_bar_value(1.0 - 2.345im) == "1.00-2.35im"
+        @test ProcessTensors._format_bar_value(128) == "128"
+    end
+
+    @testset "bar lifecycle" begin
+        output = IOBuffer()
+        run = ProcessTensors._run_reporter(true, false; output=output)
+
+        # A bar may begin only from the spinner state.
+        ProcessTensors._begin_progress_bar!(run, "Too early", 3)
+        @test run.state == ProcessTensors._ProgressIdle
+        @test run.bar isa ProcessTensors._NoBar
+
+        ProcessTensors._progress_start!(run, "Bar demo")
+        result = ProcessTensors.@progress_bar run "Assembling dummy cores" 5 begin
+            for step in 1:5
+                ProcessTensors.@progress_update run step (t=step / 10,)
+                sleep(0.02)
+            end
+            @test run.state == ProcessTensors._ProgressSpinnerBar
+            @test run.bar isa ProcessTensors._ProgressMeterBar
+            :done
+        end
+        @test result === :done
+        # Bar cleanup returns to spinner-only display; the spinner survives.
+        @test run.state == ProcessTensors._ProgressSpinner
+        @test run.bar isa ProcessTensors._NoBar
+
+        captured = String(take!(copy(output)))
+        @test occursin("Assembling dummy cores", captured)
+        @test occursin("100%", captured)
+        # Tracked values stay compact, fixed-width, and inline on the bar line.
+        @test occursin("t=0.50", captured)
+
+        # An exception inside the bar body still clears the bar.
+        @test_throws ErrorException ProcessTensors.@progress_bar run "Failing bar" 2 begin
+            ProcessTensors.@progress_update run 1
+            error("expected bar failure")
+        end
+        @test run.bar isa ProcessTensors._NoBar
+        @test run.state == ProcessTensors._ProgressSpinner
+
+        ProcessTensors.@progress_finish run
+        @test run.state == ProcessTensors._ProgressClosed
+    end
+
+    @testset "full cleanup on success and failure" begin
+        output = IOBuffer()
+        total = _dummy_tracked_workflow(progress=true, verbose=false, output=output)
+        @test total == 6
+        final_output = String(take!(output))
         @test !isempty(final_output)
-        @test occursin("\r\e[2K", final_output) || occursin("Testing spinner", final_output)
-    end
+        @test endswith(final_output, "\r\e[2K")
 
-    @testset "header spinner survives child progress bar" begin
-        output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
-        ProcessTensors._ensure_spinner!(reporter, "Stage A — preparing")
-        sleep(0.15)
-        ProcessTensors._ensure_spinner!(reporter, "Stage B — exponentiating")
-        sleep(0.15)
-        @test reporter.spinner_active
-        @test occursin("Stage B", reporter.spinner_desc)
-        ProcessTensors._with_progress(reporter, "Stage C — assembling", 4) do update!
-            for step in 1:4
-                update!(step)
-                sleep(0.05)
-            end
-            @test reporter.spinner_active
-            @test reporter.bar !== nothing
-        end
-        @test reporter.bar === nothing
-        @test reporter.spinner_active
-        @test occursin("Stage C", reporter.spinner_desc)
-        ProcessTensors._clear_stage!(reporter)
-        @test !reporter.spinner_active
-    end
-
-    @testset "failure cleanup preserves exception" begin
-        output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
+        failing_output = IOBuffer()
+        run = ProcessTensors._run_reporter(true, false; output=failing_output)
         err = try
-            ProcessTensors._with_progress(reporter, "Failing stage", 2) do update!
-                update!(1)
-                error("expected progress failure")
+            ProcessTensors._progress_start!(run, "Failing operation")
+            try
+                ProcessTensors.@progress_bar run "Failing stage" 2 begin
+                    ProcessTensors.@progress_update run 1
+                    error("expected workflow failure")
+                end
+            finally
+                ProcessTensors.@progress_finish run
             end
             nothing
         catch caught
             caught
         end
         @test err isa ErrorException
-        @test occursin("expected progress failure", sprint(showerror, err))
-        @test reporter.bar === nothing
-        @test !reporter.spinner_active
+        @test occursin("expected workflow failure", sprint(showerror, err))
+        @test run.state == ProcessTensors._ProgressClosed
+        @test run.bar isa ProcessTensors._NoBar
+        @test endswith(String(take!(failing_output)), "\r\e[2K")
     end
 
-    @testset "disabled reporter remains silent" begin
+    @testset "warnings stay visible while progress is active" begin
         output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(false; output=output)
-        ProcessTensors._with_progress(reporter, "Silent stage", 2) do update!
-            update!(1)
-            update!(2)
-        end
-        @test reporter.bar === nothing
-        @test !reporter.spinner_active
-        @test isempty(String(take!(output)))
+        run = ProcessTensors._run_reporter(true, false; output=output)
+        ProcessTensors._progress_start!(run, "Warning demo")
+        @test_logs (:warn, r"visible warning") @warn "visible warning"
+        ProcessTensors.@progress_finish run
     end
 
-    @testset "verbose workflow logs are durable and opt-in" begin
+    @testset "verbose and progress combinations" begin
+        # progress=false, verbose=false: silence on both channels.
+        quiet_output = IOBuffer()
+        @test_logs min_level = Logging.Info _dummy_tracked_workflow(
+            progress=false, verbose=false, output=quiet_output,
+        )
+        @test isempty(String(take!(quiet_output)))
+
+        # progress=false, verbose=true: durable checkpoints, no transient bytes.
+        verbose_output = IOBuffer()
+        @test_logs (:info, r"Running dummy workflow") (:info, r"Preparing dummy workspace") (
+            :info,
+            r"Advancing dummy trajectory",
+        ) (:info, r"Finished dummy workflow") _dummy_tracked_workflow(
+            progress=false, verbose=true, output=verbose_output,
+        )
+        @test isempty(String(take!(verbose_output)))
+
+        # progress=true, verbose=false: transient bytes, no logs.
+        live_output = IOBuffer()
+        @test_logs min_level = Logging.Info _dummy_tracked_workflow(
+            progress=true, verbose=false, output=live_output,
+        )
+        @test !isempty(String(take!(live_output)))
+
+        # progress=true, verbose=true: both channels active.
+        both_output = IOBuffer()
+        @test_logs (:info, r"Running dummy workflow") match_mode = :any _dummy_tracked_workflow(
+            progress=true, verbose=true, output=both_output,
+        )
+        @test !isempty(String(take!(both_output)))
+    end
+
+    @testset "macro hygiene and single evaluation" begin
+        run_evals = Ref(0)
+        desc_evals = Ref(0)
+        total_evals = Ref(0)
+        get_run() = (run_evals[] += 1; ProcessTensors._NO_RUN_REPORTER)
+        get_desc() = (desc_evals[] += 1; "Counted stage")
+        get_total() = (total_evals[] += 1; 2)
+
+        value = ProcessTensors.@progress_bar get_run() get_desc() get_total() begin
+            ProcessTensors.@progress_update ProcessTensors._NO_RUN_REPORTER 1
+            41 + 1
+        end
+        @test value == 42
+        @test run_evals[] == 1
+        @test desc_evals[] == 1
+        @test total_evals[] == 1
+
+        stage_meta_evals = Ref(0)
+        get_meta() = (stage_meta_evals[] += 1; (n=1,))
+        ProcessTensors.@progress_stage ProcessTensors._NO_RUN_REPORTER "Stage" get_meta()
+        @test stage_meta_evals[] == 1
+
+        # Local variables inside the bar body remain visible afterwards.
+        accumulated = 0
+        ProcessTensors.@progress_bar ProcessTensors._NO_RUN_REPORTER "Locals" 2 begin
+            for step in 1:2
+                accumulated += step
+            end
+        end
+        @test accumulated == 3
+    end
+
+    @testset "workflow verbose logs are durable and opt-in" begin
         sites = siteinds("S=1/2", 1)
         system = spin_system(sites, OpSum() + (0.2, "Sz", 1))
-        @test_logs (:info, r"Built process tensor") build_process_tensor(
+        @test_logs (:info, r"Built process tensor") match_mode = :any build_process_tensor(
             system;
             dt=0.1,
             nsteps=2,
             progress=false,
             verbose=true,
         )
-    end
 
-    @testset "evolve staged captions survive through snapshot bar" begin
-        sites = siteinds("S=1/2", 1)
-        system = spin_system(sites, OpSum() + (0.2, "Sz", 1))
         pt = build_process_tensor(system; dt=0.1, nsteps=3, progress=false)
         rho0 = to_dm(MPS(sites, ["Up"]))
-        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq, StatePreparation(rho0), 0)
-
-        output = IOBuffer()
-        reporter = ProcessTensors._progress_reporter(true; output=output)
-        ProcessTensors._ensure_spinner!(reporter, "Evolving reduced system — starting")
-        @test occursin("starting", reporter.spinner_desc)
-
-        instruments = ProcessTensors.Instruments._create_instruments(
-            pt,
-            seq;
-            default=IdentityOperation(),
-            reporter=reporter,
-            progress_desc="Evolving reduced system — materializing instruments",
-        )
-        @test length(instruments) == pt.nsteps + 1
-        @test reporter.spinner_active
-        @test occursin("materializing", reporter.spinner_desc)
-
-        ProcessTensors._ensure_spinner!(reporter, "Evolving reduced system — preparing trajectory")
-        @test occursin("preparing", reporter.spinner_desc)
-
-        ProcessTensors._with_progress(
-            reporter,
-            "Evolving reduced system — computing snapshots",
-            pt.nsteps,
-        ) do update!
-            for k in 1:pt.nsteps
-                update!(k)
-            end
-            @test reporter.spinner_active
-            @test reporter.bar !== nothing
-        end
-        @test reporter.bar === nothing
-        @test occursin("snapshots", reporter.spinner_desc)
-        ProcessTensors._clear_stage!(reporter)
-
-        @test_logs (:info, r"Evolved reduced system") evolve(
+        @test_logs (:info, r"Evolved reduced system") match_mode = :any evolve(
             pt, rho0; progress=false, verbose=true,
         )
+        # Fully silent runs stay silent.
+        @test_logs min_level = Logging.Info evolve(pt, rho0; progress=false, verbose=false)
+    end
+
+    @testset "dependency isolation of terminal mechanics" begin
+        src_root = normpath(joinpath(@__DIR__, "..", "..", "src"))
+        terminal_dir = joinpath(src_root, "terminal")
+        forbidden = ("ProgressMeter.", "\e[", "/dev/tty", "python3",
+                     "BLAS.set_num_threads", "numprintedvalues")
+        offenders = String[]
+        for (root, _, files) in walkdir(src_root)
+            startswith(root, terminal_dir) && continue
+            for file in files
+                endswith(file, ".jl") || continue
+                text = read(joinpath(root, file), String)
+                for pattern in forbidden
+                    occursin(pattern, text) &&
+                        push!(offenders, string(joinpath(root, file), " contains ", repr(pattern)))
+                end
+            end
+        end
+        @test isempty(offenders)
     end
 end
