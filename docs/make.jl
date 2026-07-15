@@ -183,6 +183,7 @@ makedocs(;
         ],
         "Tutorials" => tutorial_sidebar,
         "Examples" => example_sidebar,
+        "Advanced Usage" => "advanced_usage.md",
         "API Reference" => "api.md",
     ],
 )

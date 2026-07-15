@@ -220,6 +220,13 @@ coupling += 1.0, "Sz", 1, "Sz", 2
 mode = spin_mode(env_liouv, H_env, ρ_env0_l; coupling=coupling)
 bath = spin_bath([mode])
 
+# !!! info "Live progress on long builds"
+#     Process-tensor construction can take noticeable time. For a dynamic spinner
+#     animation during CPU-heavy steps, start Julia with at least two threads,
+#     for example `julia --project=. -t 2` when launching Julia.
+#     See [Advanced Usage](@ref) for `progress`, `verbose`, and threading
+#     options.
+#
 # ### Build the process tensor
 #
 # The bath is integrated out here. The returned `ProcessTensor` stores the
