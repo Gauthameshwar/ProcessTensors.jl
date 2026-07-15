@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **Terminal progress and verbose operational logging.** `build_process_tensor`,
+  `create_instruments`, `evaluate_process`, `evolve`, and `tebd` accept
+  `progress=:auto|true|false` for transient ProgressMeter feedback and
+  `verbose=true` for persistent structured Julia logs. `:auto` enables meters
+  only on interactive non-CI terminals; all stages clear on completion or error.
+  Small interactive demonstrations live under `scripts/terminal/`.
 * **`OpenInput` / `OpenInOut` bookkeeping instruments.** Like `OpenOutput`, they
   materialize as `ITensor(1.0)` and leave declared process-tensor legs
   uncontracted. Aliases: `open_input`, `open_inout`.

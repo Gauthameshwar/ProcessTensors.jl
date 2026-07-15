@@ -123,6 +123,11 @@ liouvillian_propagator_itensor
 
 ### Process tensors
 
+Long-running workflows accept `progress=:auto|true|false` for transient
+interactive terminal meters and `verbose=false|true` for persistent structured
+Julia logs. Use `progress=false, verbose=true` for headless or redirected runs;
+these controls do not alter numerical results.
+
 ```@docs
 ProcessTensor
 AbstractPTBuilder

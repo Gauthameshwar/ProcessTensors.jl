@@ -8,8 +8,57 @@
 # algorithms.
 
 import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS
-import ITensors: scalar
+import ITensors: plev, scalar
 import ITensors.Ops: Trotter
+
+function _flatten_site_indices(sites::AbstractVector)
+    idxs = Index[]
+    for site in sites
+        site isa Tuple ? append!(idxs, collect(site)) : push!(idxs, site)
+    end
+    return idxs
+end
+
+function _open_pt_leg_counts(idxs::AbstractVector{<:Index})
+    n_input = count(idx -> plev(idx) == 1, idxs)
+    n_output = count(idx -> plev(idx) == 0, idxs)
+    return n_input, n_output
+end
+
+function _evaluate_result_shape_text(idxs::AbstractVector{<:Index})
+    isempty(idxs) && return "scalar"
+    return string(Tuple(dim.(idxs)))
+end
+
+function _evaluate_result_indices(result)
+    if result isa ComplexF64
+        return Index[]
+    elseif result isa MPO{Liouville}
+        return _flatten_site_indices(collect(siteinds(result)))
+    elseif result isa ITensor
+        return collect(inds(result))
+    else
+        throw(ArgumentError("evaluate_process: unexpected result type $(typeof(result))."))
+    end
+end
+
+function _evaluate_result_summary(result)
+    idxs = _evaluate_result_indices(result)
+    n_input, n_output = _open_pt_leg_counts(idxs)
+    if result isa ComplexF64
+        result_type = "ComplexF64"
+    elseif result isa MPO{Liouville}
+        result_type = "MPO{Liouville}"
+    else
+        result_type = "ITensor"
+    end
+    return (
+        open_input_sites=n_input,
+        open_output_sites=n_output,
+        result_type=_info_text(result_type),
+        shape=_info_text(_evaluate_result_shape_text(idxs)),
+    )
+end
 
 # Wrap a contracted ITensor (reduced density-matrix vector) into an MPS{Liouville}.
 function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:Index})
@@ -142,33 +191,48 @@ add!(seq, OpenOutput(), pt.nsteps)
 result = evaluate_process(pt, seq)
 ```
 """
-function evaluate_process(
+function _evaluate_process(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
-    verbose::Bool=false,
+    reporter=nothing,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evaluate_process")
 
-    if verbose
-        info = open_leg_info(pt, seq)
-        @info "evaluate_process: expected open legs" n_open = info.n_open_expected open_in = info.open_in open_out = info.open_out open_dims = info.open_dims
-    end
-
-    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
+    # Keep "starting" through validation; callers may already have set that caption.
+    _ensure_spinner!(reporter, "Evaluating process — starting")
+    instruments = Instruments._create_instruments(
+        pt,
+        seq;
+        default=default_instr,
+        alg=alg,
+        reporter=reporter,
+        progress_desc="Evaluating process — materializing instruments",
+    )
+    _ensure_spinner!(reporter, "Evaluating process — preparing contraction")
     result = pt.core[1] * instruments[1]
-    for step in 1:(pt.nsteps - 1)
-        result *= instruments[step + 1]
-        result *= pt.core[step + 1]
+    contract = function (update!)
+        for step in 1:(pt.nsteps - 1)
+            result *= instruments[step + 1]
+            result *= pt.core[step + 1]
+            update!(step)
+        end
+    end
+    if reporter === nothing
+        contract(_ -> nothing)
+    else
+        _with_progress(
+            contract,
+            reporter,
+            "Evaluating process — contracting",
+            max(pt.nsteps - 1, 1),
+        )
     end
     result *= instruments[pt.nsteps + 1]
 
     n_open = length(inds(result))
-    if verbose
-        @info "evaluate_process: contracted" n_open = n_open open_inds = collect(inds(result))
-    end
 
     legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
     
@@ -190,6 +254,38 @@ function evaluate_process(
     end
 end
 
+function evaluate_process(
+    pt::ProcessTensor,
+    seq::InstrumentSeq;
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+    alg=Trotter{2}(),
+    all_legs_contracted::Union{Nothing,Bool}=nothing,
+    progress::Union{Bool,Symbol}=:auto,
+    verbose::Bool=false,
+)
+    reporter = _progress_reporter(progress)
+    started = time()
+    try
+        _ensure_spinner!(reporter, "Evaluating process — starting")
+        result = _evaluate_process(
+            pt,
+            seq;
+            default_instr=default_instr,
+            alg=alg,
+            all_legs_contracted=all_legs_contracted,
+            reporter=reporter,
+        )
+        _clear_stage!(reporter)
+        if verbose
+            summary = _evaluate_result_summary(result)
+            @info "Evaluated process" nsteps=pt.nsteps elapsed_seconds=(time() - started) summary...
+        end
+        return result
+    finally
+        _clear_stage!(reporter)
+    end
+end
+
 """
     evaluate_process(pt, seqs::AbstractVector{<:InstrumentSeq}; kwargs...) -> Vector{ComplexF64}
 
@@ -199,19 +295,41 @@ per schedule.
 function evaluate_process(
     pt::ProcessTensor,
     seqs::AbstractVector{<:InstrumentSeq};
-    kwargs...
+    default_instr::AbstractInstrument=_schedule_default_instr(pt),
+    alg=Trotter{2}(),
+    progress::Union{Bool,Symbol}=:auto,
+    verbose::Bool=false,
 )
     results = Vector{ComplexF64}(undef, length(seqs))
-    for i in eachindex(seqs)
-        val = evaluate_process(pt, seqs[i]; kwargs...)
-        val isa ComplexF64 || throw(
-            ArgumentError(
-                "evaluate_process(batch): schedule at index $i is not fully contracted; " *
-                "batch overload requires scalar schedules (all_pt_legs_contracted=true).",
-            ),
-        )
-        results[i] = val
+    reporter = _progress_reporter(progress)
+    started = time()
+    evaluate_batch = function (update!)
+        for i in eachindex(seqs)
+            val = _evaluate_process(
+                pt,
+                seqs[i];
+                default_instr=default_instr,
+                alg=alg,
+                reporter=nothing,
+            )
+            val isa ComplexF64 || throw(
+                ArgumentError(
+                    "evaluate_process(batch): schedule at index $i is not fully contracted; " *
+                    "batch overload requires scalar schedules (all_pt_legs_contracted=true).",
+                ),
+            )
+            results[i] = val
+            update!(i)
+        end
     end
+    try
+        _ensure_spinner!(reporter, "Evaluating process batch — starting")
+        _with_progress(evaluate_batch, reporter, "Evaluating process batch — schedules", length(seqs))
+        _clear_stage!(reporter)
+    finally
+        _clear_stage!(reporter)
+    end
+    verbose && @info "Evaluated process batch" schedules=length(seqs) nsteps=pt.nsteps open_input_sites=0 open_output_sites=0 result_type=_info_text("ComplexF64") shape=_info_text("scalar") elapsed_seconds=(time() - started)
     return results
 end
 

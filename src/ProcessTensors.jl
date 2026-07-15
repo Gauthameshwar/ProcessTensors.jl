@@ -12,6 +12,10 @@ module ProcessTensors
 using ITensors
 import ITensorMPS
 
+# Terminal feedback
+
+include("terminal/progress.jl")
+
 # Foundation
 
 include("basis.jl")

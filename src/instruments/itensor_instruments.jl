@@ -417,7 +417,7 @@ function instrument_itensor(
 end
 
 """
-    create_instruments(pt, seq; default, alg)
+    create_instruments(pt, seq; default, alg, progress=:auto, verbose=false)
 
 Materialize an `InstrumentSeq` as one `ITensor` per schedule slot.
 
@@ -435,11 +435,13 @@ replaced by `default` when it still lies in the evolve range. A terminal
 
 Every slot is then materialized only through [`instrument_itensor`](@ref).
 """
-function create_instruments(
+function _create_instruments(
     pt::ProcessTensors.ProcessTensor,
     seq::InstrumentSeq;
     default::AbstractInstrument=ProcessTensors._schedule_default_instr(pt),
     alg=Trotter{2}(),
+    reporter=nothing,
+    progress_desc::AbstractString="Materializing instrument schedule",
 )
     n = pt.nsteps
     slots = Vector{AbstractInstrument}(undef, n + 1)
@@ -500,15 +502,66 @@ function create_instruments(
     ProcessTensors._validate_instrument_schedule!(pt, seq, default, "create_instruments")
 
     instruments = Vector{ITensor}(undef, n + 1)
-    instruments[1] = instrument_itensor(slots[1], ProcessTensors.input_sites(pt, 0), 0)
-    for step in 1:(n - 1)
-        out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
-        instruments[step + 1] = instrument_itensor(
-            slots[step + 1], in_curr, out_prev, step; dt=pt.dt, alg=alg,
+    materialize = function (update!)
+        instruments[1] = instrument_itensor(slots[1], ProcessTensors.input_sites(pt, 0), 0)
+        update!(1)
+        for step in 1:(n - 1)
+            out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
+            instruments[step + 1] = instrument_itensor(
+                slots[step + 1], in_curr, out_prev, step; dt=pt.dt, alg=alg,
+            )
+            update!(step + 1)
+        end
+        out_final, _ = ProcessTensors.coupling_times(pt, n)
+        instruments[n + 1] = instrument_itensor(slots[end], out_final, n - 1)
+        update!(n + 1)
+    end
+    if reporter === nothing
+        materialize(_ -> nothing)
+    else
+        ProcessTensors._with_progress(
+            materialize,
+            reporter,
+            progress_desc,
+            n + 1,
         )
     end
-    out_final, _ = ProcessTensors.coupling_times(pt, n)
-    instruments[n + 1] = instrument_itensor(slots[end], out_final, n - 1)
 
     return instruments
+end
+
+"""
+    create_instruments(pt, seq; default, alg=Trotter{2}(),
+                       progress=:auto, verbose=false)
+
+Materialize one `ITensor` per process-tensor schedule slot. `progress` controls
+transient terminal feedback and `verbose=true` emits one completion `@info`
+summary after materialization finishes.
+"""
+function create_instruments(
+    pt::ProcessTensors.ProcessTensor,
+    seq::InstrumentSeq;
+    default::AbstractInstrument=ProcessTensors._schedule_default_instr(pt),
+    alg=Trotter{2}(),
+    progress::Union{Bool,Symbol}=:auto,
+    verbose::Bool=false,
+)
+    reporter = ProcessTensors._progress_reporter(progress)
+    started = time()
+    try
+        ProcessTensors._ensure_spinner!(reporter, "Materializing instruments — starting")
+        instruments = _create_instruments(
+            pt,
+            seq;
+            default=default,
+            alg=alg,
+            reporter=reporter,
+            progress_desc="Materializing instruments — building ITensors",
+        )
+        ProcessTensors._clear_stage!(reporter)
+        verbose && @info "Materialized instrument schedule" nsteps=pt.nsteps slots=length(instruments) elapsed_seconds=(time() - started)
+        return instruments
+    finally
+        ProcessTensors._clear_stage!(reporter)
+    end
 end

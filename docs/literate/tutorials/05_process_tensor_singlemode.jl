@@ -680,6 +680,32 @@ println(corr)
 @assert corr isa ComplexF64
 @assert isfinite(real(corr))
 
+# ### Monitoring long runs
+#
+# For larger baths or longer schedules, `progress` controls transient terminal
+# bars while `verbose` controls persistent Julia log records. They do not change
+# the constructed process tensor or its contractions.
+#
+# ```julia
+# # Local interactive terminal
+# pt = build_process_tensor(system; environment, dt, nsteps, progress=:auto)
+#
+# # Remote or redirected run
+# pt = build_process_tensor(
+#     system; environment, dt, nsteps, progress=false, verbose=true,
+# )
+#
+# # Fully quiet run
+# pt = build_process_tensor(
+#     system; environment, dt, nsteps, progress=false, verbose=false,
+# )
+# ```
+#
+# Progress bars clear after each stage. Verbose records remain useful in headless
+# logs and report operation starts, important stages, and completion summaries
+# without emitting one line per timestep. Small runnable terminal demonstrations
+# are available in `scripts/terminal/`.
+
 # ### Summary
 #
 # In this tutorial, we learned that:
