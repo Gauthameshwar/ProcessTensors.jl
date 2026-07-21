@@ -337,6 +337,17 @@ function max_curve_error(exact::AbstractVector, approx::AbstractVector)
     return maximum(abs.(exact .- approx); init=0.0)
 end
 
+function print_series_diagnostics(label::AbstractString, exact, metrics)
+    err_x = max_curve_error(exact.sx, metrics.sx)
+    err_z = max_curve_error(exact.sz, metrics.sz)
+    max_drift = maximum(metrics.energy_drift; init=0.0)
+    println(label)
+    @printf("    max |⟨σ_x⟩−ED| = %.3e\n", err_x)
+    @printf("    max |⟨σ_z⟩−ED| = %.3e\n", err_z)
+    @printf("    max energy drift = %.3e\n", max_drift)
+    return (err_x, err_z, max_drift)
+end
+
 const METHOD_COLORS = Dict(
     :plain => :dodgerblue3,
     :gse10 => :seagreen3,
@@ -645,19 +656,12 @@ push!(run_series, (; label=label_2site_l, method=:tdvp2, space=:liouville, metri
 
 print_section("Diagnostics")
 
-observable_errors = map(run_series) do series
-    err_x = max_curve_error(exact.sx, series.metrics.sx)
-    err_z = max_curve_error(exact.sz, series.metrics.sz)
-    @printf("%-18s  max |⟨σ_x⟩−ED| = %.3e  max |⟨σ_z⟩−ED| = %.3e\n", series.label, err_x, err_z)
-    (series.label, err_x, err_z)
+for series in run_series
+    print_series_diagnostics(series.label, exact, series.metrics)
+    println()
 end
 
-max_sx_err = maximum(last -> last[2], observable_errors)
-max_sz_err = maximum(last -> last[3], observable_errors)
-final_energy_drift = maximum(series -> maximum(series.metrics.energy_drift), run_series)
-
 @assert all(isfinite, exact.sx) && all(isfinite, exact.sz)
-@printf("max energy drift (TDVP) = %.3e\n", final_energy_drift)
 
 # ------------------------------------------------------------------------------
 # 6. Plotting and saved outputs
@@ -725,8 +729,3 @@ println("Main outputs:")
 println("  figure: $fig_path_x")
 println("  figure: $fig_path_z")
 println("  figure: $fig_path_cons")
-println()
-println("Main diagnostics:")
-@printf("  max |⟨σ_x⟩ − ED|     = %.3e\n", max_sx_err)
-@printf("  max |⟨σ_z⟩ − ED|     = %.3e\n", max_sz_err)
-@printf("  max energy drift     = %.3e\n", final_energy_drift)

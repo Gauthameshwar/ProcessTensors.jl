@@ -4,302 +4,255 @@
 # File: docs/literate/examples/tebd_time_evolution.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
-# Literate example: unitary TFIM with Hilbert- and Liouville-space TEBD. #src
+# Demonstrates unitary TEBD for the same spin chain in Hilbert and Liouville #src
+# space, with a compact exact small-system reference. #src
 
 # # TEBD time evolution
 #
-# Time-evolving block decimation (TEBD) approximates the time-evolution
-# operator by a sequence of local gates. In this example we use TEBD to
-# evolve a transverse-field Ising chain and compare the result with exact
-# diagonalization.
+# Time-evolving block decimation (TEBD) approximates the propagator by a
+# sequence of local Suzuki–Trotter gates. This example keeps the main comparison
+# visible: evolve a pure-state MPS in Hilbert space, then evolve its vectorized
+# density matrix in Liouville space.
 #
-# We run the same unitary dynamics in two representations:
-#
-# - Hilbert space: evolve an MPS state `ψ(t)`.
-# - Liouville space: evolve the vectorized density matrix `ρ(t)`.
-#
-# For a closed system, both descriptions should agree.
-#
-# See also the [Unitary Dynamics](@ref) tutorial for TEBD/TDVP background,
-# and `scripts/tebd_tfim_unitary.jl` for the full benchmark script that
-# regenerates the figures below.
+# Both representations describe the same closed-system physics. This page keeps
+# a compact Hilbert/Liouville comparison. For timestep sweeps, Trotter-order
+# benchmarks, detailed error diagnostics, and plotting, see the full script
+# [`scripts/tebd_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim_unitary.jl).
 
-# ## Setup
+# ## Transverse-field Ising model
+#
+# We study
+#
+# ```math
+# H=-J\sum_{j=1}^{N-1}Z_jZ_{j+1}-h\sum_{j=1}^{N}X_j
+# ```
+#
+# from the product state
+# ``|\psi(0)\rangle=|\mathrm{Up}\cdots\mathrm{Up}\rangle``.
 
-using Printf
-using ProcessTensors
 using ITensors
 using LinearAlgebra
-
-function tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
-    os = OpSum()
-    for j in 1:(N - 1)
-        os += -J, "Z", j, "Z", j + 1
-    end
-    for j in 1:N
-        os += -h, "X", j
-    end
-    return os
-end
-
-function single_site_pauli_mpos(op::AbstractString, physical_sites)
-    N = length(physical_sites)
-    return MPO{Hilbert}[
-        let os = OpSum()
-            os += 1.0, op, j
-            MPO(os, physical_sites)
-        end for j in 1:N
-    ]
-end
-
-#-
-# For larger systems, increase `N`; the TEBD code is unchanged, while the ED
-# reference should be omitted.
-#-
+using ProcessTensors
 
 const N = 4
 const J = 1.0
 const h = 1.2
-const T_max = 9.0
-const dt_list = Float64[0.2, 0.1, 0.05]
-const trotter_orders = (1, 2)
-const maxdim = 128
+const dt = 0.1
+const final_time = 2.0
+const nsteps = round(Int, final_time / dt)
+const maxdim = 64
 const cutoff = 1e-12
-const n_exact = 281
 
-# ## Model and initial state
-#
-# The transverse-field Ising model on $N$ spins has Hamiltonian
-#
-# ```math
-# H = -J\sum_{j=1}^{N-1} \sigma^z_j \sigma^z_{j+1}
-#     - h\sum_{j=1}^{N} \sigma^x_j.
-# ```
-#
-# We start from the product state $|\uparrow\rangle^{\otimes N}$.
+sites = siteinds("S=1/2", N)
+liouville_sites = liouv_sites(sites)
 
-physical_sites = siteinds("S=1/2", N)
-liouv_sites_shared = liouv_sites(physical_sites)
-os_H = tfim_hamiltonian(N; J=J, h=h)
-H_mpo = MPO(os_H, physical_sites)
-jump_ops = Tuple{Number, String, Int}[]
-
-ψ0 = MPS(physical_sites, fill("Up", N))
-ρ0 = to_dm(ψ0)
-ρ0_vec = to_liouville(ρ0; sites=liouv_sites_shared)
-
-z_mpos = single_site_pauli_mpos("Z", physical_sites)
-x_mpos = single_site_pauli_mpos("X", physical_sites)
-@assert isapprox(real(sum(inner(ψ0', O, ψ0) for O in z_mpos) / N), 1.0; atol=1e-10)
-
-# ## Exact diagonalization reference
-#
-# We use ED only to make the TEBD approximation error visible. The scalable
-# method is TEBD itself.
-#
-# In Liouville space the vectorized density matrix obeys
-# $|\rho(t)\rangle\rangle = e^{t\mathcal{L}}|\rho(0)\rangle\rangle$ with
-# $\mathcal{L}\rho = -i[H,\rho]$ for closed dynamics.
-
-function hilbert_mpo_to_dense(ρ::AbstractMPO{Hilbert}, physical_sites)
-    T = foldl(*, ρ)
-    A = Array(T, prime.(physical_sites)..., physical_sites...)
-    return reshape(ComplexF64.(A), prod(dim.(physical_sites)), prod(dim.(physical_sites)))
-end
-
-function hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
-    dims = vcat(dim.(prime.(physical_sites)), dim.(physical_sites))
-    T = ITensor(reshape(ComplexF64.(M), Tuple(dims)), prime.(physical_sites)..., physical_sites...)
-    return MPO(T, physical_sites)
-end
-
-function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
-    d = prod(dim.(physical_sites))
-    d2 = d * d
-    L_dense = zeros(ComplexF64, d2, d2)
-    for b in 1:d, a in 1:d
-        q = a + (b - 1) * d
-        E = zeros(ComplexF64, d, d)
-        E[a, b] = 1.0
-        basis_q = to_liouville(hilbert_matrix_to_mpo(E, physical_sites); sites=liouv_sites_shared)
-        σ_q = apply(L_mpo, basis_q; cutoff=0.0, maxdim=typemax(Int))
-        ρ_out = hilbert_mpo_to_dense(to_hilbert(σ_q), physical_sites)
-        L_dense[:, q] = vec(ρ_out)
+H = let H_local = OpSum()
+    for j in 1:(N - 1)
+        H_local += -J, "Z", j, "Z", j + 1
     end
-    return L_dense
-end
-
-state_to_density_dense(state::AbstractMPS{Hilbert}, physical_sites) =
-    hilbert_mpo_to_dense(to_dm(state), physical_sites)
-state_to_density_dense(state::AbstractMPS{Liouville}, physical_sites) =
-    hilbert_mpo_to_dense(to_hilbert(state), physical_sites)
-
-density_error(ρ::AbstractMatrix, ρ_ref::AbstractMatrix) =
-    norm(ρ - ρ_ref) / max(norm(ρ_ref), eps(Float64))
-
-function dense_one_site_operator(op_name::AbstractString, physical_sites, site::Int)
-    local_ops = Matrix{ComplexF64}[]
-    for (j, s) in enumerate(physical_sites)
-        if j == site
-            push!(local_ops, Array(op(op_name, s), prime(s), s))
-        else
-            push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
-        end
+    for j in 1:N
+        H_local += -h, "X", j
     end
-    return foldl(kron, local_ops)
+    H_local
 end
 
-function exact_density_at(t::Real, L_dense::AbstractMatrix, vec0::AbstractVector, d::Int)
-    Lt = ComplexF64.(L_dense)
-    v0 = ComplexF64.(vec0)
-    vt = iszero(t) ? v0 : exp(t * Lt) * v0
-    return reshape(vt, d, d)
-end
+H_mpo = MPO(H, sites)
+initial_state = MPS(sites, fill("Up", N))
+initial_density = to_dm(initial_state)
+initial_density_liouville =
+    to_liouville(initial_density; sites=liouville_sites)
 
-function mean_sx_from_density(ρ::AbstractMatrix, x_ops)
-    return real(sum(tr(ρ * O) for O in x_ops) / length(x_ops))
-end
-
-function exact_sx_trajectory(L_dense, vec0, d, x_ops, times::AbstractVector)
-    return Float64[mean_sx_from_density(exact_density_at(t, L_dense, vec0, d), x_ops) for t in times]
-end
-
-function mean_sx(state::AbstractMPS{Hilbert}, x_mpos)
-    return real(sum(inner(state', O, state) for O in x_mpos) / length(x_mpos))
-end
-
-function mean_sx(state::AbstractMPS{Liouville}, x_mpos)
-    ρ_h = to_hilbert(state)
-    s = 0.0
-    for O in x_mpos
-        ρO = apply(O, ρ_h; alg="naive", truncate=false)
-        s += real(tr(ρO))
+mean_x = let observable = OpSum()
+    for j in 1:N
+        observable += 1 / N, "X", j
     end
-    return s / length(x_mpos)
+    observable
+end
+mean_x_mpo = MPO(mean_x, sites)
+mean_x_liouville = to_liouville(mean_x_mpo; sites=liouville_sites)
+
+@assert isapprox(real(inner(initial_state, initial_state)), 1; atol=1e-12)
+
+# ## Exact small-system reference
+#
+# Exact diagonalization is practical here only because ``N=4``. The tensor
+# contractions below expose the dense Hamiltonian, initial state, and mean-spin
+# observable directly. These will later be compared to the TEBD results we obtain 
+# using our `tebd` function.
+
+dimension = prod(dim.(sites))
+
+H_tensor = foldl(*, H_mpo)
+H_dense = reshape(
+    ComplexF64.(Array(H_tensor, prime.(sites)..., sites...)),
+    dimension,
+    dimension,
+)
+
+state_tensor = foldl(*, initial_state)
+state_dense = vec(ComplexF64.(Array(state_tensor, sites...)))
+density_dense = state_dense * state_dense'
+
+mean_x_tensor = foldl(*, mean_x_mpo)
+mean_x_dense = reshape(
+    ComplexF64.(Array(mean_x_tensor, prime.(sites)..., sites...)),
+    dimension,
+    dimension,
+)
+
+function exact_density_at(
+    time::Real,
+    H_dense::AbstractMatrix,
+    density0::AbstractMatrix,
+)
+    propagator = exp(-1im * time * H_dense)
+    return propagator * density0 * propagator'
 end
 
-println("Building Liouville ED reference...")
-d = prod(dim.(physical_sites))
-vec0 = vec(ComplexF64.(hilbert_mpo_to_dense(ρ0, physical_sites)))
-L_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
-x_ops = [dense_one_site_operator("X", physical_sites, j) for j in 1:N]
-t_exact = collect(range(0.0, T_max; length=n_exact))
-sx_exact = exact_sx_trajectory(L_dense, vec0, d, x_ops, t_exact)
-println("Final Sx: ", sx_exact[end])
+function exact_sx_trajectory(
+    H_dense::AbstractMatrix,
+    density0::AbstractMatrix,
+    mean_x_dense::AbstractMatrix,
+    times::AbstractVector,
+)
+    return [
+        real(tr(exact_density_at(time, H_dense, density0) * mean_x_dense))
+        for time in times
+    ]
+end
+
+times = collect(range(0.0; step=dt, length=nsteps + 1))
+sx_exact =
+    exact_sx_trajectory(H_dense, density_dense, mean_x_dense, times)
 
 # ## Hilbert-space TEBD
 #
-# `tebd` applies a Suzuki–Trotter product of local gates. `Trotter{1}()` and
-# `Trotter{2}()` differ in the splitting order; second order is usually more
-# accurate at the same timestep.
+# In Hilbert space, `tebd` applies the Hamiltonian gates directly to
+# ``|\psi\rangle``. We use second-order Trotter splitting and record
+# ``\langle\bar X\rangle`` after every step.
 
-function run_hilbert_tebd(ψ0, os_H, T_max, dt, alg; maxdim, cutoff)
-    ψ = copy(ψ0)
-    times = Float64[0.0]
-    rho_errs = Float64[density_error(state_to_density_dense(ψ, physical_sites), exact_density_at(0.0, L_dense, vec0, d))]
-    sx = Float64[mean_sx(ψ, x_mpos)]
-    t = 0.0
-    elapsed = @elapsed begin
-        while t < T_max - 1e-12
-            Δt = min(dt, T_max - t)
-            ψ = tebd(ψ, os_H, Δt, Δt; maxdim=maxdim, cutoff=cutoff, alg=alg)
-            t += Δt
-            push!(times, t)
-            ρ_ed = exact_density_at(t, L_dense, vec0, d)
-            push!(rho_errs, density_error(state_to_density_dense(ψ, physical_sites), ρ_ed))
-            push!(sx, mean_sx(ψ, x_mpos))
-        end
+hilbert_trajectory = let
+    state = copy(initial_state)
+    sx = Float64[real(inner(state', mean_x_mpo, state))]
+    elapsed = 0.0
+    for _ in 1:nsteps
+        elapsed += @elapsed state = tebd(
+            state,
+            H,
+            dt,
+            dt;
+            alg=Trotter{2}(),
+            maxdim=maxdim,
+            cutoff=cutoff,
+        )
+        push!(sx, real(inner(state', mean_x_mpo, state)))
     end
-    return (; times, rho_errs, sx, elapsed, max_bond=maxlinkdim(ψ))
+
+    (; state, sx, elapsed)
 end
 
-function print_tebd_summary(label::AbstractString, n::Int, dt::Real, result)
-    @printf("%s TEBD(%d) with dt=%.2f\n", label, n, dt)
-    @printf("  Total time taken: %.3f s\n", result.elapsed)
-    @printf("  |ρ - ρ_ED|:       %.3e\n", result.rho_errs[end])
-    @printf("  max bond dim:     %d\n", result.max_bond)
-    println()
-end
-
-println("Hilbert-space TEBD")
-println("------------------")
-hilbert_runs = Dict{Tuple{Int, Float64}, NamedTuple}()
-
-for n in trotter_orders, dt in dt_list
-    result = run_hilbert_tebd(ψ0, os_H, T_max, dt, Trotter{n}(); maxdim=maxdim, cutoff=cutoff)
-    hilbert_runs[(n, dt)] = result
-    print_tebd_summary("Hilbert", n, dt, result)
-end
-
-# ![Hilbert-space mean ⟨σ̄_x⟩](../assets/examples/tebd_tfim_unitary_hilbert_dynamics_mx.png)
-#
-# ![Hilbert-space density-matrix error](../assets/examples/tebd_tfim_unitary_hilbert_rho_error.png)
-#
-# ## Liouville-space TEBD
-#
-# The same `tebd` interface works on `MPS{Liouville}`. With an empty
-# `jump_ops` tuple, the Liouvillian reduces to the unitary commutator and the
-# dynamics stays closed. However, the maximum bond dimensions and the Liouville-space
-# dimensions are larger than that in the Hilbert space, making them expensive for larger systems. 
-
-function run_liouville_tebd(ρ0_vec, os_H, T_max, dt, alg; maxdim, cutoff, jump_ops)
-    current = copy(ρ0_vec)
-    times = Float64[0.0]
-    rho_errs = Float64[density_error(state_to_density_dense(current, physical_sites), exact_density_at(0.0, L_dense, vec0, d))]
-    sx = Float64[mean_sx(current, x_mpos)]
-    t = 0.0
-    elapsed = @elapsed begin
-        while t < T_max - 1e-12
-            Δt = min(dt, T_max - t)
-            current = tebd(
-                current,
-                os_H,
-                Δt,
-                Δt;
-                jump_ops=jump_ops,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                alg=alg,
-            )
-            t += Δt
-            push!(times, t)
-            ρ_ed = exact_density_at(t, L_dense, vec0, d)
-            push!(rho_errs, density_error(state_to_density_dense(current, physical_sites), ρ_ed))
-            push!(sx, mean_sx(current, x_mpos))
-        end
-    end
-    return (; times, rho_errs, sx, elapsed, max_bond=maxlinkdim(current))
-end
-
-println("Liouville-space TEBD")
-println("--------------------")
-liouville_runs = Dict{Tuple{Int, Float64}, NamedTuple}()
-
-for n in trotter_orders, dt in dt_list
-    result = run_liouville_tebd(
-        ρ0_vec, os_H, T_max, dt, Trotter{n}();
-        maxdim=maxdim, cutoff=cutoff, jump_ops=jump_ops,
-    )
-    liouville_runs[(n, dt)] = result
-    print_tebd_summary("Liouville", n, dt, result)
-end
-
-@assert all(isfinite, hilbert_runs[(1, dt_list[1])].rho_errs)
-@assert isapprox(
-    density_error(state_to_density_dense(ψ0, physical_sites), exact_density_at(0.0, L_dense, vec0, d)),
-    0.0;
-    atol=1e-12,
+hilbert_density = to_dm(hilbert_trajectory.state)
+hilbert_density_tensor = foldl(*, hilbert_density)
+hilbert_density_dense = reshape(
+    ComplexF64.(
+        Array(hilbert_density_tensor, prime.(sites)..., sites...)
+    ),
+    dimension,
+    dimension,
 )
 
-# ![Liouville-space mean ⟨σ̄_x⟩](../assets/examples/tebd_tfim_unitary_liouville_dynamics_mx.png)
+exact_final_density =
+    exact_density_at(final_time, H_dense, density_dense)
+hilbert_error =
+    norm(hilbert_density_dense - exact_final_density) /
+    norm(exact_final_density)
+
+println("TEBD(2) on Hilbert space with dt=$(dt)")
+println("    Wall time to final state: $(round(hilbert_trajectory.elapsed, digits=4)) s")
+println("    Norm error of the final matrix: $(round(hilbert_error, digits=6))")
+println("    Max bond dim of final state: $(maxlinkdim(hilbert_trajectory.state))")
+
+@assert all(isfinite, hilbert_trajectory.sx)
+@assert hilbert_error < 0.05
+
+# After sweeping timesteps and Trotter orders in
+# [`scripts/tebd_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim_unitary.jl),
+# the Hilbert-space dynamics and density-matrix error against ED look like:
 #
-# ![Liouville-space density-matrix error](../assets/examples/tebd_tfim_unitary_liouville_rho_error.png)
+# ![Hilbert-space TEBD and exact mean spin](../assets/examples/tebd_tfim_unitary_hilbert_dynamics_mx.png)
+# ![Hilbert-space TEBD error with respect to ED](../assets/examples/tebd_tfim_unitary_hilbert_rho_error.png)
+# ## Liouville-space TEBD
+#
+# In Liouville space, the state is ``|\rho\rangle\rangle`` and the same public
+# `tebd` function constructs the commutator Liouvillian internally. No jump
+# operators are supplied, so this remains closed unitary dynamics.
+
+empty_jumps = Tuple{Number,String,Int}[]
+
+liouville_trajectory = let
+    density = copy(initial_density_liouville)
+    sx = Float64[real(inner(mean_x_liouville, density))]
+    elapsed = 0.0
+    for _ in 1:nsteps
+        elapsed += @elapsed density = tebd(
+            density,
+            H,
+            dt,
+            dt;
+            jump_ops=empty_jumps,
+            alg=Trotter{2}(),
+            maxdim=maxdim,
+            cutoff=cutoff,
+        )
+        push!(sx, real(inner(mean_x_liouville, density)))
+    end
+
+    (; density, sx, elapsed)
+end
+
+liouville_density = to_hilbert(liouville_trajectory.density)
+liouville_density_tensor = foldl(*, liouville_density)
+liouville_density_dense = reshape(
+    ComplexF64.(
+        Array(liouville_density_tensor, prime.(sites)..., sites...)
+    ),
+    dimension,
+    dimension,
+)
+
+liouville_error =
+    norm(liouville_density_dense - exact_final_density) /
+    norm(exact_final_density)
+
+println("TEBD(2) on Liouville space with dt=$(dt)")
+println("    Wall time to final state: $(round(liouville_trajectory.elapsed, digits=4)) s")
+println("    Norm error of the final matrix: $(round(liouville_error, digits=6))")
+println("    Max bond dim of final state: $(maxlinkdim(liouville_trajectory.density))")
+
+@assert all(isfinite, liouville_trajectory.sx)
+@assert maximum(abs.(hilbert_trajectory.sx - sx_exact)) < 0.05
+@assert maximum(abs.(liouville_trajectory.sx - sx_exact)) < 0.05
+@assert liouville_error < 0.05
+
+# The Liouville trajectory is consistent with Hilbert TEBD. The final bond
+# dimension is typically larger in Liouville space because one evolves a
+# vectorized density matrix rather than a pure-state MPS.
+#
+# The corresponding figures from
+# [`scripts/tebd_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim_unitary.jl)
+# are:
+#
+# ![Liouville-space TEBD and exact mean spin](../assets/examples/tebd_tfim_unitary_liouville_dynamics_mx.png)
+# ![Liouville-space TEBD error with respect to ED](../assets/examples/tebd_tfim_unitary_liouville_rho_error.png)
 #
 # !!! summary "Example takeaways"
-#     - The same unitary TFIM dynamics can be evolved as an MPS state in Hilbert
-#       space or as a vectorized density matrix in Liouville space.
-#     - Second-order Trotter (`Trotter{2}()`) is usually more accurate than
-#       first order at the same time step.
-#     - Smaller `dt` reduces Trotter error; the ED reference in this page is only
-#       a small-system audit, not the scalable method.
+#     - Hilbert TEBD evolves `MPS{Hilbert}` directly under the Hamiltonian.
+#     - Liouville TEBD evolves `MPS{Liouville}` under the corresponding
+#       commutator, with the same `tebd` entry point.
+#     - Liouville evolution generally needs a larger bond dimension than the
+#       matching pure-state Hilbert run.
+#     - Exact diagonalization is a small-system check; TEBD is the scalable
+#       tensor-network calculation.
+#     - For the full implementation (timestep sweeps, Trotter-order comparisons,
+#       detailed errors, live output, and plotting), run
+#       `scripts/tebd_tfim_unitary.jl`.
