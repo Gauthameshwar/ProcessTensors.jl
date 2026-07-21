@@ -39,6 +39,7 @@ using Statistics: mean
 
 CairoMakie.activate!()
 
+# User-adjustable parameters
 const N = 12
 const J = 0.4
 const detuning = 1.0
@@ -78,29 +79,29 @@ excitation_density = Vector{Float64}(undef, length(times))
 norm_error = Vector{Float64}(undef, length(times))
 bond_dimensions = Vector{Int}(undef, length(times))
 
-function record_observables!(step::Int, state)
+function record_observables!(step::Int, ψ)
     H_now = MPO(laser_driven_hamiltonian(times[step]), sites)
-    z_values = real.(expect(state, "Z"))
-    energy_density[step] = real(inner(state', H_now, state)) / N
+    z_values = real.(expect(ψ, "Z"))
+    energy_density[step] = real(inner(ψ', H_now, ψ)) / N
     excitation_density[step] = mean((1 .+ z_values) ./ 2)
-    norm_error[step] = abs(real(inner(state, state)) - 1)
-    bond_dimensions[step] = maxlinkdim(state)
+    norm_error[step] = abs(real(inner(ψ, ψ)) - 1)
+    bond_dimensions[step] = maxlinkdim(ψ)
     return nothing
 end
 
 println("Laser-driven TDVP: N=$N, dt=$dt, final_time=$final_time")
-final_state = let state = copy(initial_state)
-    record_observables!(1, state)
+final_state = let ψ = copy(initial_state)
+    record_observables!(1, ψ)
     status_stride = max(1, nsteps ÷ 10)
 
     for step in 1:nsteps
-        midpoint = times[step] + dt / 2
-        H_midpoint = MPO(laser_driven_hamiltonian(midpoint), sites)
+        t_mid = times[step] + dt / 2
+        H_mid = MPO(laser_driven_hamiltonian(t_mid), sites)
 
-        state = tdvp(
-            H_midpoint,
+        ψ = tdvp(
+            H_mid,
             -1im * dt,
-            state;
+            ψ;
             time_step=-1im * dt,
             nsite=2,
             maxdim=maxdim,
@@ -108,7 +109,7 @@ final_state = let state = copy(initial_state)
             outputlevel=0,
         )
 
-        record_observables!(step + 1, state)
+        record_observables!(step + 1, ψ)
         if step == 1 || step == nsteps || step % status_stride == 0
             print(
                 "\rTDVP step $(lpad(step, 3))/$nsteps" *
@@ -118,7 +119,7 @@ final_state = let state = copy(initial_state)
             flush(stdout)
         end
     end
-    state
+    ψ
 end
 println()
 

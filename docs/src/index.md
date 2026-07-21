@@ -40,37 +40,6 @@ infrastructure than rebuild it from scratch.
 
 ---
 
-## What the package currently offers
-
-The current package is built around two complementary pillars.
-
-First, it supports **Liouville-space tensor networks**. Density matrices can be vectorized, and superoperators can be represented as MPOs. This makes density-matrix and dissipative dynamics feel close to the usual MPS/MPO workflow.
-
-Second, it supports **process tensors**. A process tensor stores the reusable influence of an environment over time. Once it is built, different instrument sequences can be contracted with it to compute reduced trajectories, observables, open outputs, and multi-time quantities.
-
-| Feature                        | What it gives you                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------------- |
-| Hilbert-space MPS/MPO wrappers | Work with tensor-network states and operators in a familiar ITensorMPS style.             |
-| Density-matrix construction    | Convert pure states and mixtures into density-matrix tensor-network objects.              |
-| Liouville-space tools          | Vectorize density matrices and build superoperators as MPOs.                              |
-| Liouvillian dynamics           | Represent Hamiltonian and dissipative dynamics in operator space.                         |
-| System and bath abstractions   | Define spin/bosonic systems, bath modes, and environments.                                |
-| Process tensors                | Build matrix-product representations of open-system memory.                               |
-| Instruments                    | Insert state preparations, observables, trace-outs, left/right actions, and open outputs. |
-| Process evaluation             | Contract process tensors with instrument sequences using `evaluate_process`.              |
-| Reduced evolution              | Use `evolve` to obtain reduced system trajectories.                                       |
-| Multi-time correlations        | Compute sequential and operator-insertion-style correlations.                             |
-
-!!! tip "Time evolution, not ground-state search"
-    This package builds on the **time-evolution** side of
-    [`ITensorMPS.jl`](https://github.com/ITensor/ITensorMPS.jl): `tebd`, `tdvp`,
-    Liouville propagators, and process-tensor contraction workflows.
-
-    It does **not** focus on DMRG, variational ground-state search, or equilibrium
-    spectral methods.
-
----
-
 ## Where to start
 
 Most of what makes this package distinctive appears in two tutorials:

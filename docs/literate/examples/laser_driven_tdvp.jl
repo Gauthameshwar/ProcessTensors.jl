@@ -186,4 +186,3 @@ end
 #     - For a driven system, instantaneous energy and excitation density expose
 #       complementary effects of the applied pulse.
 #     - Run `scripts/laser_driven_tdvp.jl` to regenerate the figure.
-
