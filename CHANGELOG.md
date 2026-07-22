@@ -29,10 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The `embed_system_propagation` keyword is removed.
   Schedule-side unitary control uses the new public instrument `UnitaryPropagation`
   (`unitary_propagation`) instead of `SystemPropagation` / `system_propagation`.
-  `default_schedule` inserts `IdentityOperation()` between steps (no extra system
+  `default_schedule` inserts `identity_operation()` between steps (no extra system
   propagator). For a bath-only / identity system map, construct the system with an
   empty `OpSum()` Hamiltonian; the single-mode process-tensor tutorial documents
   the embedded-propagation and identity-schedule conventions.
+* **Canonical constructors vs lowercase user-facing constructors.** Domain types such as
+  `BosonicMode`, `SpinBath`, `TraceOut`, and `UnitaryPropagation` keep one
+  strict direct-construction shape. Relaxed defaults, keyword forms, and
+  inferred arguments live only on the lowercase user-facing constructors (`bosonic_mode`,
+  `spin_bath`, `trace_out`, `unitary_propagation`, …). Zero-argument helpers
+  such as `TraceOut()` and `IdentityOperation()` are removed; use
+  `trace_out()` and `identity_operation()` instead. Both types and user-facing constructors
+  remain exported.
 
 ### Added
 
@@ -54,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **`instrument_leg_maps`** now uses leg-coverage dispatch from schedule slots
   (no `ProcessTensor` required for the canonical method).
 * **`create_instruments`** rewrites the schedule (pairing / terminal
-  `IdentityOperation` → `OpenOutput`) then materializes every slot only through
+  `identity_operation` → `open_output`) then materializes every slot only through
   `instrument_itensor`, including a `SingleLegInstrument` evolve-slot method that
   selects the matching PT leg from `leg_plev`.
 * **`evaluate_process`** returns `ComplexF64` / `MPO{Liouville}` / `ITensor`

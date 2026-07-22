@@ -60,29 +60,29 @@ end
     # Given: valid single-site Hilbert state and Liouville sites.
     # When: construct StatePreparation / TraceOut / ObservableMeasurement.
     # Then: constructors succeed with matching leg prime levels.
-    @test StatePreparation(to_liouville(to_dm(psi); sites=L)) isa StatePreparation
-    @test StatePreparation(to_liouville(to_dm(psi))) isa StatePreparation
-    @test_throws ArgumentError StatePreparation(to_liouville(to_dm(psi); sites=L), leg_plev=0)
+    @test state_preparation(to_liouville(to_dm(psi); sites=L)) isa StatePreparation
+    @test state_preparation(to_liouville(to_dm(psi))) isa StatePreparation
+    @test_throws ArgumentError state_preparation(to_liouville(to_dm(psi); sites=L), leg_plev=0)
 
-    @test TraceOut([L[1]]; leg_plev=0) isa TraceOut
-    @test TraceOut() isa TraceOut
-    @test_throws ArgumentError TraceOut([prime(L[1])]; leg_plev=1)
+    @test trace_out([L[1]]; leg_plev=0) isa TraceOut
+    @test trace_out() isa TraceOut
+    @test_throws ArgumentError trace_out([prime(L[1])]; leg_plev=1)
 
-    @test ObservableMeasurement(op_z, [prime(L[1])]; leg_plev=1) isa ObservableMeasurement
-    @test ObservableMeasurement(op_z, [L[1]]; leg_plev=0) isa ObservableMeasurement
-    @test ObservableMeasurement(op_z) isa ObservableMeasurement
+    @test observable_measurement(op_z, [prime(L[1])]; leg_plev=1) isa ObservableMeasurement
+    @test observable_measurement(op_z, [L[1]]; leg_plev=0) isa ObservableMeasurement
+    @test observable_measurement(op_z) isa ObservableMeasurement
 
     # Given: wrong prime level on supplied sites vs declared leg_plev.
     # Then: constructor throws ArgumentError.
-    @test_throws ArgumentError StatePreparation(psi, [L[1]]; leg_plev=1)
+    @test_throws ArgumentError state_preparation(psi, [L[1]]; leg_plev=1)
 
     s3 = siteinds("S=1/2", 3)
     H3 = OpSum(); H3 += 0.3, "Sz", 2
     # Given: lazy UnitaryPropagation / IdentityOperation (deferred PT legs).
     # Then: zero-length leg vectors are allowed.
-    @test UnitaryPropagation(spin_system(s3, H3)) isa UnitaryPropagation
-    @test IdentityOperation() isa IdentityOperation
-    @test OpenOutput() isa OpenOutput
+    @test unitary_propagation(spin_system(s3, H3)) isa UnitaryPropagation
+    @test identity_operation() isa IdentityOperation
+    @test open_output() isa OpenOutput
 
     s1 = siteinds("S=1/2", 1)
     L1 = liouv_sites(s1)
@@ -90,22 +90,54 @@ end
     sys1 = spin_system(s1, H1)
     in1 = prime(L1[1])
     out0 = L1[1]
-    prop_bound = UnitaryPropagation([in1], [out0], sys1)
+    prop_bound = unitary_propagation([in1], [out0], sys1)
     @test prop_bound.input_pt_sites == [in1]
     @test prop_bound.output_pt_sites == [out0]
     @test prop_bound.sites == sys1.sites
-    id_bound = IdentityOperation([in1], [out0])
+    id_bound = identity_operation([in1], [out0])
     @test id_bound.input_pt_sites == [in1]
     @test id_bound.output_pt_sites == [out0]
-    open_bound = OpenOutput([out0])
+    open_bound = open_output([out0])
     @test open_bound.pt_sites == [out0]
     @test open_bound.leg_plev == 0
-    @test_throws ArgumentError OpenOutput([in1]; leg_plev=1)
+    @test_throws ArgumentError open_output([in1]; leg_plev=1)
+end
+
+@testset "Instruments.jl: strict constructors and removed helpers" begin
+    s = siteinds("S=1/2", 1)
+    L = liouv_sites(s)
+    psi = MPS(s, ["Up"])
+    rho = to_dm(psi)
+    rhoL = to_liouville(rho; sites=L)
+    op_z = OpSum(); op_z += 1.0, "Sz", 1
+    sys = spin_system(s, OpSum() + (0.2, "Sz", 1))
+
+    @test StatePreparation(rhoL, Index[], 1) isa StatePreparation
+    @test TraceOut(Index[], 0) isa TraceOut
+    @test OpenOutput(Index[], 0) isa OpenOutput
+    @test OpenInput(Index[], 1) isa OpenInput
+    @test IdentityOperation(Index[], Index[]) isa IdentityOperation
+    @test OpenInOut(Index[], Index[]) isa OpenInOut
+    @test UnitaryPropagation(Index[], Index[], sys.H, Index[sys.sites...]) isa UnitaryPropagation
+
+    @test_throws ArgumentError TraceOut(Index[], 1)
+    @test_throws ArgumentError OpenOutput(Index[], 1)
+    @test_throws ArgumentError OpenInput(Index[], 0)
+    @test_throws ArgumentError StatePreparation(rhoL, Index[], 0)
+
+    @test_throws MethodError TraceOut()
+    @test_throws MethodError IdentityOperation()
+    @test_throws MethodError OpenOutput()
+    @test_throws MethodError OpenInput()
+    @test_throws MethodError OpenInOut()
+    @test_throws MethodError UnitaryPropagation(sys)
+    @test_throws MethodError StatePreparation(rho)
+    @test_throws MethodError ObservableMeasurement(op_z)
 end
 
 @testset "Instruments.jl: InstrumentSeq / resolve / add!" begin
     sys = spin_system(siteinds("S=1/2", 1), OpSum() + (0.2, "Sz", 1))
-    def = UnitaryPropagation(sys)
+    def = unitary_propagation(sys)
 
     # Given: unified schedule with default only.
     # When: resolve k ≥ 1 missing from entries.
@@ -123,7 +155,7 @@ end
     # When: resolve 0.
     # Then: that instrument is returned.
     s = siteinds("S=1/2", 1); L = liouv_sites(s)
-    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Dn"])); sites=L))
+    prep = state_preparation(to_liouville(to_dm(MPS(s, ["Dn"])); sites=L))
     add!(seq, prep, 0)
     @test resolve_instrument(seq, 0) === prep
     empty!(seq.entries)
@@ -136,49 +168,49 @@ end
     # Given: two adds at the same tstep.
     # When: add! twice.
     # Then: latest wins.
-    seq2 = InstrumentSeq(IdentityOperation(), 0)
+    seq2 = InstrumentSeq(identity_operation(), 0)
     add!(seq2, def, 2)
-    other = UnitaryPropagation(sys)
+    other = unitary_propagation(sys)
     add!(seq2, other, 2)
     @test resolve_instrument(seq2, 2) === other
 
     # Given: second schedule; add! at step 1.
     # When: resolve 1.
     # Then: returns the instrument passed to add!.
-    seq3 = InstrumentSeq(IdentityOperation(), 0)
+    seq3 = InstrumentSeq(identity_operation(), 0)
     add!(seq3, def, 1)
     @test resolve_instrument(seq3, 1) === def
 
     # Given: seq.nsteps bound and tstep above range.
     # When: add!.
     # Then: ArgumentError.
-    seq4 = InstrumentSeq(IdentityOperation(), 3; entries=Dict{Int,AbstractInstrument}())
+    seq4 = InstrumentSeq(identity_operation(), 3; entries=Dict{Int,AbstractInstrument}())
     @test_throws ArgumentError add!(seq4, def, 4)
 
     @test_throws ArgumentError resolve_instrument(seq2, -1)
 
     # resolve with fallback for k ≥ 1
-    seq5 = InstrumentSeq(IdentityOperation(), 0)
-    fb = UnitaryPropagation(sys)
+    seq5 = InstrumentSeq(identity_operation(), 0)
+    fb = unitary_propagation(sys)
     @test resolve_instrument(seq5, 1, fb) === fb
     add!(seq5, def, 1)
     @test resolve_instrument(seq5, 1, fb) === def
 
-    seq_kw = InstrumentSeq(; default=IdentityOperation(), nsteps=2, entries=Dict(1 => def))
+    seq_kw = InstrumentSeq(; default=identity_operation(), nsteps=2, entries=Dict(1 => def))
     @test resolve_instrument(seq_kw, 1) === def
     @test occursin("InstrumentSeq", sprint(show, seq_kw))
 
-    seq_plus = InstrumentSeq(IdentityOperation(), 2)
+    seq_plus = InstrumentSeq(identity_operation(), 2)
     seq_plus += (def, 2)
     @test resolve_instrument(seq_plus, 2) === def
 end
 
 @testset "Instruments.jl: instrument_leg_maps coverage" begin
     sys = spin_system(siteinds("S=1/2", 1), OpSum() + (0.1, "Sz", 1))
-    iddef = IdentityOperation()
+    iddef = identity_operation()
     s_leg = siteinds("S=1/2", 1)
     L_leg = liouv_sites(s_leg)
-    prep0 = StatePreparation(to_liouville(to_dm(MPS(s_leg, ["Up"])); sites=L_leg))
+    prep0 = state_preparation(to_liouville(to_dm(MPS(s_leg, ["Up"])); sites=L_leg))
 
     # Given: nsteps=1, default two-leg, no prep at 0.
     # When: instrument_leg_maps.
@@ -192,7 +224,7 @@ end
     # When: maps.
     # Then: missing_in empty.
     s = siteinds("S=1/2", 1); L = liouv_sites(s)
-    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
+    prep = state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
     seq_p = InstrumentSeq(iddef, 0; init=prep)
     _, _, mi2, mo2 = instrument_leg_maps(seq_p, 1)
     @test isempty(mi2) && isempty(mo2)
@@ -210,7 +242,7 @@ end
     # When: nsteps=4.
     # Then: in/out coverage complete.
     seq_s = InstrumentSeq(iddef, 0; init=prep0)
-    add!(seq_s, UnitaryPropagation(sys), 3)
+    add!(seq_s, unitary_propagation(sys), 3)
     _, _, mis, mos = instrument_leg_maps(seq_s, 4)
     @test isempty(mis) && isempty(mos)
 
@@ -218,7 +250,7 @@ end
     # When: leg maps.
     # Then: maps reference the replaced instrument at that step.
     seq_l = InstrumentSeq(iddef, 0)
-    spA = UnitaryPropagation(sys); spB = UnitaryPropagation(sys)
+    spA = unitary_propagation(sys); spB = unitary_propagation(sys)
     add!(seq_l, spA, 2); add!(seq_l, spB, 2)
     im, om, _, _ = instrument_leg_maps(seq_l, 3)
     @test im[2] === spB
@@ -229,7 +261,7 @@ end
     # Then: input slots stay covered via prep + other steps; output slot at tstep=1 lacks an instrument.
     op = OpSum(); op += 1.0, "Sz", 1
     seq_o = InstrumentSeq(iddef, 0; init=prep0)
-    add!(seq_o, ObservableMeasurement(op, Index[]; leg_plev=1), 2)
+    add!(seq_o, observable_measurement(op, Index[]; leg_plev=1), 2)
     _, _, mio, moo = instrument_leg_maps(seq_o, 3)
     @test isempty(mio)
     @test moo == [1]
@@ -246,9 +278,9 @@ end
     pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s_leg, ["Up"]))
 
-    seq_closed = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_closed, StatePreparation(rho0_h), 0)
-    add!(seq_closed, TraceOut(), pt.nsteps)
+    seq_closed = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_closed, state_preparation(rho0_h), 0)
+    add!(seq_closed, trace_out(), pt.nsteps)
     in_a, out_a, mi_a, mo_a = instrument_leg_maps(seq_closed, pt.nsteps)
     in_b, out_b, mi_b, mo_b = instrument_leg_maps(pt, seq_closed)
     @test isempty(mi_a) && isempty(mo_a)
@@ -256,35 +288,35 @@ end
     @test keys(in_a) == keys(in_b)
     @test keys(out_a) == keys(out_b)
 
-    seq_oo = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_oo, StatePreparation(rho0_h), 0)
-    add!(seq_oo, OpenInOut(), 1)
-    add!(seq_oo, TraceOut(), pt.nsteps)
+    seq_oo = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_oo, state_preparation(rho0_h), 0)
+    add!(seq_oo, open_inout(), 1)
+    add!(seq_oo, trace_out(), pt.nsteps)
     in_o, out_o, mi_o, mo_o = instrument_leg_maps(seq_oo, pt.nsteps)
     @test isempty(mi_o) && isempty(mo_o)
     @test in_o[1] isa OpenInOut
     @test out_o[0] isa OpenInOut
 
-    seq_out_only = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_out_only, StatePreparation(rho0_h), 0)
-    add!(seq_out_only, OpenOutput(), 1)
+    seq_out_only = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_out_only, state_preparation(rho0_h), 0)
+    add!(seq_out_only, open_output(), 1)
     # OpenOutput at step 1 claims out[0]; in[1] is missing.
     _, _, mi_only, mo_out = instrument_leg_maps(seq_out_only, pt.nsteps)
     @test 1 in mi_only
     @test !(0 in mo_out)
 
-    seq_in_only = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_in_only, StatePreparation(rho0_h), 0)
-    add!(seq_in_only, OpenInput(), 1)
+    seq_in_only = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_in_only, state_preparation(rho0_h), 0)
+    add!(seq_in_only, open_input(), 1)
     _, _, mi_in, mo_in = instrument_leg_maps(seq_in_only, pt.nsteps)
     @test 0 in mo_in
     @test !(1 in mi_in)
 
-    seq_pair = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_pair, StatePreparation(rho0_h), 0)
-    add!(seq_pair, TraceOut(), 1)
-    add!(seq_pair, StatePreparation(to_dm(MPS(s_leg, ["Dn"]))), 2)
-    add!(seq_pair, TraceOut(), 3)
+    seq_pair = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_pair, state_preparation(rho0_h), 0)
+    add!(seq_pair, trace_out(), 1)
+    add!(seq_pair, state_preparation(to_dm(MPS(s_leg, ["Dn"]))), 2)
+    add!(seq_pair, trace_out(), 3)
     _, _, mi_p, mo_p = instrument_leg_maps(seq_pair, pt.nsteps)
     @test isempty(mi_p) && isempty(mo_p)
 
@@ -297,35 +329,35 @@ end
     in1 = prime(L[1])
     out0 = L[1]
 
-    @test OpenInput() isa OpenInput
-    @test OpenInOut() isa OpenInOut
-    @test OpenInput().leg_plev == 1
-    @test OpenOutput().leg_plev == 0
-    @test_throws ArgumentError OpenInput(; leg_plev=0)
-    @test_throws ArgumentError OpenInOut([out0], [in1])  # wrong plev order
+    @test open_input() isa OpenInput
+    @test open_inout() isa OpenInOut
+    @test open_input().leg_plev == 1
+    @test open_output().leg_plev == 0
+    @test_throws ArgumentError open_input(; leg_plev=0)
+    @test_throws ArgumentError open_inout([out0], [in1])  # wrong plev order
 
-    Tin = instrument_itensor(OpenInput(), [in1], 1)
+    Tin = instrument_itensor(open_input(), [in1], 1)
     @test length(inds(Tin)) == 0
     @test isapprox(scalar(Tin), 1.0; atol=1e-12)
 
-    Tio = instrument_itensor(OpenInOut(), [in1], [out0], 1)
+    Tio = instrument_itensor(open_inout(), [in1], [out0], 1)
     @test length(inds(Tio)) == 0
     @test isapprox(scalar(Tio), 1.0; atol=1e-12)
 
     system = spin_system(s, OpSum() + (0.3, "Sz", 1))
     pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s, ["Up"]))
-    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0_h), 0)
-    add!(seq, OpenInOut(), 1)
-    add!(seq, TraceOut(), 3)
+    seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, open_inout(), 1)
+    add!(seq, trace_out(), 3)
     instruments = create_instruments(pt, seq)
     @test length(instruments) == pt.nsteps + 1
     @test length(inds(instruments[2])) == 0
 
-    seq_bad = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_bad, StatePreparation(rho0_h), 0)
-    add!(seq_bad, OpenInput(), pt.nsteps)
+    seq_bad = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_bad, state_preparation(rho0_h), 0)
+    add!(seq_bad, open_input(), pt.nsteps)
     @test_throws ArgumentError create_instruments(pt, seq_bad)
 end
 
@@ -334,7 +366,7 @@ end
     Ls = liouv_sites(s_spin)
     ρh = hilbert_matrix_to_mpo(randn(ComplexF64, 2, 2), s_spin)
     ρl = to_liouville(ρh; sites=Ls)
-    prep = StatePreparation(ρl)
+    prep = state_preparation(ρl)
     leg_in = prime(Ls[1])
     # Given: random single-qubit density matrix as MPO{Hilbert} → Liouville MPS.
     # When: build StatePreparation ITensor at k=0 on primed Liouville leg.
@@ -349,7 +381,7 @@ end
     Lb = liouv_sites(s_b)
     ρbh = hilbert_matrix_to_mpo(randn(ComplexF64, 4, 4), s_b)
     ρbl = to_liouville(ρbh; sites=Lb)
-    prep_b = StatePreparation(ρbl)
+    prep_b = state_preparation(ρbl)
     leg_b = prime(Lb[1])
     Tb = instrument_itensor(prep_b, [leg_b], 0)
     refb = contract_core(ρbl.core)
@@ -362,7 +394,7 @@ end
     L = liouv_sites(s)
     for opname in ("Sx", "Sy", "Sz")
         os = OpSum(); os += 1.0, opname, 1
-        obs = ObservableMeasurement(os, Index[]; leg_plev=0)
+        obs = observable_measurement(os, Index[]; leg_plev=0)
         leg = L[1]
         # Given: σz / σy as OpSum observable on output leg (plev 0).
         # When: instrument_itensor at k=1.
@@ -377,12 +409,12 @@ end
     sb = siteinds("Boson", 1; dim=4)
     Lb = liouv_sites(sb)
     on = OpSum(); on += 1.0, "N", 1
-    obs_n = ObservableMeasurement(on, Index[]; leg_plev=0)
+    obs_n = observable_measurement(on, Index[]; leg_plev=0)
     Ta = instrument_itensor(obs_n, [Lb[1]], 1)
     @test hasind(Ta, Lb[1])
 
     oad = OpSum(); oad += 1.0, "A", 1; oad += 1.0, "Adag", 1
-    obs_ad = ObservableMeasurement(oad, Index[]; leg_plev=1)
+    obs_ad = observable_measurement(oad, Index[]; leg_plev=1)
     leg_in = prime(Lb[1])
     Tb = instrument_itensor(obs_ad, [leg_in], 2)
     @test plev(leg_in) == 1
@@ -399,7 +431,7 @@ end
     # Given: spin-1/2 Liouville site (d²=4) and TraceOut on output leg.
     # When: instrument_itensor.
     # Then: dense data matches column-major vec(identity) in the Liouville basis.
-    T = instrument_itensor(TraceOut(), [leg], 1)
+    T = instrument_itensor(trace_out(), [leg], 1)
     @test hastags(leg, "Liouv")
     data = vec(Array(T, leg))
     @test length(data) == d^2
@@ -411,22 +443,22 @@ end
     L = liouv_sites(s)
     in1 = prime(L[1])
     out0 = L[1]
-    open_op = OpenOutput()
+    open_op = open_output()
     Topen = instrument_itensor(open_op, [out0], 0)
     @test length(inds(Topen)) == 0
     @test isapprox(scalar(Topen), 1.0; atol=1e-12)
 
-    Ttrace = instrument_itensor(TraceOut([out0]), [out0], 0)
+    Ttrace = instrument_itensor(trace_out([out0]), [out0], 0)
     @test length(inds(Ttrace)) == 1
     @test hasind(Ttrace, out0)
 
-    Tid = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+    Tid = instrument_itensor(identity_operation(), [in1], [out0], 1)
     @test length(inds(Tid)) == 2
 
-    iddef = IdentityOperation()
+    iddef = identity_operation()
     seq = InstrumentSeq(iddef, 2)
-    add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
-    add!(seq, OpenOutput(), 2)
+    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, open_output(), 2)
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, 2)
     @test haskey(in_map, 1)
     @test haskey(out_map, 0)
@@ -439,7 +471,7 @@ end
     L = liouv_sites(s)
     H = OpSum(); H += 0.6, "Sx", 1
     sys = spin_system(s, H)
-    prop = UnitaryPropagation(sys)
+    prop = unitary_propagation(sys)
     dt = 0.04
     in1 = prime(L[1])
     out0 = L[1]
@@ -459,17 +491,17 @@ end
     # When: UnitaryPropagation ITensor.
     # Then: delta map between in/out legs; warning is captured/asserted by @test_logs.
     sys0 = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
-    idprop = UnitaryPropagation(sys0)
+    idprop = unitary_propagation(sys0)
     Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
     @test isapprox(norm(Tid - delta(in1, out0)), 0.0; atol=1e-12)
 
-    prop_bound = UnitaryPropagation([in1], [out0], sys)
+    prop_bound = unitary_propagation([in1], [out0], sys)
     T_bound = instrument_itensor(prop_bound, Index[], Index[], 1; dt=dt, alg=Trotter{1}())
     @test T_bound isa ITensor
     @test hasind(T_bound, in1) && hasind(T_bound, out0)
 
     H_of_t(t) = OpSum() + (0.6 + 0.2t, "Sx", 1)
-    prop_t = UnitaryPropagation(H_of_t, L)
+    prop_t = unitary_propagation(H_of_t, L)
     T_t = instrument_itensor(prop_t, [in1], [out0], 2; dt=dt, alg=Trotter{1}())
     H_mid = H_of_t(1.5dt)
     L_mid = liouvillian_mpo(H_mid, L; jump_ops=[])
@@ -486,8 +518,8 @@ end
     out0 = L[1]
 
     @testset "ready tensor from instrument_itensor" begin
-        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
-        custom = CustomTwoLegInstrument(T_ref, [in1], [out0])
+        T_ref = instrument_itensor(identity_operation(), [in1], [out0], 1)
+        custom = custom_twoleg_instrument(T_ref, [in1], [out0])
         @test custom isa TwoLegInstrument
         @test occursin("CustomTwoLegInstrument", sprint(show, custom))
         T = instrument_itensor(custom, [in1], [out0], 1)
@@ -497,7 +529,7 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         out1, in2 = coupling_times(pt, 2)
         T_step2 = instrument_itensor(custom, in2, out1, 2)
-        T_ref2 = instrument_itensor(IdentityOperation(), in2, out1, 2)
+        T_ref2 = instrument_itensor(identity_operation(), in2, out1, 2)
         @test isapprox(norm(T_step2 - T_ref2), 0.0; atol=1e-12)
     end
 
@@ -507,12 +539,12 @@ end
         T_data = ITensor(1.0)
         T_data *= delta(src_in, src_out)
 
-        custom_lazy = CustomTwoLegInstrument(T_data; source_input=[src_in], source_output=[src_out])
+        custom_lazy = custom_twoleg_instrument(T_data; source_input=[src_in], source_output=[src_out])
         T_lazy = instrument_itensor(custom_lazy, [in1], [out0], 1)
-        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+        T_ref = instrument_itensor(identity_operation(), [in1], [out0], 1)
         @test isapprox(norm(T_lazy - T_ref), 0.0; atol=1e-12)
 
-        custom_bound = CustomTwoLegInstrument(
+        custom_bound = custom_twoleg_instrument(
             T_data;
             source_input=[src_in],
             source_output=[src_out],
@@ -533,19 +565,19 @@ end
         src_in = Index(dim(L[1]), "src_in")
         src_out = Index(dim(L[1]), "src_out")
         T_data = replaceinds(T_ref, in1 => src_in, out0 => src_out)
-        custom = CustomTwoLegInstrument(T_data; source_input=[src_in], source_output=[src_out])
+        custom = custom_twoleg_instrument(T_data; source_input=[src_in], source_output=[src_out])
         T = instrument_itensor(custom, [in1], [out0], 1)
         @test isapprox(Array(T, in1, out0), Array(T_ref, in1, out0); atol=1e-12)
     end
 
     @testset "validation errors" begin
-        T_ref = instrument_itensor(IdentityOperation(), [in1], [out0], 1)
+        T_ref = instrument_itensor(identity_operation(), [in1], [out0], 1)
         bad_in = Index(dim(L[1]), "bad_in")
-        @test_throws ArgumentError CustomTwoLegInstrument(T_ref, [bad_in], [out0])
+        @test_throws ArgumentError custom_twoleg_instrument(T_ref, [bad_in], [out0])
         src_in = Index(dim(L[1]), "src_in")
         src_out = Index(dim(L[1]), "src_out")
         T_data = ITensor(1.0) * delta(src_in, src_out)
-        @test_throws ArgumentError CustomTwoLegInstrument(
+        @test_throws ArgumentError custom_twoleg_instrument(
             T_data;
             source_input=[src_in],
             source_output=[src_out],
@@ -554,13 +586,13 @@ end
     end
 
     @testset "instrument_leg_maps and create_instruments" begin
-        custom = CustomTwoLegInstrument(
-            instrument_itensor(IdentityOperation(), [in1], [out0], 1),
+        custom = custom_twoleg_instrument(
+            instrument_itensor(identity_operation(), [in1], [out0], 1),
             [in1],
             [out0],
         )
         seq = InstrumentSeq(custom, 2)
-        add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+        add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
         _, _, missing_in, missing_out = instrument_leg_maps(seq, 2)
         @test isempty(missing_in)
         @test isempty(missing_out)
@@ -569,11 +601,11 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=2)
         rho0_h = to_dm(MPS(s, ["Up"]))
         seq_pt = InstrumentSeq(default=custom, nsteps=pt.nsteps)
-        add!(seq_pt, StatePreparation(rho0_h), 0)
+        add!(seq_pt, state_preparation(rho0_h), 0)
         instruments = create_instruments(pt, seq_pt)
         @test length(instruments) == pt.nsteps + 1
         out_prev, in_curr = coupling_times(pt, 1)
-        T_id = instrument_itensor(IdentityOperation(), in_curr, out_prev, 1)
+        T_id = instrument_itensor(identity_operation(), in_curr, out_prev, 1)
         @test isapprox(norm(instruments[2] - T_id), 0.0; atol=1e-12)
         @test length(inds(instruments[end])) == 0
         @test isapprox(scalar(instruments[end]), 1.0; atol=1e-12)
@@ -585,27 +617,27 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
         rho1_h = to_dm(MPS(s, ["Dn"]))
 
-        seq_unpaired = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq_unpaired, StatePreparation(rho0_h), 0)
-        add!(seq_unpaired, TraceOut(), 1)
+        seq_unpaired = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq_unpaired, state_preparation(rho0_h), 0)
+        add!(seq_unpaired, trace_out(), 1)
         err = @test_throws ArgumentError create_instruments(pt, seq_unpaired)
         @test occursin("single-leg input instrument", lowercase(string(err.value)))
 
-        seq_paired = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq_paired, StatePreparation(rho0_h), 0)
-        add!(seq_paired, TraceOut(), 1)
-        add!(seq_paired, StatePreparation(rho1_h), 2)
-        add!(seq_paired, TraceOut(), 3)
+        seq_paired = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq_paired, state_preparation(rho0_h), 0)
+        add!(seq_paired, trace_out(), 1)
+        add!(seq_paired, state_preparation(rho1_h), 2)
+        add!(seq_paired, trace_out(), 3)
         instruments = create_instruments(pt, seq_paired)
         @test length(instruments) == pt.nsteps + 1
 
         out_prev, in_curr = coupling_times(pt, 1)
-        paired = TraceOut() * StatePreparation(rho1_h)
+        paired = trace_out() * state_preparation(rho1_h)
         expected = instrument_itensor(paired, in_curr, out_prev, 1)
         @test isapprox(norm(instruments[2] - expected), 0.0; atol=1e-12)
 
         out2, in2 = coupling_times(pt, 2)
-        expected2 = instrument_itensor(IdentityOperation(), in2, out2, 2)
+        expected2 = instrument_itensor(identity_operation(), in2, out2, 2)
         @test isapprox(norm(instruments[3] - expected2), 0.0; atol=1e-12)
         @test length(inds(instruments[end])) == 1
     end
@@ -618,24 +650,24 @@ end
     op_z += 1.0, "Sz", 1
     op_x = OpSum()
     op_x += 1.0, "Sx", 1
-    obs_z = ObservableMeasurement(op_z)
-    obs_x = ObservableMeasurement(op_x)
-    trace_out = TraceOut()
-    prep = StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
+    obs_z = observable_measurement(op_z)
+    obs_x = observable_measurement(op_x)
+    tr_out = trace_out()
+    prep = state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
 
-    prod1 = trace_out * prep
-    prod2 = prep * trace_out
+    prod1 = tr_out * prep
+    prod2 = prep * tr_out
     @test prod1 isa ProductInstrument
     @test prod2 isa ProductInstrument
     @test prod1.input_instr === prep
-    @test prod1.output_instr === trace_out
+    @test prod1.output_instr === tr_out
     @test prod2 == prod1
 
     same_leg = obs_z * obs_x
     @test same_leg isa SingleLegInstrument
     @test !(same_leg isa ProductInstrument)
     @test_throws ArgumentError prep * prep
-    @test_throws MethodError obs_z * IdentityOperation()
+    @test_throws MethodError obs_z * identity_operation()
 
     @test occursin("*", sprint(show, prod1))
 
@@ -651,7 +683,7 @@ end
     @test isapprox(norm(T_mr - T_mr_ref), 0.0; atol=1e-12)
 
     T_prod = instrument_itensor(prod1, [in1], [out0], 1)
-    T_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(trace_out, [out0], 0)
+    T_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(tr_out, [out0], 0)
     @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)
 
     T_same = instrument_itensor(same_leg, [out0], 1)
@@ -670,14 +702,14 @@ end
     # General LeftRightOperator: ρ ↦ A ρ B with non-identity B (right action only on B side).
     O_mpo = MPO(op_z, s)
     Id_mpo = MPO(OpSum() + (1.0, "Id", 1), s)
-    T_gen = instrument_itensor(LeftRightOperator(O_mpo, Id_mpo), [in1], [out0], 1)
+    T_gen = instrument_itensor(left_right_operator(O_mpo, Id_mpo), [in1], [out0], 1)
     @test isapprox(Array(T_gen, in1, out0), Array(T_lr_left, in1, out0); atol=1e-12)
 
-    iddef = IdentityOperation()
+    iddef = identity_operation()
     seq = InstrumentSeq(iddef, 3)
-    add!(seq, StatePreparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
     add!(seq, prod1, 1)
-    add!(seq, TraceOut(), 3)
+    add!(seq, trace_out(), 3)
     _, _, missing_in, missing_out = instrument_leg_maps(seq, 3)
     @test isempty(missing_in)
     @test isempty(missing_out)
@@ -685,9 +717,9 @@ end
     system = spin_system(s, OpSum() + (0.3, "Sz", 1))
     pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s, ["Up"]))
-    seq_eval = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq_eval, StatePreparation(rho0_h), 0)
-    add!(seq_eval, ObservableMeasurement(op_z), pt.nsteps)
+    seq_eval = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq_eval, state_preparation(rho0_h), 0)
+    add!(seq_eval, observable_measurement(op_z), pt.nsteps)
     val = evaluate_process(pt, seq_eval)
     @test val isa ComplexF64
     @test isfinite(val)
@@ -703,7 +735,7 @@ end
     in1 = prime(L[1])
     out0 = L[1]
 
-    composed = ObservableMeasurement(op_z) * ObservableMeasurement(op_x)
+    composed = observable_measurement(op_z) * observable_measurement(op_x)
     lr = left_action(composed, s)
     @test lr isa LeftRightOperator
     T_lr = instrument_itensor(lr, [in1], [out0], 1)
@@ -714,7 +746,7 @@ end
     Lop += 1.0, "S-", 1
     L_mpo = MPO(Lop, s)
     Ldag_mpo = MPO(OpSum() + (1.0, "S+", 1), s)
-    jump_lr = LeftRightOperator(L_mpo, Ldag_mpo)
+    jump_lr = left_right_operator(L_mpo, Ldag_mpo)
     T_jump = instrument_itensor(jump_lr, [in1], [out0], 1)
     @test length(inds(T_jump)) == 2
     @test hasind(T_jump, in1) && hasind(T_jump, out0)
@@ -726,19 +758,19 @@ end
     op_z = OpSum()
     op_z += 1.0, "Sz", 1
     rho_h = to_dm(MPS(s, ["Dn"]))
-    prep_left = ObservableMeasurement(op_z; leg_plev=1) * StatePreparation(rho_h)
+    prep_left = observable_measurement(op_z; leg_plev=1) * state_preparation(rho_h)
     T_left = instrument_itensor(prep_left, [prime(L[1])], 0)
     ref_left = instrument_itensor(
-        StatePreparation(apply(MPO(op_z, s), rho_h)),
+        state_preparation(apply(MPO(op_z, s), rho_h)),
         [prime(L[1])],
         0,
     )
     @test isapprox(norm(T_left - ref_left), 0.0; atol=1e-12)
 
-    prep_right = StatePreparation(rho_h) * ObservableMeasurement(op_z; leg_plev=1)
+    prep_right = state_preparation(rho_h) * observable_measurement(op_z; leg_plev=1)
     T_right = instrument_itensor(prep_right, [prime(L[1])], 0)
     ref_right = instrument_itensor(
-        StatePreparation(apply(rho_h, MPO(op_z, s))),
+        state_preparation(apply(rho_h, MPO(op_z, s))),
         [prime(L[1])],
         0,
     )

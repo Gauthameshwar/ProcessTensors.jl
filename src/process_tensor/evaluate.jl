@@ -136,9 +136,9 @@ Return type depends on the number of uncontracted system legs after contraction:
 
 # Examples
 ```julia
-seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-add!(seq, StatePreparation(ρ0), 0)
-add!(seq, OpenOutput(), pt.nsteps)
+seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+add!(seq, state_preparation(ρ0), 0)
+add!(seq, open_output(), pt.nsteps)
 result = evaluate_process(pt, seq)
 ```
 """
@@ -218,7 +218,7 @@ end
 """
     evaluate_process(pt, rho0, seq; kwargs...)
 
-Insert `StatePreparation(rho0)` at `tstep = 0` and contract the resulting
+Insert `state_preparation(rho0)` at `tstep = 0` and contract the resulting
 schedule with `pt`.
 """
 function evaluate_process(
@@ -229,7 +229,7 @@ function evaluate_process(
     kwargs...
 )
     seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
-    add!(seq_full, StatePreparation(rho0), 0)
+    add!(seq_full, state_preparation(rho0), 0)
     return evaluate_process(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
@@ -246,6 +246,6 @@ function evaluate_process(
     kwargs...
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0), 0)
+    add!(seq, state_preparation(rho0), 0)
     return evaluate_process(pt, seq; default_instr=default_instr, kwargs...)
 end

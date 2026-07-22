@@ -4,8 +4,8 @@
 # File: test/process_tensor/test_api_names.jl
 # Contributor: Gauthameshwar S.
 #
-# Tests public export visibility for core space types and Liouvillian
-# constructors after the API rename.
+# Tests public export visibility for core space types, Liouvillian constructors,
+# and domain type / user-facing-constructor pairs.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
@@ -40,4 +40,29 @@ using Test
     @test :OpSum_Liouville ∈ names(ProcessTensors)
     @test :MPO_Liouville ∈ names(ProcessTensors)
     @test :liouvillian_propagator_itensor ∈ names(ProcessTensors)
+end
+
+@testset "API surface: domain types and user-facing constructors" begin
+    pairs = (
+        (:SpinSystem, :spin_system),
+        (:BosonSystem, :boson_system),
+        (:BosonicMode, :bosonic_mode),
+        (:SpinMode, :spin_mode),
+        (:BosonicBath, :bosonic_bath),
+        (:SpinBath, :spin_bath),
+        (:StatePreparation, :state_preparation),
+        (:ObservableMeasurement, :observable_measurement),
+        (:LeftRightOperator, :left_right_operator),
+        (:TraceOut, :trace_out),
+        (:UnitaryPropagation, :unitary_propagation),
+        (:IdentityOperation, :identity_operation),
+        (:OpenOutput, :open_output),
+        (:OpenInput, :open_input),
+        (:OpenInOut, :open_inout),
+        (:CustomTwoLegInstrument, :custom_twoleg_instrument),
+    )
+    for (type_name, user_ctor_name) in pairs
+        @test type_name ∈ names(ProcessTensors)
+        @test user_ctor_name ∈ names(ProcessTensors)
+    end
 end

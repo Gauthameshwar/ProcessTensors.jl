@@ -176,6 +176,9 @@ two_time_correlation_seq
 AbstractSystem
 SpinSystem
 BosonSystem
+```
+
+```@docs
 spin_system
 boson_system
 ```
@@ -189,6 +192,9 @@ SpinMode
 AbstractBath
 BosonicBath
 SpinBath
+```
+
+```@docs
 bosonic_mode
 spin_mode
 bosonic_bath
@@ -214,13 +220,29 @@ TwoLegInstrument
 
 ```@docs
 StatePreparation
-state_preparation
 ObservableMeasurement
-observable_measurement
 TraceOut
-trace_out
 LeftRightOperator
+UnitaryPropagation
+IdentityOperation
+OpenOutput
+OpenInput
+OpenInOut
+CustomTwoLegInstrument
+ProductInstrument
+```
+
+```@docs
+state_preparation
+observable_measurement
+trace_out
 left_right_operator
+unitary_propagation
+identity_operation
+open_output
+open_input
+open_inout
+custom_twoleg_instrument
 ```
 
 ```@docs
@@ -231,19 +253,6 @@ right_action(::OpSum, ::AbstractVector{<:Index})
 ```
 
 ```@docs
-UnitaryPropagation
-unitary_propagation
-IdentityOperation
-identity_operation
-OpenOutput
-open_output
-OpenInput
-open_input
-OpenInOut
-open_inout
-ProductInstrument
-CustomTwoLegInstrument
-custom_twoleg_instrument
 InstrumentSeq
 resolve_instrument
 add!

@@ -132,18 +132,37 @@ end
     StatePreparation
 
 Single-leg instrument that prepares a system state on a process-tensor leg.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+StatePreparation(state, pt_sites::Vector{Index}, leg_plev::Int)
+```
+
+Prefer [`state_preparation`](@ref) for ordinary use.
 """
 struct StatePreparation{M<:Union{AbstractMPS,AbstractMPO{Hilbert}}} <: SingleLegInstrument
     state::M
     pt_sites::Vector{Index}
     leg_plev::Int
-end
-"""
-    StatePreparation(state::AbstractMPS{Hilbert}, pt_sites=Index[]; leg_plev=1)
-    StatePreparation(state::AbstractMPS{Liouville}, pt_sites=Index[]; leg_plev=1)
-    StatePreparation(ρ::AbstractMPO{Hilbert}, pt_sites=Index[]; leg_plev=1)
 
-Prepare a Hilbert- or Liouville-space state on one process-tensor leg.
+    function StatePreparation(
+        state::M,
+        pt_sites::Vector{Index},
+        leg_plev::Int,
+    ) where {M<:Union{AbstractMPS,AbstractMPO{Hilbert}}}
+        leg_plev == _INPUT_PLEV || throw(
+            ArgumentError("StatePreparation is fixed to leg_plev=1 (input leg); got leg_plev=$leg_plev."),
+        )
+        isempty(pt_sites) || _validate_single_leg_sites("StatePreparation", pt_sites, _INPUT_PLEV)
+        return new{M}(state, pt_sites, _INPUT_PLEV)
+    end
+end
+
+"""
+    state_preparation(state, pt_sites=Index[]; leg_plev=1)
+
+User-facing constructor for [`StatePreparation`](@ref).
 
 Hilbert inputs are converted to Liouville space when the instrument tensor is
 materialized. Leave `pt_sites` empty for lazy binding in
@@ -151,56 +170,64 @@ materialized. Leave `pt_sites` empty for lazy binding in
 
 # Examples
 ```julia
-add!(seq, StatePreparation(ρ0), 0)
+seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+add!(seq, state_preparation(ρ0), 0)
 ```
 """
-function StatePreparation(
+function state_preparation(
     state::Union{AbstractMPS,AbstractMPO{Hilbert}},
     pt_sites::AbstractVector{<:Index}=Index[];
     leg_plev::Int=_INPUT_PLEV,
 )
-    leg_plev == _INPUT_PLEV || throw(
-        ArgumentError("StatePreparation is fixed to leg_plev=1 (input leg); got leg_plev=$leg_plev."),
-    )
     pt_sites_vec = _bind_single_leg_sites("StatePreparation", pt_sites, _INPUT_PLEV)
-    return StatePreparation(state, pt_sites_vec, _INPUT_PLEV)
+    return StatePreparation(state, pt_sites_vec, leg_plev)
 end
-
-"""
-    state_preparation(state::AbstractMPS{Hilbert}, pt_sites=Index[]; leg_plev=1)
-    state_preparation(state::AbstractMPS{Liouville}, pt_sites=Index[]; leg_plev=1)
-    state_preparation(ρ::AbstractMPO{Hilbert}, pt_sites=Index[]; leg_plev=1)
-
-Lowercase alias for [`StatePreparation`](@ref).
-
-# Examples
-```julia
-seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)              # Hilbert MPO or MPS{Hilbert}
-add!(seq, state_preparation(ρL; leg_plev=1), 0)  # MPS{Liouville}
-```
-"""
-state_preparation(args...; kwargs...) = StatePreparation(args...; kwargs...)
 
 """
     ObservableMeasurement
 
 Single-leg instrument representing insertion of a Hilbert-space observable.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+ObservableMeasurement(op, pt_sites::Vector{Index}, leg_plev::Int)
+```
+
+Prefer [`observable_measurement`](@ref) for ordinary use.
 """
 struct ObservableMeasurement{O<:OpSum} <: SingleLegInstrument
     op::O
     pt_sites::Vector{Index}
     leg_plev::Int
-end
-"""
-    ObservableMeasurement(op::OpSum, pt_sites=Index[]; leg_plev=0)
 
-Insert a Hilbert-space observable `OpSum` on one process-tensor leg.
+    function ObservableMeasurement(
+        op::O,
+        pt_sites::Vector{Index},
+        leg_plev::Int,
+    ) where {O<:OpSum}
+        _assert_valid_leg_plev(leg_plev)
+        isempty(pt_sites) || _validate_single_leg_sites("ObservableMeasurement", pt_sites, leg_plev)
+        return new{O}(op, pt_sites, leg_plev)
+    end
+end
+
+"""
+    observable_measurement(op::OpSum, pt_sites=Index[]; leg_plev=0)
+
+User-facing constructor for [`ObservableMeasurement`](@ref).
 
 `leg_plev=0` targets an output leg; `leg_plev=1` targets an input leg for
 right-action correlation schedules.
+
+# Examples
+```julia
+O = OpSum()
+O += 1.0, "Sz", 1
+add!(seq, observable_measurement(O), 2)
+```
 """
-function ObservableMeasurement(
+function observable_measurement(
     op::OpSum,
     pt_sites::AbstractVector{<:Index}=Index[];
     leg_plev::Int=_OUTPUT_PLEV,
@@ -208,21 +235,6 @@ function ObservableMeasurement(
     pt_sites_vec = _bind_single_leg_sites("ObservableMeasurement", pt_sites, leg_plev)
     return ObservableMeasurement(op, pt_sites_vec, leg_plev)
 end
-
-"""
-    observable_measurement(op::OpSum, pt_sites=Index[]; leg_plev=0)
-
-Lowercase alias for [`ObservableMeasurement`](@ref).
-
-# Examples
-```julia
-O = OpSum()
-O += 1.0, "Sz", 1
-add!(seq, observable_measurement(O), 2)                 # output leg
-add!(seq, observable_measurement(O; leg_plev=1), 3)     # input leg
-```
-"""
-observable_measurement(args...; kwargs...) = ObservableMeasurement(args...; kwargs...)
 
 struct _ComposedSingleLegInstrument{F<:Tuple} <: SingleLegInstrument
     factors::F
@@ -234,44 +246,46 @@ end
     LeftRightOperator
 
 Two-leg instrument implementing the Liouville-space map ``\\rho \\mapsto A\\rho B``.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+LeftRightOperator(left, right, input_pt_sites::Vector{Index}, output_pt_sites::Vector{Index})
+```
+
+Prefer [`left_right_operator`](@ref) for ordinary use.
 """
 struct LeftRightOperator{A<:AbstractMPO{Hilbert},B<:AbstractMPO{Hilbert}} <: TwoLegInstrument
     left::A
     right::B
     input_pt_sites::Vector{Index}
     output_pt_sites::Vector{Index}
+
+    function LeftRightOperator(
+        left::A,
+        right::B,
+        input_pt_sites::Vector{Index},
+        output_pt_sites::Vector{Index},
+    ) where {A<:AbstractMPO{Hilbert},B<:AbstractMPO{Hilbert}}
+        left_sites = _phys_sites_from_hilbert_mpo(left)
+        right_sites = _phys_sites_from_hilbert_mpo(right)
+        left_sites == right_sites || throw(
+            ArgumentError("LeftRightOperator: left and right MPOs must share the same siteinds."),
+        )
+        if !isempty(input_pt_sites) || !isempty(output_pt_sites)
+            _validate_two_leg_map("LeftRightOperator", input_pt_sites, output_pt_sites)
+        end
+        return new{A,B}(left, right, input_pt_sites, output_pt_sites)
+    end
 end
 
 """
-    LeftRightOperator(left::AbstractMPO{Hilbert}, right::AbstractMPO{Hilbert},
-                      input_pt_sites=Index[], output_pt_sites=Index[])
+    left_right_operator(left, right, input_pt_sites=Index[], output_pt_sites=Index[])
 
-Construct a two-leg instrument from Hilbert-space MPOs `left` and `right`
-implementing ``\\rho \\mapsto A\\rho B``.
+User-facing constructor for [`LeftRightOperator`](@ref).
 
 Both MPOs must use the same physical sites. Leave the process-tensor sites empty
 for lazy binding.
-"""
-function LeftRightOperator(
-    left::AbstractMPO{Hilbert},
-    right::AbstractMPO{Hilbert},
-    input_pt_sites::AbstractVector{<:Index}=Index[],
-    output_pt_sites::AbstractVector{<:Index}=Index[],
-)
-    left_sites = _phys_sites_from_hilbert_mpo(left)
-    right_sites = _phys_sites_from_hilbert_mpo(right)
-    left_sites == right_sites || throw(
-        ArgumentError("LeftRightOperator: left and right MPOs must share the same siteinds."),
-    )
-    input_vec, output_vec = _bind_two_leg_sites("LeftRightOperator", input_pt_sites, output_pt_sites; lazy_ok=true)
-    return LeftRightOperator(left, right, input_vec, output_vec)
-end
-
-"""
-    left_right_operator(left::AbstractMPO{Hilbert}, right::AbstractMPO{Hilbert},
-                        input_pt_sites=Index[], output_pt_sites=Index[])
-
-Lowercase alias for [`LeftRightOperator`](@ref).
 
 # Examples
 ```julia
@@ -280,7 +294,17 @@ B = MPO(O_B, sites)
 add!(seq, left_right_operator(A, B), 2)
 ```
 """
-left_right_operator(args...; kwargs...) = LeftRightOperator(args...; kwargs...)
+function left_right_operator(
+    left::AbstractMPO{Hilbert},
+    right::AbstractMPO{Hilbert},
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    input_vec, output_vec = _bind_two_leg_sites(
+        "LeftRightOperator", input_pt_sites, output_pt_sites; lazy_ok=true,
+    )
+    return LeftRightOperator(left, right, input_vec, output_vec)
+end
 
 function _fold_observable_factors(factors, phys_sites::AbstractVector{<:Index})
     op_acc = nothing
@@ -304,7 +328,6 @@ Build the left-action superoperator ``\\rho \\mapsto A\\rho``.
 O = OpSum()
 O += 1.0, "Sz", 1
 add!(seq, left_action(O, sites), 2)
-add!(seq, left_action(MPO(O, sites)), 2)
 ```
 """
 function left_action(A::AbstractMPO{Hilbert})
@@ -313,7 +336,7 @@ function left_action(A::AbstractMPO{Hilbert})
     for j in eachindex(phys_sites)
         os += 1.0, "Id", j
     end
-    return LeftRightOperator(A, MPO(os, phys_sites))
+    return LeftRightOperator(A, MPO(os, phys_sites), Index[], Index[])
 end
 
 """
@@ -341,7 +364,6 @@ Build the right-action superoperator ``\\rho \\mapsto \\rho B``.
 O = OpSum()
 O += 1.0, "Sz", 1
 add!(seq, right_action(O, sites), 3)
-add!(seq, right_action(MPO(O, sites)), 3)
 ```
 """
 function right_action(B::AbstractMPO{Hilbert})
@@ -350,7 +372,7 @@ function right_action(B::AbstractMPO{Hilbert})
     for j in eachindex(phys_sites)
         os += 1.0, "Id", j
     end
-    return LeftRightOperator(MPO(os, phys_sites), B)
+    return LeftRightOperator(MPO(os, phys_sites), B, Index[], Index[])
 end
 
 """
@@ -371,61 +393,93 @@ end
     TraceOut
 
 Single-leg instrument that closes a Liouville process-tensor leg with `vec(I)`.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+TraceOut(pt_sites::Vector{Index}, leg_plev::Int)
+```
+
+Prefer [`trace_out`](@ref) for ordinary use. Zero-argument `TraceOut()` is not
+supported; call `trace_out()` instead.
 """
 struct TraceOut <: SingleLegInstrument
     pt_sites::Vector{Index}
     leg_plev::Int
-end
-"""
-    TraceOut(pt_sites=Index[]; leg_plev=0)
 
-Trace out one process-tensor leg with `vec(I)`.
-
-The target site must be a Liouville index of dimension ``d^2``.
-"""
-function TraceOut(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_OUTPUT_PLEV)
-    leg_plev == _OUTPUT_PLEV || throw(
-        ArgumentError("TraceOut is fixed to leg_plev=0 (output leg); got leg_plev=$leg_plev."),
-    )
-    pt_sites_vec = _bind_single_leg_sites("TraceOut", pt_sites, _OUTPUT_PLEV)
-    return TraceOut(pt_sites_vec, _OUTPUT_PLEV)
+    function TraceOut(pt_sites::Vector{Index}, leg_plev::Int)
+        leg_plev == _OUTPUT_PLEV || throw(
+            ArgumentError("TraceOut is fixed to leg_plev=0 (output leg); got leg_plev=$leg_plev."),
+        )
+        isempty(pt_sites) || _validate_single_leg_sites("TraceOut", pt_sites, _OUTPUT_PLEV)
+        return new(pt_sites, _OUTPUT_PLEV)
+    end
 end
 
 """
     trace_out(pt_sites=Index[]; leg_plev=0)
 
-Lowercase alias for [`TraceOut`](@ref).
+User-facing constructor for [`TraceOut`](@ref).
+
+The target site must be a Liouville index of dimension ``d^2``.
 
 # Examples
 ```julia
 add!(seq, trace_out(), pt.nsteps)
-add!(seq, trace_out([coupling_site]; leg_plev=0), pt.nsteps)
 ```
 """
-trace_out(args...; kwargs...) = TraceOut(args...; kwargs...)
+function trace_out(
+    pt_sites::AbstractVector{<:Index}=Index[];
+    leg_plev::Int=_OUTPUT_PLEV,
+)
+    pt_sites_vec = _bind_single_leg_sites("TraceOut", pt_sites, _OUTPUT_PLEV)
+    return TraceOut(pt_sites_vec, leg_plev)
+end
 
 """
     UnitaryPropagation
 
 Two-leg instrument for an explicitly inserted unitary control map.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+UnitaryPropagation(input_pt_sites, output_pt_sites, H, sites)
+```
+
+Prefer [`unitary_propagation`](@ref) for system extraction and lazy PT legs.
 """
 struct UnitaryPropagation{H} <: TwoLegInstrument
     input_pt_sites::Vector{Index}
     output_pt_sites::Vector{Index}
     H::H
     sites::Vector{Index}
-end
-"""
-    UnitaryPropagation(H::OpSum, sites)
-    UnitaryPropagation(H_of_t::Function, sites)
-    UnitaryPropagation(system::AbstractSystem)
-    UnitaryPropagation(input_pt_sites, output_pt_sites, H, sites)
 
-Construct a two-leg instrument for an additional unitary map inserted between
-adjacent process-tensor legs.
+    function UnitaryPropagation(
+        input_pt_sites::Vector{Index},
+        output_pt_sites::Vector{Index},
+        H,
+        sites::Vector{Index},
+    )
+        if !isempty(input_pt_sites) || !isempty(output_pt_sites)
+            _validate_two_leg_map("UnitaryPropagation", input_pt_sites, output_pt_sites)
+        end
+        isempty(sites) && throw(ArgumentError("UnitaryPropagation: sites cannot be empty."))
+        return new{typeof(H)}(input_pt_sites, output_pt_sites, H, sites)
+    end
+end
+
+"""
+    unitary_propagation(H::OpSum, sites)
+    unitary_propagation(H_of_t::Function, sites)
+    unitary_propagation(system::AbstractSystem)
+    unitary_propagation(input_pt_sites, output_pt_sites, H, sites)
+    unitary_propagation(input_pt_sites, output_pt_sites, system)
+
+User-facing constructor for [`UnitaryPropagation`](@ref).
 
 The process tensor already contains the system's baseline propagation. Use
-`UnitaryPropagation` only for explicit control operations inserted into an
+this instrument only for explicit control operations inserted into an
 instrument schedule. A time-dependent `H_of_t` is evaluated at the midpoint
 `(k - 1/2) * dt` for the map connecting output time `k - 1` to input time `k`.
 
@@ -433,88 +487,83 @@ instrument schedule. A time-dependent `H_of_t` is evaluated at the midpoint
 ```julia
 seq = default_schedule(pt)
 add!(seq, unitary_propagation(H_drive, system.sites), 2)
-
-H_of_t(t) = OpSum() + (cos(t), "Sx", 1)
-add!(seq, unitary_propagation(H_of_t, system.sites), 3)
 ```
 """
-function UnitaryPropagation(
+function unitary_propagation(
     input_pt_sites::AbstractVector{<:Index},
     output_pt_sites::AbstractVector{<:Index},
     H,
     sites::AbstractVector{<:Index},
 )
-    input_vec, output_vec = _bind_two_leg_sites("UnitaryPropagation", input_pt_sites, output_pt_sites; lazy_ok=true)
-    sites_vec = Index[sites...]
-    isempty(sites_vec) && throw(ArgumentError("UnitaryPropagation: sites cannot be empty."))
-    return UnitaryPropagation{typeof(H)}(input_vec, output_vec, H, sites_vec)
+    input_vec, output_vec = _bind_two_leg_sites(
+        "UnitaryPropagation", input_pt_sites, output_pt_sites; lazy_ok=true,
+    )
+    return UnitaryPropagation(input_vec, output_vec, H, Index[sites...])
 end
 
-UnitaryPropagation(H::OpSum, sites::AbstractVector{<:Index}) =
-    UnitaryPropagation(Index[], Index[], H, sites)
+unitary_propagation(H::OpSum, sites::AbstractVector{<:Index}) =
+    unitary_propagation(Index[], Index[], H, sites)
 
-UnitaryPropagation(H_of_t::Function, sites::AbstractVector{<:Index}) =
-    UnitaryPropagation(Index[], Index[], H_of_t, sites)
+unitary_propagation(H_of_t::Function, sites::AbstractVector{<:Index}) =
+    unitary_propagation(Index[], Index[], H_of_t, sites)
 
-UnitaryPropagation(input_pt_sites::AbstractVector{<:Index}, output_pt_sites::AbstractVector{<:Index}, system::AbstractSystem) =
-    UnitaryPropagation(input_pt_sites, output_pt_sites, system.H, system.sites)
+unitary_propagation(
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+    system::AbstractSystem,
+) = unitary_propagation(input_pt_sites, output_pt_sites, system.H, system.sites)
 
-UnitaryPropagation(system::AbstractSystem) = UnitaryPropagation(system.H, system.sites)
-
-"""
-    unitary_propagation(args...; kwargs...)
-
-Lowercase alias for [`UnitaryPropagation`](@ref).
-
-# Examples
-```julia
-add!(seq, unitary_propagation(H_drive, system.sites), 1)
-```
-"""
-unitary_propagation(args...; kwargs...) = UnitaryPropagation(args...; kwargs...)
+unitary_propagation(system::AbstractSystem) =
+    unitary_propagation(system.H, system.sites)
 
 """
     IdentityOperation
 
 Two-leg identity connector between adjacent process-tensor legs.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+IdentityOperation(input_pt_sites::Vector{Index}, output_pt_sites::Vector{Index})
+```
+
+Prefer [`identity_operation`](@ref) for ordinary use. Zero-argument
+`IdentityOperation()` is not supported; call `identity_operation()` instead.
 """
 struct IdentityOperation <: TwoLegInstrument
     input_pt_sites::Vector{Index}
     output_pt_sites::Vector{Index}
-end
-"""
-    IdentityOperation(input_pt_sites::AbstractVector{<:Index},
-                      output_pt_sites::AbstractVector{<:Index})
-    IdentityOperation()
 
-Two-leg identity connector between adjacent process-tensor legs.
-"""
-function IdentityOperation(
-    input_pt_sites::AbstractVector{<:Index},
-    output_pt_sites::AbstractVector{<:Index},
-)
-    input_vec, output_vec = _bind_two_leg_sites("IdentityOperation", input_pt_sites, output_pt_sites)
-    return IdentityOperation(input_vec, output_vec)
+    function IdentityOperation(
+        input_pt_sites::Vector{Index},
+        output_pt_sites::Vector{Index},
+    )
+        if !isempty(input_pt_sites) || !isempty(output_pt_sites)
+            _validate_two_leg_map("IdentityOperation", input_pt_sites, output_pt_sites)
+        end
+        return new(input_pt_sites, output_pt_sites)
+    end
 end
-
-IdentityOperation() = IdentityOperation(Index[], Index[])
 
 """
     identity_operation(input_pt_sites=Index[], output_pt_sites=Index[])
-    identity_operation()
 
-Lowercase alias for [`IdentityOperation`](@ref).
+User-facing constructor for [`IdentityOperation`](@ref).
 
 # Examples
 ```julia
 seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-for step in 1:(pt.nsteps - 1)
-    add!(seq, identity_operation(), step)
-end
 ```
 """
-identity_operation(args...; kwargs...) = IdentityOperation(args...; kwargs...)
-identity_operation() = IdentityOperation()
+function identity_operation(
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    input_vec, output_vec = _bind_two_leg_sites(
+        "IdentityOperation", input_pt_sites, output_pt_sites; lazy_ok=true,
+    )
+    return IdentityOperation(input_vec, output_vec)
+end
 
 """
     OpenOutput
@@ -522,46 +571,48 @@ identity_operation() = IdentityOperation()
 Single-leg bookkeeping instrument that leaves one output process-tensor leg
 uncontracted.
 
-Its materialized tensor is the scalar`ITensor(1.0)`, so the declared output 
-index stays open during [`evaluate_process`](@ref ProcessTensors.evaluate_process).
+Canonical construction uses already-normalized fields:
+
+```julia
+OpenOutput(pt_sites::Vector{Index}, leg_plev::Int)
+```
+
+Prefer [`open_output`](@ref) for ordinary use. Zero-argument `OpenOutput()` is
+not supported; call `open_output()` instead.
 """
 struct OpenOutput <: SingleLegInstrument
     pt_sites::Vector{Index}
     leg_plev::Int
-end
-"""
-    OpenOutput(pt_sites=Index[]; leg_plev=0)
-    OpenOutput()
 
-Declare that an output process-tensor leg remains open.
-
-Place at the terminal slot `pt.nsteps` to return the final reduced state.
-`OpenOutput` materializes as the scalar no-op `ITensor(1.0)`, so the declared
-output index stays uncontracted after a full process-tensor contraction. This
-instrument never contracts with an input leg. Mid-schedule use requires the
-complementary input leg to be covered separately (or use [`OpenInOut`](@ref)).
-"""
-function OpenOutput(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_OUTPUT_PLEV)
-    leg_plev == _OUTPUT_PLEV || throw(
-        ArgumentError("OpenOutput is fixed to leg_plev=0 (output leg); got leg_plev=$leg_plev."),
-    )
-    pt_sites_vec = _bind_single_leg_sites("OpenOutput", pt_sites, _OUTPUT_PLEV)
-    return OpenOutput(pt_sites_vec, _OUTPUT_PLEV)
+    function OpenOutput(pt_sites::Vector{Index}, leg_plev::Int)
+        leg_plev == _OUTPUT_PLEV || throw(
+            ArgumentError("OpenOutput is fixed to leg_plev=0 (output leg); got leg_plev=$leg_plev."),
+        )
+        isempty(pt_sites) || _validate_single_leg_sites("OpenOutput", pt_sites, _OUTPUT_PLEV)
+        return new(pt_sites, _OUTPUT_PLEV)
+    end
 end
 
 """
     open_output(pt_sites=Index[]; leg_plev=0)
-    open_output()
 
-Lowercase alias for [`OpenOutput`](@ref).
+User-facing constructor for [`OpenOutput`](@ref).
+
+Place at the terminal slot `pt.nsteps` to return the final reduced state.
+`open_output` materializes as the scalar no-op `ITensor(1.0)`.
 
 # Examples
 ```julia
-add!(seq, open_output(), pt.nsteps)  # leave the final output leg open
+add!(seq, open_output(), pt.nsteps)
 ```
 """
-open_output(args...; kwargs...) = OpenOutput(args...; kwargs...)
-open_output() = OpenOutput()
+function open_output(
+    pt_sites::AbstractVector{<:Index}=Index[];
+    leg_plev::Int=_OUTPUT_PLEV,
+)
+    pt_sites_vec = _bind_single_leg_sites("OpenOutput", pt_sites, _OUTPUT_PLEV)
+    return OpenOutput(pt_sites_vec, leg_plev)
+end
 
 """
     OpenInput
@@ -569,40 +620,42 @@ open_output() = OpenOutput()
 Single-leg bookkeeping instrument that leaves one input process-tensor leg
 uncontracted.
 
-Its materialized tensor is the scalar `ITensor(1.0)`, so the declared input
-index stays open during [`evaluate_process`](@ref ProcessTensors.evaluate_process).
+Canonical construction uses already-normalized fields:
+
+```julia
+OpenInput(pt_sites::Vector{Index}, leg_plev::Int)
+```
+
+Prefer [`open_input`](@ref) for ordinary use. Zero-argument `OpenInput()` is not
+supported; call `open_input()` instead.
 """
 struct OpenInput <: SingleLegInstrument
     pt_sites::Vector{Index}
     leg_plev::Int
-end
-"""
-    OpenInput(pt_sites=Index[]; leg_plev=1)
-    OpenInput()
 
-Declare that an input process-tensor leg remains open.
-
-`OpenInput` materializes as the scalar no-op `ITensor(1.0)`. Place it on an
-evolve slot whose complementary output leg is covered by another instrument
-(or use [`OpenInOut`](@ref) to leave both legs open). Not valid at the terminal
-slot `pt.nsteps` (no input leg exists there).
-"""
-function OpenInput(pt_sites::AbstractVector{<:Index}=Index[]; leg_plev::Int=_INPUT_PLEV)
-    leg_plev == _INPUT_PLEV || throw(
-        ArgumentError("OpenInput is fixed to leg_plev=1 (input leg); got leg_plev=$leg_plev."),
-    )
-    pt_sites_vec = _bind_single_leg_sites("OpenInput", pt_sites, _INPUT_PLEV)
-    return OpenInput(pt_sites_vec, _INPUT_PLEV)
+    function OpenInput(pt_sites::Vector{Index}, leg_plev::Int)
+        leg_plev == _INPUT_PLEV || throw(
+            ArgumentError("OpenInput is fixed to leg_plev=1 (input leg); got leg_plev=$leg_plev."),
+        )
+        isempty(pt_sites) || _validate_single_leg_sites("OpenInput", pt_sites, _INPUT_PLEV)
+        return new(pt_sites, _INPUT_PLEV)
+    end
 end
 
 """
     open_input(pt_sites=Index[]; leg_plev=1)
-    open_input()
 
-Lowercase alias for [`OpenInput`](@ref).
+User-facing constructor for [`OpenInput`](@ref).
+
+Not valid at the terminal slot `pt.nsteps` (no input leg exists there).
 """
-open_input(args...; kwargs...) = OpenInput(args...; kwargs...)
-open_input() = OpenInput()
+function open_input(
+    pt_sites::AbstractVector{<:Index}=Index[];
+    leg_plev::Int=_INPUT_PLEV,
+)
+    pt_sites_vec = _bind_single_leg_sites("OpenInput", pt_sites, _INPUT_PLEV)
+    return OpenInput(pt_sites_vec, leg_plev)
+end
 
 """
     OpenInOut
@@ -610,22 +663,39 @@ open_input() = OpenInput()
 Two-leg bookkeeping instrument that leaves both input and output process-tensor
 legs at one evolve slot uncontracted.
 
-Unlike [`IdentityOperation`](@ref), which inserts `delta(in, out)`, `OpenInOut`
-materializes as `ITensor(1.0)` and does not connect the legs.
+Canonical construction uses already-normalized fields:
+
+```julia
+OpenInOut(input_pt_sites::Vector{Index}, output_pt_sites::Vector{Index})
+```
+
+Prefer [`open_inout`](@ref) for ordinary use. Zero-argument `OpenInOut()` is not
+supported; call `open_inout()` instead.
 """
 struct OpenInOut <: TwoLegInstrument
     input_pt_sites::Vector{Index}
     output_pt_sites::Vector{Index}
+
+    function OpenInOut(
+        input_pt_sites::Vector{Index},
+        output_pt_sites::Vector{Index},
+    )
+        if !isempty(input_pt_sites) || !isempty(output_pt_sites)
+            _validate_two_leg_map("OpenInOut", input_pt_sites, output_pt_sites)
+        end
+        return new(input_pt_sites, output_pt_sites)
+    end
 end
-"""
-    OpenInOut(input_pt_sites=Index[], output_pt_sites=Index[])
-    OpenInOut()
 
-Declare that both legs of an evolve connector remain open.
-
-Not valid at the terminal slot `pt.nsteps`.
 """
-function OpenInOut(
+    open_inout(input_pt_sites=Index[], output_pt_sites=Index[])
+
+User-facing constructor for [`OpenInOut`](@ref).
+
+Unlike [`identity_operation`](@ref), which inserts `delta(in, out)`,
+`open_inout` materializes as `ITensor(1.0)` and does not connect the legs.
+"""
+function open_inout(
     input_pt_sites::AbstractVector{<:Index}=Index[],
     output_pt_sites::AbstractVector{<:Index}=Index[],
 )
@@ -634,15 +704,6 @@ function OpenInOut(
     )
     return OpenInOut(input_vec, output_vec)
 end
-
-"""
-    open_inout(input_pt_sites=Index[], output_pt_sites=Index[])
-    open_inout()
-
-Lowercase alias for [`OpenInOut`](@ref).
-"""
-open_inout(args...; kwargs...) = OpenInOut(args...; kwargs...)
-open_inout() = OpenInOut()
 
 """
     ProductInstrument
@@ -659,11 +720,6 @@ O_A += 1.0, "Sz", 1
 O_B += 1.0, "Sx", 1
 prod_instr = observable_measurement(O_B) * observable_measurement(O_A; leg_plev=1)
 add!(seq, prod_instr, 2)
-
-# Measure on the output leg and reprepare on the input leg:
-ρ_up = to_dm(MPS(s, ["Up"]))
-collapse = observable_measurement(O_A) * state_preparation(ρ_up)
-add!(seq, collapse, 2)
 ```
 """
 struct ProductInstrument{I<:SingleLegInstrument,O<:SingleLegInstrument} <: TwoLegInstrument
@@ -679,6 +735,15 @@ end
     CustomTwoLegInstrument
 
 Two-leg instrument backed by a dense `ITensor` on Liouville process-tensor legs.
+
+Canonical construction uses already-normalized fields:
+
+```julia
+CustomTwoLegInstrument(data, input_pt_sites, output_pt_sites, source_input, source_output)
+```
+
+Prefer [`custom_twoleg_instrument`](@ref) for keyword and positional convenience
+forms.
 """
 struct CustomTwoLegInstrument <: TwoLegInstrument
     data::ITensor
@@ -686,117 +751,85 @@ struct CustomTwoLegInstrument <: TwoLegInstrument
     output_pt_sites::Vector{Index}
     source_input::Vector{Index}
     source_output::Vector{Index}
-end
 
-"""
-    CustomTwoLegInstrument(; data, input_pt_sites=Index[], output_pt_sites=Index[],
-                           source_input=Index[], source_output=Index[])
-    CustomTwoLegInstrument(data::ITensor, input_pt_sites, output_pt_sites)
+    function CustomTwoLegInstrument(
+        data::ITensor,
+        input_pt_sites::Vector{Index},
+        output_pt_sites::Vector{Index},
+        source_input::Vector{Index},
+        source_output::Vector{Index},
+    )
+        if isempty(source_input) && isempty(source_output)
+            _validate_two_leg_map("CustomTwoLegInstrument", input_pt_sites, output_pt_sites)
+            for s in input_pt_sites
+                hasind(data, s) || throw(
+                    ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
+                )
+            end
+            for s in output_pt_sites
+                hasind(data, s) || throw(
+                    ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
+                )
+            end
+            expected = length(input_pt_sites) + length(output_pt_sites)
+            length(inds(data)) == expected || throw(
+                ArgumentError(
+                    "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
+                ),
+            )
+            return new(data, input_pt_sites, output_pt_sites, Index[], Index[])
+        end
 
-Construct a custom two-leg instrument from a dense `ITensor` on Liouville
-process-tensor legs.
-
-Use `source_input` and `source_output` when `data` must be reindexed onto the
-target process-tensor legs at contraction time.
-"""
-function CustomTwoLegInstrument(;
-    data::ITensor,
-    input_pt_sites::AbstractVector{<:Index}=Index[],
-    output_pt_sites::AbstractVector{<:Index}=Index[],
-    source_input::AbstractVector{<:Index}=Index[],
-    source_output::AbstractVector{<:Index}=Index[],
-)
-    in_vec = Index[input_pt_sites...]
-    out_vec = Index[output_pt_sites...]
-    src_in = Index[source_input...]
-    src_out = Index[source_output...]
-
-    if isempty(src_in) && isempty(src_out)
-        _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
-        for s in in_vec
+        if !isempty(input_pt_sites) && length(source_input) != length(input_pt_sites)
+            throw(
+                ArgumentError(
+                    "CustomTwoLegInstrument: source_input and input_pt_sites must have equal length; " *
+                    "got $(length(source_input)) and $(length(input_pt_sites)).",
+                ),
+            )
+        end
+        if !isempty(output_pt_sites) && length(source_output) != length(output_pt_sites)
+            throw(
+                ArgumentError(
+                    "CustomTwoLegInstrument: source_output and output_pt_sites must have equal length; " *
+                    "got $(length(source_output)) and $(length(output_pt_sites)).",
+                ),
+            )
+        end
+        if !isempty(input_pt_sites) || !isempty(output_pt_sites)
+            _validate_two_leg_map("CustomTwoLegInstrument", input_pt_sites, output_pt_sites)
+        end
+        for s in source_input
             hasind(data, s) || throw(
                 ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
             )
         end
-        for s in out_vec
+        for s in source_output
             hasind(data, s) || throw(
                 ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
             )
         end
-        expected = length(in_vec) + length(out_vec)
+        expected = length(source_input) + length(source_output)
         length(inds(data)) == expected || throw(
             ArgumentError(
                 "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
             ),
         )
-        return CustomTwoLegInstrument(data, in_vec, out_vec, Index[], Index[])
+        return new(data, input_pt_sites, output_pt_sites, source_input, source_output)
     end
-
-    if !isempty(in_vec) && length(src_in) != length(in_vec)
-        throw(
-            ArgumentError(
-                "CustomTwoLegInstrument: source_input and input_pt_sites must have equal length; " *
-                "got $(length(src_in)) and $(length(in_vec)).",
-            ),
-        )
-    end
-    if !isempty(out_vec) && length(src_out) != length(out_vec)
-        throw(
-            ArgumentError(
-                "CustomTwoLegInstrument: source_output and output_pt_sites must have equal length; " *
-                "got $(length(src_out)) and $(length(out_vec)).",
-            ),
-        )
-    end
-    if !isempty(in_vec) || !isempty(out_vec)
-        _validate_two_leg_map("CustomTwoLegInstrument", in_vec, out_vec)
-    end
-    for s in src_in
-        hasind(data, s) || throw(
-            ArgumentError("CustomTwoLegInstrument: data is missing input index $s."),
-        )
-    end
-    for s in src_out
-        hasind(data, s) || throw(
-            ArgumentError("CustomTwoLegInstrument: data is missing output index $s."),
-        )
-    end
-    expected = length(src_in) + length(src_out)
-    length(inds(data)) == expected || throw(
-        ArgumentError(
-            "CustomTwoLegInstrument: data must have exactly $(expected) indices; got $(length(inds(data))).",
-        ),
-    )
-    return CustomTwoLegInstrument(data, in_vec, out_vec, src_in, src_out)
-end
-
-CustomTwoLegInstrument(
-    data::ITensor,
-    input_pt_sites::AbstractVector{<:Index},
-    output_pt_sites::AbstractVector{<:Index},
-) = CustomTwoLegInstrument(; data, input_pt_sites, output_pt_sites)
-
-function CustomTwoLegInstrument(
-    data::ITensor;
-    source_input::AbstractVector{<:Index},
-    source_output::AbstractVector{<:Index},
-    input_pt_sites::AbstractVector{<:Index}=Index[],
-    output_pt_sites::AbstractVector{<:Index}=Index[],
-)
-    return CustomTwoLegInstrument(;
-        data,
-        source_input,
-        source_output,
-        input_pt_sites,
-        output_pt_sites,
-    )
 end
 
 """
     custom_twoleg_instrument(; data, input_pt_sites=Index[], output_pt_sites=Index[],
                              source_input=Index[], source_output=Index[])
+    custom_twoleg_instrument(data, input_pt_sites, output_pt_sites)
+    custom_twoleg_instrument(data; source_input, source_output, input_pt_sites=Index[],
+                             output_pt_sites=Index[])
 
-Lowercase alias for [`CustomTwoLegInstrument`](@ref).
+User-facing constructor for [`CustomTwoLegInstrument`](@ref).
+
+Use `source_input` and `source_output` when `data` must be reindexed onto the
+target process-tensor legs at contraction time.
 
 # Examples
 ```julia
@@ -805,7 +838,43 @@ instr = custom_twoleg_instrument(; data=U, input_pt_sites=[in_k], output_pt_site
 add!(seq, instr, 1)
 ```
 """
-custom_twoleg_instrument(; kwargs...) = CustomTwoLegInstrument(; kwargs...)
+function custom_twoleg_instrument(;
+    data::ITensor,
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+    source_input::AbstractVector{<:Index}=Index[],
+    source_output::AbstractVector{<:Index}=Index[],
+)
+    return CustomTwoLegInstrument(
+        data,
+        Index[input_pt_sites...],
+        Index[output_pt_sites...],
+        Index[source_input...],
+        Index[source_output...],
+    )
+end
+
+custom_twoleg_instrument(
+    data::ITensor,
+    input_pt_sites::AbstractVector{<:Index},
+    output_pt_sites::AbstractVector{<:Index},
+) = custom_twoleg_instrument(; data, input_pt_sites, output_pt_sites)
+
+function custom_twoleg_instrument(
+    data::ITensor;
+    source_input::AbstractVector{<:Index},
+    source_output::AbstractVector{<:Index},
+    input_pt_sites::AbstractVector{<:Index}=Index[],
+    output_pt_sites::AbstractVector{<:Index}=Index[],
+)
+    return custom_twoleg_instrument(;
+        data,
+        source_input,
+        source_output,
+        input_pt_sites,
+        output_pt_sites,
+    )
+end
 
 function Base.show(io::IO, instr::CustomTwoLegInstrument)
     print(io, "CustomTwoLegInstrument(")
@@ -882,9 +951,9 @@ initial [`StatePreparation`](@ref).
 
 # Examples
 ```julia
-seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-add!(seq, StatePreparation(ρ0), 0)
-add!(seq, TraceOut(), pt.nsteps)
+seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+add!(seq, state_preparation(ρ0), 0)
+add!(seq, trace_out(), pt.nsteps)
 ```
 """
 function InstrumentSeq(

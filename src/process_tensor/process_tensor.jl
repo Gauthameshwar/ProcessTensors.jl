@@ -150,7 +150,7 @@ function generate_pt_legs(site::Index, k::Int)
 end
 
 
-_schedule_default_instr(::ProcessTensor) = IdentityOperation()
+_schedule_default_instr(::ProcessTensor) = identity_operation()
 
 # Thin PT wrapper around the seq-first canonical coverage API.
 Instruments.instrument_leg_maps(pt::ProcessTensor, seq::InstrumentSeq) =

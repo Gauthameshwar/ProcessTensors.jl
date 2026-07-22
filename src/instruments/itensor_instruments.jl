@@ -447,7 +447,7 @@ function create_instruments(
         slots[t + 1] = resolve_instrument(seq, t, default)
     end
     if slots[end] isa IdentityOperation
-        slots[end] = OpenOutput()
+        slots[end] = open_output()
     end
 
     # Pair physical single-leg out/in (OpenOutput does not force a partner).

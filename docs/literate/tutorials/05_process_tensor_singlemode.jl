@@ -404,7 +404,7 @@ println("Final ⟨Sz⟩ with spin bath        = ", roundreal(last(mz)))
 # - measure an outcome, or
 # - leave an output open.
 #
-# The default schedule uses `IdentityOperation()` between time steps: no extra
+# The default schedule uses `identity_operation()` between time steps: no extra
 # intervention is inserted beyond the propagation already stored in the process
 # tensor.
 
@@ -423,8 +423,8 @@ println(seq)
 # Physically, this asks for the total probability of the process.
 
 seq_norm = default_schedule(pt)
-add!(seq_norm, StatePreparation(ρS0), 0)
-add!(seq_norm, TraceOut(), pt.nsteps)
+add!(seq_norm, state_preparation(ρS0), 0)
+add!(seq_norm, trace_out(), pt.nsteps)
 
 norm_val = evaluate_process(pt, seq_norm)
 
@@ -437,12 +437,12 @@ println(norm_val)
 # ### Leaving an output open
 #
 # Leaving the final output leg open returns the final reduced system state.
-# `OpenOutput()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
+# `open_output()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
 # not insert a physical map, so the declared output index stays uncontracted.
 
 seq_open = default_schedule(pt)
-add!(seq_open, StatePreparation(ρS0), 0)
-add!(seq_open, OpenOutput(), pt.nsteps)
+add!(seq_open, state_preparation(ρS0), 0)
+add!(seq_open, open_output(), pt.nsteps)
 
 open_result = evaluate_process(pt, seq_open)
 
@@ -464,8 +464,8 @@ println(typeof(open_result))
 # ```
 
 seq_final_sz = default_schedule(pt)
-add!(seq_final_sz, StatePreparation(ρS0), 0)
-add!(seq_final_sz, ObservableMeasurement(Sz), pt.nsteps)
+add!(seq_final_sz, state_preparation(ρS0), 0)
+add!(seq_final_sz, observable_measurement(Sz), pt.nsteps)
 
 final_sz_from_schedule = evaluate_process(pt, seq_final_sz)
 
@@ -518,9 +518,9 @@ Pup_mpo = MPO(Pup, system_sites)
 lazy_filter = left_right_operator(Pup_mpo, Pup_mpo)
 
 seq_filter_lazy = default_schedule(pt)
-add!(seq_filter_lazy, StatePreparation(ρS0), 0)
+add!(seq_filter_lazy, state_preparation(ρS0), 0)
 add!(seq_filter_lazy, lazy_filter, 2)
-add!(seq_filter_lazy, TraceOut(), pt.nsteps)
+add!(seq_filter_lazy, trace_out(), pt.nsteps)
 
 prob_filter_lazy = evaluate_process(pt, seq_filter_lazy)
 
@@ -545,16 +545,16 @@ dense_filter_tensor = instrument_itensor(
 println("Dense filter instrument:")
 println(dense_filter_tensor)
 
-dense_filter = CustomTwoLegInstrument(
+dense_filter = custom_twoleg_instrument(
     dense_filter_tensor,
     in_curr,
     out_prev,
 )
 
 seq_filter_dense = default_schedule(pt)
-add!(seq_filter_dense, StatePreparation(ρS0), 0)
+add!(seq_filter_dense, state_preparation(ρS0), 0)
 add!(seq_filter_dense, dense_filter, 2)
-add!(seq_filter_dense, TraceOut(), pt.nsteps)
+add!(seq_filter_dense, trace_out(), pt.nsteps)
 
 prob_filter_dense = evaluate_process(pt, seq_filter_dense)
 
@@ -604,7 +604,7 @@ println(prob_filter_manual)
 #
 #     ```julia
 #     dense = instrument_itensor(instr, in_curr, out_prev, step)
-#     custom = CustomTwoLegInstrument(dense, in_curr, out_prev)
+#     custom = custom_twoleg_instrument(dense, in_curr, out_prev)
 #     ```
 #
 #     Both paths describe the same physical intervention when the dense tensor is
@@ -636,9 +636,9 @@ Pup += 1.0, "Sz", 1
 ρ_up = to_dm(MPS(system_sites, ["Up"]))
 
 seq_filter = default_schedule(pt)
-add!(seq_filter, StatePreparation(ρS0), 0)
+add!(seq_filter, state_preparation(ρS0), 0)
 add!(seq_filter, observable_measurement(Pup) * state_preparation(ρ_up), 2)
-add!(seq_filter, TraceOut(), pt.nsteps)
+add!(seq_filter, trace_out(), pt.nsteps)
 
 prob_filter = evaluate_process(pt, seq_filter)
 

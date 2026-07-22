@@ -42,13 +42,14 @@ abstract type AbstractBath end
 
 """
     BosonicMode(sites, H, n_max, rho0; coupling=OpSum())
-    BosonicMode(sites, H, rho0; n_max=dim(only(sites))-1, coupling=OpSum())
 
 Single bosonic bath mode in Liouville space.
 
 `rho0` is the initial mode state and must have site indices exactly equal to
 `sites`. `H` is the local mode Hamiltonian. `coupling` uses local site labels
 with site `1` for the bath mode and site `2` for the coupled system site.
+
+Prefer [`bosonic_mode`](@ref) for inferred `n_max` and keyword-only construction.
 """
 struct BosonicMode{M<:AbstractMPS} <: AbstractBathMode
     rho0::M # must have liouville index space
@@ -57,7 +58,6 @@ struct BosonicMode{M<:AbstractMPS} <: AbstractBathMode
     n_max::Int
     sites::Vector{Index} # must be in liouville space
 
-    # Constructor to verify the indices input, n_max, and H are all consistent
     function BosonicMode{M}(
         sites::AbstractVector{<:Index},
         H::OpSum,
@@ -73,15 +73,15 @@ struct BosonicMode{M<:AbstractMPS} <: AbstractBathMode
     end
 end
 
-function BosonicMode(sites::AbstractVector{<:Index}, H::OpSum, n_max::Int, rho0::M; coupling::OpSum=OpSum()) where {M<:AbstractMPS}
+function BosonicMode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    n_max::Int,
+    rho0::M;
+    coupling::OpSum=OpSum(),
+) where {M<:AbstractMPS}
     return BosonicMode{M}(sites, H, n_max, rho0, coupling)
 end
-
-BosonicMode(sites::AbstractVector{<:Index}, H::OpSum, rho0::AbstractMPS; n_max::Int=dim(only(sites)) - 1, coupling::OpSum=OpSum()) =
-    BosonicMode(sites, H, n_max, rho0; coupling=coupling)
-
-BosonicMode(; sites::AbstractVector{<:Index}, H::OpSum=OpSum(), rho0::AbstractMPS, n_max::Int=dim(only(sites)) - 1, coupling::OpSum=OpSum()) =
-    BosonicMode(sites, H, n_max, rho0; coupling=coupling)
 
 """
     SpinMode(sites, H, rho0; coupling=OpSum())
@@ -91,6 +91,8 @@ Single spin bath mode in Liouville space.
 `rho0` is the initial mode state and must have site indices exactly equal to
 `sites`. `H` is the local mode Hamiltonian. `coupling` uses local site labels
 with site `1` for the bath mode and site `2` for the coupled system site.
+
+Prefer [`spin_mode`](@ref) for keyword-only construction.
 """
 struct SpinMode{M<:AbstractMPS} <: AbstractBathMode
     rho0::M # must have liouville index space
@@ -98,8 +100,12 @@ struct SpinMode{M<:AbstractMPS} <: AbstractBathMode
     coupling::OpSum # local pair: site 1 = bath, site 2 = system
     sites::Vector{Index} # must be in liouville space
 
-    # Constructor to verify the indices input and H are all consistent
-    function SpinMode{M}(sites::AbstractVector{<:Index}, H::OpSum, rho0::M; coupling::OpSum=OpSum()) where {M<:AbstractMPS}
+    function SpinMode{M}(
+        sites::AbstractVector{<:Index},
+        H::OpSum,
+        rho0::M;
+        coupling::OpSum=OpSum(),
+    ) where {M<:AbstractMPS}
         length(sites) == 1 || throw(ArgumentError("SpinMode: a single spin mode should have exactly one site index. Got $(length(sites))."))
         siteinds(rho0) == sites || throw(ArgumentError("SpinMode:rho0 and sites must have the same indices. Got $(siteinds(rho0)) and $(sites)."))
         H == OpSum() && @warn "SpinMode:H is empty. This is usually not what you want."
@@ -107,22 +113,26 @@ struct SpinMode{M<:AbstractMPS} <: AbstractBathMode
     end
 end
 
-function SpinMode(sites::AbstractVector{<:Index}, H::OpSum, rho0::AbstractMPS; coupling::OpSum=OpSum())
+function SpinMode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    rho0::AbstractMPS;
+    coupling::OpSum=OpSum(),
+)
     return SpinMode{typeof(rho0)}(sites, H, rho0; coupling=coupling)
 end
 
-SpinMode(; sites::AbstractVector{<:Index}, H::OpSum=OpSum(), rho0::AbstractMPS, coupling::OpSum=OpSum()) =
-    SpinMode(sites, H, rho0; coupling=coupling)
-
 """
-    BosonicBath(modes, spectral_density=ohmic_sd(), coupling=OpSum())
     BosonicBath(sites, modes, spectral_density, coupling)
 
 Bath container for bosonic modes.
 
 `modes` must contain [`BosonicMode`](@ref) values. `sites` are the concatenated
-Liouville sites of the modes. `coupling` represents bath-only inter-mode terms;
-mode-system couplings belong on each mode's `coupling` field.
+Liouville sites of the modes and must be supplied explicitly. `coupling`
+represents bath-only inter-mode terms; mode-system couplings belong on each
+mode's `coupling` field.
+
+Prefer [`bosonic_bath`](@ref) when sites should be derived from `modes`.
 """
 struct BosonicBath{M<:BosonicMode,S<:AbstractSpectralDensity,O<:OpSum} <: AbstractBath
     modes::Vector{M}
@@ -130,7 +140,6 @@ struct BosonicBath{M<:BosonicMode,S<:AbstractSpectralDensity,O<:OpSum} <: Abstra
     coupling::O
     sites::Vector{Index}
 
-    # Constructor to verify the indices input, spectral_density, and coupling are all consistent
     function BosonicBath{M,S,O}(
         sites::AbstractVector{<:Index},
         modes::AbstractVector{M},
@@ -159,28 +168,18 @@ function BosonicBath(
 ) where {M<:BosonicMode,S<:AbstractSpectralDensity,O<:OpSum}
     return BosonicBath{M,S,O}(sites, modes, spectral_density, coupling)
 end
-function BosonicBath(
-    modes::AbstractVector{<:BosonicMode},
-    spectral_density::AbstractSpectralDensity=ohmic_sd(),
-    coupling::OpSum=OpSum(),
-)
-    sites = collect(Iterators.flatten(getfield.(modes, :sites)))
-    return BosonicBath(sites, modes, spectral_density, coupling)
-end
-function BosonicBath(; modes::AbstractVector=BosonicMode[], spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum())
-    all(mode -> mode isa BosonicMode, modes) || throw(ArgumentError("BosonicBath:modes must contain only BosonicMode values."))
-    return BosonicBath(collect(BosonicMode, modes), spectral_density, coupling)
-end
 
 """
-    SpinBath(modes, spectral_density=ohmic_sd(), coupling=OpSum())
     SpinBath(sites, modes, spectral_density, coupling)
 
 Bath container for spin modes.
 
 `modes` must contain [`SpinMode`](@ref) values. `sites` are the concatenated
-Liouville sites of the modes. `coupling` represents bath-only inter-mode terms;
-mode-system couplings belong on each mode's `coupling` field.
+Liouville sites of the modes and must be supplied explicitly. `coupling`
+represents bath-only inter-mode terms; mode-system couplings belong on each
+mode's `coupling` field.
+
+Prefer [`spin_bath`](@ref) when sites should be derived from `modes`.
 """
 struct SpinBath{M<:SpinMode,S<:AbstractSpectralDensity,O<:OpSum} <: AbstractBath
     modes::Vector{M}
@@ -188,7 +187,6 @@ struct SpinBath{M<:SpinMode,S<:AbstractSpectralDensity,O<:OpSum} <: AbstractBath
     coupling::O
     sites::Vector{Index}
 
-    # Constructor to verify the indices input, spectral_density, and coupling are all consistent
     function SpinBath{M,S,O}(
         sites::AbstractVector{<:Index},
         modes::AbstractVector{M},
@@ -217,53 +215,137 @@ function SpinBath(
 ) where {M<:SpinMode,S<:AbstractSpectralDensity,O<:OpSum}
     return SpinBath{M,S,O}(sites, modes, spectral_density, coupling)
 end
-function SpinBath(
+
+"""
+    bosonic_mode(sites, H, n_max, rho0; coupling=OpSum())
+    bosonic_mode(sites, H, rho0; n_max=dim(only(sites))-1, coupling=OpSum())
+    bosonic_mode(; sites, H=OpSum(), rho0, n_max=dim(only(sites))-1, coupling=OpSum())
+
+User-facing constructor for [`BosonicMode`](@ref).
+
+Supports inferred `n_max` and keyword-only construction, then routes to the
+canonical `BosonicMode(sites, H, n_max, rho0; coupling)` constructor.
+"""
+bosonic_mode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    n_max::Int,
+    rho0::AbstractMPS;
+    coupling::OpSum=OpSum(),
+) = BosonicMode(sites, H, n_max, rho0; coupling=coupling)
+
+bosonic_mode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    rho0::AbstractMPS;
+    n_max::Int=dim(only(sites)) - 1,
+    coupling::OpSum=OpSum(),
+) = BosonicMode(sites, H, n_max, rho0; coupling=coupling)
+
+bosonic_mode(;
+    sites::AbstractVector{<:Index},
+    H::OpSum=OpSum(),
+    rho0::AbstractMPS,
+    n_max::Int=dim(only(sites)) - 1,
+    coupling::OpSum=OpSum(),
+) = BosonicMode(sites, H, n_max, rho0; coupling=coupling)
+
+"""
+    spin_mode(sites, H, rho0; coupling=OpSum())
+    spin_mode(; sites, H=OpSum(), rho0, coupling=OpSum())
+
+User-facing constructor for [`SpinMode`](@ref).
+
+Supports keyword-only construction and routes to the canonical
+`SpinMode(sites, H, rho0; coupling)` constructor.
+"""
+spin_mode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    rho0::AbstractMPS;
+    coupling::OpSum=OpSum(),
+) = SpinMode(sites, H, rho0; coupling=coupling)
+
+spin_mode(;
+    sites::AbstractVector{<:Index},
+    H::OpSum=OpSum(),
+    rho0::AbstractMPS,
+    coupling::OpSum=OpSum(),
+) = SpinMode(sites, H, rho0; coupling=coupling)
+
+"""
+    bosonic_bath(sites, modes, spectral_density, coupling)
+    bosonic_bath(modes; spectral_density=ohmic_sd(), coupling=OpSum())
+    bosonic_bath(; modes=BosonicMode[], spectral_density=ohmic_sd(), coupling=OpSum())
+
+User-facing constructor for [`BosonicBath`](@ref).
+
+Mode-only forms derive `sites` by concatenating each mode's sites, then call
+the canonical four-argument constructor.
+"""
+bosonic_bath(
+    sites::AbstractVector{<:Index},
+    modes::AbstractVector{<:BosonicMode},
+    spectral_density::AbstractSpectralDensity,
+    coupling::OpSum,
+) = BosonicBath(sites, modes, spectral_density, coupling)
+
+function bosonic_bath(
+    modes::AbstractVector{<:BosonicMode};
+    spectral_density::AbstractSpectralDensity=ohmic_sd(),
+    coupling::OpSum=OpSum(),
+)
+    sites = collect(Iterators.flatten(getfield.(modes, :sites)))
+    return BosonicBath(sites, modes, spectral_density, coupling)
+end
+
+function bosonic_bath(;
+    modes::AbstractVector=BosonicMode[],
+    spectral_density::AbstractSpectralDensity=ohmic_sd(),
+    coupling::OpSum=OpSum(),
+)
+    all(mode -> mode isa BosonicMode, modes) || throw(
+        ArgumentError("bosonic_bath: modes must contain only BosonicMode values."),
+    )
+    return bosonic_bath(collect(BosonicMode, modes); spectral_density=spectral_density, coupling=coupling)
+end
+
+"""
+    spin_bath(sites, modes, spectral_density, coupling)
+    spin_bath(modes; spectral_density=ohmic_sd(), coupling=OpSum())
+    spin_bath(; modes=SpinMode[], spectral_density=ohmic_sd(), coupling=OpSum())
+
+User-facing constructor for [`SpinBath`](@ref).
+
+Mode-only forms derive `sites` by concatenating each mode's sites, then call
+the canonical four-argument constructor.
+"""
+spin_bath(
+    sites::AbstractVector{<:Index},
     modes::AbstractVector{<:SpinMode},
+    spectral_density::AbstractSpectralDensity,
+    coupling::OpSum,
+) = SpinBath(sites, modes, spectral_density, coupling)
+
+function spin_bath(
+    modes::AbstractVector{<:SpinMode};
     spectral_density::AbstractSpectralDensity=ohmic_sd(),
     coupling::OpSum=OpSum(),
 )
     sites = collect(Iterators.flatten(getfield.(modes, :sites)))
     return SpinBath(sites, modes, spectral_density, coupling)
 end
-function SpinBath(; modes::AbstractVector=SpinMode[], spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum())
-    all(mode -> mode isa SpinMode, modes) || throw(ArgumentError("SpinBath:modes must contain only SpinMode values."))
-    return SpinBath(collect(SpinMode, modes), spectral_density, coupling)
+
+function spin_bath(;
+    modes::AbstractVector=SpinMode[],
+    spectral_density::AbstractSpectralDensity=ohmic_sd(),
+    coupling::OpSum=OpSum(),
+)
+    all(mode -> mode isa SpinMode, modes) || throw(
+        ArgumentError("spin_bath: modes must contain only SpinMode values."),
+    )
+    return spin_bath(collect(SpinMode, modes); spectral_density=spectral_density, coupling=coupling)
 end
-
-"""
-    bosonic_mode(args...; kwargs...)
-
-Lowercase convenience constructors for [`BosonicMode`](@ref) and [`SpinMode`](@ref).
-"""
-bosonic_mode(args...; kwargs...) = BosonicMode(args...; kwargs...)
-
-"""
-    spin_mode(args...; kwargs...)
-
-Lowercase convenience constructor for [`SpinMode`](@ref).
-"""
-spin_mode(args...; kwargs...) =
-    SpinMode(args...; kwargs...)
-
-"""
-    bosonic_bath(modes; spectral_density=ohmic_sd(), coupling=OpSum())
-
-Lowercase convenience constructors for [`BosonicBath`](@ref) and [`SpinBath`](@ref).
-"""
-bosonic_bath(modes::AbstractVector{<:BosonicMode}; spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum()) =
-    BosonicBath(modes, spectral_density, coupling)
-bosonic_bath(; modes::AbstractVector=BosonicMode[], spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum()) =
-    BosonicBath(; modes=modes, spectral_density=spectral_density, coupling=coupling)
-
-"""
-    spin_bath(modes; spectral_density=ohmic_sd(), coupling=OpSum())
-
-Lowercase convenience constructor for [`SpinBath`](@ref).
-"""
-spin_bath(modes::AbstractVector{<:SpinMode}; spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum()) =
-    SpinBath(modes, spectral_density, coupling)
-spin_bath(; modes::AbstractVector=SpinMode[], spectral_density::AbstractSpectralDensity=ohmic_sd(), coupling::OpSum=OpSum()) =
-    SpinBath(; modes=modes, spectral_density=spectral_density, coupling=coupling)
 
 """
     mode_initial_states(bath::AbstractBath)

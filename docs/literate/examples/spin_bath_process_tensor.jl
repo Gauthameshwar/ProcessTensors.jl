@@ -273,12 +273,12 @@ k_final = pt_single.nsteps - 1
 final_sites = output_sites(pt_single, k_final)
 
 seq_final_sz = default_schedule(pt_single)
-add!(seq_final_sz, StatePreparation(ρ_sys0_h), 0)
-add!(seq_final_sz, ObservableMeasurement(Sz, final_sites), pt_single.nsteps)
+add!(seq_final_sz, state_preparation(ρ_sys0_h), 0)
+add!(seq_final_sz, observable_measurement(Sz, final_sites), pt_single.nsteps)
 final_sz_schedule = evaluate_process(pt_single, seq_final_sz)
 
 Sz_obs = instrument_itensor(
-    ObservableMeasurement(Sz, final_sites),
+    observable_measurement(Sz, final_sites),
     final_sites,
     k_final,
 )
@@ -379,12 +379,12 @@ println("evolve returned $(length(trajectory_multi.times)) snapshots")
 
 final_sites_multi = output_sites(pt_multi, pt_multi.nsteps - 1)
 seq_multi_sz = default_schedule(pt_multi)
-add!(seq_multi_sz, StatePreparation(ρ_sys0_h), 0)
-add!(seq_multi_sz, ObservableMeasurement(Sz, final_sites_multi), pt_multi.nsteps)
+add!(seq_multi_sz, state_preparation(ρ_sys0_h), 0)
+add!(seq_multi_sz, observable_measurement(Sz, final_sites_multi), pt_multi.nsteps)
 final_sz_multi = evaluate_process(pt_multi, seq_multi_sz)
 
 Sz_obs_multi = instrument_itensor(
-    ObservableMeasurement(Sz, final_sites_multi),
+    observable_measurement(Sz, final_sites_multi),
     final_sites_multi,
     pt_multi.nsteps - 1,
 )
@@ -472,8 +472,8 @@ Sx += 1.0, "Sx", 1
 function final_sx_evaluate(pt)
     out = output_sites(pt, pt.nsteps - 1)
     seq = default_schedule(pt)
-    add!(seq, StatePreparation(ρ_sys0_h), 0)
-    add!(seq, ObservableMeasurement(Sx, out), pt.nsteps)
+    add!(seq, state_preparation(ρ_sys0_h), 0)
+    add!(seq, observable_measurement(Sx, out), pt.nsteps)
     return real(evaluate_process(pt, seq))
 end
 

@@ -47,7 +47,6 @@ include(joinpath(@__DIR__, "time_evolution", "test_tdvp_forwarding.jl"))
 include(joinpath(@__DIR__, "time_evolution", "tdvp_tfim_benchmarks.jl"))
 
 # liouvillian.jl test sets
-include(joinpath(@__DIR__, "liouvillian", "test_api_names.jl"))
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
 include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_methods.jl"))
@@ -69,6 +68,7 @@ include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
 
 # Process tensor test sets
+include(joinpath(@__DIR__, "process_tensor", "test_api_names.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_structure.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_api.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_evaluate_process.jl"))

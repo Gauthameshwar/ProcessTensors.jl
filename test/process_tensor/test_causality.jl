@@ -35,8 +35,8 @@ end
 
 """Default embedded schedule: prep at 0, IdentityOperation on bond slots."""
 function _standard_seq(pt::ProcessTensor, rho0_h)
-    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0_h), 0)
+    seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq, state_preparation(rho0_h), 0)
     return seq
 end
 
@@ -58,7 +58,7 @@ function _seq_future_causality_break(
         add!(seq, future_instr, step)
     end
     if open_at < pt.nsteps - 1
-        add!(seq, TraceOut(), pt.nsteps)
+        add!(seq, trace_out(), pt.nsteps)
     end
     return seq
 end
@@ -82,7 +82,7 @@ function _check_causality_triple(
 )
     open_at = t_idx - 1
     0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
-    default_instr = IdentityOperation()
+    default_instr = identity_operation()
     seq_std = _standard_seq(pt, rho0_h)
     O_probe = OpSum() + (1.0, "Sz", 1)
     seq_pert = _seq_future_causality_break(

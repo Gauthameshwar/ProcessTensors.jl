@@ -130,10 +130,10 @@ end
         op_sz = OpSum()
         op_sz += 1.0, "Sz", 1
 
-        @test_throws ArgumentError StatePreparation(psi0, bad_input; leg_plev=1)
-        @test_throws ArgumentError ObservableMeasurement(op_sz, bad_output; leg_plev=0)
-        @test_throws ArgumentError TraceOut(bad_output; leg_plev=0)
-        @test_throws ArgumentError IdentityOperation(bad_input, bad_output)
+        @test_throws ArgumentError state_preparation(psi0, bad_input; leg_plev=1)
+        @test_throws ArgumentError observable_measurement(op_sz, bad_output; leg_plev=0)
+        @test_throws ArgumentError trace_out(bad_output; leg_plev=0)
+        @test_throws ArgumentError identity_operation(bad_input, bad_output)
     end
 
     @testset "markovian fallback evolve still works without environment" begin
@@ -278,16 +278,16 @@ end
 
         out1, _ = coupling_times(pt, 2)
         op_z = OpSum() + (1.0, "Sz", 1)
-        @test instrument_itensor(ObservableMeasurement(op_z; leg_plev=0), out1, 1) isa ITensor
-        @test_throws ArgumentError TraceOut(; leg_plev=1)
+        @test instrument_itensor(observable_measurement(op_z; leg_plev=0), out1, 1) isa ITensor
+        @test_throws ArgumentError trace_out(; leg_plev=1)
 
-        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq, StatePreparation(rho0_h), 0)
+        seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq, state_preparation(rho0_h), 0)
         instruments = create_instruments(pt, seq)
         @test length(instruments) == pt.nsteps + 1
-        @test instruments[1] ≈ instrument_itensor(StatePreparation(rho0_h), input_sites(pt, 0), 0)
+        @test instruments[1] ≈ instrument_itensor(state_preparation(rho0_h), input_sites(pt, 0), 0)
         for step in 1:(pt.nsteps - 1)
-            expected = _create_instruments_step_bond(pt, IdentityOperation(), step)
+            expected = _create_instruments_step_bond(pt, identity_operation(), step)
             @test instruments[step + 1] ≈ expected
         end
         @test length(inds(instruments[end])) == 0
@@ -304,10 +304,10 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
+        seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
         trj_conv = evolve(pt, rho0_h, seq)
-        seq_with_prep = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq_with_prep, StatePreparation(rho0_h), 0)
+        seq_with_prep = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq_with_prep, state_preparation(rho0_h), 0)
         trj_ref = evolve(pt, seq_with_prep)
         trj_short = evolve(pt, rho0_h)
 

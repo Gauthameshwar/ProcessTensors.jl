@@ -97,7 +97,7 @@ end
 """
     evolve(pt, rho0, seq; default_instr=_schedule_default_instr(pt))
 
-Insert `StatePreparation(rho0)` at `tstep = 0` and return reduced system
+Insert `state_preparation(rho0)` at `tstep = 0` and return reduced system
 snapshots for the resulting schedule.
 """
 function evolve(
@@ -108,7 +108,7 @@ function evolve(
     kwargs...
 )
     seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
-    add!(seq_full, StatePreparation(rho0), 0)
+    add!(seq_full, state_preparation(rho0), 0)
     return evolve(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
@@ -124,6 +124,6 @@ function evolve(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0), 0)
+    add!(seq, state_preparation(rho0), 0)
     return evolve(pt, seq; default_instr=default_instr)
 end
