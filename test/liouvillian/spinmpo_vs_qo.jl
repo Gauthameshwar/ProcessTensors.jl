@@ -141,7 +141,7 @@ function run_case(N::Int, scenario::Symbol; J::Float64=0.7, Δ::Float64=0.0, h::
     os_H = pt_hamiltonian_opsum(N; J=J, Δ=Δ, h=h)
     site_rates = jump_site_rates(N, scenario; gamma_base=gamma_base, gamma_scale=gamma_scale)
     jumps_pt = pt_jump_ops(site_rates)
-    L_pt_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jumps_pt)
+    L_pt_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jumps_pt)
 
     # Build the QuantumOptics Liouvillian from the same physical model.
     H_qo, b_qo, bt_qo = qo_hamiltonian(N; J=J, Δ=Δ, h=h)

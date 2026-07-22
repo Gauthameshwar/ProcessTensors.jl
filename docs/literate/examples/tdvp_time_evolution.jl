@@ -60,7 +60,7 @@ H = let H_local = OpSum()
 end
 
 H_mpo = MPO(H, sites)
-liouvillian_mpo = MPO_Liouville(
+L_mpo = liouvillian_mpo(
     H,
     liouville_sites;
     jump_ops=Tuple{Number,String,Int}[],
@@ -253,7 +253,7 @@ println("Bond dimensions after 1TDVP evolution: ", linkdims(gse_state_evolved.co
 @assert maxlinkdim(gse_state) > maxlinkdim(initial_state)
 
 # In a full trajectory, repeat the expansion periodically before each `nsite=1` update. 
-# The same construction applies in Liouville space with `liouvillian_mpo`; the full script 
+# The same construction applies in Liouville space with `L_mpo = liouvillian_mpo(...)`; the full script 
 # preserves the Liouville combiners when it wraps the expanded core.
 
 # The complete benchmark in
@@ -290,7 +290,7 @@ liouville_trajectory = let
     elapsed = 0.0
     for _ in 1:nsteps
         elapsed += @elapsed density = tdvp(
-            liouvillian_mpo,
+            L_mpo,
             dt,
             density;
             time_step=dt,
@@ -345,7 +345,7 @@ println("    Max bond dim of final state: $(maxlinkdim(liouville_trajectory.dens
 #
 # !!! summary "Example takeaways"
 #     - Hilbert TDVP uses `H_mpo` with the complex timestep `-1im * dt`.
-#     - Liouville TDVP uses `liouvillian_mpo` with the real timestep `dt`.
+#     - Liouville TDVP uses `L_mpo = liouvillian_mpo(...)` with the real timestep `dt`.
 #     - `nsite=2` allows entanglement and operator-space bonds to grow.
 #     - Global subspace expansion adds Krylov directions so 1TDVP is not trapped
 #       in the fixed bond dimensions of the initial MPS.

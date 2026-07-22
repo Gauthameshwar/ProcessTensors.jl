@@ -447,7 +447,7 @@ end
     # When: instrument_itensor (order-1 Trotter) vs dense exp(dt * L).
     # Then: maps agree at requested indices.
     Tmap = instrument_itensor(prop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
-    L_mpo = MPO_Liouville(H, L; jump_ops=[])
+    L_mpo = liouvillian_mpo(H, L; jump_ops=[])
     T_L = contract_core(L_mpo.core)
     d = dim(L[1])
     Lmat = reshape(Array(T_L, prime(L[1]), L[1]), d, d)
@@ -472,7 +472,7 @@ end
     prop_t = UnitaryPropagation(H_of_t, L)
     T_t = instrument_itensor(prop_t, [in1], [out0], 2; dt=dt, alg=Trotter{1}())
     H_mid = H_of_t(1.5dt)
-    L_mid = MPO_Liouville(H_mid, L; jump_ops=[])
+    L_mid = liouvillian_mpo(H_mid, L; jump_ops=[])
     T_L_mid = contract_core(L_mid.core)
     Lmat_mid = reshape(Array(T_L_mid, prime(L[1]), L[1]), d, d)
     A_mid = reshape(Array(T_t, in1, out0), d, d)

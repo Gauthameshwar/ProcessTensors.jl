@@ -100,7 +100,7 @@ include("process_tensor/multitime.jl")
 # Exports (grouped by category)
 
 # Core types
-export AbstractMPS, AbstractMPO, MPS, MPO, AbstractSpace, Hilbert, Liouville
+export AbstractMPS, AbstractMPO, MPS, MPO, Hilbert, Liouville
 export tag_tokens, has_tag_token, has_tag_prefix, tag_value
 
 # Network: indices
@@ -132,8 +132,11 @@ export random_mpo, splitblocks, tr
 export OpSum, add!, op, ops, eigs, coefficient
 
 # Liouvillian
-export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouville,
-       liouvillian_propagator_itensor
+export to_dm, to_liouville, to_hilbert, liouv_sites,
+       liouvillian_opsum, liouvillian_mpo, liouvillian_propagator
+
+# Deprecated compatibility exports; remove in a later 0.y release after the migration window.
+export MPO_Liouville, OpSum_Liouville, liouvillian_propagator_itensor
 
 # Systems / Baths / Instruments / PT
 export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system

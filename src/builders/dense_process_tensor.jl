@@ -49,7 +49,7 @@ function _system_liouvillian_pt_core(
         return delta(in_k, out_k)
     end
     gate_site = only(system.sites)
-    U = liouvillian_propagator_itensor(
+    U = liouvillian_propagator(
         system.H,
         system.sites,
         dt;
@@ -140,7 +140,7 @@ function _build_bathmode_pt_cores(
     # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -235,7 +235,7 @@ function _build_multimode_pt_cores(
     end
     joint_ops += environment.coupling
 
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
     bath_sites_prime = prime.(bath_sites)

@@ -60,7 +60,7 @@ function liouville_state_to_dense(ρ_vec::AbstractMPS{Liouville}, physical_sites
 end
 
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
     L_dense = zeros(ComplexF64, d2, d2)
@@ -434,7 +434,7 @@ z_ops = [dense_one_site_operator("Z", physical_sites, j) for j in 1:N]
 x_mpos = single_site_pauli_mpos("X", physical_sites)
 z_mpos = single_site_pauli_mpos("Z", physical_sites)
 
-L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
 L_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
 times = collect(range(0.0, step=dt, length=nsteps + 1))
 

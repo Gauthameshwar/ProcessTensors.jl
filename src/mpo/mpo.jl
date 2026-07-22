@@ -29,7 +29,7 @@ Matrix-product-operator wrapper around an `ITensorMPS.MPO` stored in `.core`.
 indices and is the default result of `MPO(...)`. `MPO{Liouville}` represents a
 Liouville-space superoperator acting on vectorized density matrices. Liouville
 MPOs may carry `combiners` when constructed from fused Hilbert indices, matching
-the convention used by [`to_liouville`](@ref) and [`MPO_Liouville`](@ref).
+the convention used by [`to_liouville`](@ref) and [`liouvillian_mpo`](@ref).
 
 Most generic MPO operations are delegated to `.core` and rewrapped when they
 return an MPS/MPO-like object.

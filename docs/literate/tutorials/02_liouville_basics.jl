@@ -385,13 +385,13 @@ H = OpSum()
 H += 0.7, "Sx", 1
 H += 0.2, "Sz", 1
 
-L_os = OpSum_Liouville(H)
+L_os = liouvillian_opsum(H)
 
 println()
 println("Liouville-space OpSum for -i[H, .]:")
 println(L_os)
 
-L_mpo = MPO_Liouville(H, sites_L)
+L_mpo = liouvillian_mpo(H, sites_L)
 
 H_dense = dense_mpo_matrix(MPO(H, sites), sites)
 dρ_vec_dense = vec(-1im * (H_dense * ρ_dense - ρ_dense * H_dense))
@@ -412,12 +412,12 @@ println("  ‖package Liouvillian action - dense commutator‖ = ", commutator_e
 # `(γ, "S-", 1)`.
 
 γ = 0.1
-L_os_open = OpSum_Liouville(H; jump_ops=[(γ, "S-", 1)])
+L_os_open = liouvillian_opsum(H; jump_ops=[(γ, "S-", 1)])
 
 println("OpSum entries for the open-system Liouville generator:")
 println(L_os_open)
 
-L_mpo_open = MPO_Liouville(H, sites_L; jump_ops=[(γ, "S-", 1)])
+L_mpo_open = liouvillian_mpo(H, sites_L; jump_ops=[(γ, "S-", 1)])
 
 println()
 println("Open-system Liouville MPO built on the shared `sites_L` indices.")
@@ -430,17 +430,17 @@ println("MPO type: ", typeof(L_mpo_open))
 #     when their tags and dimensions match.
 #
 # A frequent mistake is to vectorize a density matrix with one Liouville site
-# set, then build `MPO_Liouville(H, sites)` from **Hilbert** sites. That
+# set, then build `liouvillian_mpo(H, sites)` from **Hilbert** sites. That
 # constructor creates a fresh internal Liouville index that does not match the
 # one already stored in `ρL`:
 
 sites_L_for_state = liouv_sites(sites)
 ρL_demo = to_liouville(ρ; sites=sites_L_for_state)
-L_from_hilbert_sites = MPO_Liouville(H, sites)
+L_from_hilbert_sites = liouvillian_mpo(H, sites)
 sL_on_generator = only(siteinds(L_from_hilbert_sites))
 
 println("Index on ρL:              ", sites_L_for_state[1])
-println("Index on MPO_Liouville:   ", sL_on_generator)
+println("Index on liouvillian_mpo:   ", sL_on_generator)
 println("Same index object?       ", sites_L_for_state[1] == sL_on_generator)
 
 @assert sites_L_for_state[1] != sL_on_generator
@@ -459,7 +459,7 @@ end
 # ```julia
 # sites_L = liouv_sites(sites)
 # ρL = to_liouville(ρ; sites=sites_L)
-# L_mpo = MPO_Liouville(H, sites_L)
+# L_mpo = liouvillian_mpo(H, sites_L)
 # ```
 #
 # ### Summary
@@ -468,7 +468,7 @@ end
 # - `ProcessTensors.jl` uses column-major vectorization and `liouv_sites`.
 # - Traces and expectations are Liouville overlaps: `inner(O_L, ρL)`.
 # - Left/right actions use `"Op_L"` / `"Op_R"` suffixes on Liouville sites.
-# - `OpSum_Liouville` and `MPO_Liouville` build superoperators on **shared**
+# - `liouvillian_opsum` and `liouvillian_mpo` build superoperators on **shared**
 #   Liouville indices.
 #
 # In the next tutorial, [Unitary Dynamics](@ref), we use this machinery for

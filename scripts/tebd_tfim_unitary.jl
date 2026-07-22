@@ -65,7 +65,7 @@ function hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
 end
 
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
     L_dense = zeros(ComplexF64, d2, d2)

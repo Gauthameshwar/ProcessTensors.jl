@@ -18,10 +18,11 @@ how Hilbert bra/ket site pairs were fused so that `to_hilbert` can reconstruct
 the original density MPO.
 
 Use `liouv_sites` to create Liouville site indices. Reuse the exact same
-`Index` objects across `to_liouville`, `MPO_Liouville`, systems, baths, and
+`Index` objects across `to_liouville`, `liouvillian_mpo`, systems, baths, and
 process-tensor instruments so ITensor contractions match by index identity.
 Process-tensor input legs are primed (`plev = 1`) and output legs are unprimed
 (`plev = 0`).
+
 
 ## List of available ITensorMPS functions
 
@@ -104,21 +105,28 @@ to_hilbert
 
 ### Liouvillian builders
 
+!!! compat "Renamed Liouvillian constructors"
+    `OpSum_Liouville`, `MPO_Liouville`, and
+    `liouvillian_propagator_itensor` are deprecated aliases of
+    `liouvillian_opsum`, `liouvillian_mpo`, and `liouvillian_propagator`.
+    Prefer the new names; the aliases will be removed in a later `0.3+`
+    release after the migration window.
+
 ```@docs
-OpSum_Liouville(::OpSum)
-OpSum_Liouville(::OpSum, ::Tuple{<:Number,<:AbstractString,<:Integer})
-OpSum_Liouville(::OpSum, ::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}})
-OpSum_Liouville(::OpSum, ::OpSum)
-OpSum_Liouville(::OpSum, ::AbstractVector{<:OpSum})
+liouvillian_opsum(::OpSum)
+liouvillian_opsum(::OpSum, ::Tuple{<:Number,<:AbstractString,<:Integer})
+liouvillian_opsum(::OpSum, ::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}})
+liouvillian_opsum(::OpSum, ::OpSum)
+liouvillian_opsum(::OpSum, ::AbstractVector{<:OpSum})
 ```
 
 ```@docs
-MPO_Liouville(::OpSum, ::AbstractVector{<:Index})
-MPO_Liouville(::OpSum, ::Any, ::AbstractVector{<:Index})
+liouvillian_mpo(::OpSum, ::AbstractVector{<:Index})
+liouvillian_mpo(::OpSum, ::Any, ::AbstractVector{<:Index})
 ```
 
 ```@docs
-liouvillian_propagator_itensor
+liouvillian_propagator
 ```
 
 ### Process tensors

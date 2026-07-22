@@ -14,10 +14,10 @@ import ..ProcessTensors: add!
 using ITensors
 using LinearAlgebra
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
-                        OpSum, OpSum_Liouville, Index, ITensor, apply, dim, plev, prime,
+                        OpSum, liouvillian_opsum, Index, ITensor, apply, dim, plev, prime,
                         replaceind, siteinds, tag_value, to_dm, to_liouville,
                         _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
-                        liouvillian_propagator_itensor, Exact, Trotter,
+                        liouvillian_propagator, Exact, Trotter,
                         _phys_sites_from_hilbert_mpo
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,

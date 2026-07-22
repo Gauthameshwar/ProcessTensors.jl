@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+* **Renamed Liouvillian constructors (compat aliases retained).** Prefer
+  `liouvillian_opsum`, `liouvillian_mpo`, and `liouvillian_propagator` over the
+  previous public names `OpSum_Liouville`, `MPO_Liouville`, and
+  `liouvillian_propagator_itensor`. The old names remain exported as deprecated
+  forwarding aliases for one migration window and will be removed in a later
+  `0.y` release. Numerical behaviour is unchanged.
+* **`AbstractSpace` is no longer root-exported.** It remains available as the
+  qualified developer interface `ProcessTensors.AbstractSpace`.
+  `Hilbert`, `Liouville`, `MPS`, `MPO`, `AbstractMPS`, and `AbstractMPO` stay
+  root-exported.
 * **`sys_alg` is the PT timestep sandwich order**, not a TEBD
   factorization of the free-system map. Single-site system maps in dense PT
   cores are always Exact ED. Default `sys_alg=Trotter{1}()` keeps the asymmetric
@@ -26,12 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* **Terminal progress and verbose operational logging.** `build_process_tensor`,
-  `create_instruments`, `evaluate_process`, `evolve`, and `tebd` accept
-  `progress=:auto|true|false` for transient ProgressMeter feedback and
-  `verbose=true` for persistent structured Julia logs. `:auto` enables meters
-  only on interactive non-CI terminals; all stages clear on completion or error.
-  Small interactive demonstrations live under `scripts/terminal/`.
 * **Laser-driven midpoint TDVP example.** A callable `OpSum` represents a
   Gaussian time-dependent drive, while a dedicated script generates
   energy-density and excitation-density plots. Redundant driven two-level and
@@ -45,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Internalised Liouvillian OpSum builders as `_build_liouvillian_opsum` and
+  `_build_liouvillian_opsum_from_lindblad` (unexported implementation details).
 * **`instrument_leg_maps`** now uses leg-coverage dispatch from schedule slots
   (no `ProcessTensor` required for the canonical method).
 * **`create_instruments`** rewrites the schedule (pairing / terminal

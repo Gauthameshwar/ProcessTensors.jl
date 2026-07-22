@@ -465,7 +465,7 @@ In package notation:
 !!! info "In the package"
     ```julia
     # OpSum terms use _L / _R suffixes before vectorisation
-    os = OpSum_Liouville()
+    os = OpSum()
     os += 1.0im, "Sx_L", 1              # Sx ρ
     os += -1.0im, "Sx_R", 1             # ρ Sx
     ```
@@ -510,7 +510,7 @@ MPO-like objects.
 !!! info "In the package"
     ```julia
     ρL = to_liouville(ρ; sites=sites_L)   # density matrix as Liouville MPS
-    L_mpo = MPO_Liouville(H, sites_L)     # channel generator as Liouville MPO
+    L_mpo = liouvillian_mpo(H, sites_L)     # channel generator as Liouville MPO
     ```
 
     See [Liouville-Space Basics](@ref) for the full Hilbert ↔ Liouville workflow.
@@ -590,7 +590,7 @@ Here $H_L$ means “left multiplication by $H$” and $H_R$ means “right multi
 
 !!! info "In the package"
     ```julia
-    L_mpo = MPO_Liouville(H, sites_L)
+    L_mpo = liouvillian_mpo(H, sites_L)
     ρL = tdvp(ρL, L_mpo, -1im * dt; alg=TDVP(), maxdim=32)
     ```
 
@@ -663,16 +663,16 @@ I\otimes L^\dagger L
 In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R` terms.
 
 !!! note "Package bridge"
-    `OpSum_Liouville` builds a symbolic Liouvillian operator sum, while `MPO_Liouville` builds a Liouville-space MPO. These are the objects used to represent Hamiltonian and dissipative density-matrix evolution in Liouville space.
+    `liouvillian_opsum` builds a symbolic Liouvillian operator sum, while `liouvillian_mpo` builds a Liouville-space MPO. These are the objects used to represent Hamiltonian and dissipative density-matrix evolution in Liouville space.
 
 !!! info "In the package"
     ```julia
     jumps = [(γ, "Sm", 1)]                  # jump rate, operator, site
-    L_mpo = MPO_Liouville(H, sites_L; jump_ops=jumps)
+    L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jumps)
     ρL = tebd(ρL, L_mpo, dt, T; alg=Trotter{2}(), maxdim=32)
     ```
 
-    See [Dissipative Dynamics](@ref) for a full Lindblad walkthrough and [dissipative Lindblad model](@ref dissipative-lindblad-mpo) for the `MPO_Liouville` construction.
+    See [Dissipative Dynamics](@ref) for a full Lindblad walkthrough and [dissipative Lindblad model](@ref dissipative-lindblad-mpo) for the `liouvillian_mpo` construction.
 
 ### Hilbert-to-Liouville dictionary
 

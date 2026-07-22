@@ -390,7 +390,7 @@ compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 # ```
 #
 # with $\mathcal{L}_H = -iH_L + iH_R$. The Liouville generator is available as
-# `MPO_Liouville(H, sites_L)`.
+# `liouvillian_mpo(H, sites_L)`.
 #
 # For TDVP the time argument is **`T`**, not `-im * T`, because the factor
 # $-i$ is already inside the Liouville MPO.
@@ -398,7 +398,7 @@ compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 ρ0 = to_dm(ψ0)
 sites_L = liouv_sites(sites)
 ρL0 = to_liouville(ρ0; sites=sites_L)
-L_mpo = MPO_Liouville(H, sites_L)
+L_mpo = liouvillian_mpo(H, sites_L)
 
 # ### Evolving with `tdvp` in Liouville space
 #
@@ -409,7 +409,7 @@ L_mpo = MPO_Liouville(H, sites_L)
 # ```
 #
 # Here `ρL0` is an `MPS{Liouville}` and `L_mpo` is the Liouville generator from
-# `MPO_Liouville`. The time argument is **`Δt`**, not `-im * Δt`.
+# `liouvillian_mpo`. The time argument is **`Δt`**, not `-im * Δt`.
 
 ρL1 = tdvp(
     L_mpo,
@@ -499,7 +499,7 @@ compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_de
 #   Hilbert/Liouville MPS and MPO objects.
 # - TEBD approximates $e^{-iH\Delta t}$ by Trotter gates from `OpSum`.
 # - TDVP projects Schrödinger evolution onto the MPS manifold; pass `-im * t`.
-# - Liouville TDVP evolves `MPS{Liouville}` with `MPO_Liouville`; pass `T`.
-# - Reuse `sites_L` across `to_liouville` and `MPO_Liouville`.
+# - Liouville TDVP evolves `MPS{Liouville}` with `liouvillian_mpo`; pass `T`.
+# - Reuse `sites_L` across `to_liouville` and `liouvillian_mpo`.
 #
 # Next: [Dissipative Dynamics](@ref), where jump terms make Liouville space essential.

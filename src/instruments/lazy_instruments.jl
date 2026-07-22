@@ -800,7 +800,7 @@ Lowercase alias for [`CustomTwoLegInstrument`](@ref).
 
 # Examples
 ```julia
-U = liouvillian_propagator_itensor(H, s_L, dt; jump_ops)
+U = liouvillian_propagator(H, s_L, dt; jump_ops)
 instr = custom_twoleg_instrument(; data=U, input_pt_sites=[in_k], output_pt_sites=[out_k])
 add!(seq, instr, 1)
 ```

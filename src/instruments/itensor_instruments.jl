@@ -337,7 +337,7 @@ function instrument_itensor(
         ArgumentError("UnitaryPropagation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
     )
     H = _unitary_hamiltonian(instr.H, k, dt)
-    liouv_os = OpSum_Liouville(H, OpSum[])
+    liouv_os = liouvillian_opsum(H, OpSum[])
     if isempty(ITensors.terms(liouv_os))
         id_map = ITensor(1.0)
         for (sin, sout) in zip(in_sites, out_sites)
@@ -345,7 +345,7 @@ function instrument_itensor(
         end
         return id_map
     end
-    # liouvillian_propagator_itensor builds on canonical system Liouville sites (with `Site`
+    # liouvillian_propagator builds on canonical system Liouville sites (with `Site`
     # tag). PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
     gate_sites = Index[instr.sites...]
     length(gate_sites) == length(out_sites) || throw(
@@ -353,7 +353,7 @@ function instrument_itensor(
             "UnitaryPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
         ),
     )
-    U_t = liouvillian_propagator_itensor(
+    U_t = liouvillian_propagator(
         H,
         gate_sites,
         dt;

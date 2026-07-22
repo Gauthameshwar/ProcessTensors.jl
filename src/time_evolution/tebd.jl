@@ -115,13 +115,13 @@ function _map_from_gates_by_contraction(
 end
 
 """
-    liouvillian_propagator_itensor(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
+    liouvillian_propagator(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
 
 Build the one-step Liouville propagator ``U = \\exp(dt \\, L)`` as a single
 `ITensor` on `sites`.
 
 When `liouville_form=false`, `os` is a physical Hamiltonian and `L` is built by
-[`OpSum_Liouville`](@ref):
+[`liouvillian_opsum`](@ref):
 
 ```math
 L = -i[H,\\cdot] + \\sum_k \\gamma_k \\, \\mathcal{D}[L_k],
@@ -146,7 +146,7 @@ bra/input legs.
 `materialize_method` is forwarded to `propagator_itensor_from_gates` when
 `alg isa Trotter` (`:auto` selects `:basis` for one site, `:contract` otherwise).
 """
-function liouvillian_propagator_itensor(
+function liouvillian_propagator(
     os::OpSum,
     sites::AbstractVector{<:Index},
     dt::Real;
@@ -155,7 +155,7 @@ function liouvillian_propagator_itensor(
     liouville_form::Bool=false,
     materialize_method::Symbol=:auto,
 )
-    L = liouville_form ? os : OpSum_Liouville(os, jump_ops)
+    L = liouville_form ? os : liouvillian_opsum(os, jump_ops)
 
     if alg isa Exact
         L_mpo = ITensorMPS.MPO(L, sites)
@@ -179,6 +179,9 @@ function liouvillian_propagator_itensor(
 
     throw(ArgumentError("Unsupported exponentiation algorithm: $(typeof(alg))."))
 end
+
+# Deprecated compatibility alias; remove in a later 0.y release after the migration window.
+Base.@deprecate liouvillian_propagator_itensor(args...; kwargs...) liouvillian_propagator(args...; kwargs...)
 
 function _tebd_loop(
     state::AbstractMPS,
@@ -228,7 +231,7 @@ The gates are applied `round(T/dt)` times with optional truncation (`maxdim`,
 `cutoff`).
 
 For exact single-step exponentiation on small Liouville spaces, use
-[`liouvillian_propagator_itensor`](@ref) with `alg=Exact()` instead of TEBD.
+[`liouvillian_propagator`](@ref) with `alg=Exact()` instead of TEBD.
 
 # Examples
 ```julia
@@ -266,7 +269,7 @@ function tebd(
     cutoff::Real=1e-8,
     verbose::Bool=false,
 )
-    L = OpSum_Liouville(H, jump_ops)
+    L = liouvillian_opsum(H, jump_ops)
     gates = trotter_gates(L, siteinds(state), dt; alg=alg)
     return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
 end

@@ -19,7 +19,7 @@ using Test
     os_H = OpSum()
     os_H += 0.5, "Sz", 1
     ρ0 = to_liouville(to_dm(MPS(sites, ["Up", "Up"])); sites=liouv)
-    L_mpo = MPO_Liouville(os_H, liouv; jump_ops=Tuple{Number, String, Int}[])
+    L_mpo = liouvillian_mpo(os_H, liouv; jump_ops=Tuple{Number, String, Int}[])
 
     tdvp_kwargs = (; time_step=0.05, nsite=1, maxdim=16, cutoff=1e-10, outputlevel=0)
 
