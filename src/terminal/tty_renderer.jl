@@ -7,7 +7,9 @@
 # Implements spinner-line rendering, elapsed-time formatting, cursor
 # visibility, and line-erase primitives for the terminal progress backend.
 
-const _SPINNER_GLYPHS = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+# const _SPINNER_GLYPHS = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+# const _SPINNER_GLYPHS = ("⌜", "⌝", "⌟", "⌞")
+const _SPINNER_GLYPHS = ("∘∘∘∘∘", "●∘∘∘∘", "●●∘∘∘", "●●●∘∘", "●●●●∘", "●●●●●", "∘●●●●", "∘∘●●●", "∘∘∘●●", "∘∘∘∘●", "∘∘∘∘∘")
 const _SPINNER_COLOR = :green
 const _SPINNER_INTERVAL = 0.10
 
