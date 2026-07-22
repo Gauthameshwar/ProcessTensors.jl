@@ -10,6 +10,7 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ProcessTensors.Instruments: instrument_itensor, create_instruments, resolve_instrument
 using ITensors
 using Test
 

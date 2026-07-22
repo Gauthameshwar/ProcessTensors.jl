@@ -67,7 +67,7 @@ function evolve(
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evolve")
 
-    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
+    instruments = Instruments.create_instruments(pt, seq; default=default_instr, alg=alg)
 
     # Exactly `nsteps` reduced states: index `j` is the snapshot after PT slab `j-1`
     # (times `t = 0, dt, …, (nsteps-1)*dt`).

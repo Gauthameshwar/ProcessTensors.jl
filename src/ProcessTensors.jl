@@ -83,13 +83,13 @@ using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     left_right_operator, unitary_propagation, identity_operation,
                     open_output, open_input, open_inout,
                     custom_twoleg_instrument,
-                    resolve_instrument, InstrumentSeq, add!, instrument_leg_maps
+                    InstrumentSeq, add!,
+                    resolve_instrument, _instrument_leg_maps
 
 # Process Tensors
 
 include("process_tensor/process_tensor.jl")
 Base.include(Instruments, joinpath(@__DIR__, "instruments/itensor_instruments.jl"))
-using .Instruments: instrument_itensor, create_instruments
 include("builders/abstract_builders.jl")
 include("builders/dense_process_tensor.jl")
 include("process_tensor/build.jl")
@@ -154,14 +154,13 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        left_right_operator, unitary_propagation, identity_operation,
        open_output, open_input, open_inout,
        custom_twoleg_instrument,
-       resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
+       InstrumentSeq, add!
 
-export AbstractPTBuilder, Dense,
+export Dense,
        ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
        two_time_correlation_seq,
-       all_pt_legs_contracted, open_leg_info,
-       coupling_times, coupling_sites, input_sites, output_sites,
-       create_instruments, generate_pt_legs
+       isfullycontracted, open_leg_info,
+       coupling_times, coupling_sites, input_sites, output_sites
 
 # Time evolution
 export tdvp, tebd, Exact, Trotter,

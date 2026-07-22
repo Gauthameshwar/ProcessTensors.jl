@@ -41,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   such as `TraceOut()` and `IdentityOperation()` are removed; use
   `trace_out()` and `identity_operation()` instead. Both types and user-facing constructors
   remain exported.
+* **Process-tensor / instrument API boundaries.** `all_pt_legs_contracted` is
+  renamed to `isfullycontracted`. `generate_pt_legs` is internalised as
+  `_generate_pt_legs`. `AbstractPTBuilder` is no longer root-exported (use
+  `ProcessTensors.AbstractPTBuilder`); `Dense` / `Dense()` stay root-exported and
+  unchanged. `instrument_leg_maps` is internalised as `_instrument_leg_maps`.
+  `resolve_instrument`, `instrument_itensor`, and `create_instruments` remain
+  public only through `ProcessTensors.Instruments` (not root-exported).
+  One-open-leg `evaluate_process` now returns `MPS{Liouville}` instead of
+  `MPO{Liouville}`.
 
 ### Added
 
@@ -65,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `identity_operation` → `open_output`) then materializes every slot only through
   `instrument_itensor`, including a `SingleLegInstrument` evolve-slot method that
   selects the matching PT leg from `leg_plev`.
-* **`evaluate_process`** returns `ComplexF64` / `MPO{Liouville}` / `ITensor`
+* **`evaluate_process`** returns `ComplexF64` / `MPS{Liouville}` / `ITensor`
   according to the number of uncontracted system legs (0 / 1 / ≥2). Optional
   `verbose=true` logs expected open legs.
 

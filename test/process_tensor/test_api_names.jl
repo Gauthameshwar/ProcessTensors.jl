@@ -66,3 +66,26 @@ end
         @test user_ctor_name ∈ names(ProcessTensors)
     end
 end
+
+@testset "API surface: process-tensor and instrument boundaries" begin
+    @test :Dense ∈ names(ProcessTensors)
+    @test :isfullycontracted ∈ names(ProcessTensors)
+    @test :open_leg_info ∈ names(ProcessTensors)
+    @test :two_time_correlation_seq ∈ names(ProcessTensors)
+    @test :AbstractPTBuilder ∉ names(ProcessTensors)
+    @test isdefined(ProcessTensors, :AbstractPTBuilder)
+    @test :_generate_pt_legs ∉ names(ProcessTensors)
+    @test :generate_pt_legs ∉ names(ProcessTensors)
+    @test :all_pt_legs_contracted ∉ names(ProcessTensors)
+    @test :instrument_itensor ∉ names(ProcessTensors)
+    @test :create_instruments ∉ names(ProcessTensors)
+    @test :resolve_instrument ∉ names(ProcessTensors)
+    @test :instrument_leg_maps ∉ names(ProcessTensors)
+    @test :_instrument_leg_maps ∉ names(ProcessTensors)
+
+    @test :instrument_itensor ∈ names(ProcessTensors.Instruments)
+    @test :create_instruments ∈ names(ProcessTensors.Instruments)
+    @test :resolve_instrument ∈ names(ProcessTensors.Instruments)
+    @test :_instrument_leg_maps ∉ names(ProcessTensors.Instruments)
+    @test isdefined(ProcessTensors.Instruments, :_instrument_leg_maps)
+end

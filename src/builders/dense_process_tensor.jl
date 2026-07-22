@@ -105,7 +105,7 @@ function _build_trivial_pt_cores(
 )
     cores = ITensor[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
     end
     return cores
@@ -149,7 +149,7 @@ function _build_bathmode_pt_cores(
     inputs = Index[]
     outputs = Index[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)
         left = bath_links[k + 1]
@@ -167,9 +167,9 @@ function _build_bathmode_pt_cores(
         )
     end
     # Contract the first and last bath links with the initial bath state and the trace out
-    initial_bath_state = instrument_itensor(state_preparation(bathmode.rho0), [bath_links[1]'], 0)
+    initial_bath_state = Instruments.instrument_itensor(state_preparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
-    bath_trace = instrument_itensor(trace_out(), [bath_links[end]], nsteps)
+    bath_trace = Instruments.instrument_itensor(trace_out(), [bath_links[end]], nsteps)
 
     cores[1] *= initial_bath_state
     cores[end] *= bath_trace
@@ -252,7 +252,7 @@ function _build_multimode_pt_cores(
     inputs = Index[]
     outputs = Index[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)
         left = bath_links[k + 1]
@@ -273,7 +273,7 @@ function _build_multimode_pt_cores(
     bath_state = ITensor(1.0)
     for mode in modes
         site = only(mode.sites)
-        prep = instrument_itensor(state_preparation(mode.rho0), Index[prime(site)], 0)
+        prep = Instruments.instrument_itensor(state_preparation(mode.rho0), Index[prime(site)], 0)
         noprime!(prep)
         hasind(prep, site) || throw(ArgumentError("_build_multimode_pt_cores: prepared mode state is missing mode site index."))
         bath_state *= prep

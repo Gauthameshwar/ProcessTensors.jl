@@ -133,18 +133,16 @@ liouvillian_propagator
 
 ```@docs
 ProcessTensor
-AbstractPTBuilder
 Dense
 ```
 
 ```@docs
-generate_pt_legs
 input_sites
 output_sites
 coupling_times
 coupling_sites
 default_schedule
-all_pt_legs_contracted
+isfullycontracted
 open_leg_info
 ```
 
@@ -254,11 +252,16 @@ right_action(::OpSum, ::AbstractVector{<:Index})
 
 ```@docs
 InstrumentSeq
-resolve_instrument
 add!
-instrument_leg_maps
-instrument_itensor
-create_instruments
+```
+
+Schedule inspection and advanced dense materialisation live in the Instruments
+submodule:
+
+```@docs
+ProcessTensors.Instruments.resolve_instrument
+ProcessTensors.Instruments.instrument_itensor
+ProcessTensors.Instruments.create_instruments
 ```
 
 ### Time evolution

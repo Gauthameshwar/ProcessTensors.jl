@@ -277,7 +277,7 @@ add!(seq_final_sz, state_preparation(ρ_sys0_h), 0)
 add!(seq_final_sz, observable_measurement(Sz, final_sites), pt_single.nsteps)
 final_sz_schedule = evaluate_process(pt_single, seq_final_sz)
 
-Sz_obs = instrument_itensor(
+Sz_obs = ProcessTensors.Instruments.instrument_itensor(
     observable_measurement(Sz, final_sites),
     final_sites,
     k_final,
@@ -383,7 +383,7 @@ add!(seq_multi_sz, state_preparation(ρ_sys0_h), 0)
 add!(seq_multi_sz, observable_measurement(Sz, final_sites_multi), pt_multi.nsteps)
 final_sz_multi = evaluate_process(pt_multi, seq_multi_sz)
 
-Sz_obs_multi = instrument_itensor(
+Sz_obs_multi = ProcessTensors.Instruments.instrument_itensor(
     observable_measurement(Sz, final_sites_multi),
     final_sites_multi,
     pt_multi.nsteps - 1,

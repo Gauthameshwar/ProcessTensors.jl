@@ -10,6 +10,7 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ProcessTensors.Instruments: instrument_itensor, create_instruments
 using ITensors
 using Test
 
@@ -37,7 +38,10 @@ end
         @test length(input_sites(pt, 2)) == 1
 
         pt_dense = build_process_tensor(system, system.sites[1]; method=Dense(), dt=0.1, nsteps=3)
-        @test Dense() isa AbstractPTBuilder
+        @test Dense() isa ProcessTensors.AbstractPTBuilder
+        @test :Dense ∈ names(ProcessTensors)
+        @test :AbstractPTBuilder ∉ names(ProcessTensors)
+        @test isdefined(ProcessTensors, :AbstractPTBuilder)
         @test pt_dense isa ProcessTensor
         @test length(pt_dense.core) == length(pt.core)
 

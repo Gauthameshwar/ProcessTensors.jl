@@ -449,7 +449,7 @@ open_result = evaluate_process(pt, seq_open)
 println("Open-output result type:")
 println(typeof(open_result))
 
-@assert open_result isa MPO{Liouville}
+@assert open_result isa MPS{Liouville}
 
 # ### Final expectation value
 #
@@ -535,7 +535,7 @@ println(prob_filter_lazy)
 
 out_prev, in_curr = coupling_times(pt, 2)
 
-dense_filter_tensor = instrument_itensor(
+dense_filter_tensor = ProcessTensors.Instruments.instrument_itensor(
     lazy_filter,
     in_curr,
     out_prev,
@@ -567,19 +567,19 @@ println(prob_filter_dense)
 # `evaluate_process`; the loop below shows what the high-level call is doing.
 
 prob_filter_manual = let
-    dense_instruments = create_instruments(pt, seq_filter_dense)
+    dense_instruments = ProcessTensors.Instruments.create_instruments(pt, seq_filter_dense)
     manual_result = pt.core[1] * dense_instruments[1]
     for step in 1:(pt.nsteps - 1)
         manual_result *= dense_instruments[step + 1]
         manual_result *= pt.core[step + 1]
     end
-    final_instr = resolve_instrument(
+    final_instr = ProcessTensors.Instruments.resolve_instrument(
         seq_filter_dense,
         pt.nsteps,
         seq_filter_dense.default,
     )
     final_out, _ = coupling_times(pt, pt.nsteps)
-    manual_result *= instrument_itensor(
+    manual_result *= ProcessTensors.Instruments.instrument_itensor(
         final_instr,
         final_out,
         pt.nsteps - 1,
@@ -603,7 +603,7 @@ println(prob_filter_manual)
 #     custom operation, or debug a contraction:
 #
 #     ```julia
-#     dense = instrument_itensor(instr, in_curr, out_prev, step)
+#     dense = ProcessTensors.Instruments.instrument_itensor(instr, in_curr, out_prev, step)
 #     custom = custom_twoleg_instrument(dense, in_curr, out_prev)
 #     ```
 #

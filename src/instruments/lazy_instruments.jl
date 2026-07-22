@@ -166,7 +166,7 @@ User-facing constructor for [`StatePreparation`](@ref).
 
 Hilbert inputs are converted to Liouville space when the instrument tensor is
 materialized. Leave `pt_sites` empty for lazy binding in
-[`create_instruments`](@ref ProcessTensors.create_instruments).
+[`create_instruments`](@ref ProcessTensors.Instruments.create_instruments).
 
 # Examples
 ```julia
@@ -985,9 +985,35 @@ end
 
 """
     resolve_instrument(seq, k)
+    resolve_instrument(seq, k, fallback)
 
-Return the instrument stored at step `k`, or the schedule default for ordinary
-evolve slots.
+Return the instrument active at logical timestep `k` in an
+[`InstrumentSeq`](@ref).
+
+For ordinary evolve slots (`k ≥ 1`), an explicit `seq.entries[k]` wins;
+otherwise the schedule default is used. With a `fallback` argument, that
+instrument is used instead of `seq.default` when no explicit entry is present.
+
+At `k = 0` (initial preparation), return the explicit entry if present, else
+`nothing` — there is no default preparation.
+
+This is part of the public `ProcessTensors.Instruments` API. Prefer
+[`add!`](@ref) / [`evaluate_process`](@ref ProcessTensors.evaluate_process) for
+ordinary schedule workflows; use `resolve_instrument` when inspecting or
+manually materialising a schedule slot.
+
+# Examples
+```julia
+using ProcessTensors.Instruments: resolve_instrument
+
+seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+add!(seq, state_preparation(ρ0), 0)
+add!(seq, trace_out(), pt.nsteps)
+
+@assert resolve_instrument(seq, 0) isa StatePreparation
+@assert resolve_instrument(seq, 1) isa IdentityOperation
+@assert resolve_instrument(seq, pt.nsteps) isa TraceOut
+```
 """
 function resolve_instrument(seq::InstrumentSeq, k::Int)
     k == 0 && return get(seq.entries, 0, nothing)
@@ -998,8 +1024,7 @@ end
 """
     resolve_instrument(seq, k, fallback)
 
-Return the instrument stored at step `k`, or `fallback` when no explicit entry
-is present at an ordinary evolve slot.
+See [`resolve_instrument`](@ref resolve_instrument(::InstrumentSeq, ::Int)).
 """
 function resolve_instrument(seq::InstrumentSeq, k::Int, fallback::AbstractInstrument)
     k == 0 && return get(seq.entries, 0, nothing)
@@ -1010,7 +1035,7 @@ end
 """
     add!(seq, instr, tstep)
 
-Insert or replace an instrument at logical timestep `tstep`.
+Insert `instr` at `tstep`, replacing an existing explicit entry at that timestep.
 
 Only `StatePreparation` is allowed at `tstep = 0`.
 """
@@ -1046,15 +1071,15 @@ function Base.show(io::IO, seq::InstrumentSeq)
 end
 
 """
-    instrument_leg_maps(seq, nsteps)
+    _instrument_leg_maps(seq, nsteps)
 
 Return dictionaries describing which instruments cover process-tensor input and
 output time labels, together with any missing input/output labels.
 
 Open instruments still claim legs even when they materialize as `ITensor(1.0)`.
 """
-function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
-    nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
+function _instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
+    nsteps >= 1 || throw(ArgumentError("_instrument_leg_maps: nsteps must be >= 1"))
 
     in_map = Dict{Int,AbstractInstrument}()
     out_map = Dict{Int,AbstractInstrument}()
@@ -1075,7 +1100,7 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
         else
             throw(
                 ArgumentError(
-                    "instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
+                    "_instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
                 ),
             )
         end
@@ -1108,7 +1133,7 @@ function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     if prep !== nothing
         prep isa StatePreparation ||
             (prep isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, prep.factors)) ||
-            throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
+            throw(ArgumentError("_instrument_leg_maps: tstep=0 must be StatePreparation"))
         in_map[0] = prep
     end
 

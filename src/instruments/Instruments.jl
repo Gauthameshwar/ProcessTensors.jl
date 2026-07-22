@@ -29,8 +29,8 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        left_right_operator, unitary_propagation, identity_operation,
        open_output, open_input, open_inout,
        custom_twoleg_instrument,
-       resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps,
-       create_instruments
+       InstrumentSeq, add!, resolve_instrument,
+       instrument_itensor, create_instruments
 
 include("lazy_instruments.jl")
 

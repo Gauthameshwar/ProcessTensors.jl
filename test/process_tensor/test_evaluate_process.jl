@@ -10,6 +10,7 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ProcessTensors.Instruments: instrument_itensor, create_instruments
 using ITensors
 using Test
 using LinearAlgebra
@@ -37,7 +38,7 @@ function _closed_markovian_seq(pt, rho0_h; nsteps=pt.nsteps)
 end
 
 @testset "process_tensor.jl: evaluate_process" begin
-    @testset "all_pt_legs_contracted" begin
+    @testset "isfullycontracted" begin
         s = siteinds("S=1/2", 1)
         H = OpSum()
         H += 0.5, "Sz", 1
@@ -47,10 +48,10 @@ end
 
         seq_open = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
         add!(seq_open, state_preparation(rho0_h), 0)
-        @test !all_pt_legs_contracted(pt, seq_open)
+        @test !isfullycontracted(pt, seq_open)
 
         seq_closed = _closed_markovian_seq(pt, rho0_h)
-        @test all_pt_legs_contracted(pt, seq_closed)
+        @test isfullycontracted(pt, seq_closed)
     end
 
     @testset "Markovian scalar" begin
@@ -72,7 +73,7 @@ end
         @test val_kw ≈ val
     end
 
-    @testset "open final leg returns MPO{Liouville}" begin
+    @testset "open final leg returns MPS{Liouville}" begin
         s = siteinds("S=1/2", 1)
         H = OpSum()
         H += 0.5, "Sz", 1
@@ -85,7 +86,7 @@ end
         add!(seq, open_output(), pt.nsteps)
 
         rho_out = evaluate_process(pt, seq)
-        @test rho_out isa MPO{Liouville}
+        @test rho_out isa MPS{Liouville}
         @test length(rho_out.core) == 1
 
         trj = evolve(pt, rho0_h)
@@ -289,7 +290,7 @@ end
         @test rho_out ≈ evaluate_process(pt, seq_manual)
 
         rho_default = evaluate_process(pt, rho0_h)
-        @test rho_default isa MPO{Liouville}
+        @test rho_default isa MPS{Liouville}
         trj = evolve(pt, rho0_h)
         ρ_ref = _mpo_to_dense(to_hilbert(rho_default))
         ρ_final = _mpo_to_dense(trj.states_hilbert[end])
@@ -311,7 +312,7 @@ end
         @test info.n_open_expected == 2
         @test 1 in info.open_in
         @test 0 in info.open_out
-        @test !all_pt_legs_contracted(pt, seq)
+        @test !isfullycontracted(pt, seq)
 
         result = evaluate_process(pt, seq)
         @test result isa ITensor
@@ -334,10 +335,10 @@ end
         info = open_leg_info(pt, seq)
         @test info.n_open_expected == 1
         @test 1 in info.open_in
-        @test !all_pt_legs_contracted(pt, seq)
+        @test !isfullycontracted(pt, seq)
 
         result = evaluate_process(pt, seq)
-        @test result isa MPO{Liouville}
+        @test result isa MPS{Liouville}
         @test length(result.core) == 1
     end
 end

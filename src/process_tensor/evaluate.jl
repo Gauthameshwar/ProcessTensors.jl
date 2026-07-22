@@ -7,7 +7,7 @@
 # Implements process-tensor contraction and scalar/reduced-state evaluation
 # algorithms.
 
-import ITensorMPS: MPO as CoreMPO, MPS as CoreMPS
+import ITensorMPS: MPS as CoreMPS
 import ITensors: scalar
 import ITensors.Ops: Trotter
 
@@ -45,12 +45,12 @@ function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:I
 end
 
 """
-    all_pt_legs_contracted(pt, seq) -> Bool
+    isfullycontracted(pt, seq) -> Bool
 
 Return `true` when the schedule closes every process-tensor leg, so
 [`evaluate_process`](@ref) returns a `ComplexF64` scalar.
 """
-function all_pt_legs_contracted(pt::ProcessTensor, seq::InstrumentSeq)
+function isfullycontracted(pt::ProcessTensor, seq::InstrumentSeq)
     info = open_leg_info(pt, seq)
     info.n_open_expected == 0 || return false
     isempty(info.missing_in) || return false
@@ -69,13 +69,13 @@ their dimensions.
 
 Returns a named tuple with fields:
 
-- `in_map`, `out_map`, `missing_in`, `missing_out` from [`instrument_leg_maps`](@ref)
+- `in_map`, `out_map`, `missing_in`, `missing_out` from schedule coverage maps
 - `open_in`, `open_out`: time labels owned by open bookkeeping instruments
 - `n_open_expected`: expected number of uncontracted system legs after evaluation
 - `open_dims`: dimensions of those expected open legs (from `pt`)
 """
 function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
-    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    in_map, out_map, missing_in, missing_out = _instrument_leg_maps(seq, pt.nsteps)
     default = seq.default
 
     open_in = Int[]
@@ -122,7 +122,7 @@ function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
 end
 
 """
-    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPO{Liouville}, ITensor}
+    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPS{Liouville}, ITensor}
 
 Contract a process tensor with an instrument schedule.
 
@@ -131,7 +131,7 @@ Return type depends on the number of uncontracted system legs after contraction:
 | open legs | return |
 |-----------|--------|
 | 0 | `ComplexF64` |
-| 1 | `MPO{Liouville}` |
+| 1 | `MPS{Liouville}` |
 | ≥ 2 | `ITensor` |
 
 # Examples
@@ -140,6 +140,7 @@ seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
 add!(seq, state_preparation(ρ0), 0)
 add!(seq, open_output(), pt.nsteps)
 result = evaluate_process(pt, seq)
+@assert result isa MPS{Liouville}
 ```
 """
 function evaluate_process(
@@ -157,7 +158,7 @@ function evaluate_process(
         @info "evaluate_process: expected open legs" n_open = info.n_open_expected open_in = info.open_in open_out = info.open_out open_dims = info.open_dims
     end
 
-    instruments = create_instruments(pt, seq; default=default_instr, alg=alg)
+    instruments = Instruments.create_instruments(pt, seq; default=default_instr, alg=alg)
     result = pt.core[1] * instruments[1]
     for step in 1:(pt.nsteps - 1)
         result *= instruments[step + 1]
@@ -170,21 +171,19 @@ function evaluate_process(
         @info "evaluate_process: contracted" n_open = n_open open_inds = collect(inds(result))
     end
 
-    legs_closed = something(all_legs_contracted, all_pt_legs_contracted(pt, seq))
-    
-    # a small type-stability issue here with the return being a Union{ComplexF64, MPO{Liouville}, ITensor}
+    legs_closed = something(all_legs_contracted, isfullycontracted(pt, seq))
+
     if legs_closed
         n_open == 0 || throw(
             ArgumentError(
                 "evaluate_process: expected 0 uncontracted indices " *
-                "(all_pt_legs_contracted=true) but found $n_open.",
+                "(isfullycontracted=true) but found $n_open.",
             ),
         )
         return ComplexF64(scalar(result))
     elseif n_open == 1
         keep = Index[only(inds(result))]
-        rho_liouv = _liouville_mps_from_itensor(result, keep)
-        return MPO{Liouville}(CoreMPO(collect(rho_liouv.core)), rho_liouv.combiners)
+        return _liouville_mps_from_itensor(result, keep)
     else
         return result
     end
@@ -207,7 +206,7 @@ function evaluate_process(
         val isa ComplexF64 || throw(
             ArgumentError(
                 "evaluate_process(batch): schedule at index $i is not fully contracted; " *
-                "batch overload requires scalar schedules (all_pt_legs_contracted=true).",
+                "batch overload requires scalar schedules (isfullycontracted=true).",
             ),
         )
         results[i] = val
