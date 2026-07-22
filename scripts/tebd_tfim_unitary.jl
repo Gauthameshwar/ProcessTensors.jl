@@ -12,6 +12,7 @@
 using Printf
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Trotter
 using LinearAlgebra
 using CairoMakie
 using LaTeXStrings

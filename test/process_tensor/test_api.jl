@@ -12,6 +12,7 @@
 using ProcessTensors
 using ProcessTensors.Instruments: instrument_itensor, create_instruments
 using ITensors
+using ITensors.Ops: Trotter
 using Test
 
 struct _UnsupportedPTInstrument <: AbstractInstrument end

@@ -10,8 +10,10 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
-using ProcessTensors.Instruments: instrument_itensor, create_instruments, resolve_instrument
+using ProcessTensors.Instruments:
+    instrument_itensor, create_instruments, resolve_instrument, instrument_leg_maps
 using ITensors
+using ITensors.Ops: Trotter
 using LinearAlgebra
 using Test
 
@@ -20,7 +22,6 @@ if !(@isdefined hilbert_matrix_to_mpo)
 end
 
 const Ins = ProcessTensors.Instruments
-const _instrument_leg_maps = Ins._instrument_leg_maps
 
 # --- internal helper validation (Instruments submodule) ---------------------------------
 
@@ -214,7 +215,7 @@ end
     @test resolve_instrument(seq_plus, 2) === def
 end
 
-@testset "Instruments.jl: _instrument_leg_maps coverage" begin
+@testset "Instruments.jl: instrument_leg_maps coverage" begin
     sys = spin_system(siteinds("S=1/2", 1), OpSum() + (0.1, "Sz", 1))
     iddef = identity_operation()
     s_leg = siteinds("S=1/2", 1)
@@ -222,10 +223,10 @@ end
     prep0 = state_preparation(to_liouville(to_dm(MPS(s_leg, ["Up"])); sites=L_leg))
 
     # Given: nsteps=1, default two-leg, no prep at 0.
-    # When: _instrument_leg_maps.
+    # When: instrument_leg_maps.
     # Then: missing_in lists 0 (init leg), no missing_out (nsteps==1 expects no out coverage).
     seq = InstrumentSeq(iddef, 0)
-    in_m, out_m, mi, mo = _instrument_leg_maps(seq, 1)
+    in_m, out_m, mi, mo = instrument_leg_maps(seq, 1)
     @test mi == [0]
     @test isempty(mo)
 
@@ -235,7 +236,7 @@ end
     s = siteinds("S=1/2", 1); L = liouv_sites(s)
     prep = state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L))
     seq_p = InstrumentSeq(iddef, 0; init=prep)
-    _, _, mi2, mo2 = _instrument_leg_maps(seq_p, 1)
+    _, _, mi2, mo2 = instrument_leg_maps(seq_p, 1)
     @test isempty(mi2) && isempty(mo2)
 
     # Given: nsteps ∈ {3,4}, default Identity plus init prep at 0.
@@ -243,7 +244,7 @@ end
     # Then: all required in/out slots covered; terminal open legs follow API contract.
     for n in (3, 4)
         seqn = InstrumentSeq(iddef, 0; init=prep0)
-        _, _, minn, mout = _instrument_leg_maps(seqn, n)
+        _, _, minn, mout = instrument_leg_maps(seqn, n)
         @test isempty(minn) && isempty(mout)
     end
 
@@ -252,7 +253,7 @@ end
     # Then: in/out coverage complete.
     seq_s = InstrumentSeq(iddef, 0; init=prep0)
     add!(seq_s, unitary_propagation(sys), 3)
-    _, _, mis, mos = _instrument_leg_maps(seq_s, 4)
+    _, _, mis, mos = instrument_leg_maps(seq_s, 4)
     @test isempty(mis) && isempty(mos)
 
     # Given: last-wins at same step changes TwoLeg instrument.
@@ -261,7 +262,7 @@ end
     seq_l = InstrumentSeq(iddef, 0)
     spA = unitary_propagation(sys); spB = unitary_propagation(sys)
     add!(seq_l, spA, 2); add!(seq_l, spB, 2)
-    im, om, _, _ = _instrument_leg_maps(seq_l, 3)
+    im, om, _, _ = instrument_leg_maps(seq_l, 3)
     @test im[2] === spB
     @test om[1] === spB
 
@@ -271,7 +272,7 @@ end
     op = OpSum(); op += 1.0, "Sz", 1
     seq_o = InstrumentSeq(iddef, 0; init=prep0)
     add!(seq_o, observable_measurement(op, Index[]; leg_plev=1), 2)
-    _, _, mio, moo = _instrument_leg_maps(seq_o, 3)
+    _, _, mio, moo = instrument_leg_maps(seq_o, 3)
     @test isempty(mio)
     @test moo == [1]
 
@@ -279,7 +280,7 @@ end
     # When: maps.
     # Then: missing_in reports 0 (documented sparse-init case).
     seq_np = InstrumentSeq(iddef, 0)
-    _, _, mi_np, _ = _instrument_leg_maps(seq_np, 3)
+    _, _, mi_np, _ = instrument_leg_maps(seq_np, 3)
     @test 0 in mi_np
 
     # Open bookkeeping coverage and pt wrapper.
@@ -290,8 +291,8 @@ end
     seq_closed = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
     add!(seq_closed, state_preparation(rho0_h), 0)
     add!(seq_closed, trace_out(), pt.nsteps)
-    in_a, out_a, mi_a, mo_a = _instrument_leg_maps(seq_closed, pt.nsteps)
-    in_b, out_b, mi_b, mo_b = _instrument_leg_maps(pt, seq_closed)
+    in_a, out_a, mi_a, mo_a = instrument_leg_maps(seq_closed, pt.nsteps)
+    in_b, out_b, mi_b, mo_b = instrument_leg_maps(pt, seq_closed)
     @test isempty(mi_a) && isempty(mo_a)
     @test mi_a == mi_b && mo_a == mo_b
     @test keys(in_a) == keys(in_b)
@@ -301,7 +302,7 @@ end
     add!(seq_oo, state_preparation(rho0_h), 0)
     add!(seq_oo, open_inout(), 1)
     add!(seq_oo, trace_out(), pt.nsteps)
-    in_o, out_o, mi_o, mo_o = _instrument_leg_maps(seq_oo, pt.nsteps)
+    in_o, out_o, mi_o, mo_o = instrument_leg_maps(seq_oo, pt.nsteps)
     @test isempty(mi_o) && isempty(mo_o)
     @test in_o[1] isa OpenInOut
     @test out_o[0] isa OpenInOut
@@ -310,14 +311,14 @@ end
     add!(seq_out_only, state_preparation(rho0_h), 0)
     add!(seq_out_only, open_output(), 1)
     # OpenOutput at step 1 claims out[0]; in[1] is missing.
-    _, _, mi_only, mo_out = _instrument_leg_maps(seq_out_only, pt.nsteps)
+    _, _, mi_only, mo_out = instrument_leg_maps(seq_out_only, pt.nsteps)
     @test 1 in mi_only
     @test !(0 in mo_out)
 
     seq_in_only = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
     add!(seq_in_only, state_preparation(rho0_h), 0)
     add!(seq_in_only, open_input(), 1)
-    _, _, mi_in, mo_in = _instrument_leg_maps(seq_in_only, pt.nsteps)
+    _, _, mi_in, mo_in = instrument_leg_maps(seq_in_only, pt.nsteps)
     @test 0 in mo_in
     @test !(1 in mi_in)
 
@@ -326,10 +327,10 @@ end
     add!(seq_pair, trace_out(), 1)
     add!(seq_pair, state_preparation(to_dm(MPS(s_leg, ["Dn"]))), 2)
     add!(seq_pair, trace_out(), 3)
-    _, _, mi_p, mo_p = _instrument_leg_maps(seq_pair, pt.nsteps)
+    _, _, mi_p, mo_p = instrument_leg_maps(seq_pair, pt.nsteps)
     @test isempty(mi_p) && isempty(mo_p)
 
-    @test_throws ArgumentError _instrument_leg_maps(seq_closed, 0)
+    @test_throws ArgumentError instrument_leg_maps(seq_closed, 0)
 end
 
 @testset "Instruments.jl: OpenInput / OpenInOut materialization" begin
@@ -468,7 +469,7 @@ end
     seq = InstrumentSeq(iddef, 2)
     add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
     add!(seq, open_output(), 2)
-    in_map, out_map, missing_in, missing_out = _instrument_leg_maps(seq, 2)
+    in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, 2)
     @test haskey(in_map, 1)
     @test haskey(out_map, 0)
     @test isempty(missing_in)
@@ -594,7 +595,7 @@ end
         )
     end
 
-    @testset "_instrument_leg_maps and create_instruments" begin
+    @testset "instrument_leg_maps and create_instruments" begin
         custom = custom_twoleg_instrument(
             instrument_itensor(identity_operation(), [in1], [out0], 1),
             [in1],
@@ -602,7 +603,7 @@ end
         )
         seq = InstrumentSeq(custom, 2)
         add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
-        _, _, missing_in, missing_out = _instrument_leg_maps(seq, 2)
+        _, _, missing_in, missing_out = instrument_leg_maps(seq, 2)
         @test isempty(missing_in)
         @test isempty(missing_out)
 
@@ -719,7 +720,7 @@ end
     add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
     add!(seq, prod1, 1)
     add!(seq, trace_out(), 3)
-    _, _, missing_in, missing_out = _instrument_leg_maps(seq, 3)
+    _, _, missing_in, missing_out = instrument_leg_maps(seq, 3)
     @test isempty(missing_in)
     @test isempty(missing_out)
 

@@ -43,7 +43,7 @@ end
 
     for order in (1, 2, 4, 6)
         alg = Trotter{order}()
-        gates = trotter_gates(H, sites, -im * dt; alg=alg)
+        gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=alg)
         ψ_trotter = apply(gates, copy(ψ0); maxdim=128, cutoff=1e-12)
         gate_counts[order] = length(gates)
         errs[order] = norm(ψ_trotter - ψ_exact) / norm(ψ_exact)
@@ -62,7 +62,7 @@ end
 @testset "trotter_gates: unsupported odd orders" begin
     sites = siteinds("S=1/2", 2)
     H = _test_hamiltonian(2)
-    @test_throws ArgumentError trotter_gates(H, sites, -im * 0.05; alg=Trotter{3}())
+    @test_throws ArgumentError ProcessTensors.trotter_gates(H, sites, -im * 0.05; alg=Trotter{3}())
 end
 
 @testset "trotter_gates: nsteps repetition matches ITensors scaling" begin
@@ -70,8 +70,8 @@ end
     H = _test_hamiltonian(2)
     dt = 0.05
 
-    gates_one = trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
-    gates_two = trotter_gates(H, sites, -im * dt; alg=Trotter{2}(2))
+    gates_one = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+    gates_two = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}(2))
 
     @test length(gates_two) == 2 * length(gates_one)
 end
@@ -92,7 +92,7 @@ end
 
     for dt in dts
         ψ_exact = _exact_unitary_apply(ψ0, H, sites, dt)
-        gates = trotter_gates(H, sites, -im * dt; alg=Trotter{4}())
+        gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{4}())
         ψ_trotter = apply(gates, copy(ψ0); maxdim=128, cutoff=1e-12)
         push!(errs, norm(ψ_trotter - ψ_exact) / norm(ψ_exact))
     end

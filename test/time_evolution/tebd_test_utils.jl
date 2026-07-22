@@ -11,6 +11,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Trotter
 using LinearAlgebra
 
 # Turn a dense matrix into a Hilbert MPO on the supplied physical sites.

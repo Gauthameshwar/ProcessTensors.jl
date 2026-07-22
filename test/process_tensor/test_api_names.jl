@@ -5,12 +5,14 @@
 # Contributor: Gauthameshwar S.
 #
 # Tests public export visibility for core space types, Liouvillian constructors,
-# and domain type / user-facing-constructor pairs.
+# domain type / user-facing-constructor pairs, and time-evolution / instrument
+# API boundaries.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ITensorMPS
 using Test
 
 @testset "API surface: core spaces and Liouvillian names" begin
@@ -77,15 +79,43 @@ end
     @test :_generate_pt_legs ∉ names(ProcessTensors)
     @test :generate_pt_legs ∉ names(ProcessTensors)
     @test :all_pt_legs_contracted ∉ names(ProcessTensors)
+
     @test :instrument_itensor ∉ names(ProcessTensors)
     @test :create_instruments ∉ names(ProcessTensors)
     @test :resolve_instrument ∉ names(ProcessTensors)
     @test :instrument_leg_maps ∉ names(ProcessTensors)
-    @test :_instrument_leg_maps ∉ names(ProcessTensors)
 
     @test :instrument_itensor ∈ names(ProcessTensors.Instruments)
     @test :create_instruments ∈ names(ProcessTensors.Instruments)
     @test :resolve_instrument ∈ names(ProcessTensors.Instruments)
-    @test :_instrument_leg_maps ∉ names(ProcessTensors.Instruments)
-    @test isdefined(ProcessTensors.Instruments, :_instrument_leg_maps)
+    @test :instrument_leg_maps ∈ names(ProcessTensors.Instruments)
+
+    @test ProcessTensors.add! === ITensorMPS.add!
+    @test ProcessTensors.Instruments.add! === ProcessTensors.add!
+end
+
+@testset "API surface: time-evolution boundaries" begin
+    @test :tebd ∈ names(ProcessTensors)
+    @test :tdvp ∈ names(ProcessTensors)
+
+    @test :Exact ∉ names(ProcessTensors)
+    @test :Trotter ∉ names(ProcessTensors)
+    @test :trotter_gates ∉ names(ProcessTensors)
+    @test :propagator_itensor_from_gates ∉ names(ProcessTensors)
+
+    @test :promote_itensor_eltype ∉ names(ProcessTensors)
+    @test :convert_leaf_eltype ∉ names(ProcessTensors)
+    @test :argsdict ∉ names(ProcessTensors)
+    @test :sim! ∉ names(ProcessTensors)
+
+    # Removed from the TDVP import surface (ITensorMPS utilities).
+    @test !isdefined(ProcessTensors, :sim!)
+    @test !isdefined(ProcessTensors, :promote_itensor_eltype)
+    # `argsdict` / `convert_leaf_eltype` may still exist via `using ITensors`,
+    # but ProcessTensors no longer exports them or imports them from ITensorMPS.
+
+    @test isdefined(ProcessTensors, :trotter_gates)
+    @test isdefined(ProcessTensors, :propagator_itensor_from_gates)
+
+    @test ProcessTensors.tdvp === ITensorMPS.tdvp
 end

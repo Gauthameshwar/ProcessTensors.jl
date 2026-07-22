@@ -427,7 +427,7 @@ The returned vector has length `pt.nsteps + 1`:
 - index `pt.nsteps + 1` is the terminal instrument at `tstep = pt.nsteps`
   (`TraceOut`, `ObservableMeasurement`, or `OpenOutput` / open no-op).
 
-Schedule rewriting (same pairing policy as `_instrument_leg_maps`):
+Schedule rewriting (same pairing policy as `instrument_leg_maps`):
 consecutive physical single-leg output/input entries become a
 [`ProductInstrument`](@ref) at the output slot; the consumed input slot is
 replaced by `default` when it still lies in the evolve range. A terminal

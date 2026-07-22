@@ -60,6 +60,7 @@ using ITensors
 import ITensorMPS
 import LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Trotter
 
 roundreal(x; digits=8) = round(real(x); digits=digits)
 

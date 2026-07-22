@@ -667,6 +667,7 @@ In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R`
 
 !!! info "In the package"
     ```julia
+    using ITensors.Ops: Trotter
     jumps = [(γ, "Sm", 1)]                  # jump rate, operator, site
     L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jumps)
     ρL = tebd(ρL, L_mpo, dt, T; alg=Trotter{2}(), maxdim=32)

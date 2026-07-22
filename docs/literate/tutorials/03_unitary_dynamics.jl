@@ -25,6 +25,7 @@ using ITensors
 import ITensorMPS
 import LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Trotter
 
 #
 # `ITensorMPS.jl` already provides MPS/MPO objects, `OpSum`, gate application,
@@ -175,27 +176,28 @@ println("Exact reference at t = 1:  E = ", E1, ",  mean ⟨Sz⟩ = ", mz1)
 # + \mathcal{O}(\Delta t^3).
 # ```
 #
-# `ProcessTensors.jl` builds these gates through `trotter_gates` and applies them
-# repeatedly in `tebd`.
+# `ProcessTensors.jl` builds these gates through `ProcessTensors.trotter_gates`
+# and applies them repeatedly in `tebd`.
 
 # ### Inspecting the Trotter gates
 #
-# `trotter_gates` expands one Trotter step into local ITensor gates. Orders `1`
-# and `2` use the `ITensors.Ops` factorization; even orders `n >= 4` are built
-# recursively with Yoshida's symmetric fractal composition in ProcessTensors.jl.
-# For the specified Hamiltonian, we would have four on-site terms and three 
-# two-site terms corresponding to each term in the Hamiltonian. So in the 
-# first-order Trotter, we would expect a total of seven gates, and for the 
+# `ProcessTensors.trotter_gates` expands one Trotter step into local ITensor
+# gates. Orders `1` and `2` use the `ITensors.Ops` factorization; even orders
+# `n >= 4` are built recursively with Yoshida's symmetric fractal composition in
+# ProcessTensors.jl.
+# For the specified Hamiltonian, we would have four on-site terms and three
+# two-site terms corresponding to each term in the Hamiltonian. So in the
+# first-order Trotter, we would expect a total of seven gates, and for the
 # second-order Trotter, we would expect twice that.
 
 println("Gates per Trotter step on this chain:")
 for order in (1, 2, 4)
     alg = Trotter{order}()
-    step_gates = trotter_gates(H, sites, -im * dt; alg=alg)
+    step_gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=alg)
     println("  Trotter{", order, "}: ", length(step_gates), " gates")
 end
 
-gates = trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
 println("Indices of the first Trotter{2} gate: ", inds(gates[1]))
 
 # !!! note "Higher Trotter orders"

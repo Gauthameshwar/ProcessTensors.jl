@@ -1071,15 +1071,15 @@ function Base.show(io::IO, seq::InstrumentSeq)
 end
 
 """
-    _instrument_leg_maps(seq, nsteps)
+    instrument_leg_maps(seq, nsteps)
 
 Return dictionaries describing which instruments cover process-tensor input and
 output time labels, together with any missing input/output labels.
 
 Open instruments still claim legs even when they materialize as `ITensor(1.0)`.
 """
-function _instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
-    nsteps >= 1 || throw(ArgumentError("_instrument_leg_maps: nsteps must be >= 1"))
+function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
+    nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
 
     in_map = Dict{Int,AbstractInstrument}()
     out_map = Dict{Int,AbstractInstrument}()
@@ -1100,7 +1100,7 @@ function _instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
         else
             throw(
                 ArgumentError(
-                    "_instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
+                    "instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
                 ),
             )
         end
@@ -1133,7 +1133,7 @@ function _instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     if prep !== nothing
         prep isa StatePreparation ||
             (prep isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, prep.factors)) ||
-            throw(ArgumentError("_instrument_leg_maps: tstep=0 must be StatePreparation"))
+            throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
         in_map[0] = prep
     end
 

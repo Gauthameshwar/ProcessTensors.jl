@@ -33,6 +33,7 @@
 using ITensors
 using LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Trotter
 
 const N = 4
 const J = 1.0

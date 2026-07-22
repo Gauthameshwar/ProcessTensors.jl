@@ -45,11 +45,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renamed to `isfullycontracted`. `generate_pt_legs` is internalised as
   `_generate_pt_legs`. `AbstractPTBuilder` is no longer root-exported (use
   `ProcessTensors.AbstractPTBuilder`); `Dense` / `Dense()` stay root-exported and
-  unchanged. `instrument_leg_maps` is internalised as `_instrument_leg_maps`.
-  `resolve_instrument`, `instrument_itensor`, and `create_instruments` remain
-  public only through `ProcessTensors.Instruments` (not root-exported).
+  unchanged. `instrument_leg_maps`, `resolve_instrument`, `instrument_itensor`,
+  and `create_instruments` remain public only through
+  `ProcessTensors.Instruments` (not root-exported).
   One-open-leg `evaluate_process` now returns `MPS{Liouville}` instead of
   `MPO{Liouville}`.
+* **`propagator_itensor_from_gates` is contraction-only.** The `:basis` /
+  `:auto` materialisation paths and the `materialize_method` keyword on
+  `liouvillian_propagator` are removed. Trotter gate lists are always contracted
+  with index promotion.
+* **Time-evolution root API is `tebd` / `tdvp` only.** `Exact` and `Trotter`
+  are no longer root-exported; import them from `ITensors.Ops` when selecting an
+  algorithm. `trotter_gates` and `propagator_itensor_from_gates` remain defined
+  for qualified advanced use (`ProcessTensors.trotter_gates`, …) but are not
+  exported. Unused TDVP utilities from ITensorMPS
+  (`promote_itensor_eltype`, `convert_leaf_eltype`, `argsdict`, `sim!`) are no
+  longer imported in `tdvp.jl` or root-exported.
 
 ### Added
 

@@ -12,6 +12,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Trotter
 using Test
 using LinearAlgebra
 

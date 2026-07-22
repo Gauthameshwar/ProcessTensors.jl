@@ -256,10 +256,12 @@ add!
 ```
 
 Schedule inspection and advanced dense materialisation live in the Instruments
-submodule:
+submodule. Ordinary workflows keep schedules lazy and call `evaluate_process` /
+`evolve`; the names below are for explicit materialisation and diagnostics:
 
 ```@docs
 ProcessTensors.Instruments.resolve_instrument
+ProcessTensors.Instruments.instrument_leg_maps
 ProcessTensors.Instruments.instrument_itensor
 ProcessTensors.Instruments.create_instruments
 ```
@@ -270,6 +272,25 @@ ProcessTensors.Instruments.create_instruments
 tebd(::AbstractMPS{Hilbert}, ::OpSum, ::Real, ::Real)
 tebd(::AbstractMPS{Liouville}, ::OpSum, ::Real, ::Real)
 tdvp
+```
+
+Algorithm selectors come from upstream ITensors:
+
+```julia
+using ITensors.Ops: Exact, Trotter
+
+tebd(psi, H, dt, T; alg=Trotter{2}())
+liouvillian_propagator(H, sites_L, dt; alg=Exact())
+```
+
+Advanced gate construction is available by qualification (not root-exported):
+
+```julia
+gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+U, final_out = ProcessTensors.propagator_itensor_from_gates(gates, sites_L)
+```
+
+```@docs
 trotter_gates
 propagator_itensor_from_gates
 ```

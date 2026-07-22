@@ -11,6 +11,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Exact, Trotter
 using LinearAlgebra
 using Test
 
@@ -251,4 +252,19 @@ end
     U1_mat = _dense_from_1site_propagator(U1, liouv[1])
     U2_mat = _dense_from_1site_propagator(U2, liouv[1])
     @test relative_frobenius_error(U1_mat, U2_mat) ≤ 1e-10
+end
+
+@testset "propagator_itensor_from_gates: contraction-only API" begin
+    phys = siteinds("S=1/2", 1)
+    liouv = liouv_sites(phys)
+    H = _test_hamiltonian(1)
+    dt = 0.05
+    L = liouvillian_opsum(H)
+    gates = ProcessTensors.trotter_gates(L, liouv, dt; alg=Trotter{2}())
+
+    U, final_out = ProcessTensors.propagator_itensor_from_gates(gates, liouv)
+    @test U isa ITensor
+    @test length(final_out) == 1
+    @test hasind(U, liouv[1])
+    @test hasind(U, only(final_out))
 end

@@ -83,8 +83,7 @@ using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
                     left_right_operator, unitary_propagation, identity_operation,
                     open_output, open_input, open_inout,
                     custom_twoleg_instrument,
-                    InstrumentSeq, add!,
-                    resolve_instrument, _instrument_leg_maps
+                    InstrumentSeq, add!
 
 # Process Tensors
 
@@ -163,8 +162,6 @@ export Dense,
        coupling_times, coupling_sites, input_sites, output_sites
 
 # Time evolution
-export tdvp, tebd, Exact, Trotter,
-       trotter_gates, propagator_itensor_from_gates,
-       promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
+export tdvp, tebd
 
 end # module ProcessTensors

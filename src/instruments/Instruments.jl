@@ -13,11 +13,12 @@ import ..ProcessTensors
 import ..ProcessTensors: add!
 using ITensors
 using LinearAlgebra
+import ITensors.Ops: Exact, Trotter
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
                         OpSum, liouvillian_opsum, Index, ITensor, apply, dim, plev, prime,
                         replaceind, siteinds, tag_value, to_dm, to_liouville,
                         _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
-                        liouvillian_propagator, Exact, Trotter,
+                        liouvillian_propagator,
                         _phys_sites_from_hilbert_mpo
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
@@ -29,7 +30,7 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        left_right_operator, unitary_propagation, identity_operation,
        open_output, open_input, open_inout,
        custom_twoleg_instrument,
-       InstrumentSeq, add!, resolve_instrument,
+       InstrumentSeq, add!, resolve_instrument, instrument_leg_maps,
        instrument_itensor, create_instruments
 
 include("lazy_instruments.jl")

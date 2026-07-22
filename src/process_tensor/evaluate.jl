@@ -55,7 +55,7 @@ function isfullycontracted(pt::ProcessTensor, seq::InstrumentSeq)
     info.n_open_expected == 0 || return false
     isempty(info.missing_in) || return false
     isempty(info.missing_out) || return false
-    final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
+    final_instr = Instruments.resolve_instrument(seq, pt.nsteps, seq.default)
     final_instr isa IdentityOperation && return false
     final_instr isa OpenOutput && return false
     return final_instr isa SingleLegInstrument
@@ -75,7 +75,7 @@ Returns a named tuple with fields:
 - `open_dims`: dimensions of those expected open legs (from `pt`)
 """
 function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
-    in_map, out_map, missing_in, missing_out = _instrument_leg_maps(seq, pt.nsteps)
+    in_map, out_map, missing_in, missing_out = Instruments.instrument_leg_maps(seq, pt.nsteps)
     default = seq.default
 
     open_in = Int[]
@@ -94,7 +94,7 @@ function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
         end
     end
 
-    final_instr = resolve_instrument(seq, pt.nsteps, default)
+    final_instr = Instruments.resolve_instrument(seq, pt.nsteps, default)
     if final_instr isa OpenOutput || final_instr isa IdentityOperation
         push!(open_out, pt.nsteps - 1)
     end
