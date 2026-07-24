@@ -131,3 +131,16 @@ end
 # REPL return-value display
 Base.show(io::IO, ::MIME"text/plain", mpo::MPO{S, C}) where {S <: AbstractSpace, C} =
     show(io, mpo)
+
+"""
+    _rewrap(m, new_core)
+
+Rebuild an `MPS`/`MPO` wrapper of the same space as `m` around `new_core`.
+"""
+function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
+    if m isa MPS
+        return S === Hilbert ? MPS{Hilbert}(new_core) : MPS{Liouville}(new_core, m.combiners)
+    else
+        return S === Hilbert ? MPO{Hilbert}(new_core) : MPO{Liouville}(new_core, m.combiners)
+    end
+end

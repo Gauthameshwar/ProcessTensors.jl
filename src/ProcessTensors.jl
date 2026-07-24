@@ -12,79 +12,75 @@ module ProcessTensors
 using ITensors
 import ITensorMPS
 
-# Foundation
+# Space model and tensor wrappers
 
 include("basis.jl")
 using .Basis: AbstractSpace, Hilbert, Liouville
 
-# Space marker accessor for Hilbert/Liouville wrappers.
-function space end
-
-# Core Types (MPS & MPO structs, getproperty, show)
-
 include("mps/mps.jl")
 include("mpo/mpo.jl")
 
-# Rewrap utility — converts a raw CoreMPS/CoreMPO back into our wrapper type
-function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
-    if m isa MPS
-        return S === Hilbert ? MPS{Hilbert}(new_core) : MPS{Liouville}(new_core, m.combiners)
-    else
-        return S === Hilbert ? MPO{Hilbert}(new_core) : MPO{Liouville}(new_core, m.combiners)
-    end
-end
-
-# Compact tensor-network surface (ITensorMPS-shared generics + wrapper methods)
+# Tensor-network operations
 
 include("networks/indices.jl")
 include("networks/algebra.jl")
 include("networks/observables.jl")
 
-# MPS / MPO constructors
+# MPS and MPO construction
 
 include("mps/constructors.jl")
 include("mpo/constructors.jl")
 
-# Hamiltonian / Operator Sums
+# Operators, Liouvillians, and time evolution
 
 include("hamiltonian.jl")
-
-# Liouvillian
-
 include("liouvillian.jl")
-
-# Time Evolution
-
 include("time_evolution/tdvp.jl")
 include("time_evolution/trotter.jl")
 include("time_evolution/tebd.jl")
 
-# Systems / Baths / Instruments
+# Systems and environments
 
 include("systems/systems.jl")
+
 include("environments/spectrals.jl")
 using .Spectrals: AbstractSpectralDensity
-include("environments/environments.jl")
-using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
-                    bosonic_mode, spin_mode, bosonic_bath, spin_bath,
-                    mode_initial_states
-include("instruments/Instruments.jl")
-using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
-                    StatePreparation, ObservableMeasurement,
-                    TraceOut, IdentityOperation, UnitaryPropagation,
-                    OpenOutput, OpenInput, OpenInOut, ProductInstrument,
-                    CustomTwoLegInstrument,
-                    LeftRightOperator, left_action, right_action,
-                    state_preparation, observable_measurement, trace_out,
-                    left_right_operator, unitary_propagation, identity_operation,
-                    open_output, open_input, open_inout,
-                    custom_twoleg_instrument,
-                    InstrumentSeq, add!
 
-# Process Tensors
+include("environments/environments.jl")
+using .Environments: AbstractBathMode, AbstractBath
+using .Environments: BosonicMode, SpinMode
+using .Environments: BosonicBath, SpinBath
+using .Environments: bosonic_mode, spin_mode
+using .Environments: bosonic_bath, spin_bath
+using .Environments: mode_initial_states
+
+# Instruments
+
+include("instruments/Instruments.jl")
+using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument
+using .Instruments: StatePreparation, ObservableMeasurement, TraceOut
+using .Instruments: IdentityOperation, UnitaryPropagation, LeftRightOperator
+using .Instruments: OpenOutput, OpenInput, OpenInOut
+using .Instruments: ProductInstrument, CustomTwoLegInstrument
+using .Instruments: state_preparation, observable_measurement, trace_out
+using .Instruments: identity_operation, unitary_propagation
+using .Instruments: left_right_operator
+using .Instruments: open_output, open_input, open_inout
+using .Instruments: custom_twoleg_instrument
+using .Instruments: left_action, right_action
+using .Instruments: InstrumentSeq
+using .Instruments: add!
+
+# Process tensors
 
 include("process_tensor/process_tensor.jl")
-Base.include(Instruments, joinpath(@__DIR__, "instruments/itensor_instruments.jl"))
+
+# Instrument materialisation depends on process-tensor leg definitions
+Base.include(
+    Instruments,
+    joinpath(@__DIR__, "instruments/itensor_instruments.jl"),
+)
+
 include("builders/abstract_builders.jl")
 include("builders/dense_process_tensor.jl")
 include("process_tensor/build.jl")
@@ -92,54 +88,83 @@ include("process_tensor/evaluate.jl")
 include("process_tensor/evolve.jl")
 include("process_tensor/multitime.jl")
 
-# Exports (grouped by category)
+# Public API
 
-# Core types
-export AbstractMPS, AbstractMPO, MPS, MPO, Hilbert, Liouville
+# Space-aware tensor-network objects
+export Hilbert, Liouville
+export AbstractMPS, AbstractMPO
+export MPS, MPO
+export random_mps, random_mpo
+export outer, projector
+
+# Tensor-network inspection
+export siteinds, siteind
+export linkinds, linkind, linkdim
+export linkdims, maxlinkdim
+
+# Tensor-network algebra and observables
+export apply, contract, add
+export inner, dot, norm
+export expect, correlation_matrix, entropy, tr
+
+# Index-tag helpers
 export tag_tokens, has_tag_token, has_tag_prefix, tag_value
 
-# Compact tensor-network surface
-export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim
-export apply, contract, add
-export random_mps, random_mpo, outer, projector
-export inner, dot, norm, expect, correlation_matrix, entropy, tr
+# Hilbert/Liouville conversion
+export liouv_sites
+export to_dm, to_liouville, to_hilbert
 
-# Operator construction
+# Operators and Liouvillians
 export OpSum, add!, op
+export liouvillian_opsum, liouvillian_mpo
+export liouvillian_propagator
 
-# Liouvillian
-export to_dm, to_liouville, to_hilbert, liouv_sites,
-       liouvillian_opsum, liouvillian_mpo, liouvillian_propagator
+# Deprecated compatibility aliases; remove after the migration window.
+export OpSum_Liouville, MPO_Liouville, liouvillian_propagator_itensor
 
-# Deprecated compatibility exports; remove in a later 0.y release after the migration window.
-export MPO_Liouville, OpSum_Liouville, liouvillian_propagator_itensor
+# Systems
+export AbstractSystem
+export SpinSystem, BosonSystem
+export spin_system, boson_system
 
-# Wrapper space marker
+# Environments
+export AbstractBathMode, AbstractBath
+export BosonicMode, SpinMode
+export BosonicBath, SpinBath
+export bosonic_mode, spin_mode
+export bosonic_bath, spin_bath
+export AbstractSpectralDensity
+export mode_initial_states
+
+# Instruments
+export AbstractInstrument, SingleLegInstrument, TwoLegInstrument
+export InstrumentSeq
+
+export StatePreparation, ObservableMeasurement, TraceOut
+export IdentityOperation, UnitaryPropagation, LeftRightOperator
+export OpenOutput, OpenInput, OpenInOut
+export ProductInstrument, CustomTwoLegInstrument
+
+export state_preparation, observable_measurement, trace_out
+export identity_operation, unitary_propagation
+export left_right_operator
+export open_output, open_input, open_inout
+export custom_twoleg_instrument
+
+export left_action, right_action
+
+# Process tensors
+export Dense
+export ProcessTensor
+export build_process_tensor, default_schedule
+export evaluate_process, evolve
+export two_time_correlation_seq
+export isfullycontracted, open_leg_info
+export input_sites, output_sites
+export coupling_times, coupling_sites
+
+# Space marker
 export space
-
-# Systems / Baths / Instruments / PT
-export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system
-
-export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
-       AbstractBath, BosonicBath, SpinBath, bosonic_bath, spin_bath,
-       mode_initial_states
-
-export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
-       StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, UnitaryPropagation, OpenOutput, OpenInput, OpenInOut,
-       ProductInstrument, CustomTwoLegInstrument,
-       LeftRightOperator, left_action, right_action,
-       state_preparation, observable_measurement, trace_out,
-       left_right_operator, unitary_propagation, identity_operation,
-       open_output, open_input, open_inout,
-       custom_twoleg_instrument,
-       InstrumentSeq, add!
-
-export Dense,
-       ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
-       two_time_correlation_seq,
-       isfullycontracted, open_leg_info,
-       coupling_times, coupling_sites, input_sites, output_sites
 
 # Time evolution
 export tdvp, tebd
