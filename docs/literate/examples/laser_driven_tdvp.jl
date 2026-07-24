@@ -52,7 +52,6 @@
 # ### Model and parameters
 
 using ITensors
-using ITensorMPS: expect, tdvp
 using ProcessTensors
 using Statistics: mean
 

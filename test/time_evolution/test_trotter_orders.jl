@@ -15,13 +15,20 @@ using ITensors.Ops: Trotter
 using LinearAlgebra
 using Test
 
-if !(@isdefined _test_hamiltonian)
-    include(joinpath(@__DIR__, "tebd_test_utils.jl"))
-end
-
-@testset "ProcessTensors: Yoshida Trotter API loaded" begin
+@testset "API surface: time-evolution export boundary" begin
+    @test :tebd ∈ names(ProcessTensors)
+    @test :Exact ∉ names(ProcessTensors)
+    @test :Trotter ∉ names(ProcessTensors)
+    @test :trotter_gates ∉ names(ProcessTensors)
+    @test :propagator_itensor_from_gates ∉ names(ProcessTensors)
+    @test isdefined(ProcessTensors, :trotter_gates)
+    @test isdefined(ProcessTensors, :propagator_itensor_from_gates)
     @test isdefined(ProcessTensors, :trotter_order)
     @test ProcessTensors.trotter_order(Trotter{4}()) == 4
+end
+
+if !(@isdefined _test_hamiltonian)
+    include(joinpath(@__DIR__, "tebd_test_utils.jl"))
 end
 
 function _exact_unitary_apply(ψ0, os_H::OpSum, sites, dt::Real)

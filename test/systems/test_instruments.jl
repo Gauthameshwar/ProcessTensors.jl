@@ -17,6 +17,44 @@ using ITensors.Ops: Trotter
 using LinearAlgebra
 using Test
 
+@testset "API surface: instrument export boundary" begin
+    for (type_name, user_ctor_name) in (
+        (:StatePreparation, :state_preparation),
+        (:ObservableMeasurement, :observable_measurement),
+        (:LeftRightOperator, :left_right_operator),
+        (:TraceOut, :trace_out),
+        (:UnitaryPropagation, :unitary_propagation),
+        (:IdentityOperation, :identity_operation),
+        (:OpenOutput, :open_output),
+        (:OpenInput, :open_input),
+        (:OpenInOut, :open_inout),
+        (:CustomTwoLegInstrument, :custom_twoleg_instrument),
+    )
+        @test type_name ∈ names(ProcessTensors)
+        @test user_ctor_name ∈ names(ProcessTensors)
+    end
+    @test :InstrumentSeq ∈ names(ProcessTensors)
+    @test :ProductInstrument ∈ names(ProcessTensors)
+    @test nameof(StatePreparation) == :StatePreparation
+    @test nameof(typeof(trace_out())) == :TraceOut
+    @test nameof(typeof(identity_operation())) == :IdentityOperation
+
+    @test :instrument_itensor ∉ names(ProcessTensors)
+    @test :create_instruments ∉ names(ProcessTensors)
+    @test :resolve_instrument ∉ names(ProcessTensors)
+    @test :instrument_leg_maps ∉ names(ProcessTensors)
+    @test :instrument_itensor ∈ names(ProcessTensors.Instruments)
+    @test :create_instruments ∈ names(ProcessTensors.Instruments)
+    @test :resolve_instrument ∈ names(ProcessTensors.Instruments)
+    @test :instrument_leg_maps ∈ names(ProcessTensors.Instruments)
+    @test ProcessTensors.add! === ProcessTensors.ITensorMPS.add!
+    @test ProcessTensors.Instruments.add! === ProcessTensors.add!
+
+    s = siteinds("S=1/2", 1)
+    ls = liouv_sites(s)
+    @test nameof(typeof(state_preparation(random_mps(ls)))) == :StatePreparation
+end
+
 if !(@isdefined hilbert_matrix_to_mpo)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
 end

@@ -30,13 +30,10 @@ include(joinpath(@__DIR__, "mps", "test_observables.jl"))
 include(joinpath(@__DIR__, "mpo", "test_mpo.jl"))
 include(joinpath(@__DIR__, "mpo", "test_constructors.jl"))
 include(joinpath(@__DIR__, "mpo", "test_observables.jl"))
-include(joinpath(@__DIR__, "mpo", "test_manipulations.jl"))
 
 # Networks test sets
 include(joinpath(@__DIR__, "networks", "test_indices.jl"))
 include(joinpath(@__DIR__, "networks", "test_algebra.jl"))
-include(joinpath(@__DIR__, "networks", "test_manipulations.jl"))
-include(joinpath(@__DIR__, "networks", "test_orthogonality.jl"))
 
 # Time evolution test sets
 include(joinpath(@__DIR__, "time_evolution", "tebd_validation.jl"))
@@ -68,7 +65,6 @@ include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
 
 # Process tensor test sets
-include(joinpath(@__DIR__, "process_tensor", "test_api_names.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_structure.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_api.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_evaluate_process.jl"))

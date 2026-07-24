@@ -13,7 +13,7 @@
 using Printf
 using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
+import ITensorMPS
 using LinearAlgebra
 using CairoMakie
 using LaTeXStrings
@@ -234,9 +234,9 @@ function liouville_gse_expand(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    # `expand` preserves the represented state but enlarges the MPS gauge basis,
-    # allowing subsequent 1-site TDVP steps to move on a larger manifold.
-    expanded_core = expand(
+    # Global Krylov expansion is an ITensorMPS core-level operation: enlarge the
+    # bond basis, then restore the ProcessTensors Liouville wrapper.
+    expanded_core = ITensorMPS.expand(
         ρ_vec.core,
         operator.core;
         alg="global_krylov",
@@ -244,7 +244,7 @@ function liouville_gse_expand(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Liouville}(expanded_core, ρ_vec.combiners)
 end
 

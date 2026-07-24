@@ -13,6 +13,17 @@ using ProcessTensors
 using ITensors
 using Test
 
+@testset "API surface: tdvp export boundary" begin
+    @test :tdvp ∈ names(ProcessTensors)
+    @test ProcessTensors.tdvp === ProcessTensors.ITensorMPS.tdvp
+    @test !isdefined(ProcessTensors, :sim!)
+    @test !isdefined(ProcessTensors, :promote_itensor_eltype)
+    @test :promote_itensor_eltype ∉ names(ProcessTensors)
+    @test :convert_leaf_eltype ∉ names(ProcessTensors)
+    @test :argsdict ∉ names(ProcessTensors)
+    @test :sim! ∉ names(ProcessTensors)
+end
+
 @testset "tdvp.jl forwarding API" begin
     sites = siteinds("S=1/2", 2)
     liouv = liouv_sites(sites)

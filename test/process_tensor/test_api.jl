@@ -15,6 +15,58 @@ using ITensors
 using ITensors.Ops: Trotter
 using Test
 
+@testset "API surface: process-tensor names and fields" begin
+    @test :ProcessTensor ∈ names(ProcessTensors)
+    @test :Dense ∈ names(ProcessTensors)
+    @test :isfullycontracted ∈ names(ProcessTensors)
+    @test :open_leg_info ∈ names(ProcessTensors)
+    @test :two_time_correlation_seq ∈ names(ProcessTensors)
+    @test :input_sites ∈ names(ProcessTensors)
+    @test :output_sites ∈ names(ProcessTensors)
+    @test :coupling_times ∈ names(ProcessTensors)
+    @test :coupling_sites ∈ names(ProcessTensors)
+    @test :AbstractPTBuilder ∉ names(ProcessTensors)
+    @test isdefined(ProcessTensors, :AbstractPTBuilder)
+    @test :_generate_pt_legs ∉ names(ProcessTensors)
+    @test :generate_pt_legs ∉ names(ProcessTensors)
+    @test :all_pt_legs_contracted ∉ names(ProcessTensors)
+    @test nameof(ProcessTensor) == :ProcessTensor
+    @test nameof(Dense) == :Dense
+    @test Dense() isa ProcessTensors.AbstractPTBuilder
+
+    # Removed field-accessor sugar is not part of the public API.
+    for name in (
+        :sites, :hamiltonian, :jump_operators, :modes, :couplings, :initial_state,
+        :spectral_density, :system, :environment, :time_step, :nsteps, :coupling_site,
+    )
+        @test name ∉ names(ProcessTensors)
+    end
+
+    s = siteinds("S=1/2", 1)
+    ls = liouv_sites(s)
+    sys = spin_system(ls, OpSum() + ("Sz", 1))
+    pt = build_process_tensor(sys, only(ls); dt=0.05, nsteps=3)
+    seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+
+    @test pt.system === sys
+    @test pt.environment === nothing
+    @test pt.dt == 0.05
+    @test pt.nsteps == 3
+    @test pt.coupling_site == only(ls)
+    @test seq.nsteps == pt.nsteps
+
+    b_sites = liouv_sites(siteinds("S=1/2", 1))
+    mode = spin_mode(
+        b_sites,
+        OpSum() + ("Sz", 1),
+        random_mps(b_sites);
+        coupling=OpSum() + (0.1, "Sz", 1, "Sz", 2),
+    )
+    bath = spin_bath([mode])
+    pt_bath = ProcessTensor(pt.core, sys, bath, pt.dt, pt.nsteps, pt.coupling_site)
+    @test pt_bath.environment === bath
+end
+
 struct _UnsupportedPTInstrument <: AbstractInstrument end
 
 if !isdefined(Main, :liouville_state_to_dense)
@@ -39,10 +91,6 @@ end
         @test length(input_sites(pt, 2)) == 1
 
         pt_dense = build_process_tensor(system, system.sites[1]; method=Dense(), dt=0.1, nsteps=3)
-        @test Dense() isa ProcessTensors.AbstractPTBuilder
-        @test :Dense ∈ names(ProcessTensors)
-        @test :AbstractPTBuilder ∉ names(ProcessTensors)
-        @test isdefined(ProcessTensors, :AbstractPTBuilder)
         @test pt_dense isa ProcessTensor
         @test length(pt_dense.core) == length(pt.core)
 

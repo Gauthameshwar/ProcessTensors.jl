@@ -61,6 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exported. Unused TDVP utilities from ITensorMPS
   (`promote_itensor_eltype`, `convert_leaf_eltype`, `argsdict`, `sim!`) are no
   longer imported in `tdvp.jl` or root-exported.
+* **Compact tensor-network root surface.** Ordinary wrapper operations kept at
+  root are inspection (`siteinds`, …), algebra (`apply`, `contract`, `add`),
+  construction (`random_mps`, `random_mpo`, `outer`, `projector`), observables
+  (`inner`, `dot`, `norm`, `expect`, `correlation_matrix`, `entropy`, `tr`), and
+  `OpSum` / `add!` / `op`. These names are shared ITensorMPS generics extended
+  with wrapper methods, so `using ITensors; using ProcessTensors` does not clash
+  on them. Advanced TN surgery (`orthogonalize!`, `truncate`, `sample`, bond
+  moves, …) and unused upstream bindings (`state`, `ops`, `eigs`,
+  `coefficient`, `@preserve_ortho`, `⋅`) are not defined by ProcessTensors; use
+  ITensorMPS directly when needed (typically on native cores).
 
 ### Added
 

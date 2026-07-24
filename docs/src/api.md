@@ -24,36 +24,40 @@ Process-tensor input legs are primed (`plev = 1`) and output legs are unprimed
 (`plev = 0`).
 
 
-## List of available ITensorMPS functions
+## List of ITensorMPS functions exported by ProcessTensors
 
-ProcessTensors.jl forwards several ITensorMPS operations to the wrapped `.core`
-object and rewraps results when appropriate, preserving the `Hilbert` or
-`Liouville` space label.
+ProcessTensors exposes a compact root surface for ordinary Hilbert/Liouville
+workflows. These names are the shared ITensorMPS generics, extended with methods
+that act on wrappers and rewrap results when appropriate, preserving the
+`Hilbert` or `Liouville` space marker. 
+Here is a list of `ITensorMPS.jl` functions that is available in `ProcessTensors.jl`: 
+
+```julia
+siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim
+
+apply, contract, add
+
+random_mps, random_mpo, outer, projector
+
+inner, dot, norm, expect, correlation_matrix, entropy, tr
+
+OpSum, add!, op
+```
 
 For generic MPS/MPO algorithmic details and keyword arguments, refer to the
-ITensorMPS documentation. ProcessTensors documentation focuses only on the
-wrapper semantics and Hilbert/Liouville behavior.
+ITensorMPS documentation.
 
-- `siteinds`, `siteind`, `linkinds`, `linkind`, `linkdim`, `linkdims`,
-  `maxlinkdim`, `common_siteind`, `common_siteinds`, `unique_siteind`,
-  `unique_siteinds`, `findfirstsiteind`, `findfirstsiteinds`, `findsite`,
-  `findsites`, `firstsiteind`, `firstsiteinds`, `replace_siteinds`,
-  `replace_siteinds!`, `hassameinds`, `totalqn`, `replaceprime`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `orthogonalize`, `orthogonalize!`, `truncate`, `truncate!`, `normalize!`,
-  `isortho`, `ortho_lims`, `orthocenter`, `set_ortho_lims!`,
-  `reset_ortho_lims!`: [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `apply`, `contract`, `replacebond`, `replacebond!`, `swapbondsites`,
-  `movesite`, `movesites`, `error_contract`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `inner`, `dot`, `⋅`, `loginner`, `logdot`, `norm`, `lognorm`, `expect`,
-  `correlation_matrix`, `sample`, `sample!`, `entropy`, `outer`, `projector`,
-  `state`, `splitblocks`, `tr`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `OpSum`, `add!`, `op`, `ops`, `coefficient`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/OpSum.html)
-- `siteind`, `siteinds`, `state`, `op` for SiteType-based physics indices:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/SiteType.html)
+### Advanced tensor-network surgery
+
+Canonical forms, truncation diagnostics, bond moves, sampling, and related
+technical operations are not defined by ProcessTensors. Use ITensorMPS
+directly, typically on native cores for such algorithms. for example,
+
+```julia
+import ITensorMPS
+expanded_core = ITensorMPS.expand(state.core, operator.core; alg="global_krylov", ...)
+ITensorMPS.orthogonalize!(expanded_core, 1)
+```
 
 ## API Documentation
 

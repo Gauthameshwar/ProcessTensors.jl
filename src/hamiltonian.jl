@@ -7,5 +7,4 @@
 # Provides Hamiltonian construction helpers for system, bath, and interaction
 # terms used in ProcessTensors.jl simulations.
 
-import ITensorMPS: OpSum, add!, op, ops, eigs, coefficient
-
+import ITensorMPS: OpSum, add!, op

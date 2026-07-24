@@ -15,6 +15,15 @@ using ITensors
 using LinearAlgebra
 using Test
 
+@testset "API surface: deprecated Liouvillian aliases remain exported" begin
+    @test isdefined(ProcessTensors, :OpSum_Liouville)
+    @test isdefined(ProcessTensors, :MPO_Liouville)
+    @test isdefined(ProcessTensors, :liouvillian_propagator_itensor)
+    @test :OpSum_Liouville ∈ names(ProcessTensors)
+    @test :MPO_Liouville ∈ names(ProcessTensors)
+    @test :liouvillian_propagator_itensor ∈ names(ProcessTensors)
+end
+
 @testset "Liouvillian deprecation aliases" begin
     phys = siteinds("S=1/2", 1)
     sL = liouv_sites(phys)

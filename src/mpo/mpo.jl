@@ -31,8 +31,9 @@ Liouville-space superoperator acting on vectorized density matrices. Liouville
 MPOs may carry `combiners` when constructed from fused Hilbert indices, matching
 the convention used by [`to_liouville`](@ref) and [`liouvillian_mpo`](@ref).
 
-Most generic MPO operations are delegated to `.core` and rewrapped when they
-return an MPS/MPO-like object.
+Ordinary ProcessTensors network operations act on wrappers and preserve the
+`Hilbert` / `Liouville` space marker. For advanced ITensorMPS algorithms, operate
+on `.core` and rewrap.
 
 # Examples
 ```julia
@@ -64,6 +65,8 @@ MPO{Hilbert}(A::ITensor, sites; kwargs...) = MPO{Hilbert}(CoreMPO(A, sites; kwar
 
 MPO{Liouville}(combiners::Vector{ITensor}, args...; kwargs...) = MPO{Liouville}(CoreMPO(args...; kwargs...), combiners)
 MPO{Liouville}(combiners::Vector{ITensor}, A::AbstractArray, args...; kwargs...) = MPO{Liouville}(CoreMPO(A, args...; kwargs...), combiners)
+
+space(::AbstractMPO{S}) where {S <: AbstractSpace} = S
 
 copy(m::MPO{Hilbert}) = MPO{Hilbert}(copy(m.core))
 copy(m::MPO{Liouville}) = MPO{Liouville}(copy(m.core), copy(m.combiners))

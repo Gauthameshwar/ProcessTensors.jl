@@ -33,9 +33,9 @@
 # ```
 
 using ITensors
-using ITensorMPS: expand, orthogonalize!
 using LinearAlgebra
 using ProcessTensors
+import ITensorMPS
 
 const N = 4
 const J = 1.0
@@ -217,9 +217,9 @@ println("    Max bond dim of final state: $(maxlinkdim(hilbert_trajectory.state)
 # same state in a larger bond-dimension representation, so later 1TDVP sweeps have 
 # room to leave the original product-state manifold.
 
-println("Initial state bond dimensions: ", linkdims(initial_state.core))
+println("Initial state bond dimensions: ", linkdims(initial_state))
 
-expanded_core = expand(
+expanded_core = ITensorMPS.expand(
     initial_state.core,
     H_mpo.core;
     alg="global_krylov",
@@ -227,10 +227,10 @@ expanded_core = expand(
     cutoff=1e-8,
     apply_kwargs=(; maxdim=maxdim),
 )
-orthogonalize!(expanded_core, 1)
+ITensorMPS.orthogonalize!(expanded_core, 1)
 gse_state = MPS{Hilbert}(expanded_core)
 
-println("After global subspace expansion bond dimensions: ", linkdims(gse_state.core))
+println("After global subspace expansion bond dimensions: ", linkdims(gse_state))
 
 overlap_initial_gse = inner(initial_state, gse_state)
 println("Overlap of initial and expanded state: ", overlap_initial_gse)
@@ -249,12 +249,11 @@ gse_state_evolved = tdvp(
     outputlevel=0,
 )
 
-println("Bond dimensions after 1TDVP evolution: ", linkdims(gse_state_evolved.core))
+println("Bond dimensions after 1TDVP evolution: ", linkdims(gse_state_evolved))
 @assert maxlinkdim(gse_state) > maxlinkdim(initial_state)
 
-# In a full trajectory, repeat the expansion periodically before each `nsite=1` update. 
-# The same construction applies in Liouville space with `L_mpo = liouvillian_mpo(...)`; the full script 
-# preserves the Liouville combiners when it wraps the expanded core.
+# In a full trajectory, repeat the expansion periodically before each `nsite=1` update.
+# The same construction applies in Liouville space with `L_mpo = liouvillian_mpo(...)`.
 
 # The complete benchmark in
 # [`scripts/tdvp_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tdvp_tfim_unitary.jl)

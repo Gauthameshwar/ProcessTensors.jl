@@ -4,44 +4,19 @@
 # File: src/networks/indices.jl
 # Contributor: Gauthameshwar S.
 #
-# Provides site and link index helpers that forward to ITensorMPS on wrapped cores.
+# Provides compact site and link index helpers that forward to ITensorMPS on
+# wrapped MPS/MPO cores.
 
-import ITensorMPS: siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
-                   common_siteind, common_siteinds, unique_siteind, unique_siteinds,
-                   findfirstsiteind, findfirstsiteinds, findsite, findsites, firstsiteind, firstsiteinds,
-                   replace_siteinds, replace_siteinds!, hassameinds, totalqn, replaceprime
+import ITensorMPS: siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim
 
-siteinds(m::AbstractMPS) = siteinds(m.core)
-siteind(m::AbstractMPS, j::Integer) = siteind(m.core, j)
-linkinds(m::AbstractMPS) = linkinds(m.core)
-linkind(m::AbstractMPS, j::Integer) = linkind(m.core, j)
-linkdim(m::AbstractMPS, b::Integer) = linkdim(m.core, b)
-linkdims(m::AbstractMPS) = linkdims(m.core)
-maxlinkdim(m::AbstractMPS) = maxlinkdim(m.core)
-totalqn(m::AbstractMPS) = totalqn(m.core)
-findfirstsiteind(m::AbstractMPS, s::Index) = findfirstsiteind(m.core, s)
-findfirstsiteinds(m::AbstractMPS, s::Index) = findfirstsiteinds(m.core, s)
-findsite(m::AbstractMPS, s::Index) = findsite(m.core, s)
-findsite(m::AbstractMPS, j::Integer) = findsite(m.core, j)
-findsites(m::AbstractMPS, s::Index) = findsites(m.core, s)
-findsites(m::AbstractMPS, j::Integer) = findsites(m.core, j)
-firstsiteind(m::AbstractMPS, j::Integer) = firstsiteind(m.core, j)
-firstsiteinds(m::AbstractMPS) = firstsiteinds(m.core)
-
-for func in (:common_siteind, :common_siteinds, :unique_siteind, :unique_siteinds, :hassameinds)
-    @eval begin
-        $func(m1::AbstractMPS, m2::AbstractMPS, args...; kwargs...) = $func(m1.core, m2.core, args...; kwargs...)
-        $func(m1::AbstractMPS, m2::CoreAbstractMPS, args...; kwargs...) = $func(m1.core, m2, args...; kwargs...)
-        $func(m1::AbstractMPS, m2::CoreAbstractMPS, j::Integer) = $func(m1.core, m2, j)
-        $func(m1::AbstractMPS, m2::AbstractMPS, j::Integer) = $func(m1.core, m2.core, j)
-    end
-end
-
-for func in (:replace_siteinds, :replaceprime)
-    @eval $func(m::AbstractMPS, args...; kwargs...) = _rewrap(m, $func(m.core, args...; kwargs...))
-end
-
-replace_siteinds!(m::AbstractMPS, args...; kwargs...) = (replace_siteinds!(m.core, args...; kwargs...); m)
+siteinds(m::AbstractMPS; kwargs...) = siteinds(m.core; kwargs...)
+siteinds(m::AbstractMPS, j::Integer; kwargs...) = siteinds(m.core, j; kwargs...)
+siteind(m::AbstractMPS, j::Integer; kwargs...) = siteind(m.core, j; kwargs...)
+linkinds(m::AbstractMPS; kwargs...) = linkinds(m.core; kwargs...)
+linkind(m::AbstractMPS, j::Integer; kwargs...) = linkind(m.core, j; kwargs...)
+linkdim(m::AbstractMPS, b::Integer; kwargs...) = linkdim(m.core, b; kwargs...)
+linkdims(m::AbstractMPS; kwargs...) = linkdims(m.core; kwargs...)
+maxlinkdim(m::AbstractMPS; kwargs...) = maxlinkdim(m.core; kwargs...)
 
 """
     tag_tokens(s::Index)

@@ -14,6 +14,12 @@ using ITensors
 using LinearAlgebra
 using Test
 
+@testset "API surface: Liouvillian constructor names" begin
+    @test :liouvillian_opsum ∈ names(ProcessTensors)
+    @test :liouvillian_mpo ∈ names(ProcessTensors)
+    @test :liouvillian_propagator ∈ names(ProcessTensors)
+end
+
 function _liouv_tensor_array(L_mpo, c)
     return Array(L_mpo[1], prime(c), c)
 end

@@ -17,6 +17,9 @@ import ITensorMPS
 include("basis.jl")
 using .Basis: AbstractSpace, Hilbert, Liouville
 
+# Space marker accessor for Hilbert/Liouville wrappers.
+function space end
+
 # Core Types (MPS & MPO structs, getproperty, show)
 
 include("mps/mps.jl")
@@ -31,23 +34,16 @@ function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
     end
 end
 
-# Network Operations
+# Compact tensor-network surface (ITensorMPS-shared generics + wrapper methods)
 
 include("networks/indices.jl")
 include("networks/algebra.jl")
-include("networks/manipulations.jl")
-include("networks/orthogonality.jl")
+include("networks/observables.jl")
 
-# MPS-Specific
+# MPS / MPO constructors
 
 include("mps/constructors.jl")
-include("mps/observables.jl")
-
-# MPO-Specific
-
 include("mpo/constructors.jl")
-include("mpo/manipulations.jl")
-include("mpo/observables.jl")
 
 # Hamiltonian / Operator Sums
 
@@ -63,7 +59,7 @@ include("time_evolution/tdvp.jl")
 include("time_evolution/trotter.jl")
 include("time_evolution/tebd.jl")
 
-# ProcessTensors.jl module: Systems / Baths / Instruments
+# Systems / Baths / Instruments
 
 include("systems/systems.jl")
 include("environments/spectrals.jl")
@@ -102,33 +98,14 @@ include("process_tensor/multitime.jl")
 export AbstractMPS, AbstractMPO, MPS, MPO, Hilbert, Liouville
 export tag_tokens, has_tag_token, has_tag_prefix, tag_value
 
-# Network: indices
-export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
-       common_siteind, common_siteinds, unique_siteind, unique_siteinds,
-       findfirstsiteind, findfirstsiteinds, findsite, findsites,
-       firstsiteind, firstsiteinds,
-       replace_siteinds, replace_siteinds!, hassameinds, totalqn, replaceprime
+# Compact tensor-network surface
+export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim
+export apply, contract, add
+export random_mps, random_mpo, outer, projector
+export inner, dot, norm, expect, correlation_matrix, entropy, tr
 
-# Network: algebra
-export apply, contract, add, truncate!, truncate, error_contract
-
-# Network: manipulations
-export replacebond, replacebond!, swapbondsites, movesite, movesites
-
-# Network: orthogonality
-export isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!,
-       orthogonalize!, orthogonalize, normalize!, @preserve_ortho
-
-# MPS constructors & observables
-export random_mps, state, outer, projector,
-       inner, dot, ⋅, loginner, logdot, norm, lognorm,
-       expect, correlation_matrix, sample, sample!, entropy
-
-# MPO constructors, manipulations & observables
-export random_mpo, splitblocks, tr
-
-# Hamiltonian / OpSum
-export OpSum, add!, op, ops, eigs, coefficient
+# Operator construction
+export OpSum, add!, op
 
 # Liouvillian
 export to_dm, to_liouville, to_hilbert, liouv_sites,
@@ -136,6 +113,9 @@ export to_dm, to_liouville, to_hilbert, liouv_sites,
 
 # Deprecated compatibility exports; remove in a later 0.y release after the migration window.
 export MPO_Liouville, OpSum_Liouville, liouvillian_propagator_itensor
+
+# Wrapper space marker
+export space
 
 # Systems / Baths / Instruments / PT
 export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system

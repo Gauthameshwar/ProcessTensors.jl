@@ -14,6 +14,57 @@ using ProcessTensors.Spectrals: ohmic_sd
 using ITensors
 using Test
 
+@testset "API surface: bath names and fields" begin
+    for (type_name, user_ctor_name) in (
+        (:BosonicMode, :bosonic_mode),
+        (:SpinMode, :spin_mode),
+        (:BosonicBath, :bosonic_bath),
+        (:SpinBath, :spin_bath),
+    )
+        @test type_name ∈ names(ProcessTensors)
+        @test user_ctor_name ∈ names(ProcessTensors)
+    end
+    @test nameof(BosonicMode) == :BosonicMode
+    @test :mode_initial_states ∈ names(ProcessTensors)
+
+    b_sites = liouv_sites(siteinds("Boson", 1; dim=4))
+    s_sites = liouv_sites(siteinds("S=1/2", 1))
+    rho_b = random_mps(b_sites)
+    rho_s = random_mps(s_sites)
+    H_b = OpSum() + (0.3, "N", 1)
+    H_s = OpSum() + (0.5, "Sz", 1)
+    coupling_b = OpSum() + (0.1, "N", 1, "Sz", 2)
+    coupling_s = OpSum() + (0.2, "Sz", 1, "Sz", 2)
+
+    mode_b = bosonic_mode(b_sites, H_b, rho_b; coupling=coupling_b)
+    mode_s = spin_mode(s_sites, H_s, rho_s; coupling=coupling_s)
+    @test nameof(typeof(mode_b)) == :BosonicMode
+    @test nameof(typeof(mode_s)) == :SpinMode
+    @test mode_b.sites == b_sites
+    @test mode_b.H == H_b
+    @test mode_b.coupling == coupling_b
+    @test mode_b.rho0 == rho_b
+    @test mode_s.sites == s_sites
+    @test mode_s.H == H_s
+    @test mode_s.coupling == coupling_s
+    @test mode_s.rho0 == rho_s
+
+    sd = ohmic_sd()
+    coupling_bath = OpSum()
+    bath_b = bosonic_bath([mode_b]; spectral_density=sd, coupling=coupling_bath)
+    bath_s = spin_bath([mode_s]; spectral_density=sd, coupling=coupling_bath)
+    @test nameof(typeof(bath_b)) == :BosonicBath
+    @test nameof(typeof(bath_s)) == :SpinBath
+    @test bath_b.modes == [mode_b]
+    @test bath_b.coupling == coupling_bath
+    @test bath_b.spectral_density == sd
+    @test mode_initial_states(bath_b) == getfield.(bath_b.modes, :rho0)
+    @test bath_s.modes == [mode_s]
+    @test bath_s.coupling == coupling_bath
+    @test bath_s.spectral_density == sd
+    @test mode_initial_states(bath_s) == getfield.(bath_s.modes, :rho0)
+end
+
 @testset "environments.jl: mode type and field definitions" begin
     @test BosonicMode <: AbstractBathMode
     @test SpinMode <: AbstractBathMode

@@ -35,6 +35,7 @@ with the system initially in ``|\mathrm{Dn}\rangle`` and the bath in
 using ITensors
 using LinearAlgebra: diag
 using ProcessTensors
+import ProcessTensors: apply, contract, inner, dot, norm, tr, space
 
 const dt = 0.5
 const n_times = 6

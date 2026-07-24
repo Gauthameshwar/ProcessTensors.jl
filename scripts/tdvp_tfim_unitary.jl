@@ -13,7 +13,7 @@
 using Printf
 using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
+import ITensorMPS
 using LinearAlgebra
 using Statistics: mean
 using CairoMakie
@@ -210,7 +210,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -218,7 +218,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Hilbert}(expanded_core)
 end
 
@@ -229,7 +229,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -237,7 +237,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Liouville}(expanded_core, state.combiners)
 end
 
