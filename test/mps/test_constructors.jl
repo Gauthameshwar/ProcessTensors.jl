@@ -14,6 +14,12 @@ using Test
 using ITensors
 using ProcessTensors
 
+@testset "API surface: MPS constructor exports" begin
+    for name in (:random_mps, :outer, :projector)
+        @test name ∈ names(ProcessTensors)
+    end
+end
+
 @testset "MPS constructor forwarding API" begin
     @testset "random_mps forwarding (spin and boson)" begin
         spin_sites = siteinds("S=1/2", 4)

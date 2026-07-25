@@ -185,7 +185,7 @@ function compare_trajectory_to_joint_ed(trajectory, rho_sys0_h, system, H_full, 
     for k in 1:nsteps
         t = k * dt
         ρ_pt = reduced_system_ρ(trajectory.states_liouville[k], dsys)
-        U_L = liouvillian_propagator_itensor(H_full, joint_liouv, t; alg=Exact())
+        U_L = liouvillian_propagator(H_full, joint_liouv, t; alg=Exact())
         rho_joint_l = apply(U_L, copy(rho_joint0_l); cutoff=0.0, maxdim=typemax(Int))
         ρ_ed = partial_trace_system(to_hilbert(rho_joint_l), dsys, denv)
         push!(sx_pt, pauli_expectations(ρ_pt)[1])
@@ -273,12 +273,12 @@ k_final = pt_single.nsteps - 1
 final_sites = output_sites(pt_single, k_final)
 
 seq_final_sz = default_schedule(pt_single)
-add!(seq_final_sz, StatePreparation(ρ_sys0_h), 0)
-add!(seq_final_sz, ObservableMeasurement(Sz, final_sites), pt_single.nsteps)
+add!(seq_final_sz, state_preparation(ρ_sys0_h), 0)
+add!(seq_final_sz, observable_measurement(Sz, final_sites), pt_single.nsteps)
 final_sz_schedule = evaluate_process(pt_single, seq_final_sz)
 
-Sz_obs = instrument_itensor(
-    ObservableMeasurement(Sz, final_sites),
+Sz_obs = ProcessTensors.Instruments.instrument_itensor(
+    observable_measurement(Sz, final_sites),
     final_sites,
     k_final,
 )
@@ -379,12 +379,12 @@ println("evolve returned $(length(trajectory_multi.times)) snapshots")
 
 final_sites_multi = output_sites(pt_multi, pt_multi.nsteps - 1)
 seq_multi_sz = default_schedule(pt_multi)
-add!(seq_multi_sz, StatePreparation(ρ_sys0_h), 0)
-add!(seq_multi_sz, ObservableMeasurement(Sz, final_sites_multi), pt_multi.nsteps)
+add!(seq_multi_sz, state_preparation(ρ_sys0_h), 0)
+add!(seq_multi_sz, observable_measurement(Sz, final_sites_multi), pt_multi.nsteps)
 final_sz_multi = evaluate_process(pt_multi, seq_multi_sz)
 
-Sz_obs_multi = instrument_itensor(
-    ObservableMeasurement(Sz, final_sites_multi),
+Sz_obs_multi = ProcessTensors.Instruments.instrument_itensor(
+    observable_measurement(Sz, final_sites_multi),
     final_sites_multi,
     pt_multi.nsteps - 1,
 )
@@ -472,15 +472,15 @@ Sx += 1.0, "Sx", 1
 function final_sx_evaluate(pt)
     out = output_sites(pt, pt.nsteps - 1)
     seq = default_schedule(pt)
-    add!(seq, StatePreparation(ρ_sys0_h), 0)
-    add!(seq, ObservableMeasurement(Sx, out), pt.nsteps)
+    add!(seq, state_preparation(ρ_sys0_h), 0)
+    add!(seq, observable_measurement(Sx, out), pt.nsteps)
     return real(evaluate_process(pt, seq))
 end
 
 sx_t1 = final_sx_evaluate(pt_order1)
 sx_t2 = final_sx_evaluate(pt_order2)
 
-U_ed = liouvillian_propagator_itensor(H_full_single, joint_liouv_single, T_cmp; alg=Exact())
+U_ed = liouvillian_propagator(H_full_single, joint_liouv_single, T_cmp; alg=Exact())
 ρ_joint_ed = apply(U_ed, copy(ρ_joint0_l_single); cutoff=0.0, maxdim=typemax(Int))
 ρ_ed = partial_trace_system(to_hilbert(ρ_joint_ed), dsys, denv_single)
 

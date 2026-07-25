@@ -60,6 +60,7 @@ using ITensors
 import ITensorMPS
 import LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Trotter
 
 roundreal(x; digits=8) = round(real(x); digits=digits)
 
@@ -198,7 +199,7 @@ jump_ops = [(γ, "S-", 1)]
 
 # Build the Liouville-space generator MPO.
 
-L_mpo = MPO_Liouville(H, sites_L; jump_ops=jump_ops)
+L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jump_ops)
 
 println("Liouvillian MPO:")
 println(L_mpo)
@@ -209,7 +210,7 @@ println(L_mpo)
 #     The key construction is:
 #
 #     ```julia
-#     L_mpo = MPO_Liouville(H, sites_L; jump_ops=jump_ops)
+#     L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jump_ops)
 #     ```
 #
 #     This is the dissipative analogue of building a Hamiltonian MPO.
@@ -270,7 +271,7 @@ println("‖L|ρ⟩⟩ - analytical formula‖ = ",
 @assert LinearAlgebra.norm(dρ_from_mpo - dρ_expected) < 1e-10
 
 # !!! note "Why this check matters"
-#     `MPO_Liouville` is not just wrapping a dense matrix. It builds the local
+#     `liouvillian_mpo` is not just wrapping a dense matrix. It builds the local
 #     superoperator structure from the Hamiltonian and the jump terms. The
 #     single-spin formula lets us see that structure explicitly.
 
@@ -400,7 +401,7 @@ H_chain += 0.4, "Sx", 2
 
 chain_jumps = [(0.15, "S-", 1), (0.15, "S-", 2)]
 
-L_chain = MPO_Liouville(H_chain, chain_sites_L; jump_ops=chain_jumps)
+L_chain = liouvillian_mpo(H_chain, chain_sites_L; jump_ops=chain_jumps)
 
 chain_dt = 0.025
 chain_T = 0.1
@@ -489,7 +490,7 @@ println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
 # - density matrices become `MPS{Liouville}` after vectorisation,
 # - Liouvillian generators become `MPO{Liouville}`,
 # - local jumps are passed as tuples such as `(γ, "S-", site)`,
-# - `MPO_Liouville(H, sites_L; jump_ops=jump_ops)` builds the generator,
+# - `liouvillian_mpo(H, sites_L; jump_ops=jump_ops)` builds the generator,
 # - `tebd(ρL0, H, dt, T; jump_ops=jump_ops)` evolves the density matrix by
 #   Liouville-space TEBD,
 # - `tdvp(L_mpo, T, ρL0; time_step=dt)` evolves the same object using the

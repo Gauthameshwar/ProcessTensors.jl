@@ -10,75 +10,18 @@
 import ITensors: ITensor, Index, exp, replaceind
 import ITensors: exp as itensor_exp
 import ITensors.Ops: Exact, Trotter
-import ITensorMPS: OpSum, apply as mps_apply
+import ITensorMPS: OpSum, apply
 
 """
-    propagator_itensor_from_gates(gates, sites; method=:auto)
+    propagator_itensor_from_gates(gates, sites)
 
-Contract a vector of Trotter gates into a single superoperator ITensor on `sites`.
+Contract a vector of Trotter gates into a single superoperator `ITensor` on
+`sites` by successive gate contraction with index promotion.
 
-`method` controls how the contraction is performed:
-- `:basis` (default for 1 site): builds the map column-by-column by applying the gates to
-  Liouville basis states. This matches the TEBD path exactly and is trace-preserving by
-  construction.
-- `:contract`: directly contracts gate ITensors using index promotion. Suitable for
-  multi-site maps.
-- `:auto`: selects `:basis` for 1 site, `:contract` otherwise.
-
-Returns `(U::ITensor, final_out::Vector{Index})` where `U` has unprimed `sites` as
-ket/output legs and `final_out` as bra/input legs.
+Returns `(U::ITensor, final_out::Vector{Index})` where `U` has unprimed `sites`
+as ket/output legs and `final_out` as bra/input legs.
 """
 function propagator_itensor_from_gates(
-    gates::AbstractVector{<:ITensor},
-    sites::AbstractVector{<:Index};
-    method::Symbol = length(sites) == 1 ? :basis : :contract,
-)
-    method === :basis && return _map_from_gates_by_basis(gates, sites)
-    method === :contract && return _map_from_gates_by_contraction(gates, sites)
-
-    throw(ArgumentError("Unknown map materialization method: $method"))
-end
-
-function _map_from_gates_by_basis(
-    gates::AbstractVector{<:ITensor},
-    sites::AbstractVector{<:Index},
-)
-    length(sites) == 1 ||
-        throw(ArgumentError(":basis materialization currently supports only one site."))
-
-    s = only(sites)
-    d2 = dim(s)
-    d = isqrt(d2)
-    phys = _phys_site_from_liouv(s)
-
-    U = zeros(ComplexF64, d2, d2)
-
-    for j in 1:d2
-        # Construct the j-th Liouville basis vector vec(E_{ij}) where j = i + (k-1)*d
-        i = ((j - 1) % d) + 1
-        k = div(j - 1, d) + 1
-        M = zeros(ComplexF64, d, d)
-        M[i, k] = 1.0
-        ρ_h = MPO{Hilbert}(CoreMPO([ITensor(M, prime(phys), phys)]))
-        basis_j = to_liouville(ρ_h; sites=Index[s])
-
-        ψj = mps_apply(gates, basis_j; maxdim=typemax(Int), cutoff=0.0)
-
-        for ii in 1:d2
-            ii_row = ((ii - 1) % d) + 1
-            ii_col = div(ii - 1, d) + 1
-            M_ii = zeros(ComplexF64, d, d)
-            M_ii[ii_row, ii_col] = 1.0
-            ρ_ii = MPO{Hilbert}(CoreMPO([ITensor(M_ii, prime(phys), phys)]))
-            basis_ii = to_liouville(ρ_ii; sites=Index[s])
-            U[ii, j] = inner(basis_ii, ψj)
-        end
-    end
-
-    return ITensor(U, s, prime(s)), Index[prime(s)]
-end
-
-function _map_from_gates_by_contraction(
     gates::AbstractVector{<:ITensor},
     sites::AbstractVector{<:Index},
 )
@@ -115,13 +58,13 @@ function _map_from_gates_by_contraction(
 end
 
 """
-    liouvillian_propagator_itensor(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
+    liouvillian_propagator(os, sites, dt; alg=Exact(), jump_ops=[], liouville_form=false)
 
 Build the one-step Liouville propagator ``U = \\exp(dt \\, L)`` as a single
 `ITensor` on `sites`.
 
 When `liouville_form=false`, `os` is a physical Hamiltonian and `L` is built by
-[`OpSum_Liouville`](@ref):
+[`liouvillian_opsum`](@ref):
 
 ```math
 L = -i[H,\\cdot] + \\sum_k \\gamma_k \\, \\mathcal{D}[L_k],
@@ -142,20 +85,16 @@ Set `liouville_form=true` when `os` is already a Liouville `OpSum`.
 
 Leg convention: unprimed `sites` are ket/output legs; `prime.(sites)` are
 bra/input legs.
-
-`materialize_method` is forwarded to `propagator_itensor_from_gates` when
-`alg isa Trotter` (`:auto` selects `:basis` for one site, `:contract` otherwise).
 """
-function liouvillian_propagator_itensor(
+function liouvillian_propagator(
     os::OpSum,
     sites::AbstractVector{<:Index},
     dt::Real;
     alg=Exact(),
     jump_ops=Tuple{Number,String,Int}[],
     liouville_form::Bool=false,
-    materialize_method::Symbol=:auto,
 )
-    L = liouville_form ? os : OpSum_Liouville(os, jump_ops)
+    L = liouville_form ? os : liouvillian_opsum(os, jump_ops)
 
     if alg isa Exact
         L_mpo = ITensorMPS.MPO(L, sites)
@@ -163,12 +102,7 @@ function liouvillian_propagator_itensor(
         return itensor_exp(dt * L_dense)
     elseif alg isa Trotter
         gates = trotter_gates(L, sites, dt; alg=alg)
-
-        method = materialize_method === :auto ?
-            (length(sites) == 1 ? :basis : :contract) :
-            materialize_method
-
-        U, final_out = propagator_itensor_from_gates(gates, sites; method=method)
+        U, final_out = propagator_itensor_from_gates(gates, sites)
 
         for (old_out, s) in zip(final_out, sites)
             U = replaceind(U, old_out, prime(s))
@@ -179,6 +113,9 @@ function liouvillian_propagator_itensor(
 
     throw(ArgumentError("Unsupported exponentiation algorithm: $(typeof(alg))."))
 end
+
+# Deprecated compatibility alias; remove in a later 0.y release after the migration window.
+Base.@deprecate liouvillian_propagator_itensor(args...; kwargs...) liouvillian_propagator(args...; kwargs...)
 
 function _tebd_loop(
     state::AbstractMPS,
@@ -228,7 +165,7 @@ The gates are applied `round(T/dt)` times with optional truncation (`maxdim`,
 `cutoff`).
 
 For exact single-step exponentiation on small Liouville spaces, use
-[`liouvillian_propagator_itensor`](@ref) with `alg=Exact()` instead of TEBD.
+[`liouvillian_propagator`](@ref) with `alg=Exact()` instead of TEBD.
 
 # Examples
 ```julia
@@ -266,7 +203,7 @@ function tebd(
     cutoff::Real=1e-8,
     verbose::Bool=false,
 )
-    L = OpSum_Liouville(H, jump_ops)
+    L = liouvillian_opsum(H, jump_ops)
     gates = trotter_gates(L, siteinds(state), dt; alg=alg)
     return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
 end

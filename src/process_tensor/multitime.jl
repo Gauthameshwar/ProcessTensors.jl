@@ -48,20 +48,20 @@ function two_time_correlation_seq(
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
 
     if n_A == n_B
-        add!(seq, StatePreparation(rho0), 0)
+        add!(seq, state_preparation(rho0), 0)
         # Terminal single-leg and interior left_action compose observables in opposite order;
         # B*A factors → Tr(A B ρ) via left_action, A*B factors → Tr(A B ρ) on the terminal leg.
         same_time = terminal_late ?
-                    ObservableMeasurement(O_A) * ObservableMeasurement(O_B) :
-                    ObservableMeasurement(O_B) * ObservableMeasurement(O_A)
+                    observable_measurement(O_A) * observable_measurement(O_B) :
+                    observable_measurement(O_B) * observable_measurement(O_A)
         if terminal_late
             add!(seq, same_time, pt.nsteps)
         else
             add!(seq, left_action(same_time, phys_sites), slot_late)
             for step in (slot_late + 1):(pt.nsteps - 1)
-                add!(seq, IdentityOperation(), step)
+                add!(seq, identity_operation(), step)
             end
-            add!(seq, TraceOut(), pt.nsteps)
+            add!(seq, trace_out(), pt.nsteps)
         end
     else
         if n_A > n_B
@@ -72,24 +72,24 @@ function two_time_correlation_seq(
 
         if n_early == 0
             prep = early_side === :left ?
-                   ObservableMeasurement(O_early; leg_plev=1) * StatePreparation(rho0) :
-                   StatePreparation(rho0) * ObservableMeasurement(O_early; leg_plev=1)
+                   observable_measurement(O_early; leg_plev=1) * state_preparation(rho0) :
+                   state_preparation(rho0) * observable_measurement(O_early; leg_plev=1)
             add!(seq, prep, 0)
         else
-            add!(seq, StatePreparation(rho0), 0)
+            add!(seq, state_preparation(rho0), 0)
             early_slot = n_early + 1
             early_lr = early_side === :left ? left_action(O_early, phys_sites) : right_action(O_early, phys_sites)
             add!(seq, early_lr, early_slot)
         end
 
         if terminal_late
-            add!(seq, ObservableMeasurement(O_late), pt.nsteps)
+            add!(seq, observable_measurement(O_late), pt.nsteps)
         else
             add!(seq, left_action(O_late, phys_sites), slot_late)
             for step in (slot_late + 1):(pt.nsteps - 1)
-                add!(seq, IdentityOperation(), step)
+                add!(seq, identity_operation(), step)
             end
-            add!(seq, TraceOut(), pt.nsteps)
+            add!(seq, trace_out(), pt.nsteps)
         end
     end
 

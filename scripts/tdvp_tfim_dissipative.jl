@@ -13,7 +13,7 @@
 using Printf
 using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
+import ITensorMPS
 using LinearAlgebra
 using CairoMakie
 using LaTeXStrings
@@ -60,7 +60,7 @@ function liouville_state_to_dense(ρ_vec::AbstractMPS{Liouville}, physical_sites
 end
 
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
     L_dense = zeros(ComplexF64, d2, d2)
@@ -234,9 +234,9 @@ function liouville_gse_expand(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    # `expand` preserves the represented state but enlarges the MPS gauge basis,
-    # allowing subsequent 1-site TDVP steps to move on a larger manifold.
-    expanded_core = expand(
+    # Global Krylov expansion is an ITensorMPS core-level operation: enlarge the
+    # bond basis, then restore the ProcessTensors Liouville wrapper.
+    expanded_core = ITensorMPS.expand(
         ρ_vec.core,
         operator.core;
         alg="global_krylov",
@@ -244,7 +244,7 @@ function liouville_gse_expand(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Liouville}(expanded_core, ρ_vec.combiners)
 end
 
@@ -434,7 +434,7 @@ z_ops = [dense_one_site_operator("Z", physical_sites, j) for j in 1:N]
 x_mpos = single_site_pauli_mpos("X", physical_sites)
 z_mpos = single_site_pauli_mpos("Z", physical_sites)
 
-L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
 L_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
 times = collect(range(0.0, step=dt, length=nsteps + 1))
 

@@ -56,7 +56,7 @@ if !isdefined(Main, :_joint_density_B_at_0)
     """
     Joint density after inserting `B` on the system at `t = 0`, for split-schedule ED.
 
-    Matches `StatePreparation(B * ρ_sys)` on the PT system leg with a product bath:
+    Matches `state_preparation(B * ρ_sys)` on the PT system leg with a product bath:
     `kron(ρ_env, B ρ_sys)`.
     """
     function _joint_density_B_at_0(
@@ -205,7 +205,7 @@ end
 
 if !isdefined(Main, :_schedule_default_instr_pt)
     function _schedule_default_instr_pt(::ProcessTensor)
-        return IdentityOperation()
+        return identity_operation()
     end
 end
 
@@ -241,10 +241,10 @@ end
 
 if !isdefined(Main, :_identity_instrument_seq)
     function _identity_instrument_seq(pt::ProcessTensor, rho0_h)
-        seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq, StatePreparation(rho0_h), 0)
+        seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq, state_preparation(rho0_h), 0)
         for step in 1:(pt.nsteps - 1)
-            add!(seq, IdentityOperation(), step)
+            add!(seq, identity_operation(), step)
         end
         return seq
     end
@@ -259,8 +259,8 @@ if !isdefined(Main, :_seq_observable_terminal)
         default_instr::AbstractInstrument,
     )
         seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
-        add!(seq, StatePreparation(rho0_h), 0)
-        add!(seq, ObservableMeasurement(O), nsteps)
+        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, observable_measurement(O), nsteps)
         return seq
     end
 end
@@ -268,8 +268,8 @@ end
 if !isdefined(Main, :_seq_trace_terminal)
     function _seq_trace_terminal(rho0_h, nsteps::Int, default_instr::AbstractInstrument)
         seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
-        add!(seq, StatePreparation(rho0_h), 0)
-        add!(seq, TraceOut(), nsteps)
+        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, trace_out(), nsteps)
         return seq
     end
 end
@@ -289,8 +289,8 @@ if !isdefined(Main, :_seq_density_at_snapshot)
     )
         0 <= k < nsteps || throw(ArgumentError("_seq_density_at_snapshot: k=$k out of range for nsteps=$nsteps."))
         seq = InstrumentSeq(default=default_instr, nsteps=k + 1)
-        add!(seq, StatePreparation(rho0_h), 0)
-        add!(seq, OpenOutput(), k + 1)
+        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, open_output(), k + 1)
         return seq
     end
 end

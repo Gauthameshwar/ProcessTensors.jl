@@ -35,6 +35,7 @@ with the system initially in ``|\mathrm{Dn}\rangle`` and the bath in
 using ITensors
 using LinearAlgebra: diag
 using ProcessTensors
+import ProcessTensors: apply, contract, inner, dot, norm, tr, space
 
 const dt = 0.5
 const n_times = 6
@@ -99,7 +100,7 @@ In simple words, we evolve $\rho(0)$ forward to $t_1$, aply B from the _left_,
 evolve the resultant object to $t_2$, and measure the expectation of $A$.
 This can be implemented as the following instrument sequence:
 ```text
-t = 0      : StatePreparation(ρ₀)
+t = 0      : state_preparation(ρ₀)
 t = t₁    : insert B from the left
 t = t₂    : insert A
 after t₂  : propagate with identity operations and TraceOut

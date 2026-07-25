@@ -8,7 +8,6 @@
 
 import ITensorMPS: AbstractMPS as CoreAbstractMPS
 import ITensorMPS: MPS as CoreMPS
-import ITensorMPS: siteinds, linkdims, maxlinkdim
 import Base: show, length, getindex, setindex!, copy
 
 """
@@ -17,8 +16,7 @@ import Base: show, length, getindex, setindex!, copy
 Abstract interface for ProcessTensors matrix-product wrappers.
 
 `S` records whether the wrapped tensor network lives in Hilbert space or Liouville
-space. Concrete wrappers delegate most generic ITensorMPS operations to their
-underlying `.core`.
+space. 
 """
 abstract type AbstractMPS{S <: AbstractSpace} <: CoreAbstractMPS end
 
@@ -33,8 +31,6 @@ density matrix or Liouville-space state; it carries `combiners` that record how
 Hilbert bra/ket site pairs were fused into Liouville sites by [`to_liouville`](@ref),
 so [`to_hilbert`](@ref) can reconstruct the density MPO.
 
-Most ITensorMPS operations are forwarded to `.core` and rewrapped when they return
-an MPS-like object.
 
 # Examples
 ```julia
@@ -68,6 +64,8 @@ MPS{Hilbert}(A::ITensor, sites; kwargs...) = MPS{Hilbert}(CoreMPS(A, sites; kwar
 MPS{Liouville}(combiners::Vector{ITensor}, args...; kwargs...) = MPS{Liouville}(CoreMPS(args...; kwargs...), combiners)
 MPS{Liouville}(combiners::Vector{ITensor}, A::AbstractArray, args...; kwargs...) = MPS{Liouville}(CoreMPS(A, args...; kwargs...), combiners)
 
+space(::AbstractMPS{S}) where {S <: AbstractSpace} = S
+
 # Property delegation: unknown fields drop through to the core object
 function Base.getproperty(m::AbstractMPS, sym::Symbol)
     if sym === :core || sym === :combiners
@@ -95,10 +93,10 @@ function Base.show(io::IO, mps::MPS{S, C}) where {S <: AbstractSpace, C}
     N = length(core)
     println(io, "$N-element MPS{$S}")
     site_dims = Int[]
-    for s in siteinds(core)
+    for s in ITensorMPS.siteinds(core)
         push!(site_dims, dim(s isa Index ? s : first(s)))
     end
-    ldims = collect(linkdims(core))
+    ldims = collect(ITensorMPS.linkdims(core))
     print(io, "  site dims: ")
     if length(site_dims) <= 10
         print(io, join(site_dims, ", "))
@@ -114,7 +112,7 @@ function Base.show(io::IO, mps::MPS{S, C}) where {S <: AbstractSpace, C}
     else
         println(io, join(ldims[1:5], ", "), ", ..., ", join(ldims[(end - 4):end], ", "))
     end
-    println(io, "  maxlinkdim: ", maxlinkdim(core))
+    println(io, "  maxlinkdim: ", ITensorMPS.maxlinkdim(core))
     print(io, "  combiners: ")
     if mps.combiners === nothing
         println(io, "none")

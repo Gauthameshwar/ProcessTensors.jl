@@ -207,7 +207,7 @@ progress_stride = max(1, nsteps ÷ 20)
 for k in 1:nsteps
     t = k * dt
     ρ_pt = reduced_system_ρ(trajectory.states_liouville[k], dsys)
-    U_L = liouvillian_propagator_itensor(H_full, joint_liouv, t; alg=Exact())
+    U_L = liouvillian_propagator(H_full, joint_liouv, t; alg=Exact())
     rho_joint_l = apply(U_L, copy(rho_joint0_l); cutoff=0.0, maxdim=typemax(Int))
     ρ_red = partial_trace_system(to_hilbert(rho_joint_l), dsys, denv)
 

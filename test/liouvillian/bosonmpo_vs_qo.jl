@@ -154,7 +154,7 @@ function run_boson_case(
 
     os_H = pt_boson_hamiltonian_opsum(N; t_hop=t_hop, g=g, ω=ω)
     site_rates = boson_jump_site_rates(N, scenario; gamma_base=gamma_base, gamma_scale=gamma_scale)
-    L_pt_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=boson_pt_jump_ops(site_rates))
+    L_pt_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=boson_pt_jump_ops(site_rates))
 
     H_qo, b_qo, bt_qo = qo_boson_hamiltonian(N, D; t_hop=t_hop, g=g, ω=ω)
     L_qo = liouvillian(H_qo, boson_qo_jump_ops(bt_qo, b_qo, site_rates))

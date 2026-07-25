@@ -30,13 +30,10 @@ include(joinpath(@__DIR__, "mps", "test_observables.jl"))
 include(joinpath(@__DIR__, "mpo", "test_mpo.jl"))
 include(joinpath(@__DIR__, "mpo", "test_constructors.jl"))
 include(joinpath(@__DIR__, "mpo", "test_observables.jl"))
-include(joinpath(@__DIR__, "mpo", "test_manipulations.jl"))
 
 # Networks test sets
 include(joinpath(@__DIR__, "networks", "test_indices.jl"))
 include(joinpath(@__DIR__, "networks", "test_algebra.jl"))
-include(joinpath(@__DIR__, "networks", "test_manipulations.jl"))
-include(joinpath(@__DIR__, "networks", "test_orthogonality.jl"))
 
 # Time evolution test sets
 include(joinpath(@__DIR__, "time_evolution", "tebd_validation.jl"))
@@ -50,6 +47,7 @@ include(joinpath(@__DIR__, "time_evolution", "tdvp_tfim_benchmarks.jl"))
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_hilbert_roundtrip.jl"))
 include(joinpath(@__DIR__, "liouvillian", "single_spin_analytical.jl"))
 include(joinpath(@__DIR__, "liouvillian", "liouvillian_methods.jl"))
+include(joinpath(@__DIR__, "liouvillian", "test_deprecations.jl"))
 
 if Base.find_package("QuantumOptics") !== nothing
     if JULIA_PROCESSTENSORS_RUN_SLOW

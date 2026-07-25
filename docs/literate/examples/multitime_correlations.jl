@@ -102,7 +102,7 @@ process_tensor = build_process_tensor(
 # evolve the resultant object to $t_2$, and measure the expectation of $A$.
 # This can be implemented as the following instrument sequence:
 # ```text
-# t = 0      : StatePreparation(ρ₀)
+# t = 0      : state_preparation(ρ₀)
 # t = t₁    : insert B from the left
 # t = t₂    : insert A
 # after t₂  : propagate with identity operations and TraceOut

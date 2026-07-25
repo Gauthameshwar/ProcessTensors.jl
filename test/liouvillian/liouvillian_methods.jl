@@ -4,7 +4,7 @@
 # File: test/liouvillian/liouvillian_methods.jl
 # Contributor: Gauthameshwar S.
 #
-# Tests MPO_Liouville constructor method coverage on small Liouville systems.
+# Tests liouvillian_mpo constructor method coverage on small Liouville systems.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
@@ -14,11 +14,17 @@ using ITensors
 using LinearAlgebra
 using Test
 
+@testset "API surface: Liouvillian constructor names" begin
+    @test :liouvillian_opsum ∈ names(ProcessTensors)
+    @test :liouvillian_mpo ∈ names(ProcessTensors)
+    @test :liouvillian_propagator ∈ names(ProcessTensors)
+end
+
 function _liouv_tensor_array(L_mpo, c)
     return Array(L_mpo[1], prime(c), c)
 end
 
-@testset "liouvillian.jl: method coverage for MPO_Liouville constructors" begin
+@testset "liouvillian.jl: method coverage for liouvillian_mpo constructors" begin
     physical_sites = siteinds("S=1/2", 1)
     sL = liouv_sites(physical_sites)
 
@@ -35,10 +41,10 @@ end
     L3 = OpSum()
     L3 += 0.1, "Sz", 1
 
-    @testset "OpSum_Liouville: keyword vs positional jump_ops" begin
-        L_opsum_kw = OpSum_Liouville(os_H; jump_ops=tuple_jump_vec)
-        L_opsum_pos = OpSum_Liouville(os_H, tuple_jump_vec)
-        L_opsum_empty = OpSum_Liouville(os_H)
+    @testset "liouvillian_opsum: keyword vs positional jump_ops" begin
+        L_opsum_kw = liouvillian_opsum(os_H; jump_ops=tuple_jump_vec)
+        L_opsum_pos = liouvillian_opsum(os_H, tuple_jump_vec)
+        L_opsum_empty = liouvillian_opsum(os_H)
 
         @test L_opsum_kw isa OpSum
         @test L_opsum_pos isa OpSum
@@ -50,9 +56,9 @@ end
         @test err < 1e-12
     end
 
-    @testset "OpSum_Liouville: OpSum jump_ops" begin
-        L_opsum_single = OpSum_Liouville(os_H, L1)
-        L_opsum_vec = OpSum_Liouville(os_H, [L1, L2])
+    @testset "liouvillian_opsum: OpSum jump_ops" begin
+        L_opsum_single = liouvillian_opsum(os_H, L1)
+        L_opsum_vec = liouvillian_opsum(os_H, [L1, L2])
 
         L_mpo_single = MPO(L_opsum_single, sL)
         L_mpo_vec = MPO(L_opsum_vec, sL)
@@ -62,14 +68,14 @@ end
     end
 
     @testset "keyword jump_ops on liouville sites" begin
-        L_mpo = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=tuple_jump_vec)
+        L_mpo = @test_nowarn liouvillian_mpo(os_H, sL; jump_ops=tuple_jump_vec)
         @test L_mpo isa MPO{Liouville}
         @test length(L_mpo) == 1
     end
 
     @testset "keyword jump_ops default empty on liouville and physical sites" begin
-        L_liouv = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=[])
-        L_phys = @test_nowarn MPO_Liouville(os_H, physical_sites; jump_ops=[])
+        L_liouv = @test_nowarn liouvillian_mpo(os_H, sL; jump_ops=[])
+        L_phys = @test_nowarn liouvillian_mpo(os_H, physical_sites; jump_ops=[])
         @test L_liouv isa MPO{Liouville}
         @test L_phys isa MPO{Liouville}
         @test length(L_liouv) == 1
@@ -77,10 +83,10 @@ end
     end
 
     @testset "positional tuple jump operators" begin
-        L_from_vec_liouv = @test_nowarn MPO_Liouville(os_H, tuple_jump_vec, sL)
-        L_from_single_liouv = @test_nowarn MPO_Liouville(os_H, tuple_jump_single, sL)
-        L_from_vec_phys = @test_nowarn MPO_Liouville(os_H, tuple_jump_vec, physical_sites)
-        L_from_single_phys = @test_nowarn MPO_Liouville(os_H, tuple_jump_single, physical_sites)
+        L_from_vec_liouv = @test_nowarn liouvillian_mpo(os_H, tuple_jump_vec, sL)
+        L_from_single_liouv = @test_nowarn liouvillian_mpo(os_H, tuple_jump_single, sL)
+        L_from_vec_phys = @test_nowarn liouvillian_mpo(os_H, tuple_jump_vec, physical_sites)
+        L_from_single_phys = @test_nowarn liouvillian_mpo(os_H, tuple_jump_single, physical_sites)
 
         @test length(L_from_vec_liouv) == 1
         @test length(L_from_single_liouv) == 1
@@ -92,9 +98,9 @@ end
     end
 
     @testset "OpSum jump operators as vector or varargs" begin
-        L_from_vector_liouv = @test_nowarn MPO_Liouville(os_H, [L1, L2, L3], sL)
-        L_from_varargs_liouv = @test_nowarn MPO_Liouville(os_H, L1, L2, L3, sL)
-        L_from_varargs_phys = @test_nowarn MPO_Liouville(os_H, L1, L2, L3, physical_sites)
+        L_from_vector_liouv = @test_nowarn liouvillian_mpo(os_H, [L1, L2, L3], sL)
+        L_from_varargs_liouv = @test_nowarn liouvillian_mpo(os_H, L1, L2, L3, sL)
+        L_from_varargs_phys = @test_nowarn liouvillian_mpo(os_H, L1, L2, L3, physical_sites)
 
         @test length(L_from_vector_liouv) == 1
         @test length(L_from_varargs_liouv) == 1
@@ -105,24 +111,24 @@ end
     end
 
     @testset "keyword OpSum jump_ops on liouville sites" begin
-        L_kw_single = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=L1)
-        L_pos_single = @test_nowarn MPO_Liouville(os_H, L1, sL)
+        L_kw_single = @test_nowarn liouvillian_mpo(os_H, sL; jump_ops=L1)
+        L_pos_single = @test_nowarn liouvillian_mpo(os_H, L1, sL)
         err_single = norm(_liouv_tensor_array(L_kw_single, sL[1]) - _liouv_tensor_array(L_pos_single, sL[1]))
         @test err_single < 1e-12
 
-        L_kw_vec = @test_nowarn MPO_Liouville(os_H, sL; jump_ops=[L1, L2])
-        L_pos_vec = @test_nowarn MPO_Liouville(os_H, [L1, L2], sL)
+        L_kw_vec = @test_nowarn liouvillian_mpo(os_H, sL; jump_ops=[L1, L2])
+        L_pos_vec = @test_nowarn liouvillian_mpo(os_H, [L1, L2], sL)
         err_vec = norm(_liouv_tensor_array(L_kw_vec, sL[1]) - _liouv_tensor_array(L_pos_vec, sL[1]))
         @test err_vec < 1e-12
     end
 
     @testset "unsupported 4-argument physical+liouville tuple call" begin
-        @test_throws MethodError MPO_Liouville(os_H, tuple_jump_vec, physical_sites, sL)
+        @test_throws MethodError liouvillian_mpo(os_H, tuple_jump_vec, physical_sites, sL)
     end
 
     @testset "output site indices: liouv_sites vs physical_sites input" begin
         # When passing liouv_sites, the output MPO should use the same site indices (by ID)
-        L_with_liouv = MPO_Liouville(os_H, sL; jump_ops=tuple_jump_vec)
+        L_with_liouv = liouvillian_mpo(os_H, sL; jump_ops=tuple_jump_vec)
         inds_liouv = siteinds(L_with_liouv)
         @test length(inds_liouv) == 1  # Single site system
         # siteinds returns tuples of (bra_idx, ket_idx); extract the ket_idx (second element)
@@ -132,7 +138,7 @@ end
         @test ket_idx_liouv[1] == sL[1]
 
         # When passing physical_sites, the output MPO creates NEW internal liouv_sites
-        L_with_phys = MPO_Liouville(os_H, physical_sites; jump_ops=tuple_jump_vec)
+        L_with_phys = liouvillian_mpo(os_H, physical_sites; jump_ops=tuple_jump_vec)
         inds_phys = siteinds(L_with_phys)
         @test length(inds_phys) == 1  # Single site system
         # siteinds returns tuples of (bra_idx, ket_idx); extract the ket_idx (second element)
@@ -161,7 +167,7 @@ end
         tuple_jump_2 = [(0.1, "S-", 1), (0.2, "S+", 2)]
 
         # Test with liouv_sites
-        L_2_liouv = MPO_Liouville(os_H_2, sL_2; jump_ops=tuple_jump_2)
+        L_2_liouv = liouvillian_mpo(os_H_2, sL_2; jump_ops=tuple_jump_2)
         inds_2_liouv = siteinds(L_2_liouv)
         @test length(inds_2_liouv) == 2  # Two site system
         all_2_liouv_flat = collect(Iterators.flatten(inds_2_liouv))
@@ -170,7 +176,7 @@ end
         @test all(ket_idx_2_liouv .== sL_2)
 
         # Test with physical_sites (creates new internal Liouville indices)
-        L_2_phys = MPO_Liouville(os_H_2, physical_sites_2; jump_ops=tuple_jump_2)
+        L_2_phys = liouvillian_mpo(os_H_2, physical_sites_2; jump_ops=tuple_jump_2)
         inds_2_phys = siteinds(L_2_phys)
         @test length(inds_2_phys) == 2  # Two site system
         all_2_phys_flat = collect(Iterators.flatten(inds_2_phys))
@@ -187,5 +193,10 @@ end
         for i in 1:2
             @test all(dim.(ket_idx_2_liouv) .== 4)
         end
+    end
+
+    @testset "canonical return types" begin
+        @test liouvillian_opsum(os_H) isa OpSum
+        @test liouvillian_mpo(os_H, sL) isa MPO{Liouville}
     end
 end

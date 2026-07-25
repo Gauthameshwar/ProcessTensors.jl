@@ -14,6 +14,10 @@ using Test
 using ITensors
 using ProcessTensors
 
+@testset "API surface: MPO constructor exports" begin
+    @test :random_mpo ∈ names(ProcessTensors)
+end
+
 @testset "MPO constructor forwarding API" begin
     @testset "random_mpo forwarding (spin and boson)" begin
         spin_sites = siteinds("S=1/2", 4)

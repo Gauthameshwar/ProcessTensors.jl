@@ -53,6 +53,7 @@
 using ITensors
 import LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Exact, Trotter
 
 roundreal(x; digits=8) = round(real(x); digits=digits)
 
@@ -404,7 +405,7 @@ println("Final ⟨Sz⟩ with spin bath        = ", roundreal(last(mz)))
 # - measure an outcome, or
 # - leave an output open.
 #
-# The default schedule uses `IdentityOperation()` between time steps: no extra
+# The default schedule uses `identity_operation()` between time steps: no extra
 # intervention is inserted beyond the propagation already stored in the process
 # tensor.
 
@@ -423,8 +424,8 @@ println(seq)
 # Physically, this asks for the total probability of the process.
 
 seq_norm = default_schedule(pt)
-add!(seq_norm, StatePreparation(ρS0), 0)
-add!(seq_norm, TraceOut(), pt.nsteps)
+add!(seq_norm, state_preparation(ρS0), 0)
+add!(seq_norm, trace_out(), pt.nsteps)
 
 norm_val = evaluate_process(pt, seq_norm)
 
@@ -437,19 +438,19 @@ println(norm_val)
 # ### Leaving an output open
 #
 # Leaving the final output leg open returns the final reduced system state.
-# `OpenOutput()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
+# `open_output()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
 # not insert a physical map, so the declared output index stays uncontracted.
 
 seq_open = default_schedule(pt)
-add!(seq_open, StatePreparation(ρS0), 0)
-add!(seq_open, OpenOutput(), pt.nsteps)
+add!(seq_open, state_preparation(ρS0), 0)
+add!(seq_open, open_output(), pt.nsteps)
 
 open_result = evaluate_process(pt, seq_open)
 
 println("Open-output result type:")
 println(typeof(open_result))
 
-@assert open_result isa MPO{Liouville}
+@assert open_result isa MPS{Liouville}
 
 # ### Final expectation value
 #
@@ -464,8 +465,8 @@ println(typeof(open_result))
 # ```
 
 seq_final_sz = default_schedule(pt)
-add!(seq_final_sz, StatePreparation(ρS0), 0)
-add!(seq_final_sz, ObservableMeasurement(Sz), pt.nsteps)
+add!(seq_final_sz, state_preparation(ρS0), 0)
+add!(seq_final_sz, observable_measurement(Sz), pt.nsteps)
 
 final_sz_from_schedule = evaluate_process(pt, seq_final_sz)
 
@@ -518,9 +519,9 @@ Pup_mpo = MPO(Pup, system_sites)
 lazy_filter = left_right_operator(Pup_mpo, Pup_mpo)
 
 seq_filter_lazy = default_schedule(pt)
-add!(seq_filter_lazy, StatePreparation(ρS0), 0)
+add!(seq_filter_lazy, state_preparation(ρS0), 0)
 add!(seq_filter_lazy, lazy_filter, 2)
-add!(seq_filter_lazy, TraceOut(), pt.nsteps)
+add!(seq_filter_lazy, trace_out(), pt.nsteps)
 
 prob_filter_lazy = evaluate_process(pt, seq_filter_lazy)
 
@@ -535,7 +536,7 @@ println(prob_filter_lazy)
 
 out_prev, in_curr = coupling_times(pt, 2)
 
-dense_filter_tensor = instrument_itensor(
+dense_filter_tensor = ProcessTensors.Instruments.instrument_itensor(
     lazy_filter,
     in_curr,
     out_prev,
@@ -545,16 +546,16 @@ dense_filter_tensor = instrument_itensor(
 println("Dense filter instrument:")
 println(dense_filter_tensor)
 
-dense_filter = CustomTwoLegInstrument(
+dense_filter = custom_twoleg_instrument(
     dense_filter_tensor,
     in_curr,
     out_prev,
 )
 
 seq_filter_dense = default_schedule(pt)
-add!(seq_filter_dense, StatePreparation(ρS0), 0)
+add!(seq_filter_dense, state_preparation(ρS0), 0)
 add!(seq_filter_dense, dense_filter, 2)
-add!(seq_filter_dense, TraceOut(), pt.nsteps)
+add!(seq_filter_dense, trace_out(), pt.nsteps)
 
 prob_filter_dense = evaluate_process(pt, seq_filter_dense)
 
@@ -567,19 +568,19 @@ println(prob_filter_dense)
 # `evaluate_process`; the loop below shows what the high-level call is doing.
 
 prob_filter_manual = let
-    dense_instruments = create_instruments(pt, seq_filter_dense)
+    dense_instruments = ProcessTensors.Instruments.create_instruments(pt, seq_filter_dense)
     manual_result = pt.core[1] * dense_instruments[1]
     for step in 1:(pt.nsteps - 1)
         manual_result *= dense_instruments[step + 1]
         manual_result *= pt.core[step + 1]
     end
-    final_instr = resolve_instrument(
+    final_instr = ProcessTensors.Instruments.resolve_instrument(
         seq_filter_dense,
         pt.nsteps,
         seq_filter_dense.default,
     )
     final_out, _ = coupling_times(pt, pt.nsteps)
-    manual_result *= instrument_itensor(
+    manual_result *= ProcessTensors.Instruments.instrument_itensor(
         final_instr,
         final_out,
         pt.nsteps - 1,
@@ -603,8 +604,8 @@ println(prob_filter_manual)
 #     custom operation, or debug a contraction:
 #
 #     ```julia
-#     dense = instrument_itensor(instr, in_curr, out_prev, step)
-#     custom = CustomTwoLegInstrument(dense, in_curr, out_prev)
+#     dense = ProcessTensors.Instruments.instrument_itensor(instr, in_curr, out_prev, step)
+#     custom = custom_twoleg_instrument(dense, in_curr, out_prev)
 #     ```
 #
 #     Both paths describe the same physical intervention when the dense tensor is
@@ -636,9 +637,9 @@ Pup += 1.0, "Sz", 1
 ρ_up = to_dm(MPS(system_sites, ["Up"]))
 
 seq_filter = default_schedule(pt)
-add!(seq_filter, StatePreparation(ρS0), 0)
+add!(seq_filter, state_preparation(ρS0), 0)
 add!(seq_filter, observable_measurement(Pup) * state_preparation(ρ_up), 2)
-add!(seq_filter, TraceOut(), pt.nsteps)
+add!(seq_filter, trace_out(), pt.nsteps)
 
 prob_filter = evaluate_process(pt, seq_filter)
 

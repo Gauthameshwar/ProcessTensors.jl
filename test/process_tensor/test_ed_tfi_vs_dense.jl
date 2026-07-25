@@ -101,7 +101,7 @@ end
         push!(trace_errs, abs(val_tr - real(tr(rho_ed))))
 
         seq_rho = InstrumentSeq(default=default_instr, nsteps=k + 1)
-        add!(seq_rho, StatePreparation(rho_sys0_h), 0)
+        add!(seq_rho, state_preparation(rho_sys0_h), 0)
         rho_pt_h = to_hilbert(evaluate_process(pt_k, seq_rho; default_instr=default_instr))
         rho_pt = _hilbert_mpo_to_dense_one_site(rho_pt_h)
         push!(density_errs, norm(rho_pt - rho_ed))

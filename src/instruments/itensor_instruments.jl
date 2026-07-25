@@ -337,7 +337,7 @@ function instrument_itensor(
         ArgumentError("UnitaryPropagation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
     )
     H = _unitary_hamiltonian(instr.H, k, dt)
-    liouv_os = OpSum_Liouville(H, OpSum[])
+    liouv_os = liouvillian_opsum(H, OpSum[])
     if isempty(ITensors.terms(liouv_os))
         id_map = ITensor(1.0)
         for (sin, sout) in zip(in_sites, out_sites)
@@ -345,7 +345,7 @@ function instrument_itensor(
         end
         return id_map
     end
-    # liouvillian_propagator_itensor builds on canonical system Liouville sites (with `Site`
+    # liouvillian_propagator builds on canonical system Liouville sites (with `Site`
     # tag). PT legs drop `Site` to stay within ITensors' four-tag limit once `tstep=` is added.
     gate_sites = Index[instr.sites...]
     length(gate_sites) == length(out_sites) || throw(
@@ -353,7 +353,7 @@ function instrument_itensor(
             "UnitaryPropagation: expected $(length(out_sites)) system sites, got $(length(gate_sites)).",
         ),
     )
-    U_t = liouvillian_propagator_itensor(
+    U_t = liouvillian_propagator(
         H,
         gate_sites,
         dt;
@@ -427,7 +427,7 @@ The returned vector has length `pt.nsteps + 1`:
 - index `pt.nsteps + 1` is the terminal instrument at `tstep = pt.nsteps`
   (`TraceOut`, `ObservableMeasurement`, or `OpenOutput` / open no-op).
 
-Schedule rewriting (same pairing policy as [`instrument_leg_maps`](@ref)):
+Schedule rewriting (same pairing policy as `instrument_leg_maps`):
 consecutive physical single-leg output/input entries become a
 [`ProductInstrument`](@ref) at the output slot; the consumed input slot is
 replaced by `default` when it still lies in the evolve range. A terminal
@@ -447,7 +447,7 @@ function create_instruments(
         slots[t + 1] = resolve_instrument(seq, t, default)
     end
     if slots[end] isa IdentityOperation
-        slots[end] = OpenOutput()
+        slots[end] = open_output()
     end
 
     # Pair physical single-leg out/in (OpenOutput does not force a partner).

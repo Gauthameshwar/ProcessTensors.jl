@@ -136,7 +136,7 @@ function _tagset_with_tstep(s::Index, k::Int)
 end
 
 """
-    generate_pt_legs(site::Index, k::Int)
+    _generate_pt_legs(site::Index, k::Int)
 
 Construct the input/output Liouville legs for one process-tensor timestep.
 
@@ -144,17 +144,17 @@ The returned tuple is `(input_site, output_site)`. The input leg is the primed
 version (`plev = 1`) of the output leg (`plev = 0`), and both carry the same
 physical Liouville metadata as `site` plus a `tstep=k` tag.
 """
-function generate_pt_legs(site::Index, k::Int)
+function _generate_pt_legs(site::Index, k::Int)
     output_site = Index(dim(site); tags=_tagset_with_tstep(site, k))
     return prime(output_site), output_site
 end
 
 
-_schedule_default_instr(::ProcessTensor) = IdentityOperation()
+_schedule_default_instr(::ProcessTensor) = identity_operation()
 
 # Thin PT wrapper around the seq-first canonical coverage API.
 Instruments.instrument_leg_maps(pt::ProcessTensor, seq::InstrumentSeq) =
-    instrument_leg_maps(seq, pt.nsteps)
+    Instruments.instrument_leg_maps(seq, pt.nsteps)
 
 # Shared schedule validation for the lazy evaluation pipeline.
 function _validate_instrument_schedule!(
@@ -163,14 +163,14 @@ function _validate_instrument_schedule!(
     default_instr::AbstractInstrument,
     caller::AbstractString,
 )
-    _, _, missing_in, missing_out = instrument_leg_maps(seq, pt.nsteps)
+    _, _, missing_in, missing_out = Instruments.instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
         ArgumentError("$caller: missing input legs for tsteps $(missing_in)."),
     )
     isempty(missing_out) || throw(
         ArgumentError("$caller: missing output legs for tsteps $(missing_out)."),
     )
-    resolve_instrument(seq, 0) isa SingleLegInstrument || throw(
+    Instruments.resolve_instrument(seq, 0) isa SingleLegInstrument || throw(
         ArgumentError("$caller: tstep=0 must be a single-leg initial preparation."),
     )
     return nothing
@@ -246,7 +246,7 @@ function coupling_times(pt::ProcessTensor, step::Int)
         inn = only(input_sites(pt, step))
     else
         # Terminal synthetic input leg (used only for compatibility checks / boundary maps).
-        inn = generate_pt_legs(pt.coupling_site, step)[1]
+        inn = _generate_pt_legs(pt.coupling_site, step)[1]
     end
     plev(inn) == 1 || throw(ArgumentError("coupling_times: expected plev=1 on in_curr, got plev=$(plev(inn))."))
     return (output_sites(pt, step - 1), Index[inn])

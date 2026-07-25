@@ -4,8 +4,8 @@
 # File: test/networks/test_indices.jl
 # Contributor: Gauthameshwar S.
 #
-# Tests that network index helpers forward correctly on wrapped MPS and MPO
-# objects.
+# Tests that compact network index helpers forward correctly on wrapped MPS and
+# MPO objects.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
@@ -14,100 +14,47 @@ using Test
 using ITensors
 using ProcessTensors
 
-@testset "Networks indices forwarding API" begin
-    @testset "Query functions (single-object and pairwise)" begin
+@testset "API surface: exported index helpers" begin
+    for name in (
+        :siteinds, :siteind, :linkinds, :linkind, :linkdim, :linkdims, :maxlinkdim,
+        :OpSum, :op,
+    )
+        @test name ∈ names(ProcessTensors)
+    end
+    @test ProcessTensors.siteinds === ProcessTensors.ITensorMPS.siteinds
+end
+
+@testset "indices forwarding API" begin
+    @testset "Query functions" begin
         spin_sites = siteinds("S=1/2", 4)
         boson_sites = siteinds("Boson", 3; dim=3)
 
         m_spin = MPS(spin_sites, fill("Up", length(spin_sites)))
-        m_spin_2 = copy(m_spin)
         o_spin = MPO(spin_sites, "Id")
         m_boson = MPS(boson_sites, fill("0", length(boson_sites)))
-        m_boson_2 = copy(m_boson)
         o_boson = MPO(boson_sites, "Id")
 
         @test_nowarn siteinds(m_spin)
+        @test siteinds(m_spin, 1) == siteinds(m_spin.core, 1)
         @test_nowarn siteind(m_spin, 1)
         @test_nowarn linkinds(m_spin)
         @test_nowarn linkind(m_spin, 1)
         @test_nowarn linkdim(m_spin, 1)
         @test_nowarn linkdims(m_spin)
         @test_nowarn maxlinkdim(m_spin)
-        @test_nowarn totalqn(m_spin)
-        @test_nowarn findfirstsiteind(m_spin, siteind(m_spin, 1))
-        @test_nowarn findfirstsiteinds(m_spin, siteind(m_spin, 1))
-        @test_nowarn findsite(m_spin, siteind(m_spin, 1))
-        @test_nowarn findsite(m_spin, 1)
-        @test_nowarn findsites(m_spin, siteind(m_spin, 1))
-        @test_nowarn findsites(m_spin, 1)
-        @test_nowarn firstsiteind(m_spin, 1)
-        @test_nowarn firstsiteinds(o_spin)
-        @test_nowarn common_siteind(m_spin, m_spin_2, 1)
-        @test_nowarn common_siteind(m_spin, m_spin_2.core, 1)
-        @test_nowarn common_siteinds(m_spin, m_spin_2)
-        @test_nowarn unique_siteind(m_spin, m_spin_2, 1)
-        @test_nowarn unique_siteinds(m_spin, m_spin_2)
-        @test_nowarn hassameinds(m_spin, m_spin_2)
-        @test_nowarn hassameinds(m_spin, m_spin_2.core)
+        @test_nowarn siteinds(o_spin)
+        @test siteinds(o_spin, 1) == siteinds(o_spin.core, 1)
 
         @test_nowarn siteinds(m_boson)
+        @test siteinds(m_boson, 1) == siteinds(m_boson.core, 1)
         @test_nowarn siteind(m_boson, 1)
         @test_nowarn linkinds(m_boson)
         @test_nowarn linkind(m_boson, 1)
         @test_nowarn linkdim(m_boson, 1)
         @test_nowarn linkdims(m_boson)
         @test_nowarn maxlinkdim(m_boson)
-        @test_nowarn totalqn(m_boson)
-        @test_nowarn findfirstsiteind(m_boson, siteind(m_boson, 1))
-        @test_nowarn findfirstsiteinds(m_boson, siteind(m_boson, 1))
-        @test_nowarn findsite(m_boson, siteind(m_boson, 1))
-        @test_nowarn findsite(m_boson, 1)
-        @test_nowarn findsites(m_boson, siteind(m_boson, 1))
-        @test_nowarn findsites(m_boson, 1)
-        @test_nowarn firstsiteind(m_boson, 1)
-        @test_nowarn firstsiteinds(o_boson)
-        @test_nowarn common_siteind(m_boson, m_boson_2, 1)
-        @test_nowarn common_siteind(m_boson, m_boson_2.core, 1)
-        @test_nowarn common_siteinds(m_boson, m_boson_2)
-        @test_nowarn unique_siteind(m_boson, m_boson_2, 1)
-        @test_nowarn unique_siteinds(m_boson, m_boson_2)
-        @test_nowarn hassameinds(m_boson, m_boson_2)
-        @test_nowarn hassameinds(m_boson, m_boson_2.core)
-    end
-
-    @testset "Out-of-place index transforms" begin
-        spin_sites = siteinds("S=1/2", 4)
-        boson_sites = siteinds("Boson", 3; dim=3)
-
-        m_spin = MPS(spin_sites, fill("Up", length(spin_sites)))
-        m_boson = MPS(boson_sites, fill("0", length(boson_sites)))
-
-        spin_new_sites = prime.(siteinds(m_spin))
-        boson_new_sites = prime.(siteinds(m_boson))
-
-        @test_nowarn replace_siteinds(m_spin, spin_new_sites)
-        @test_nowarn replaceprime(m_spin, 0 => 1)
-        @test replace_siteinds(m_spin, spin_new_sites) isa MPS{Hilbert}
-        @test replaceprime(m_spin, 0 => 1) isa MPS{Hilbert}
-
-        @test_nowarn replace_siteinds(m_boson, boson_new_sites)
-        @test_nowarn replaceprime(m_boson, 0 => 1)
-        @test replace_siteinds(m_boson, boson_new_sites) isa MPS{Hilbert}
-        @test replaceprime(m_boson, 0 => 1) isa MPS{Hilbert}
-    end
-
-    @testset "In-place index transforms" begin
-        spin_sites = siteinds("S=1/2", 4)
-        boson_sites = siteinds("Boson", 3; dim=3)
-
-        m_spin = MPS(spin_sites, fill("Up", length(spin_sites)))
-        m_boson = MPS(boson_sites, fill("0", length(boson_sites)))
-
-        spin_new_sites = prime.(siteinds(m_spin))
-        boson_new_sites = prime.(siteinds(m_boson))
-
-        @test_nowarn replace_siteinds!(m_spin, spin_new_sites)
-        @test_nowarn replace_siteinds!(m_boson, boson_new_sites)
+        @test_nowarn siteinds(o_boson)
+        @test siteinds(o_boson, 1) == siteinds(o_boson.core, 1)
     end
 
     @testset "Index tag helper queries" begin

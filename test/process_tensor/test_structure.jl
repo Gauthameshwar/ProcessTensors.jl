@@ -10,6 +10,7 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ProcessTensors.Instruments: instrument_itensor, create_instruments, resolve_instrument
 using ITensors
 using Test
 
@@ -75,9 +76,9 @@ function _build_pt_case(kind::Symbol, system, sys_site; nsteps::Int)
 end
 
 function _closed_seq(pt::ProcessTensor, rho0_h)
-    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0_h), 0)
-    add!(seq, TraceOut(), pt.nsteps)
+    seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, trace_out(), pt.nsteps)
     return seq
 end
 

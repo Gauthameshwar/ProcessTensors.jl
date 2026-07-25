@@ -64,8 +64,8 @@ end
     ρ0_dense = hilbert_mpo_to_dense(ρ0, physical_sites)
     vec0 = vec(ComplexF64.(ρ0_dense))
 
-    L_unitary_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
-    L_diss_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_unitary_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
+    L_diss_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     L_unitary_dense = dense_liouvillian_matrix(os_H, Tuple{Number, String, Int}[], physical_sites, liouv_sites_shared)
     L_diss_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
 

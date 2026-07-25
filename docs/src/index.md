@@ -44,7 +44,7 @@ infrastructure than rebuild it from scratch.
 
 Most of what makes this package distinctive appears in two tutorials:
 
-* **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `MPO_Liouville`, TEBD/TDVP on density matrices.
+* **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `liouvillian_mpo`, TEBD/TDVP on density matrices.
 * **[Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)** — process-tensor construction, bath memory, instruments, `evolve`, and `evaluate_process`.
 
 Everything else in the documentation supports those two pages: ITensor syntax, MPS/MPO objects, Hilbert-versus-Liouville conventions, and closed-system dynamics as stepping stones.
@@ -123,8 +123,8 @@ obs = OpSum()
 obs += 1.0, "Sz", 1
 
 seq = default_schedule(pt)
-add!(seq, 0, StatePreparation(ρsys0))
-add!(seq, nsteps, ObservableMeasurement(obs))
+add!(seq, 0, state_preparation(ρsys0))
+add!(seq, nsteps, observable_measurement(obs))
 
 expectation = evaluate_process(pt, seq)
 ```

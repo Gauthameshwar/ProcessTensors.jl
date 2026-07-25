@@ -11,6 +11,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Trotter
 using LinearAlgebra
 
 # Turn a dense matrix into a Hilbert MPO on the supplied physical sites.
@@ -117,7 +118,7 @@ dense_hamiltonian_matrix(os_H::OpSum, physical_sites) =
 
 # Build one dense Liouvillian matrix by acting on every basis operator `E_ab`.
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
 

@@ -49,7 +49,7 @@ function _system_liouvillian_pt_core(
         return delta(in_k, out_k)
     end
     gate_site = only(system.sites)
-    U = liouvillian_propagator_itensor(
+    U = liouvillian_propagator(
         system.H,
         system.sites,
         dt;
@@ -105,7 +105,7 @@ function _build_trivial_pt_cores(
 )
     cores = ITensor[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
     end
     return cores
@@ -140,7 +140,7 @@ function _build_bathmode_pt_cores(
     # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -149,7 +149,7 @@ function _build_bathmode_pt_cores(
     inputs = Index[]
     outputs = Index[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)
         left = bath_links[k + 1]
@@ -167,12 +167,12 @@ function _build_bathmode_pt_cores(
         )
     end
     # Contract the first and last bath links with the initial bath state and the trace out
-    initial_bath_state = instrument_itensor(StatePreparation(bathmode.rho0), [bath_links[1]'], 0)
+    initial_bath_state = Instruments.instrument_itensor(state_preparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
-    trace_out = instrument_itensor(TraceOut(), [bath_links[end]], nsteps)
+    bath_trace = Instruments.instrument_itensor(trace_out(), [bath_links[end]], nsteps)
 
     cores[1] *= initial_bath_state
-    cores[end] *= trace_out
+    cores[end] *= bath_trace
 
     return cores
 end
@@ -235,7 +235,7 @@ function _build_multimode_pt_cores(
     end
     joint_ops += environment.coupling
 
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
     bath_sites_prime = prime.(bath_sites)
@@ -252,7 +252,7 @@ function _build_multimode_pt_cores(
     inputs = Index[]
     outputs = Index[]
     for k in 0:(nsteps - 1)
-        in_k, out_k = generate_pt_legs(coupling_site, k)
+        in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)
         left = bath_links[k + 1]
@@ -273,7 +273,7 @@ function _build_multimode_pt_cores(
     bath_state = ITensor(1.0)
     for mode in modes
         site = only(mode.sites)
-        prep = instrument_itensor(StatePreparation(mode.rho0), Index[prime(site)], 0)
+        prep = Instruments.instrument_itensor(state_preparation(mode.rho0), Index[prime(site)], 0)
         noprime!(prep)
         hasind(prep, site) || throw(ArgumentError("_build_multimode_pt_cores: prepared mode state is missing mode site index."))
         bath_state *= prep

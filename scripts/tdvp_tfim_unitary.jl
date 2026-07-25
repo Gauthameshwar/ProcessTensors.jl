@@ -13,7 +13,7 @@
 using Printf
 using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
+import ITensorMPS
 using LinearAlgebra
 using Statistics: mean
 using CairoMakie
@@ -66,7 +66,7 @@ function liouville_state_to_dense(ρ_vec::AbstractMPS{Liouville}, physical_sites
 end
 
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
     L_dense = zeros(ComplexF64, d2, d2)
@@ -210,7 +210,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -218,7 +218,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Hilbert}(expanded_core)
 end
 
@@ -229,7 +229,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -237,7 +237,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Liouville}(expanded_core, state.combiners)
 end
 
@@ -600,7 +600,7 @@ states_2site_h = tdvp_trajectory(
 metrics_2site_h = tdvp_run_metrics(states_2site_h, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_2site_h, method=:tdvp2, space=:hilbert, metrics=metrics_2site_h))
 
-L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
+L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
 
 label_plain_l = "1-TDVP plain Liouville"
 states_plain_l = tdvp_trajectory(

@@ -5,7 +5,7 @@ CurrentModule = ProcessTensors
 # Dissipative boson cavity
 
 Open bosonic dynamics with local dissipation (for example cavity loss) on a truncated
-Fock space, built with `MPO_Liouville` and Liouville-space evolution.
+Fock space, built with `liouvillian_mpo` and Liouville-space evolution.
 
 ## Related material
 

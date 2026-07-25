@@ -14,6 +14,32 @@ using Test
 using ITensors
 using ProcessTensors
 
+@testset "API surface: spaces and MPS names" begin
+    @test isdefined(ProcessTensors, :AbstractSpace)
+    @test :AbstractSpace ∉ names(ProcessTensors)
+
+    @test :Hilbert ∈ names(ProcessTensors)
+    @test :Liouville ∈ names(ProcessTensors)
+    @test :MPS ∈ names(ProcessTensors)
+    @test :AbstractMPS ∈ names(ProcessTensors)
+    @test :to_dm ∈ names(ProcessTensors)
+    @test :to_liouville ∈ names(ProcessTensors)
+    @test :to_hilbert ∈ names(ProcessTensors)
+    @test :liouv_sites ∈ names(ProcessTensors)
+
+    @test nameof(Hilbert) == :Hilbert
+    @test nameof(Liouville) == :Liouville
+    @test nameof(MPS) == :MPS
+
+    s = siteinds("S=1/2", 3)
+    psi_h = random_mps(s; linkdims=2)
+    rho_h = to_dm(psi_h)
+    psi_l = to_liouville(rho_h; sites=liouv_sites(s))
+    @test ProcessTensors.space(psi_h) === Hilbert
+    @test ProcessTensors.space(rho_h) === Hilbert
+    @test ProcessTensors.space(psi_l) === Liouville
+end
+
 @testset "MPS forwarding API" begin
     @testset "Structural definitions (Hilbert and Liouville)" begin
         spin_sites = siteinds("S=1/2", 4)

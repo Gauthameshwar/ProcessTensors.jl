@@ -50,7 +50,7 @@ end
     os_H += (ω / 2), "Sz", 1
     jump_ops = [(γ, "S-", 1)]
 
-    L_mpo = MPO_Liouville(os_H, sL; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, sL; jump_ops=jump_ops)
     L = L_mpo[1]
     c = sL[1]
 
