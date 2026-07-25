@@ -69,8 +69,11 @@ end
 
         @test_nowarn apply(op_spin, m_spin)
         @test_nowarn contract(op_spin, m_spin)
+        @test apply(op_spin.core, m_spin) isa MPS{Hilbert}
+        @test contract(op_spin.core, m_spin) isa MPS{Hilbert}
         @test_nowarn add(m_spin, m_spin_2)
         @test_nowarn add(m_spin.core, m_spin)
+        @test_throws Exception add(1, m_spin)
         @test_nowarn m_spin + m_spin_2
         @test_nowarn m_spin - m_spin_2
         @test_nowarn 2.0 * m_spin
@@ -87,8 +90,11 @@ end
 
         @test_nowarn apply(op_boson, m_boson)
         @test_nowarn contract(op_boson, m_boson)
+        @test apply(op_boson.core, m_boson) isa MPS{Hilbert}
+        @test contract(op_boson.core, m_boson) isa MPS{Hilbert}
         @test_nowarn add(m_boson, m_boson_2)
         @test_nowarn add(m_boson.core, m_boson)
+        @test_throws Exception add(1, m_boson)
         @test_nowarn m_boson + m_boson_2
         @test_nowarn m_boson - m_boson_2
         @test_nowarn 2.0 * m_boson

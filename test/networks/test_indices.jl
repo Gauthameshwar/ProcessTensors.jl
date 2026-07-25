@@ -35,6 +35,7 @@ end
         o_boson = MPO(boson_sites, "Id")
 
         @test_nowarn siteinds(m_spin)
+        @test siteinds(m_spin, 1) == siteinds(m_spin.core, 1)
         @test_nowarn siteind(m_spin, 1)
         @test_nowarn linkinds(m_spin)
         @test_nowarn linkind(m_spin, 1)
@@ -42,8 +43,10 @@ end
         @test_nowarn linkdims(m_spin)
         @test_nowarn maxlinkdim(m_spin)
         @test_nowarn siteinds(o_spin)
+        @test siteinds(o_spin, 1) == siteinds(o_spin.core, 1)
 
         @test_nowarn siteinds(m_boson)
+        @test siteinds(m_boson, 1) == siteinds(m_boson.core, 1)
         @test_nowarn siteind(m_boson, 1)
         @test_nowarn linkinds(m_boson)
         @test_nowarn linkind(m_boson, 1)
@@ -51,6 +54,7 @@ end
         @test_nowarn linkdims(m_boson)
         @test_nowarn maxlinkdim(m_boson)
         @test_nowarn siteinds(o_boson)
+        @test siteinds(o_boson, 1) == siteinds(o_boson.core, 1)
     end
 
     @testset "Index tag helper queries" begin
