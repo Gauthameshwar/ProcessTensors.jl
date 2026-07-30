@@ -107,7 +107,7 @@ function evolve(
                 snapshot = k + 1
                 @progress_update run snapshot (t=times[snapshot],)
             end
-        
+        end
         result = (times=times, states_liouville=states_liouville, states_hilbert=states_hilbert)
         @progress_stage run "Evolved reduced system" (
             nsteps=pt.nsteps,
@@ -154,5 +154,5 @@ function evolve(
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
     add!(seq, state_preparation(rho0), 0)
-    return evolve(pt, seq; default_instr=default_instr ,progress=progress, verbose=verbose)
+    return evolve(pt, seq; default_instr=default_instr, progress=progress, verbose=verbose)
 end

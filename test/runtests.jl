@@ -10,6 +10,9 @@
 # Run with:
 #   julia --project=. test/runtests.jl
 
+# Keep progress=:auto silent during local and CI test runs.
+get!(ENV, "CI", "true")
+
 using ProcessTensors
 using Test
 using Aqua

@@ -33,7 +33,7 @@ end
 function _evaluate_result_indices(result)
     if result isa ComplexF64
         return Index[]
-    elseif result isa MPO{Liouville}
+    elseif result isa MPS{Liouville}
         return _flatten_site_indices(collect(siteinds(result)))
     elseif result isa ITensor
         return collect(inds(result))
@@ -47,8 +47,8 @@ function _evaluate_result_summary(result)
     n_input, n_output = _open_pt_leg_counts(idxs)
     if result isa ComplexF64
         result_type = "ComplexF64"
-    elseif result isa MPO{Liouville}
-        result_type = "MPO{Liouville}"
+    elseif result isa MPS{Liouville}
+        result_type = "MPS{Liouville}"
     else
         result_type = "ITensor"
     end
@@ -301,7 +301,7 @@ function evaluate_process(
                 val isa ComplexF64 || throw(
                     ArgumentError(
                         "evaluate_process(batch): schedule at index $i is not fully contracted; " *
-                        "batch overload requires scalar schedules (all_pt_legs_contracted=true).",
+                        "batch overload requires scalar schedules (isfullycontracted=true).",
                     ),
                 )
                 results[i] = val

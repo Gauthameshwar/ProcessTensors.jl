@@ -107,7 +107,7 @@ function _build_trivial_pt_cores(
     cores = ITensor[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
-            in_k, out_k = generate_pt_legs(coupling_site, k)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
             step = k + 1
             @progress_update run step
@@ -148,7 +148,7 @@ function _build_bathmode_pt_cores(
     sites_vec = Index[env_liouv, coupling_site]
 
     @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -158,7 +158,7 @@ function _build_bathmode_pt_cores(
     outputs = Index[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
-            in_k, out_k = generate_pt_legs(coupling_site, k)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
             push!(outputs, out_k)
             left = bath_links[k + 1]
@@ -247,7 +247,7 @@ function _build_multimode_pt_cores(
     joint_ops += environment.coupling
 
     @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
-    U_ref = liouvillian_propagator_itensor(joint_ops, sites_vec, dt; alg=alg)
+    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
     bath_sites_prime = prime.(bath_sites)
@@ -265,7 +265,7 @@ function _build_multimode_pt_cores(
     outputs = Index[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
         for k in 0:(nsteps - 1)
-            in_k, out_k = generate_pt_legs(coupling_site, k)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
             push!(outputs, out_k)
             left = bath_links[k + 1]

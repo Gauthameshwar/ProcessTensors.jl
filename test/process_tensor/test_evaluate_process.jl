@@ -348,9 +348,9 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        seq_scalar = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq_scalar, StatePreparation(rho0_h), 0)
-        add!(seq_scalar, ObservableMeasurement(OpSum() + (1.0, "Sz", 1), output_sites(pt, pt.nsteps - 1)), pt.nsteps)
+        seq_scalar = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq_scalar, state_preparation(rho0_h), 0)
+        add!(seq_scalar, observable_measurement(OpSum() + (1.0, "Sz", 1), output_sites(pt, pt.nsteps - 1)), pt.nsteps)
         @test_logs (
             :info,
             r"Evaluated process",
@@ -361,10 +361,10 @@ end
             verbose=true,
         )
 
-        seq_open = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-        add!(seq_open, StatePreparation(rho0_h), 0)
-        add!(seq_open, OpenInOut(), 1)
-        add!(seq_open, TraceOut(), pt.nsteps)
+        seq_open = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+        add!(seq_open, state_preparation(rho0_h), 0)
+        add!(seq_open, open_inout(), 1)
+        add!(seq_open, trace_out(), pt.nsteps)
         result = evaluate_process(pt, seq_open; progress=false, verbose=false)
         idxs = collect(inds(result))
         n_in, n_out = ProcessTensors._open_pt_leg_counts(idxs)
