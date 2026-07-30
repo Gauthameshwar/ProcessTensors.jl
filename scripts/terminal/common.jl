@@ -21,7 +21,9 @@ function terminal_spin_bath_problem(; dt=0.05, nsteps=24, nenv=5)
     rho_env = [to_liouville(to_dm(MPS(env_phys[i], ["Up"])); sites=env_liouv[i]) for i in 1:nenv]
     H_env = [OpSum() + (0.5, "Sx", 1) for _ in 1:nenv]
     coupling = [OpSum() + (0.6, "Sz", 1, "Sz", 2) for i in 1:nenv]
-    bath = spin_bath([SpinMode(sites=env_liouv[i], H=H_env[i], rho0=rho_env[i], coupling=coupling[i]) for i in 1:nenv])
+    bath = spin_bath([
+        spin_mode(env_liouv[i], H_env[i], rho_env[i]; coupling=coupling[i]) for i in 1:nenv
+    ])
     rho0 = to_dm(MPS(sys_phys, ["Up"]))
 
     return (; system, bath, rho0, dt, nsteps)

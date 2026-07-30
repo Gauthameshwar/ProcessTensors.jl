@@ -11,6 +11,7 @@
 # julia --project=. scripts/terminal/create_instruments.jl
 
 include("common.jl")
+using ProcessTensors.Instruments: create_instruments
 @info "Loaded common.jl"
 
 progress = true
@@ -29,8 +30,8 @@ pt = build_process_tensor(
 @info "Built process tensor. Creating instruments..."
 
 seq = default_schedule(pt)
-add!(seq, StatePreparation(problem.rho0), 0)
-add!(seq, TraceOut(), pt.nsteps)
+add!(seq, state_preparation(problem.rho0), 0)
+add!(seq, trace_out(), pt.nsteps)
 instruments = create_instruments(pt, seq; progress=progress, verbose=verbose)
 
 println("Materialized $(length(instruments)) schedule slots.")

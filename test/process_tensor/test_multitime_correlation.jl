@@ -11,6 +11,7 @@
 #   julia --project=. test/runtests.jl
 
 using ProcessTensors
+using ProcessTensors.Instruments: resolve_instrument
 using ITensors
 using Test
 using LinearAlgebra
@@ -146,6 +147,33 @@ end
         )
         val_ed = _ed_corr_two_time(
             rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 2, 2,
+            dt, H_sys, H_bg, sys_phys, env_phys,
+        )
+        _assert_corr_matches(val_pt, val_ed)
+    end
+
+    @testset "extended PT, same time interior (n_A = n_B)" begin
+        # Covers the non-terminal same-time branch: left_action + identity padding
+        # + terminal trace_out when max(n_A, n_B) + 1 < pt.nsteps.
+        n_late = 2
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=5,
+        )
+        @test pt.nsteps > n_late + 1
+
+        seq = two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sx, n_late);
+            rho0=rho_sys0_h,
+            default_instr=default_instr,
+        )
+        @test resolve_instrument(seq, n_late + 1) isa TwoLegInstrument
+        @test resolve_instrument(seq, pt.nsteps) isa SingleLegInstrument
+
+        val_pt = evaluate_process(pt, seq)
+        val_ed = _ed_corr_two_time(
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, n_late, n_late,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)

@@ -131,6 +131,90 @@ end
         @test ProcessTensors._format_bar_value(128) == "128"
     end
 
+    @testset "raw write branches and cursor helpers" begin
+        # IOStream path: POSIX write through a temporary file descriptor.
+        mktemp() do path, io
+            ProcessTensors._raw_write!(io, "iostream-bytes")
+            flush(io)
+            @test read(path, String) == "iostream-bytes"
+
+            ProcessTensors._show_cursor!(io)
+            flush(io)
+            @test endswith(read(path, String), "\e[?25h")
+        end
+
+        # stdout / non-IOStream branches: empty writes exercise the fd selection
+        # without polluting captured test logs.
+        ProcessTensors._raw_write!(stdout, UInt8[])
+        ProcessTensors._raw_write!(stderr, UInt8[])
+
+        # Non-TTY endpoints refuse to hide the cursor.
+        @test ProcessTensors._hide_cursor!(IOBuffer()) == false
+
+        # Real TTY endpoints hide and restore the cursor. Prefer a PTY slave so
+        # headless CI still covers the Base.TTY branch when /dev/tty is absent.
+        tty_covered = false
+        master = ccall(:posix_openpt, Cint, (Cint,), 2) # O_RDWR
+        if master >= 0
+            try
+                if ccall(:grantpt, Cint, (Cint,), master) == 0 &&
+                   ccall(:unlockpt, Cint, (Cint,), master) == 0
+                    name_ptr = ccall(:ptsname, Cstring, (Cint,), master)
+                    if name_ptr != C_NULL
+                        slave = ccall(:open, Cint, (Cstring, Cint), name_ptr, 2)
+                        if slave >= 0
+                            tty = Base.TTY(RawFD(slave))
+                            try
+                                @test tty isa Base.TTY
+                                # `_raw_write!` routes non-stdout TTY endpoints to
+                                # fd 2; capture stderr so ANSI codes stay out of
+                                # the test runner log.
+                                mktemp() do _, sink
+                                    redirect_stderr(sink) do
+                                        @test ProcessTensors._hide_cursor!(tty) == true
+                                        ProcessTensors._show_cursor!(tty)
+                                    end
+                                end
+                                tty_covered = true
+                            finally
+                                close(tty)
+                            end
+                        end
+                    end
+                end
+            finally
+                ccall(:close, Cint, (Cint,), master)
+            end
+        end
+        if !tty_covered && ispath("/dev/tty")
+            try
+                open("/dev/tty"; write=true) do tty
+                    if tty isa Base.TTY
+                        @test ProcessTensors._hide_cursor!(tty) == true
+                        ProcessTensors._show_cursor!(tty)
+                        tty_covered = true
+                    end
+                end
+            catch err
+                @info "Skipping TTY cursor hide/show coverage" exception = err
+            end
+        end
+        @test tty_covered
+    end
+
+    @testset "sticky thread spawn helper" begin
+        done = Threads.Atomic{Bool}(false)
+        tid = Threads.nthreads() >= 2 ? 2 : 1
+        task = ProcessTensors._spawn_sticky_on_thread!(
+            () -> (Threads.atomic_xchg!(done, true); nothing),
+            tid,
+        )
+        wait(task)
+        @test task.sticky
+        @test done[]
+        @test istaskdone(task)
+    end
+
     @testset "bar lifecycle" begin
         output = IOBuffer()
         run = ProcessTensors._run_reporter(true, false; output=output)
@@ -171,6 +255,26 @@ end
 
         ProcessTensors.@progress_finish run
         @test run.state == ProcessTensors._ProgressClosed
+    end
+
+    @testset "bar repaint after display interrupt" begin
+        output = IOBuffer()
+        bar = ProcessTensors._create_bar(output, "Repaint demo", 4)
+        ProcessTensors._update_bar!(bar, 2; values=(:χ => 8,))
+        ProcessTensors._repaint_bar!(bar)
+        @test ProcessTensors._bar_position(bar) == 2
+        @test occursin("Repaint demo", String(take!(copy(output))))
+
+        # Verbose stage during an active bar clears, logs, then repaints.
+        run = ProcessTensors._run_reporter(true, true; output=output)
+        ProcessTensors._progress_start!(run, "Repaint workflow")
+        ProcessTensors._begin_progress_bar!(run, "Active bar", 3)
+        ProcessTensors._progress_update!(run, 1)
+        @test_logs (:info, r"Checkpoint during bar") match_mode = :any begin
+            ProcessTensors.@progress_stage run "Checkpoint during bar"
+        end
+        @test run.state == ProcessTensors._ProgressSpinnerBar
+        ProcessTensors.@progress_finish run
     end
 
     @testset "full cleanup on success and failure" begin

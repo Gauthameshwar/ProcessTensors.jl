@@ -376,6 +376,11 @@ end
 end
 
 @testset "process_tensor.jl: pretty printing" begin
+    # Verbose metadata wrappers print their payload text, not the wrapper type.
+    info = ProcessTensors._info_text("Dense()")
+    @test sprint(show, info) == "Dense()"
+    @test sprint(show, ProcessTensors._info_text("scalar")) == "scalar"
+
     s = siteinds("S=1/2", 1)
     H = OpSum() + (0.5, "Sz", 1)
     system = spin_system(s, H)

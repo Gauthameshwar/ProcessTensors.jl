@@ -29,9 +29,9 @@ pt = build_process_tensor(
 Sz = OpSum() + (1.0, "Sz", 1)
 final_sites = output_sites(pt, pt.nsteps - 1)
 seq = default_schedule(pt)
-add!(seq, StatePreparation(problem.rho0), 0)
-# add!(seq, ObservableMeasurement(Sz, final_sites), pt.nsteps)
+add!(seq, state_preparation(problem.rho0), 0)
+add!(seq, observable_measurement(Sz, final_sites), pt.nsteps)
 
 @info "Evaluating process..."
 value = evaluate_process(pt, seq; progress=progress, verbose=verbose)
-# println("Final ⟨Sᶻ⟩ = ", real(value))
+println("Final ⟨Sᶻ⟩ = ", real(value))
