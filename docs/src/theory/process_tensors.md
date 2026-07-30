@@ -332,9 +332,9 @@ The process tensor itself stores the environment-mediated multi-time structure. 
 
 !!! info "In the package"
     ```julia
-    seq = InstrumentSeq(default=IdentityOperation(), nsteps=pt.nsteps)
-    add!(seq, StatePreparation(ρ0), 0)
-    add!(seq, IdentityOperation(), 1)
+    seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+    add!(seq, state_preparation(ρ0), 0)
+    add!(seq, identity_operation(), 1)
     ```
 
     See [Instrument schedules](@ref instrument-schedules) in [Single-Mode Process Tensor](@ref).

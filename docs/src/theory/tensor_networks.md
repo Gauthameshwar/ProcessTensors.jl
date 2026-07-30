@@ -240,6 +240,7 @@ This is the basic compression step behind many tensor-network algorithms. In pra
 
 !!! info "In the package"
     ```julia
+    using ITensors.Ops: Trotter
     ψ = tebd(ψ, H, dt, T; alg=Trotter{2}(), maxdim=32, cutoff=1e-10)
     ```
 

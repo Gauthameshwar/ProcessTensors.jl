@@ -9,68 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-* **`sys_alg` is the PT timestep sandwich order**, not a TEBD
-  factorization of the free-system map. Single-site system maps in dense PT
-  cores are always Exact ED. Default `sys_alg=Trotter{1}()` keeps the asymmetric
-  bake-in ``Q·M(Δt)``; `Trotter{2}()` uses ``M(Δt/2)·Q·M(Δt/2)``. Prefer
-  `sys_alg=Trotter{2}()` when time-discretization error dominates.
-* **Always-embedded system propagation; `SystemPropagation` → `UnitaryPropagation`.**
-  Process-tensor slabs always include the system's one-step Liouville map.
-  The `embed_system_propagation` keyword is removed.
-  Schedule-side unitary control uses the new public instrument `UnitaryPropagation`
-  (`unitary_propagation`) instead of `SystemPropagation` / `system_propagation`.
-  `default_schedule` inserts `IdentityOperation()` between steps (no extra system
-  propagator). For a bath-only / identity system map, construct the system with an
-  empty `OpSum()` Hamiltonian; the single-mode process-tensor tutorial documents
-  the embedded-propagation and identity-schedule conventions.
+* **Renamed Liouvillian constructors.** Prefer `liouvillian_*`; old names remain deprecated aliases for one migration window.
+* **`AbstractSpace` is no longer root-exported.** Use `ProcessTensors.AbstractSpace`.
+* **`sys_alg` is the PT timestep sandwich order**, not a TEBD factorization of the free-system map.
+* **Always-embedded system propagation.** `SystemPropagation` → `UnitaryPropagation`; `embed_system_propagation` is removed.
+* **Canonical vs lowercase constructors.** Relaxed forms live only on lowercase constructors; zero-argument type helpers are removed.
+* **Process-tensor / instrument API boundaries.** `isfullycontracted` rename; materialisation stays under `Instruments`.
+* **`propagator_itensor_from_gates` is contraction-only.** Materialisation keywords are removed.
+* **Time-evolution root API is `tebd` / `tdvp` only.** `Exact`, `Trotter`, and `trotter_gates` are not root-exported.
+* **Compact tensor-network root surface.** Advanced TN surgery is not provided; use ITensorMPS on cores when needed.
 
 ### Added
 
-* **Terminal progress and verbose operational logging.** `build_process_tensor`,
-  `create_instruments`, `evaluate_process`, `evolve`, and `tebd` accept
-  `progress=:auto|true|false` for transient ProgressMeter feedback and
-  `verbose=true` for persistent structured Julia logs. `:auto` enables meters
-  only on interactive non-CI terminals; all stages clear on completion or error.
-  Small interactive demonstrations live under `scripts/terminal/`.
-* **`OpenInput` / `OpenInOut` bookkeeping instruments.** Like `OpenOutput`, they
-  materialize as `ITensor(1.0)` and leave declared process-tensor legs
-  uncontracted. Aliases: `open_input`, `open_inout`.
-* **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs with
-  dimensions before contraction.
+* **Terminal progress and verbose logging** available with the kwargs `progress=:auto|true|false` and `verbose=true|false`
+  for `build_process_tensors`, `create_instruments`, `evaluate_process`, `evolve`, and `tebd`. 
+* **Laser-driven midpoint TDVP example** with a callable `OpSum` drive and density plots.
+* **`OpenInput` / `OpenInOut`** bookkeeping instruments (aliases: `open_input`, `open_inout`).
+* **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs before contraction.
 * **`instrument_leg_maps(pt, seq)`** thin overload of the seq-first canonical API.
 
 ### Changed
 
-* **`instrument_leg_maps`** now uses leg-coverage dispatch from schedule slots
-  (no `ProcessTensor` required for the canonical method).
-* **`create_instruments`** rewrites the schedule (pairing / terminal
-  `IdentityOperation` → `OpenOutput`) then materializes every slot only through
-  `instrument_itensor`, including a `SingleLegInstrument` evolve-slot method that
-  selects the matching PT leg from `leg_plev`.
-* **`evaluate_process`** returns `ComplexF64` / `MPO{Liouville}` / `ITensor`
-  according to the number of uncontracted system legs (0 / 1 / ≥2). Optional
-  `verbose=true` logs expected open legs.
+* Internalised Liouvillian OpSum builders as unexported `_build_liouvillian_opsum*` helpers.
+* **`instrument_leg_maps`** dispatches from schedule slots without requiring a `ProcessTensor`.
+* **`create_instruments`** rewrites the schedule, then materializes every slot through `instrument_itensor`.
+* **`evaluate_process`** returns `ComplexF64` / `MPS{Liouville}` / `ITensor` for 0 / 1 / ≥2 open legs.
+* Reorganized process-tensor sources under `src/process_tensor/` and dense builders under `src/builders/`.
+* Split instruments into lazy schedule definitions and ITensor materialization under `Instruments`.
+* Multi-site `build_process_tensor` currently errors until a multi-site path is added.
 
 ### Fixed
 
-* **`OpenOutput` is bookkeeping only.** It no longer materializes as a
-  `TraceOut` on the next input leg. `instrument_itensor(::OpenOutput)` returns
-  the scalar no-op `ITensor(1.0)`, `create_instruments` includes the terminal
-  schedule slot (`length = nsteps + 1`), and `evaluate_process` contracts the
-  full instrument chain so any open output index remains naturally after the
-  loop (no intermediate cut / early break).
-
-### Changed
-
-* Reorganized process-tensor source files into `src/process_tensor/` and dense
-  core construction into `src/builders/`, with `build_process_tensor` dispatching
-  through `method=Dense()` by default.
-* Split instruments into lazy schedule definitions and ITensor materialization
-  files under the existing `Instruments` submodule at `src/instruments/`.
-  `create_instruments` now lives with ITensor instrument materialization while
-  keeping the same public name and behavior.
-* Multi-site `build_process_tensor` currently errors: always-embedded construction
-  requires a single-site system until a multi-site path is added.
+* **`OpenOutput` is bookkeeping only.** It materializes as `ITensor(1.0)` and no longer acts as a `TraceOut`.
+* **Bugfix:** `evaluate_process` now returns `MPS{Liouville}` (not `MPO{Liouville}`) when called with one open leg.
 
 ## v0.1.0 - 2026-07-03
 

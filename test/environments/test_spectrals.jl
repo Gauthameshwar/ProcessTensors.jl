@@ -14,6 +14,12 @@ using ProcessTensors.Spectrals: OhmicSpectralDensity, LorentzianSpectralDensity,
                               ohmic_sd, lorentzian_sd
 using Test
 
+@testset "API surface: Spectrals submodule" begin
+    @test isdefined(ProcessTensors, :Spectrals)
+    @test isdefined(ProcessTensors.Spectrals, :ohmic_sd)
+    @test isdefined(ProcessTensors.Spectrals, :lorentzian_sd)
+end
+
 @testset "spectrals.jl: spectral density structs and helper constructors" begin
     ohm = ohmic_sd()
     lor = lorentzian_sd()

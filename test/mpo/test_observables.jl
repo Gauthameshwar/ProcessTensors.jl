@@ -14,6 +14,10 @@ using Test
 using ITensors
 using ProcessTensors
 
+@testset "API surface: MPO observable exports" begin
+    @test :tr ∈ names(ProcessTensors)
+end
+
 @testset "MPO observable forwarding API" begin
     @testset "trace forwarding (spin and boson)" begin
         spin_sites = siteinds("S=1/2", 4)

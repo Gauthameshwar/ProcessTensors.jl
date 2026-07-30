@@ -32,7 +32,7 @@ end
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
     dt = 0.05
-    default_instr = IdentityOperation()
+    default_instr = identity_operation()
 
     H_sys = OpSum()
     H_sys += 1.0, "Sx", 1

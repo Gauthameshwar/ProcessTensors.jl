@@ -107,8 +107,7 @@ function evolve(
                 snapshot = k + 1
                 @progress_update run snapshot (t=times[snapshot],)
             end
-        end
-
+        
         result = (times=times, states_liouville=states_liouville, states_hilbert=states_hilbert)
         @progress_stage run "Evolved reduced system" (
             nsteps=pt.nsteps,
@@ -125,7 +124,7 @@ end
 """
     evolve(pt, rho0, seq; default_instr=_schedule_default_instr(pt))
 
-Insert `StatePreparation(rho0)` at `tstep = 0` and return reduced system
+Insert `state_preparation(rho0)` at `tstep = 0` and return reduced system
 snapshots for the resulting schedule.
 """
 function evolve(
@@ -136,7 +135,7 @@ function evolve(
     kwargs...
 )
     seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
-    add!(seq_full, StatePreparation(rho0), 0)
+    add!(seq_full, state_preparation(rho0), 0)
     return evolve(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
@@ -154,6 +153,6 @@ function evolve(
     verbose::Bool=false,
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, StatePreparation(rho0), 0)
-    return evolve(pt, seq; default_instr=default_instr, progress=progress, verbose=verbose)
+    add!(seq, state_preparation(rho0), 0)
+    return evolve(pt, seq; default_instr=default_instr ,progress=progress, verbose=verbose)
 end

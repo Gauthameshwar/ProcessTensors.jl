@@ -14,6 +14,16 @@ using Test
 using ITensors
 using ProcessTensors
 
+@testset "API surface: MPO names and space" begin
+    @test :MPO ∈ names(ProcessTensors)
+    @test :AbstractMPO ∈ names(ProcessTensors)
+    @test nameof(MPO) == :MPO
+
+    s = siteinds("S=1/2", 3)
+    L = liouvillian_mpo(OpSum() + ("Sz", 1), liouv_sites(s))
+    @test ProcessTensors.space(L) === Liouville
+end
+
 @testset "MPO forwarding API" begin
     @testset "Structural definitions (Hilbert and Liouville)" begin
         spin_sites = siteinds("S=1/2", 4)

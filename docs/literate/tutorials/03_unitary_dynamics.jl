@@ -25,6 +25,7 @@ using ITensors
 import ITensorMPS
 import LinearAlgebra
 using ProcessTensors
+using ITensors.Ops: Trotter
 
 #
 # `ITensorMPS.jl` already provides MPS/MPO objects, `OpSum`, gate application,
@@ -175,27 +176,28 @@ println("Exact reference at t = 1:  E = ", E1, ",  mean ⟨Sz⟩ = ", mz1)
 # + \mathcal{O}(\Delta t^3).
 # ```
 #
-# `ProcessTensors.jl` builds these gates through `trotter_gates` and applies them
-# repeatedly in `tebd`.
+# `ProcessTensors.jl` builds these gates through `ProcessTensors.trotter_gates`
+# and applies them repeatedly in `tebd`.
 
 # ### Inspecting the Trotter gates
 #
-# `trotter_gates` expands one Trotter step into local ITensor gates. Orders `1`
-# and `2` use the `ITensors.Ops` factorization; even orders `n >= 4` are built
-# recursively with Yoshida's symmetric fractal composition in ProcessTensors.jl.
-# For the specified Hamiltonian, we would have four on-site terms and three 
-# two-site terms corresponding to each term in the Hamiltonian. So in the 
-# first-order Trotter, we would expect a total of seven gates, and for the 
+# `ProcessTensors.trotter_gates` expands one Trotter step into local ITensor
+# gates. Orders `1` and `2` use the `ITensors.Ops` factorization; even orders
+# `n >= 4` are built recursively with Yoshida's symmetric fractal composition in
+# ProcessTensors.jl.
+# For the specified Hamiltonian, we would have four on-site terms and three
+# two-site terms corresponding to each term in the Hamiltonian. So in the
+# first-order Trotter, we would expect a total of seven gates, and for the
 # second-order Trotter, we would expect twice that.
 
 println("Gates per Trotter step on this chain:")
 for order in (1, 2, 4)
     alg = Trotter{order}()
-    step_gates = trotter_gates(H, sites, -im * dt; alg=alg)
+    step_gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=alg)
     println("  Trotter{", order, "}: ", length(step_gates), " gates")
 end
 
-gates = trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
 println("Indices of the first Trotter{2} gate: ", inds(gates[1]))
 
 # !!! note "Higher Trotter orders"
@@ -390,7 +392,7 @@ compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 # ```
 #
 # with $\mathcal{L}_H = -iH_L + iH_R$. The Liouville generator is available as
-# `MPO_Liouville(H, sites_L)`.
+# `liouvillian_mpo(H, sites_L)`.
 #
 # For TDVP the time argument is **`T`**, not `-im * T`, because the factor
 # $-i$ is already inside the Liouville MPO.
@@ -398,7 +400,7 @@ compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
 ρ0 = to_dm(ψ0)
 sites_L = liouv_sites(sites)
 ρL0 = to_liouville(ρ0; sites=sites_L)
-L_mpo = MPO_Liouville(H, sites_L)
+L_mpo = liouvillian_mpo(H, sites_L)
 
 # ### Evolving with `tdvp` in Liouville space
 #
@@ -409,7 +411,7 @@ L_mpo = MPO_Liouville(H, sites_L)
 # ```
 #
 # Here `ρL0` is an `MPS{Liouville}` and `L_mpo` is the Liouville generator from
-# `MPO_Liouville`. The time argument is **`Δt`**, not `-im * Δt`.
+# `liouvillian_mpo`. The time argument is **`Δt`**, not `-im * Δt`.
 
 ρL1 = tdvp(
     L_mpo,
@@ -499,7 +501,7 @@ compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_de
 #   Hilbert/Liouville MPS and MPO objects.
 # - TEBD approximates $e^{-iH\Delta t}$ by Trotter gates from `OpSum`.
 # - TDVP projects Schrödinger evolution onto the MPS manifold; pass `-im * t`.
-# - Liouville TDVP evolves `MPS{Liouville}` with `MPO_Liouville`; pass `T`.
-# - Reuse `sites_L` across `to_liouville` and `MPO_Liouville`.
+# - Liouville TDVP evolves `MPS{Liouville}` with `liouvillian_mpo`; pass `T`.
+# - Reuse `sites_L` across `to_liouville` and `liouvillian_mpo`.
 #
 # Next: [Dissipative Dynamics](@ref), where jump terms make Liouville space essential.

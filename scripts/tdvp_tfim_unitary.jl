@@ -13,7 +13,7 @@
 using Printf
 using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
+import ITensorMPS
 using LinearAlgebra
 using Statistics: mean
 using CairoMakie
@@ -66,7 +66,7 @@ function liouville_state_to_dense(ρ_vec::AbstractMPS{Liouville}, physical_sites
 end
 
 function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
+    L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=jump_ops)
     d = prod(dim.(physical_sites))
     d2 = d * d
     L_dense = zeros(ComplexF64, d2, d2)
@@ -210,7 +210,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -218,7 +218,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Hilbert}(expanded_core)
 end
 
@@ -229,7 +229,7 @@ function gse_expand_state(
     gse_cutoff::Float64,
     gse_maxdim::Int,
 )
-    expanded_core = expand(
+    expanded_core = ITensorMPS.expand(
         state.core,
         operator.core;
         alg="global_krylov",
@@ -237,7 +237,7 @@ function gse_expand_state(
         cutoff=gse_cutoff,
         apply_kwargs=(; maxdim=gse_maxdim),
     )
-    orthogonalize!(expanded_core, 1)
+    ITensorMPS.orthogonalize!(expanded_core, 1)
     return MPS{Liouville}(expanded_core, state.combiners)
 end
 
@@ -335,6 +335,17 @@ end
 
 function max_curve_error(exact::AbstractVector, approx::AbstractVector)
     return maximum(abs.(exact .- approx); init=0.0)
+end
+
+function print_series_diagnostics(label::AbstractString, exact, metrics)
+    err_x = max_curve_error(exact.sx, metrics.sx)
+    err_z = max_curve_error(exact.sz, metrics.sz)
+    max_drift = maximum(metrics.energy_drift; init=0.0)
+    println(label)
+    @printf("    max |⟨σ_x⟩−ED| = %.3e\n", err_x)
+    @printf("    max |⟨σ_z⟩−ED| = %.3e\n", err_z)
+    @printf("    max energy drift = %.3e\n", max_drift)
+    return (err_x, err_z, max_drift)
 end
 
 const METHOD_COLORS = Dict(
@@ -589,7 +600,7 @@ states_2site_h = tdvp_trajectory(
 metrics_2site_h = tdvp_run_metrics(states_2site_h, physical_sites, H_mpo, x_mpos, z_mpos, exact_densities)
 push!(run_series, (; label=label_2site_h, method=:tdvp2, space=:hilbert, metrics=metrics_2site_h))
 
-L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
+L_mpo = liouvillian_mpo(os_H, liouv_sites_shared; jump_ops=Tuple{Number, String, Int}[])
 
 label_plain_l = "1-TDVP plain Liouville"
 states_plain_l = tdvp_trajectory(
@@ -645,19 +656,12 @@ push!(run_series, (; label=label_2site_l, method=:tdvp2, space=:liouville, metri
 
 print_section("Diagnostics")
 
-observable_errors = map(run_series) do series
-    err_x = max_curve_error(exact.sx, series.metrics.sx)
-    err_z = max_curve_error(exact.sz, series.metrics.sz)
-    @printf("%-18s  max |⟨σ_x⟩−ED| = %.3e  max |⟨σ_z⟩−ED| = %.3e\n", series.label, err_x, err_z)
-    (series.label, err_x, err_z)
+for series in run_series
+    print_series_diagnostics(series.label, exact, series.metrics)
+    println()
 end
 
-max_sx_err = maximum(last -> last[2], observable_errors)
-max_sz_err = maximum(last -> last[3], observable_errors)
-final_energy_drift = maximum(series -> maximum(series.metrics.energy_drift), run_series)
-
 @assert all(isfinite, exact.sx) && all(isfinite, exact.sz)
-@printf("max energy drift (TDVP) = %.3e\n", final_energy_drift)
 
 # ------------------------------------------------------------------------------
 # 6. Plotting and saved outputs
@@ -725,8 +729,3 @@ println("Main outputs:")
 println("  figure: $fig_path_x")
 println("  figure: $fig_path_z")
 println("  figure: $fig_path_cons")
-println()
-println("Main diagnostics:")
-@printf("  max |⟨σ_x⟩ − ED|     = %.3e\n", max_sx_err)
-@printf("  max |⟨σ_z⟩ − ED|     = %.3e\n", max_sz_err)
-@printf("  max energy drift     = %.3e\n", final_energy_drift)

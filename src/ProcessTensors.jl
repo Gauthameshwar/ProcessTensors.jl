@@ -12,88 +12,79 @@ module ProcessTensors
 using ITensors
 import ITensorMPS
 
-# Terminal feedback
-
-include("terminal/progress.jl")
-
-# Foundation
+# Space model and tensor wrappers
 
 include("basis.jl")
 using .Basis: AbstractSpace, Hilbert, Liouville
 
-# Core Types (MPS & MPO structs, getproperty, show)
-
 include("mps/mps.jl")
 include("mpo/mpo.jl")
 
-# Rewrap utility — converts a raw CoreMPS/CoreMPO back into our wrapper type
-function _rewrap(m::AbstractMPS{S}, new_core) where {S <: AbstractSpace}
-    if m isa MPS
-        return S === Hilbert ? MPS{Hilbert}(new_core) : MPS{Liouville}(new_core, m.combiners)
-    else
-        return S === Hilbert ? MPO{Hilbert}(new_core) : MPO{Liouville}(new_core, m.combiners)
-    end
-end
-
-# Network Operations
+# Tensor-network operations
 
 include("networks/indices.jl")
 include("networks/algebra.jl")
-include("networks/manipulations.jl")
-include("networks/orthogonality.jl")
+include("networks/observables.jl")
 
-# MPS-Specific
+# Terminal feedback
+
+include("terminal/progress.jl")
+
+# MPS and MPO construction
 
 include("mps/constructors.jl")
-include("mps/observables.jl")
-
-# MPO-Specific
-
 include("mpo/constructors.jl")
-include("mpo/manipulations.jl")
-include("mpo/observables.jl")
 
-# Hamiltonian / Operator Sums
+# Operators, Liouvillians, and time evolution
 
 include("hamiltonian.jl")
-
-# Liouvillian
-
 include("liouvillian.jl")
-
-# Time Evolution
-
 include("time_evolution/tdvp.jl")
 include("time_evolution/trotter.jl")
 include("time_evolution/tebd.jl")
 
-# ProcessTensors.jl module: Systems / Baths / Instruments
+# Systems and environments
 
 include("systems/systems.jl")
+
 include("environments/spectrals.jl")
 using .Spectrals: AbstractSpectralDensity
-include("environments/environments.jl")
-using .Environments: AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
-                    bosonic_mode, spin_mode, bosonic_bath, spin_bath,
-                    mode_initial_states
-include("instruments/Instruments.jl")
-using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
-                    StatePreparation, ObservableMeasurement,
-                    TraceOut, IdentityOperation, UnitaryPropagation,
-                    OpenOutput, OpenInput, OpenInOut, ProductInstrument,
-                    CustomTwoLegInstrument,
-                    LeftRightOperator, left_action, right_action,
-                    state_preparation, observable_measurement, trace_out,
-                    left_right_operator, unitary_propagation, identity_operation,
-                    open_output, open_input, open_inout,
-                    custom_twoleg_instrument,
-                    resolve_instrument, InstrumentSeq, add!, instrument_leg_maps
 
-# Process Tensors
+include("environments/environments.jl")
+using .Environments: AbstractBathMode, AbstractBath
+using .Environments: BosonicMode, SpinMode
+using .Environments: BosonicBath, SpinBath
+using .Environments: bosonic_mode, spin_mode
+using .Environments: bosonic_bath, spin_bath
+using .Environments: mode_initial_states
+
+# Instruments
+
+include("instruments/Instruments.jl")
+using .Instruments: AbstractInstrument, SingleLegInstrument, TwoLegInstrument
+using .Instruments: StatePreparation, ObservableMeasurement, TraceOut
+using .Instruments: IdentityOperation, UnitaryPropagation, LeftRightOperator
+using .Instruments: OpenOutput, OpenInput, OpenInOut
+using .Instruments: ProductInstrument, CustomTwoLegInstrument
+using .Instruments: state_preparation, observable_measurement, trace_out
+using .Instruments: identity_operation, unitary_propagation
+using .Instruments: left_right_operator
+using .Instruments: open_output, open_input, open_inout
+using .Instruments: custom_twoleg_instrument
+using .Instruments: left_action, right_action
+using .Instruments: InstrumentSeq
+using .Instruments: add!
+
+# Process tensors
 
 include("process_tensor/process_tensor.jl")
-Base.include(Instruments, joinpath(@__DIR__, "instruments/itensor_instruments.jl"))
-using .Instruments: instrument_itensor, create_instruments
+
+# Instrument materialisation depends on process-tensor leg definitions
+Base.include(
+    Instruments,
+    joinpath(@__DIR__, "instruments/itensor_instruments.jl"),
+)
+
 include("builders/abstract_builders.jl")
 include("builders/dense_process_tensor.jl")
 include("process_tensor/build.jl")
@@ -101,72 +92,85 @@ include("process_tensor/evaluate.jl")
 include("process_tensor/evolve.jl")
 include("process_tensor/multitime.jl")
 
-# Exports (grouped by category)
+# Public API
 
-# Core types
-export AbstractMPS, AbstractMPO, MPS, MPO, AbstractSpace, Hilbert, Liouville
+# Space-aware tensor-network objects
+export Hilbert, Liouville
+export AbstractMPS, AbstractMPO
+export MPS, MPO
+export random_mps, random_mpo
+export outer, projector
+
+# Tensor-network inspection
+export siteinds, siteind
+export linkinds, linkind, linkdim
+export linkdims, maxlinkdim
+
+# Tensor-network algebra and observables
+export apply, contract, add
+export inner, dot, norm
+export expect, correlation_matrix, entropy, tr
+
+# Index-tag helpers
 export tag_tokens, has_tag_token, has_tag_prefix, tag_value
 
-# Network: indices
-export siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim,
-       common_siteind, common_siteinds, unique_siteind, unique_siteinds,
-       findfirstsiteind, findfirstsiteinds, findsite, findsites,
-       firstsiteind, firstsiteinds,
-       replace_siteinds, replace_siteinds!, hassameinds, totalqn, replaceprime
+# Hilbert/Liouville conversion
+export liouv_sites
+export to_dm, to_liouville, to_hilbert
 
-# Network: algebra
-export apply, contract, add, truncate!, truncate, error_contract
+# Operators and Liouvillians
+export OpSum, add!, op
+export liouvillian_opsum, liouvillian_mpo
+export liouvillian_propagator
 
-# Network: manipulations
-export replacebond, replacebond!, swapbondsites, movesite, movesites
+# Deprecated compatibility aliases; remove after the migration window.
+export OpSum_Liouville, MPO_Liouville, liouvillian_propagator_itensor
 
-# Network: orthogonality
-export isortho, ortho_lims, orthocenter, set_ortho_lims!, reset_ortho_lims!,
-       orthogonalize!, orthogonalize, normalize!, @preserve_ortho
+# Systems
+export AbstractSystem
+export SpinSystem, BosonSystem
+export spin_system, boson_system
 
-# MPS constructors & observables
-export random_mps, state, outer, projector,
-       inner, dot, ⋅, loginner, logdot, norm, lognorm,
-       expect, correlation_matrix, sample, sample!, entropy
+# Environments
+export AbstractBathMode, AbstractBath
+export BosonicMode, SpinMode
+export BosonicBath, SpinBath
+export bosonic_mode, spin_mode
+export bosonic_bath, spin_bath
+export AbstractSpectralDensity
+export mode_initial_states
 
-# MPO constructors, manipulations & observables
-export random_mpo, splitblocks, tr
+# Instruments
+export AbstractInstrument, SingleLegInstrument, TwoLegInstrument
+export InstrumentSeq
 
-# Hamiltonian / OpSum
-export OpSum, add!, op, ops, eigs, coefficient
+export StatePreparation, ObservableMeasurement, TraceOut
+export IdentityOperation, UnitaryPropagation, LeftRightOperator
+export OpenOutput, OpenInput, OpenInOut
+export ProductInstrument, CustomTwoLegInstrument
 
-# Liouvillian
-export to_dm, to_liouville, to_hilbert, liouv_sites, MPO_Liouville, OpSum_Liouville,
-       liouvillian_propagator_itensor
+export state_preparation, observable_measurement, trace_out
+export identity_operation, unitary_propagation
+export left_right_operator
+export open_output, open_input, open_inout
+export custom_twoleg_instrument
 
-# Systems / Baths / Instruments / PT
-export AbstractSystem, SpinSystem, BosonSystem, spin_system, boson_system
+export left_action, right_action
 
-export AbstractBathMode, BosonicMode, SpinMode, bosonic_mode, spin_mode,
-       AbstractBath, BosonicBath, SpinBath, bosonic_bath, spin_bath,
-       mode_initial_states
+# Process tensors
+export Dense
+export ProcessTensor
+export build_process_tensor, default_schedule
+export evaluate_process, evolve
+export two_time_correlation_seq
+export isfullycontracted, open_leg_info
+export input_sites, output_sites
+export coupling_times, coupling_sites
 
-export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
-       StatePreparation, ObservableMeasurement, TraceOut,
-       IdentityOperation, UnitaryPropagation, OpenOutput, OpenInput, OpenInOut,
-       ProductInstrument, CustomTwoLegInstrument,
-       LeftRightOperator, left_action, right_action,
-       state_preparation, observable_measurement, trace_out,
-       left_right_operator, unitary_propagation, identity_operation,
-       open_output, open_input, open_inout,
-       custom_twoleg_instrument,
-       resolve_instrument, InstrumentSeq, add!, instrument_itensor, instrument_leg_maps
-
-export AbstractPTBuilder, Dense,
-       ProcessTensor, build_process_tensor, default_schedule, evolve, evaluate_process,
-       two_time_correlation_seq,
-       all_pt_legs_contracted, open_leg_info,
-       coupling_times, coupling_sites, input_sites, output_sites,
-       create_instruments, generate_pt_legs
+# Space marker
+export space
 
 # Time evolution
-export tdvp, tebd, Exact, Trotter,
-       trotter_gates, propagator_itensor_from_gates,
-       promote_itensor_eltype, convert_leaf_eltype, argsdict, sim!
+export tdvp, tebd
 
 end # module ProcessTensors

@@ -13,6 +13,13 @@ using ProcessTensors
 using ITensors
 using Test
 
+@testset "API surface: Liouville conversion exports" begin
+    @test :liouv_sites ∈ names(ProcessTensors)
+    @test :to_dm ∈ names(ProcessTensors)
+    @test :to_liouville ∈ names(ProcessTensors)
+    @test :to_hilbert ∈ names(ProcessTensors)
+end
+
 # Recover the built-in site family tag, e.g. `Site,S=1/2,n=1` -> `S=1/2`.
 function physical_site_type_tag(s::Index)
     for token in tag_tokens(s)

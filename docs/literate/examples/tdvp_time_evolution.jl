@@ -4,540 +4,348 @@
 # File: docs/literate/examples/tdvp_time_evolution.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
-# Literate example: unitary TFIM with Hilbert- and Liouville-space TDVP. #src
+# Demonstrates two-site TDVP for the same spin chain in Hilbert and Liouville #src
+# space, with a compact exact small-system reference. #src
 
 # # TDVP time evolution
 #
-# In this example, we use the time-dependent variational principle (TDVP)
-# to evolve a transverse-field Ising chain.
+# The time-dependent variational principle (TDVP) projects an evolution
+# equation onto the manifold of matrix-product states. This example keeps its
+# central distinction explicit:
 #
-# The goal is to compare TDVP as a time-evolution algorithm in two different
-# representations:
+# - Hilbert space evolves ``|\psi\rangle`` with ``-iH``.
+# - Liouville space evolves ``|\rho\rangle\rangle`` with the Liouvillian
+#   ``\mathcal L``.
 #
-# 1. Hilbert space, where the state is an MPS `|ψ(t)⟩`.
-# 2. Liouville space, where the density matrix is vectorized as `|ρ(t)⟩⟩`.
-#
-# For a closed unitary system, both descriptions represent the same physical
-# dynamics. However, the variational geometry seen by TDVP is different in the
-# two cases. This example is designed to make that difference visible.
-#
-# We study three TDVP variants in each representation:
-#
-# - plain 1TDVP,
-# - 1TDVP with global subspace expansion (GSE),
-# - 2TDVP.
-#
-# See also the [Unitary Dynamics](@ref) tutorial and
-# `scripts/tdvp_tfim_unitary.jl`, which regenerates the benchmark figures.
+# We use two-site TDVP in both cases so the bond dimension can grow, and briefly
+# show how global subspace expansion (GSE) supplies that missing growth to
+# one-site TDVP. For the complete 1TDVP, 1TDVP+GSE, and 2TDVP benchmark, see
+# [`scripts/tdvp_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tdvp_tfim_unitary.jl).
 
-# ## Setup
+# ## Transverse-field Ising model
+#
+# The Hamiltonian and initial state are
+#
+# ```math
+# H=-J\sum_{j=1}^{N-1}Z_jZ_{j+1}-h\sum_{j=1}^{N}X_j,
+# \qquad
+# |\psi(0)\rangle=|\mathrm{Up}\cdots\mathrm{Up}\rangle .
+# ```
 
-using Printf
-using ProcessTensors
 using ITensors
-using ITensorMPS: expand, orthogonalize!
 using LinearAlgebra
-
-function tfim_hamiltonian(N::Int; J::Float64=1.0, h::Float64=1.2)
-    os = OpSum()
-    for j in 1:(N - 1)
-        os += -J, "Z", j, "Z", j + 1
-    end
-    for j in 1:N
-        os += -h, "X", j
-    end
-    return os
-end
-
-function single_site_pauli_mpos(op::AbstractString, physical_sites)
-    N = length(physical_sites)
-    return MPO{Hilbert}[
-        let os = OpSum()
-            os += 1.0, op, j
-            MPO(os, physical_sites)
-        end for j in 1:N
-    ]
-end
-
-#-
-# For larger systems, increase `N`; the TDVP code is unchanged, while the ED
-# reference should be omitted.
-#-
+using ProcessTensors
+import ITensorMPS
 
 const N = 4
 const J = 1.0
 const h = 1.2
-const T_max = 4.0
-const dt = 0.05
-const nsteps = round(Int, T_max / dt)
-const maxdim_1site = 50
-const maxdim_2site = 50
+const dt = 0.1
+const final_time = 2.0
+const nsteps = round(Int, final_time / dt)
+const maxdim = 64
 const cutoff = 1e-10
-const gse_every_steps = 10
-const krylovdim = 2
-const gse_cutoff = 1e-8
-const n_exact = 81
 
-function mean_sx(state::AbstractMPS{Hilbert}, x_mpos)
-    return real(sum(inner(state', O, state) for O in x_mpos) / length(x_mpos))
-end
+sites = siteinds("S=1/2", N)
+liouville_sites = liouv_sites(sites)
 
-function mean_sx(state::AbstractMPS{Liouville}, x_mpos)
-    ρ_h = to_hilbert(state)
-    s = 0.0
-    for O in x_mpos
-        ρO = apply(O, ρ_h; alg="naive", truncate=false)
-        s += real(tr(ρO))
+H = let H_local = OpSum()
+    for j in 1:(N - 1)
+        H_local += -J, "Z", j, "Z", j + 1
     end
-    return s / length(x_mpos)
-end
-
-state_energy(state::AbstractMPS{Hilbert}, H_mpo) = real(inner(state', H_mpo, state))
-
-function state_energy(state::AbstractMPS{Liouville}, H_mpo)
-    ρ_h = to_hilbert(state)
-    return real(tr(apply(H_mpo, ρ_h; alg="naive", truncate=false)))
-end
-
-function trajectory_metrics(states, x_mpos, H_mpo)
-    times = collect(range(0.0, T_max; length=length(states)))
-    rho_errs = Float64[]
-    sx = Float64[]
-    E0 = state_energy(first(states), H_mpo)
-    energy_drift = Float64[]
-    for (t, state) in zip(times, states)
-        ρ_ed = exact_density_at(t, L_dense, vec0, d)
-        push!(rho_errs, density_error(state_to_density_dense(state, physical_sites), ρ_ed))
-        push!(sx, mean_sx(state, x_mpos))
-        push!(energy_drift, state_energy(state, H_mpo) - E0)
+    for j in 1:N
+        H_local += -h, "X", j
     end
-    return (; times, rho_errs, sx, energy_drift, max_bond=maximum(maxlinkdim, states))
+    H_local
 end
 
-function summarize_run(label::AbstractString, run, x_mpos, H_mpo)
-    return (; label, elapsed=run.elapsed, metrics=trajectory_metrics(run.states, x_mpos, H_mpo))
-end
-
-function print_tdvp_summary(result)
-    max_energy_drift = maximum(abs, result.metrics.energy_drift)
-    @printf("%s\n", result.label)
-    @printf("  Total time taken: %.3f s\n", result.elapsed)
-    @printf("  |ρ - ρ_ED|:       %.3e\n", result.metrics.rho_errs[end])
-    @printf("  max bond dim:     %d\n", result.metrics.max_bond)
-    @printf("  max energy drift: %.3e\n", max_energy_drift)
-    println()
-end
-
-# ## Model and initial state
-#
-# We use the transverse-field Ising model
-#
-# ```math
-# H =
-# -J \sum_{j=1}^{N-1} Z_j Z_{j+1}
-# -h \sum_{j=1}^{N} X_j .
-# ```
-#
-# The initial state is the product state
-#
-# ```math
-# |\psi(0)\rangle = |\uparrow \uparrow \cdots \uparrow\rangle .
-# ```
-#
-# We compare the TDVP trajectories against a dense exact-diagonalization
-# reference. The dense reference is only used because this is a small
-# documentation example; the TDVP code itself is the tensor-network method.
-
-physical_sites = siteinds("S=1/2", N)
-liouv_sites_shared = liouv_sites(physical_sites)
-os_H = tfim_hamiltonian(N; J=J, h=h)
-H_mpo = MPO(os_H, physical_sites)
-jump_ops = Tuple{Number, String, Int}[]
-
-ψ0 = MPS(physical_sites, fill("Up", N))
-ρ0 = to_dm(ψ0)
-ρ0_vec = to_liouville(ρ0; sites=liouv_sites_shared)
-
-x_mpos = single_site_pauli_mpos("X", physical_sites)
-z_mpos = single_site_pauli_mpos("Z", physical_sites)
-@assert isapprox(real(sum(inner(ψ0', O, ψ0) for O in z_mpos) / N), 1.0; atol=1e-10)
-
-# ## Exact diagonalization reference
-#
-# We use ED only to make the TDVP approximation error visible. The scalable
-# method is TDVP itself.
-#
-# In Liouville space the vectorized density matrix obeys
-# $|\rho(t)\rangle\rangle = e^{t\mathcal{L}}|\rho(0)\rangle\rangle$ with
-# $\mathcal{L}\rho = -i[H,\rho]$ for closed dynamics.
-
-function hilbert_mpo_to_dense(ρ::AbstractMPO{Hilbert}, physical_sites)
-    T = foldl(*, ρ)
-    A = Array(T, prime.(physical_sites)..., physical_sites...)
-    return reshape(ComplexF64.(A), prod(dim.(physical_sites)), prod(dim.(physical_sites)))
-end
-
-function hilbert_matrix_to_mpo(M::AbstractMatrix{<:Number}, physical_sites)
-    dims = vcat(dim.(prime.(physical_sites)), dim.(physical_sites))
-    T = ITensor(reshape(ComplexF64.(M), Tuple(dims)), prime.(physical_sites)..., physical_sites...)
-    return MPO(T, physical_sites)
-end
-
-function dense_liouvillian_matrix(os_H::OpSum, jump_ops, physical_sites, liouv_sites_shared)
-    L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
-    d = prod(dim.(physical_sites))
-    d2 = d * d
-    L_dense = zeros(ComplexF64, d2, d2)
-    for b in 1:d, a in 1:d
-        q = a + (b - 1) * d
-        E = zeros(ComplexF64, d, d)
-        E[a, b] = 1.0
-        basis_q = to_liouville(hilbert_matrix_to_mpo(E, physical_sites); sites=liouv_sites_shared)
-        σ_q = apply(L_mpo, basis_q; cutoff=0.0, maxdim=typemax(Int))
-        ρ_out = hilbert_mpo_to_dense(to_hilbert(σ_q), physical_sites)
-        L_dense[:, q] = vec(ρ_out)
-    end
-    return L_dense
-end
-
-state_to_density_dense(state::AbstractMPS{Hilbert}, physical_sites) =
-    hilbert_mpo_to_dense(to_dm(state), physical_sites)
-state_to_density_dense(state::AbstractMPS{Liouville}, physical_sites) =
-    hilbert_mpo_to_dense(to_hilbert(state), physical_sites)
-
-density_error(ρ::AbstractMatrix, ρ_ref::AbstractMatrix) =
-    norm(ρ - ρ_ref) / max(norm(ρ_ref), eps(Float64))
-
-function dense_one_site_operator(op_name::AbstractString, physical_sites, site::Int)
-    local_ops = Matrix{ComplexF64}[]
-    for (j, s) in enumerate(physical_sites)
-        if j == site
-            push!(local_ops, Array(op(op_name, s), prime(s), s))
-        else
-            push!(local_ops, Matrix{ComplexF64}(I, dim(s), dim(s)))
-        end
-    end
-    return foldl(kron, local_ops)
-end
-
-function exact_density_at(t::Real, L_dense::AbstractMatrix, vec0::AbstractVector, d::Int)
-    Lt = ComplexF64.(L_dense)
-    v0 = ComplexF64.(vec0)
-    vt = iszero(t) ? v0 : exp(t * Lt) * v0
-    return reshape(vt, d, d)
-end
-
-function mean_sx_from_density(ρ::AbstractMatrix, x_ops)
-    return real(sum(tr(ρ * O) for O in x_ops) / length(x_ops))
-end
-
-function exact_sx_trajectory(L_dense, vec0, d, x_ops, times::AbstractVector)
-    return Float64[mean_sx_from_density(exact_density_at(t, L_dense, vec0, d), x_ops) for t in times]
-end
-
-println("Building Liouville ED reference...")
-d = prod(dim.(physical_sites))
-vec0 = vec(ComplexF64.(hilbert_mpo_to_dense(ρ0, physical_sites)))
-L_dense = dense_liouvillian_matrix(os_H, jump_ops, physical_sites, liouv_sites_shared)
-x_ops = [dense_one_site_operator("X", physical_sites, j) for j in 1:N]
-t_exact = collect(range(0.0, T_max; length=n_exact))
-sx_exact = exact_sx_trajectory(L_dense, vec0, d, x_ops, t_exact)
-println("Final Sx: ", sx_exact[end])
-
-# ## Hilbert-space TDVP
-#
-# We first evolve the pure-state MPS directly under the Hamiltonian MPO.
-#
-# The three Hilbert-space runs are:
-#
-# 1. plain 1TDVP,
-# 2. 1TDVP with global subspace expansion,
-# 3. 2TDVP.
-#
-# ### 1TDVP and 2TDVP
-#
-# TDVP does not apply local Trotter gates. Instead, it projects the exact
-# time-evolution equation onto the tangent space of the MPS manifold.
-#
-# For Hilbert-space Schrödinger evolution,
-#
-# ```math
-# \frac{d}{dt}|\psi(t)\rangle = -iH|\psi(t)\rangle .
-# ```
-#
-# If `|ψ[A]⟩` is restricted to the MPS manifold `𝓜_D`, TDVP evolves by
-#
-# ```math
-# \frac{d}{dt}|\psi[A]\rangle
-# =
-# -i P_{T_{|\psi\rangle}\mathcal{M}_D}
-# H|\psi[A]\rangle .
-# ```
-#
-# In 1TDVP, the bond dimensions remain fixed. This gives good conservation
-# properties in Hilbert space, especially for energy, but it also means that
-# 1TDVP cannot grow the entanglement structure by itself.
-#
-# In 2TDVP, two-site tensors are evolved and then factorized again with an SVD.
-# This allows the bond dimension to grow, up to `maxdim`, but the SVD truncation
-# weakens the exact conservation properties of 1TDVP.
-
-function tdvp_trajectory(state0, operator, time_step, dt::Float64, nsteps::Int; nsite::Int, maxdim::Int, cutoff::Float64)
-    states = Vector{typeof(state0)}(undef, nsteps + 1)
-    states[1] = copy(state0)
-    current = copy(state0)
-    elapsed = @elapsed begin
-        for step in 1:nsteps
-            current = tdvp(
-                operator,
-                time_step,
-                current;
-                time_step=time_step,
-                nsite=nsite,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                outputlevel=0,
-            )
-            states[step + 1] = current
-        end
-    end
-    return (; states, elapsed)
-end
-
-# ### Global subspace expansion
-#
-# Plain 1TDVP evolves inside a fixed-bond-dimension manifold. This can be too
-# restrictive if the exact dynamics quickly generates entanglement.
-#
-# Global subspace expansion enriches the MPS basis before a 1TDVP step. It adds
-# dynamically relevant directions generated by a Krylov subspace.
-#
-# For Hilbert-space dynamics, the relevant Krylov space is
-#
-# ```math
-# \mathcal{K}_m(H,|\psi\rangle)
-# =
-# \operatorname{span}
-# \{|\psi\rangle, H|\psi\rangle, H^2|\psi\rangle,\dots,H^{m-1}|\psi\rangle\}.
-# ```
-#
-# The important point is that subspace expansion does not change the physical
-# state intentionally. It changes the available bond basis so that the next
-# 1TDVP step can move in a larger variational manifold:
-#
-# ```math
-# \mathcal{M}_D \longrightarrow \mathcal{M}_{D'}, \qquad D' \ge D .
-# ```
-
-function gse_expand_state(state::MPS{Hilbert}, operator; krylovdim::Int, gse_cutoff::Float64, gse_maxdim::Int)
-    expanded_core = expand(
-        state.core,
-        operator.core;
-        alg="global_krylov",
-        krylovdim=krylovdim,
-        cutoff=gse_cutoff,
-        apply_kwargs=(; maxdim=gse_maxdim),
-    )
-    orthogonalize!(expanded_core, 1)
-    return MPS{Hilbert}(expanded_core)
-end
-
-function tdvp1_gse_trajectory(
-    state0,
-    operator,
-    time_step,
-    dt::Float64,
-    nsteps::Int;
-    maxdim::Int,
-    cutoff::Float64,
-    krylovdim::Int,
-    gse_cutoff::Float64,
-    gse_maxdim::Int,
-    gse_every_steps::Int,
+H_mpo = MPO(H, sites)
+L_mpo = liouvillian_mpo(
+    H,
+    liouville_sites;
+    jump_ops=Tuple{Number,String,Int}[],
 )
-    states = Vector{typeof(state0)}(undef, nsteps + 1)
-    states[1] = copy(state0)
-    current = copy(state0)
-    elapsed = @elapsed begin
-        for step in 1:nsteps
-            if step == 1 || (gse_every_steps > 0 && (step - 1) % gse_every_steps == 0)
-                current = gse_expand_state(
-                    current,
-                    operator;
-                    krylovdim=krylovdim,
-                    gse_cutoff=gse_cutoff,
-                    gse_maxdim=gse_maxdim,
-                )
-            end
-            current = tdvp(
-                operator,
-                time_step,
-                current;
-                time_step=time_step,
-                nsite=1,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                outputlevel=0,
-            )
-            states[step + 1] = current
-        end
+
+initial_state = MPS(sites, fill("Up", N))
+initial_density = to_dm(initial_state)
+initial_density_liouville =
+    to_liouville(initial_density; sites=liouville_sites)
+
+mean_x = let observable = OpSum()
+    for j in 1:N
+        observable += 1 / N, "X", j
     end
-    return (; states, elapsed)
+    observable
+end
+mean_x_mpo = MPO(mean_x, sites)
+mean_x_liouville = to_liouville(mean_x_mpo; sites=liouville_sites)
+
+@assert isapprox(real(inner(initial_state, initial_state)), 1; atol=1e-12)
+
+# ## Exact small-system reference
+#
+# Exact diagonalization (ED) is practical here only because ``N=4``. It gives
+# the untruncated evolution against which we measure the TDVP density-matrix
+# error and observable error. Agreement with ED on this small system checks the
+# timestep convention, the Hilbert/Liouville mapping, and the projected tensor-
+# network evolution before TDVP is used on systems too large for dense methods.
+
+dimension = prod(dim.(sites))
+
+H_tensor = foldl(*, H_mpo)
+H_dense = reshape(
+    ComplexF64.(Array(H_tensor, prime.(sites)..., sites...)),
+    dimension,
+    dimension,
+)
+
+state_tensor = foldl(*, initial_state)
+state_dense = vec(ComplexF64.(Array(state_tensor, sites...)))
+density_dense = state_dense * state_dense'
+
+mean_x_tensor = foldl(*, mean_x_mpo)
+mean_x_dense = reshape(
+    ComplexF64.(Array(mean_x_tensor, prime.(sites)..., sites...)),
+    dimension,
+    dimension,
+)
+
+function exact_density_at(
+    time::Real,
+    H_dense::AbstractMatrix,
+    density0::AbstractMatrix,
+)
+    propagator = exp(-1im * time * H_dense)
+    return propagator * density0 * propagator'
 end
 
-println("Hilbert-space TDVP")
-println("------------------")
+function exact_sx_trajectory(
+    H_dense::AbstractMatrix,
+    density0::AbstractMatrix,
+    mean_x_dense::AbstractMatrix,
+    times::AbstractVector,
+)
+    return [
+        real(tr(exact_density_at(time, H_dense, density0) * mean_x_dense))
+        for time in times
+    ]
+end
 
-hilbert_runs = NamedTuple[]
+times = collect(range(0.0; step=dt, length=nsteps + 1))
+exact_final_density =
+    exact_density_at(final_time, H_dense, density_dense)
+sx_exact =
+    exact_sx_trajectory(H_dense, density_dense, mean_x_dense, times)
 
-for (label, nsite, maxdim, runner, kwargs) in (
-    ("Hilbert 1TDVP", 1, maxdim_1site, tdvp_trajectory, NamedTuple()),
-    (
-        "Hilbert 1TDVP + GSE",
-        1,
-        maxdim_1site,
-        tdvp1_gse_trajectory,
-        (;
-            krylovdim=krylovdim,
-            gse_cutoff=gse_cutoff,
-            gse_maxdim=maxdim_1site,
-            gse_every_steps=gse_every_steps,
-        ),
+# ## Hilbert-space Two-siteTDVP
+#
+# Schrödinger evolution obeys
+#
+# ```math
+# \frac{d}{dt}|\psi(t)\rangle=-iH|\psi(t)\rangle .
+# ```
+#
+# Therefore the two-site TDVP (2TDVP) timestep is complex, `-1im * dt`, and the operator is the
+# Hamiltonian MPO. We implement the 2TDVP variant with `nsite=2` to allow for
+# entanglement and operator-space bonds to grow.
+
+hilbert_trajectory = let
+    state = copy(initial_state)
+    sx = Float64[real(inner(state', mean_x_mpo, state))]
+    energies = Float64[real(inner(state', H_mpo, state))]
+    elapsed = 0.0
+    for _ in 1:nsteps
+        elapsed += @elapsed state = tdvp(
+            H_mpo,
+            -1im * dt,
+            state;
+            time_step=-1im * dt,
+            nsite=2,
+            maxdim=maxdim,
+            cutoff=cutoff,
+            outputlevel=0,
+        )
+        push!(sx, real(inner(state', mean_x_mpo, state)))
+        push!(energies, real(inner(state', H_mpo, state)))
+    end
+
+    (; state, sx, energies, elapsed)
+end
+
+hilbert_density = to_dm(hilbert_trajectory.state)
+hilbert_density_tensor = foldl(*, hilbert_density)
+hilbert_density_dense = reshape(
+    ComplexF64.(
+        Array(hilbert_density_tensor, prime.(sites)..., sites...)
     ),
-    ("Hilbert 2TDVP", 2, maxdim_2site, tdvp_trajectory, NamedTuple()),
+    dimension,
+    dimension,
 )
-    run = if runner === tdvp1_gse_trajectory
-        runner(ψ0, H_mpo, -1im * dt, dt, nsteps; maxdim=maxdim, cutoff=cutoff, kwargs...)
-    else
-        runner(ψ0, H_mpo, -1im * dt, dt, nsteps; nsite=nsite, maxdim=maxdim, cutoff=cutoff)
-    end
-    result = summarize_run(label, run, x_mpos, H_mpo)
-    push!(hilbert_runs, result)
-    print_tdvp_summary(result)
-end
 
-# ![Hilbert-space mean ⟨σ̄_x⟩](../assets/examples/tdvp_tfim_unitary_hilbert_dynamics_mx.png)
+hilbert_error =
+    norm(hilbert_density_dense - exact_final_density) /
+    norm(exact_final_density)
+hilbert_energy_drift =
+    maximum(abs.(hilbert_trajectory.energies .- first(hilbert_trajectory.energies)))
+
+println("2TDVP on Hilbert space with dt=$(dt)")
+println("    Wall time to final state: $(round(hilbert_trajectory.elapsed, digits=4)) s")
+println("    Relative error of the final density matrix: $(round(hilbert_error, digits=6))")
+println("    Maximum energy drift: $(round(hilbert_energy_drift, sigdigits=4))")
+println("    Max bond dim of final state: $(maxlinkdim(hilbert_trajectory.state))")
+
+@assert maximum(abs.(hilbert_trajectory.sx - sx_exact)) < 0.05
+@assert hilbert_error < 0.05
+@assert hilbert_energy_drift < 1e-6
+
+# ## 1TDVP with global subspace expansion
 #
-# ![Hilbert-space energy drift](../assets/examples/tdvp_tfim_unitary_hilbert_energy_drift.png)
+# One-site TDVP (1TDVP) projects the evolution onto an MPS manifold with fixed
+# bond dimensions. This allows the algorithm to conserve quantities such as the 
+# system's total energy in a closed system evolution. But one main drawback of this 
+# technique, compared to the 2TDVP variant, is that the bond dimension stays fixed 
+# throughout the evolution. If we start with a product state with bond
+# dimension one, 1TDVP cannot introduce the new Schmidt directions
+# generated by the interacting Hamiltonian. Its projected update can therefore
+# become trapped in an undersized variational manifold—the “1TDVP getting
+# stuck” behavior visible in the error plots below.
 #
-# ![Hilbert-space density-matrix error](../assets/examples/tdvp_tfim_unitary_hilbert_rho_error.png)
+# Global subspace expansion enriches the MPS bonds before a one-site sweep. The
+# `global_krylov` algorithm adds directions approximating
+# ``H|\psi\rangle,H^2|\psi\rangle,\ldots`` and truncates the enlarged basis.
+# Importantly, GSE does not change the physical wavefunction. It only rewrites the 
+# same state in a larger bond-dimension representation, so later 1TDVP sweeps have 
+# room to leave the original product-state manifold.
+
+println("Initial state bond dimensions: ", linkdims(initial_state))
+
+expanded_core = ITensorMPS.expand(
+    initial_state.core,
+    H_mpo.core;
+    alg="global_krylov",
+    krylovdim=2,
+    cutoff=1e-8,
+    apply_kwargs=(; maxdim=maxdim),
+)
+ITensorMPS.orthogonalize!(expanded_core, 1)
+gse_state = MPS{Hilbert}(expanded_core)
+
+println("After global subspace expansion bond dimensions: ", linkdims(gse_state))
+
+overlap_initial_gse = inner(initial_state, gse_state)
+println("Overlap of initial and expanded state: ", overlap_initial_gse)
+@assert isapprox(overlap_initial_gse, 1.0; atol=1e-12)
+
+# With that enlarged representation available, one 1TDVP step can use the new bond directions:
+
+gse_state_evolved = tdvp(
+    H_mpo,
+    -1im * dt,
+    gse_state;
+    time_step=-1im * dt,
+    nsite=1,
+    maxdim=maxdim,
+    cutoff=cutoff,
+    outputlevel=0,
+)
+
+println("Bond dimensions after 1TDVP evolution: ", linkdims(gse_state_evolved))
+@assert maxlinkdim(gse_state) > maxlinkdim(initial_state)
+
+# In a full trajectory, repeat the expansion periodically before each `nsite=1` update.
+# The same construction applies in Liouville space with `L_mpo = liouvillian_mpo(...)`.
+
+# The complete benchmark in
+# [`scripts/tdvp_tfim_unitary.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tdvp_tfim_unitary.jl)
+# sweeps plain 1TDVP, 1TDVP+GSE, and 2TDVP, then prints stacked diagnostics for
+# each Hilbert and Liouville run (observable error against ED and energy drift).
+# Plain 1TDVP remains trapped at its initial bond dimension, whereas GSE opens
+# useful variational directions and sharply reduces its error. For this problem,
+# 2TDVP provides the most accurate bond-growing evolution, while 1TDVP+GSE also
+# conserves energy very well.
+#
+# ![Hilbert-space TDVP and exact mean spin](../assets/examples/tdvp_tfim_unitary_hilbert_dynamics_mx.png)
+# ![Hilbert-space TDVP density-matrix error with respect to ED](../assets/examples/tdvp_tfim_unitary_hilbert_rho_error.png)
+# ![Hilbert-space TDVP energy drift](../assets/examples/tdvp_tfim_unitary_hilbert_energy_drift.png) 
 #
 # ## Liouville-space TDVP
 #
-# We now repeat the same unitary dynamics in Liouville space.
-#
-# In Liouville space, we vectorize the density matrix:
-#
-# ```math
-# \rho \mapsto |\rho\rangle\rangle .
-# ```
-#
-# For closed unitary dynamics,
-#
-# ```math
-# \frac{d}{dt}\rho(t) = -i[H,\rho(t)] ,
-# ```
-#
-# which becomes
+# The vectorized density matrix obeys
 #
 # ```math
 # \frac{d}{dt}|\rho(t)\rangle\rangle
 # =
-# \mathcal{L}|\rho(t)\rangle\rangle .
+# \mathcal L|\rho(t)\rangle\rangle,
+# \qquad
+# \mathcal L\rho=-i[H,\rho].
 # ```
 #
-# TDVP can also be applied to this Liouville-space MPS. But the conservation
-# story must be read carefully. In Hilbert space, 1TDVP is naturally aligned
-# with the physical Hamiltonian expectation `⟨H⟩`. In Liouville space, TDVP is
-# applied to the vectorized density matrix under the Liouvillian superoperator.
-# The physical energy
-#
-# ```math
-# E(t) = \operatorname{Tr}(H\rho(t))
-# ```
-#
-# is not the same variational object that the Hilbert-space 1TDVP conservation
-# argument protects. Therefore, energy conservation in Liouville-space TDVP
-# should not be interpreted in exactly the same way.
-#
-# For Liouville-space dynamics, global subspace expansion uses the Krylov space
-#
-# ```math
-# \mathcal{K}_m(\mathcal{L},|\rho\rangle\rangle)
-# =
-# \operatorname{span}
-# \{|\rho\rangle\rangle,
-# \mathcal{L}|\rho\rangle\rangle,
-# \mathcal{L}^2|\rho\rangle\rangle,\dots\}.
-# ```
-#
-# Since this is a closed system, we pass no jump operators. The Liouvillian MPO
-# therefore represents only the commutator dynamics.
+# The operator is now `MPO{Liouville}` and the timestep is the real duration
+# `dt`, because the factor ``-i`` is already contained in ``\mathcal L``.
 
-function gse_expand_state(state::MPS{Liouville}, operator; krylovdim::Int, gse_cutoff::Float64, gse_maxdim::Int)
-    expanded_core = expand(
-        state.core,
-        operator.core;
-        alg="global_krylov",
-        krylovdim=krylovdim,
-        cutoff=gse_cutoff,
-        apply_kwargs=(; maxdim=gse_maxdim),
-    )
-    orthogonalize!(expanded_core, 1)
-    return MPS{Liouville}(expanded_core, state.combiners)
-end
-
-L_mpo = MPO_Liouville(os_H, liouv_sites_shared; jump_ops=jump_ops)
-
-println("Liouville-space TDVP")
-println("--------------------")
-
-liouville_runs = NamedTuple[]
-
-for (label, nsite, maxdim, runner, kwargs) in (
-    ("Liouville 1TDVP", 1, maxdim_1site, tdvp_trajectory, NamedTuple()),
-    (
-        "Liouville 1TDVP + GSE",
-        1,
-        maxdim_1site,
-        tdvp1_gse_trajectory,
-        (;
-            krylovdim=krylovdim,
-            gse_cutoff=gse_cutoff,
-            gse_maxdim=maxdim_1site,
-            gse_every_steps=gse_every_steps,
-        ),
-    ),
-    ("Liouville 2TDVP", 2, maxdim_2site, tdvp_trajectory, NamedTuple()),
-)
-    run = if runner === tdvp1_gse_trajectory
-        runner(ρ0_vec, L_mpo, dt, dt, nsteps; maxdim=maxdim, cutoff=cutoff, kwargs...)
-    else
-        runner(ρ0_vec, L_mpo, dt, dt, nsteps; nsite=nsite, maxdim=maxdim, cutoff=cutoff)
+liouville_trajectory = let
+    density = copy(initial_density_liouville)
+    sx = Float64[real(inner(mean_x_liouville, density))]
+    elapsed = 0.0
+    for _ in 1:nsteps
+        elapsed += @elapsed density = tdvp(
+            L_mpo,
+            dt,
+            density;
+            time_step=dt,
+            nsite=2,
+            maxdim=maxdim,
+            cutoff=cutoff,
+            outputlevel=0,
+        )
+        push!(sx, real(inner(mean_x_liouville, density)))
     end
-    result = summarize_run(label, run, x_mpos, H_mpo)
-    push!(liouville_runs, result)
-    print_tdvp_summary(result)
+
+    (; density, sx, elapsed)
 end
 
-@assert all(isfinite, hilbert_runs[1].metrics.rho_errs)
-@assert isapprox(
-    density_error(state_to_density_dense(ψ0, physical_sites), exact_density_at(0.0, L_dense, vec0, d)),
-    0.0;
-    atol=1e-12,
+liouville_density = to_hilbert(liouville_trajectory.density)
+liouville_density_tensor = foldl(*, liouville_density)
+liouville_density_dense = reshape(
+    ComplexF64.(
+        Array(liouville_density_tensor, prime.(sites)..., sites...)
+    ),
+    dimension,
+    dimension,
 )
 
-# ![Liouville-space mean ⟨σ̄_x⟩](../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png)
+liouville_error =
+    norm(liouville_density_dense - exact_final_density) /
+    norm(exact_final_density)
+
+println("2TDVP on Liouville space with dt=$(dt)")
+println("    Wall time to final state: $(round(liouville_trajectory.elapsed, digits=4)) s")
+println("    Relative error of the final density matrix: $(round(liouville_error, digits=6))")
+println("    Max bond dim of final state: $(maxlinkdim(liouville_trajectory.density))")
+
+@assert maximum(abs.(liouville_trajectory.sx - sx_exact)) < 0.05
+@assert liouville_error < 0.05
+
+# GSE also prevents plain Liouville 1TDVP from remaining confined to its initial
+# operator-space bonds, although this method no longer conserves energy. This is because, in Liouville space, TDVP is applied to the vectorise density matrix under the Liouvillian superoperator. The physical energy 
+# $$E(t) = \mathrm{tr}(\rho(t)H)$$ is not the same variational obhect that Hilbert-space 1TDVP 
+# conservation argument protects. Therefore, energy conservation in Liouville space should not 
+# be interpreted in the same way as in Hilbert space.
 #
-# ![Liouville-space energy drift](../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png)
+# ![Liouville-space TDVP and exact mean spin](../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png)
+# ![Liouville-space TDVP density-matrix error with respect to ED](../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png)
+# ![Liouville-space TDVP energy drift](../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png)
 #
-# ![Liouville-space density-matrix error](../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png)
+# !!! note "Variational meaning"
+#     Hilbert-space TDVP projects Schrödinger evolution for a pure state.
+#     Liouville-space TDVP projects the superoperator evolution of a vectorized
+#     density matrix. They encode the same closed-system physics here, but act
+#     on different MPS manifolds and generally have different bond dimensions.
 #
 # !!! summary "Example takeaways"
-#     - Hilbert-space 1TDVP conserves energy most strictly inside a fixed-bond
-#       manifold, but may miss entanglement growth needed for accurate observables.
-#     - Global subspace expansion enlarges the 1TDVP basis without switching to
-#       full two-site updates; 2TDVP grows bonds but SVD truncation weakens
-#       strict conservation.
-#     - Liouville-space TDVP solves the same physics with a different variational
-#       geometry; interpret energies through the reconstructed density matrix.
+#     - Hilbert TDVP uses `H_mpo` with the complex timestep `-1im * dt`.
+#     - Liouville TDVP uses `L_mpo = liouvillian_mpo(...)` with the real timestep `dt`.
+#     - `nsite=2` allows entanglement and operator-space bonds to grow.
+#     - Global subspace expansion adds Krylov directions so 1TDVP is not trapped
+#       in the fixed bond dimensions of the initial MPS.
+#     - Energy is conserved for the Hilbert-space 1TDVP, but not for the Liouville-space 1TDVP.

@@ -40,42 +40,11 @@ infrastructure than rebuild it from scratch.
 
 ---
 
-## What the package currently offers
-
-The current package is built around two complementary pillars.
-
-First, it supports **Liouville-space tensor networks**. Density matrices can be vectorized, and superoperators can be represented as MPOs. This makes density-matrix and dissipative dynamics feel close to the usual MPS/MPO workflow.
-
-Second, it supports **process tensors**. A process tensor stores the reusable influence of an environment over time. Once it is built, different instrument sequences can be contracted with it to compute reduced trajectories, observables, open outputs, and multi-time quantities.
-
-| Feature                        | What it gives you                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------------- |
-| Hilbert-space MPS/MPO wrappers | Work with tensor-network states and operators in a familiar ITensorMPS style.             |
-| Density-matrix construction    | Convert pure states and mixtures into density-matrix tensor-network objects.              |
-| Liouville-space tools          | Vectorize density matrices and build superoperators as MPOs.                              |
-| Liouvillian dynamics           | Represent Hamiltonian and dissipative dynamics in operator space.                         |
-| System and bath abstractions   | Define spin/bosonic systems, bath modes, and environments.                                |
-| Process tensors                | Build matrix-product representations of open-system memory.                               |
-| Instruments                    | Insert state preparations, observables, trace-outs, left/right actions, and open outputs. |
-| Process evaluation             | Contract process tensors with instrument sequences using `evaluate_process`.              |
-| Reduced evolution              | Use `evolve` to obtain reduced system trajectories.                                       |
-| Multi-time correlations        | Compute sequential and operator-insertion-style correlations.                             |
-
-!!! tip "Time evolution, not ground-state search"
-    This package builds on the **time-evolution** side of
-    [`ITensorMPS.jl`](https://github.com/ITensor/ITensorMPS.jl): `tebd`, `tdvp`,
-    Liouville propagators, and process-tensor contraction workflows.
-
-    It does **not** focus on DMRG, variational ground-state search, or equilibrium
-    spectral methods.
-
----
-
 ## Where to start
 
 Most of what makes this package distinctive appears in two tutorials:
 
-* **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `MPO_Liouville`, TEBD/TDVP on density matrices.
+* **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `liouvillian_mpo`, TEBD/TDVP on density matrices.
 * **[Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)** — process-tensor construction, bath memory, instruments, `evolve`, and `evaluate_process`.
 
 Everything else in the documentation supports those two pages: ITensor syntax, MPS/MPO objects, Hilbert-versus-Liouville conventions, and closed-system dynamics as stepping stones.
@@ -154,8 +123,8 @@ obs = OpSum()
 obs += 1.0, "Sz", 1
 
 seq = default_schedule(pt)
-add!(seq, 0, StatePreparation(ρsys0))
-add!(seq, nsteps, ObservableMeasurement(obs))
+add!(seq, 0, state_preparation(ρsys0))
+add!(seq, nsteps, observable_measurement(obs))
 
 expectation = evaluate_process(pt, seq)
 ```
@@ -174,7 +143,7 @@ expectation = evaluate_process(pt, seq)
 | Hilbert-space MPS/MPO                       | [Tutorial: MPS and MPO Basics](tutorials/mps_mpo_basics.md)          |
 | Vectorized density matrices                 | [Tutorial: Liouville Basics](tutorials/liouville_basics.md)          |
 | Closed-system TEBD/TDVP                     | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)          |
-| Time-dependent or kicked models             | [Examples](examples/driven_two_level_system.md)                      |
+| Time-dependent Hamiltonians                 | [Laser-driven TDVP dynamics](examples/laser_driven_tdvp.md)         |
 | Multimode baths and multi-time correlations | [Spin-bath process tensor](examples/spin_bath_process_tensor.md)   |
 | End-to-end scripts                          | [Examples](examples/tebd_time_evolution.md)                           |
 | Progress, verbose output, and threading     | [Advanced Usage](advanced_usage.md)                                  |

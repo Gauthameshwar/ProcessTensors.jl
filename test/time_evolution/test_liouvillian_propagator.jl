@@ -11,6 +11,7 @@
 
 using ProcessTensors
 using ITensors
+using ITensors.Ops: Exact, Trotter
 using LinearAlgebra
 using Test
 
@@ -28,7 +29,7 @@ function mean(x::AbstractArray{<:Number})
 end
 
 # For N=1: read propagator as dense matrix matching instruments / dense_liouvillian_matrix convention.
-# `liouvillian_propagator_itensor` uses unprimed `s` = output (ket), `prime(s)` = input (bra).
+# `liouvillian_propagator` uses unprimed `s` = output (ket), `prime(s)` = input (bra).
 # Array order is (input, output) = (prime(s), s), consistent with `instrument_itensor` tests.
 function _dense_from_1site_propagator(U::ITensor, s::Index)
     d2 = dim(s)
@@ -68,7 +69,7 @@ end
 # N = 1 tests
 # -------------------------------------------------------------------------
 
-@testset "liouvillian_propagator_itensor: N=1, closed, Exact()" begin
+@testset "liouvillian_propagator: N=1, closed, Exact()" begin
     phys = siteinds("S=1/2", 1)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(1)
@@ -76,13 +77,13 @@ end
 
     L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
     U_ed = exp(dt * L_dense)
-    U = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact())
+    U = liouvillian_propagator(H, liouv, dt; alg=Exact())
     U_mat = _dense_from_1site_propagator(U, liouv[1])
 
     @test relative_frobenius_error(U_mat, U_ed) ≤ 1e-10
 end
 
-@testset "liouvillian_propagator_itensor: N=1, dissipative, Exact()" begin
+@testset "liouvillian_propagator: N=1, dissipative, Exact()" begin
     phys = siteinds("S=1/2", 1)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(1)
@@ -91,13 +92,13 @@ end
 
     L_dense = dense_liouvillian_matrix(H, jump_ops, phys, liouv)
     U_ed = exp(dt * L_dense)
-    U = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
+    U = liouvillian_propagator(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
     U_mat = _dense_from_1site_propagator(U, liouv[1])
 
     @test relative_frobenius_error(U_mat, U_ed) ≤ 1e-10
 end
 
-@testset "liouvillian_propagator_itensor: N=1, Trotter{2}() vs Exact()" begin
+@testset "liouvillian_propagator: N=1, Trotter{2}() vs Exact()" begin
     phys = siteinds("S=1/2", 1)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(1)
@@ -107,8 +108,8 @@ end
     L_dense = dense_liouvillian_matrix(H, jump_ops, phys, liouv)
     U_ed = exp(dt * L_dense)
 
-    U_exact = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
-    U_trotter = liouvillian_propagator_itensor(H, liouv, dt; alg=Trotter{2}(), jump_ops=jump_ops)
+    U_exact = liouvillian_propagator(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
+    U_trotter = liouvillian_propagator(H, liouv, dt; alg=Trotter{2}(), jump_ops=jump_ops)
 
     U_exact_mat = _dense_from_1site_propagator(U_exact, liouv[1])
     U_trotter_mat = _dense_from_1site_propagator(U_trotter, liouv[1])
@@ -121,7 +122,7 @@ end
 # N = 2 tests
 # -------------------------------------------------------------------------
 
-@testset "liouvillian_propagator_itensor: N=2, closed, Exact()" begin
+@testset "liouvillian_propagator: N=2, closed, Exact()" begin
     phys = siteinds("S=1/2", 2)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(2)
@@ -129,13 +130,13 @@ end
 
     L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
     U_ed = exp(dt * L_dense)
-    U = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact())
+    U = liouvillian_propagator(H, liouv, dt; alg=Exact())
     U_mat = _dense_from_propagator_apply(U, phys, liouv)
 
     @test relative_frobenius_error(U_mat, U_ed) ≤ 1e-8
 end
 
-@testset "liouvillian_propagator_itensor: N=2, dissipative, Exact()" begin
+@testset "liouvillian_propagator: N=2, dissipative, Exact()" begin
     phys = siteinds("S=1/2", 2)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(2)
@@ -144,13 +145,13 @@ end
 
     L_dense = dense_liouvillian_matrix(H, jump_ops, phys, liouv)
     U_ed = exp(dt * L_dense)
-    U = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
+    U = liouvillian_propagator(H, liouv, dt; alg=Exact(), jump_ops=jump_ops)
     U_mat = _dense_from_propagator_apply(U, phys, liouv)
 
     @test relative_frobenius_error(U_mat, U_ed) ≤ 1e-8
 end
 
-@testset "liouvillian_propagator_itensor: N=2, Trotter{2}() vs Exact()" begin
+@testset "liouvillian_propagator: N=2, Trotter{2}() vs Exact()" begin
     phys = siteinds("S=1/2", 2)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(2)
@@ -158,8 +159,8 @@ end
 
     L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
     U_ed = exp(dt * L_dense)
-    U_exact = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact())
-    U_trotter = liouvillian_propagator_itensor(H, liouv, dt; alg=Trotter{2}())
+    U_exact = liouvillian_propagator(H, liouv, dt; alg=Exact())
+    U_trotter = liouvillian_propagator(H, liouv, dt; alg=Trotter{2}())
 
     U_exact_mat = _dense_from_propagator_apply(U_exact, phys, liouv)
     U_trotter_mat = _dense_from_propagator_apply(U_trotter, phys, liouv)
@@ -172,7 +173,7 @@ end
 # N = 3 tests
 # -------------------------------------------------------------------------
 
-@testset "liouvillian_propagator_itensor: N=3, closed, Exact()" begin
+@testset "liouvillian_propagator: N=3, closed, Exact()" begin
     phys = siteinds("S=1/2", 3)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(3)
@@ -180,13 +181,13 @@ end
 
     L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
     U_ed = exp(dt * L_dense)
-    U = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact())
+    U = liouvillian_propagator(H, liouv, dt; alg=Exact())
     U_mat = _dense_from_propagator_apply(U, phys, liouv)
 
     @test relative_frobenius_error(U_mat, U_ed) ≤ 1e-8
 end
 
-@testset "liouvillian_propagator_itensor: N=3, Trotter{2}() vs Exact()" begin
+@testset "liouvillian_propagator: N=3, Trotter{2}() vs Exact()" begin
     phys = siteinds("S=1/2", 3)
     liouv = liouv_sites(phys)
     H = _test_hamiltonian(3)
@@ -194,8 +195,8 @@ end
 
     L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
     U_ed = exp(dt * L_dense)
-    U_exact = liouvillian_propagator_itensor(H, liouv, dt; alg=Exact())
-    U_trotter = liouvillian_propagator_itensor(H, liouv, dt; alg=Trotter{2}())
+    U_exact = liouvillian_propagator(H, liouv, dt; alg=Exact())
+    U_trotter = liouvillian_propagator(H, liouv, dt; alg=Trotter{2}())
 
     U_exact_mat = _dense_from_propagator_apply(U_exact, phys, liouv)
     U_trotter_mat = _dense_from_propagator_apply(U_trotter, phys, liouv)
@@ -216,7 +217,7 @@ end
         L_dense = dense_liouvillian_matrix(H, [], phys, liouv)
         U_ed = exp(dt * L_dense)
 
-        U_trotter = liouvillian_propagator_itensor(
+        U_trotter = liouvillian_propagator(
             H,
             liouv,
             dt;
@@ -234,4 +235,36 @@ end
 
     # For one-step second-order Trotter, expect p ≈ 3.
     @test 2.6 ≤ p ≤ 3.4
+end
+
+@testset "liouvillian_propagator: return contract and liouville_form" begin
+    phys = siteinds("S=1/2", 1)
+    liouv = liouv_sites(phys)
+    H = _test_hamiltonian(1)
+    jump_ops = [(0.1, "S-", 1)]
+    dt = 0.07
+
+    @test liouvillian_propagator(H, liouv, dt; alg=Exact()) isa ITensor
+
+    L = liouvillian_opsum(H; jump_ops)
+    U1 = liouvillian_propagator(H, liouv, dt; jump_ops)
+    U2 = liouvillian_propagator(L, liouv, dt; liouville_form=true)
+    U1_mat = _dense_from_1site_propagator(U1, liouv[1])
+    U2_mat = _dense_from_1site_propagator(U2, liouv[1])
+    @test relative_frobenius_error(U1_mat, U2_mat) ≤ 1e-10
+end
+
+@testset "propagator_itensor_from_gates: contraction-only API" begin
+    phys = siteinds("S=1/2", 1)
+    liouv = liouv_sites(phys)
+    H = _test_hamiltonian(1)
+    dt = 0.05
+    L = liouvillian_opsum(H)
+    gates = ProcessTensors.trotter_gates(L, liouv, dt; alg=Trotter{2}())
+
+    U, final_out = ProcessTensors.propagator_itensor_from_gates(gates, liouv)
+    @test U isa ITensor
+    @test length(final_out) == 1
+    @test hasind(U, liouv[1])
+    @test hasind(U, only(final_out))
 end

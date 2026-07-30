@@ -13,6 +13,33 @@ using ProcessTensors
 using ITensors
 using Test
 
+@testset "API surface: system names" begin
+    @test :SpinSystem ∈ names(ProcessTensors)
+    @test :spin_system ∈ names(ProcessTensors)
+    @test :BosonSystem ∈ names(ProcessTensors)
+    @test :boson_system ∈ names(ProcessTensors)
+    @test nameof(SpinSystem) == :SpinSystem
+
+    s_spin = siteinds("S=1/2", 2)
+    s_boson = siteinds("Boson", 2; dim=3)
+    H_spin = OpSum() + (0.4, "Sz", 1)
+    H_boson = OpSum() + (0.2, "N", 1)
+    jump_ops_spin = [OpSum() + (0.1, "S-", 1)]
+    jump_ops_boson = [OpSum() + (0.1, "A", 1)]
+
+    spin_sys = spin_system(s_spin, H_spin; jump_ops=jump_ops_spin)
+    boson_sys = boson_system(s_boson, H_boson; jump_ops=jump_ops_boson)
+
+    @test nameof(typeof(spin_sys)) == :SpinSystem
+    @test nameof(typeof(boson_sys)) == :BosonSystem
+    @test spin_sys.H == H_spin
+    @test spin_sys.jump_ops == jump_ops_spin
+    @test boson_sys.H == H_boson
+    @test boson_sys.jump_ops == jump_ops_boson
+    @test length(spin_sys.sites) == length(s_spin)
+    @test length(boson_sys.sites) == length(s_boson)
+end
+
 @testset "systems.jl: type and field definitions" begin
     @test SpinSystem <: AbstractSystem
     @test BosonSystem <: AbstractSystem

@@ -49,7 +49,7 @@ function _system_liouvillian_pt_core(
         return delta(in_k, out_k)
     end
     gate_site = only(system.sites)
-    U = liouvillian_propagator_itensor(
+    U = liouvillian_propagator(
         system.H,
         system.sites,
         dt;
@@ -177,12 +177,12 @@ function _build_bathmode_pt_cores(
 
     @progress_stage run "Closing bath boundaries"
     # Contract the first and last bath links with the initial bath state and the trace out
-    initial_bath_state = instrument_itensor(StatePreparation(bathmode.rho0), [bath_links[1]'], 0)
+    initial_bath_state = Instruments.instrument_itensor(state_preparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
-    trace_out = instrument_itensor(TraceOut(), [bath_links[end]], nsteps)
+    bath_trace = Instruments.instrument_itensor(trace_out(), [bath_links[end]], nsteps)
 
     cores[1] *= initial_bath_state
-    cores[end] *= trace_out
+    cores[end] *= bath_trace
 
     return cores
 end
@@ -286,7 +286,7 @@ function _build_multimode_pt_cores(
     bath_state = ITensor(1.0)
     for mode in modes
         site = only(mode.sites)
-        prep = instrument_itensor(StatePreparation(mode.rho0), Index[prime(site)], 0)
+        prep = Instruments.instrument_itensor(state_preparation(mode.rho0), Index[prime(site)], 0)
         noprime!(prep)
         hasind(prep, site) || throw(ArgumentError("_build_multimode_pt_cores: prepared mode state is missing mode site index."))
         bath_state *= prep

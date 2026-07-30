@@ -4,30 +4,39 @@
 # File: src/networks/algebra.jl
 # Contributor: Gauthameshwar S.
 #
-# Provides network algebra helpers that forward to ITensorMPS and rewrap results.
+# Provides compact network algebra helpers that forward to ITensorMPS and rewrap
+# Hilbert/Liouville results.
 
-import ITensors: product, ITensor
-import ITensorMPS: apply, contract, add, truncate!, truncate, error_contract
+import ITensorMPS: apply, contract, add
 
-_core_or_self(x) = x isa AbstractMPS ? x.core : x
-error_contract(args...; kwargs...) = error_contract((_core_or_self.(args))...; kwargs...)
-truncate(m::AbstractMPS; kwargs...) = _rewrap(m, truncate(m.core; kwargs...))
-truncate!(m::AbstractMPS; kwargs...) = (truncate!(m.core; kwargs...); m)
+apply(op::AbstractMPS, m::AbstractMPS; kwargs...) =
+    _rewrap(m, apply(op.core, m.core; kwargs...))
+apply(op, m::AbstractMPS; kwargs...) =
+    _rewrap(m, apply(op, m.core; kwargs...))
+apply(op::ITensor, m::AbstractMPS; kwargs...) =
+    _rewrap(m, apply(op, m.core; kwargs...))
+apply(op::Vector{ITensor}, m::AbstractMPS; kwargs...) =
+    _rewrap(m, apply(op, m.core; kwargs...))
+apply(op::ITensors.LazyApply.Prod{ITensor}, m::AbstractMPS; kwargs...) =
+    _rewrap(m, apply(op, m.core; kwargs...))
 
-for func in (:apply, :contract, :add)
-    @eval begin
-        $func(op::AbstractMPS, m::AbstractMPS; kwargs...) = _rewrap(m, $func(op.core, m.core; kwargs...))
-        $func(op, m::AbstractMPS; kwargs...) = _rewrap(m, $func(op, m.core; kwargs...))
-    end
-end
+contract(op::AbstractMPS, m::AbstractMPS; kwargs...) =
+    _rewrap(m, contract(op.core, m.core; kwargs...))
+contract(op, m::AbstractMPS; kwargs...) =
+    _rewrap(m, contract(op, m.core; kwargs...))
 
-add(m1::CoreAbstractMPS, m2::AbstractMPS; kwargs...) = _rewrap(m2, add(m1, m2.core; kwargs...))
-apply(op::ITensor, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
-apply(op::Vector{ITensor}, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
-apply(op::ITensors.LazyApply.Prod{ITensor}, m::AbstractMPS; kwargs...) = _rewrap(m, apply(op, m.core; kwargs...))
+add(op::AbstractMPS, m::AbstractMPS; kwargs...) =
+    _rewrap(m, add(op.core, m.core; kwargs...))
+add(op, m::AbstractMPS; kwargs...) =
+    _rewrap(m, add(op, m.core; kwargs...))
+add(m1::CoreAbstractMPS, m2::AbstractMPS; kwargs...) =
+    _rewrap(m2, add(m1, m2.core; kwargs...))
 
+# Arithmetic on wrappers extends Base
 import Base: +, -, *
-+(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = _rewrap(m1, +(m1.core, m2.core; kwargs...))
--(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = _rewrap(m1, -(m1.core, m2.core; kwargs...))
++(m1::AbstractMPS, m2::AbstractMPS; kwargs...) =
+    _rewrap(m1, +(m1.core, m2.core; kwargs...))
+-(m1::AbstractMPS, m2::AbstractMPS; kwargs...) =
+    _rewrap(m1, -(m1.core, m2.core; kwargs...))
 *(c::Number, m::AbstractMPS) = _rewrap(m, c * m.core)
 *(m::AbstractMPS, c::Number) = _rewrap(m, m.core * c)

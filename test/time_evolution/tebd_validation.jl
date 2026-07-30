@@ -14,6 +14,10 @@ using ITensors
 using LinearAlgebra
 using Test
 
+@testset "API surface: tebd export" begin
+    @test :tebd ∈ names(ProcessTensors)
+end
+
 if !(@isdefined dense_hamiltonian_matrix)
     include(joinpath(@__DIR__, "tebd_test_utils.jl"))
 end

@@ -91,7 +91,7 @@ The `nsteps` field of `alg` matches `ITensors.Ops`: the generator is scaled by
 
 `τ` encodes the full exponent prefactor, including any imaginary unit and sign:
 - Hilbert space: `τ = -im * dt` for unitary evolution `exp(-im H dt)`
-- Liouville space: `τ = dt` (the `-im` factors are already in `OpSum_Liouville`)
+- Liouville space: `τ = dt` (the `-im` factors are already in `liouvillian_opsum`)
 """
 function trotter_gates(
     os::OpSum,

@@ -18,41 +18,46 @@ how Hilbert bra/ket site pairs were fused so that `to_hilbert` can reconstruct
 the original density MPO.
 
 Use `liouv_sites` to create Liouville site indices. Reuse the exact same
-`Index` objects across `to_liouville`, `MPO_Liouville`, systems, baths, and
+`Index` objects across `to_liouville`, `liouvillian_mpo`, systems, baths, and
 process-tensor instruments so ITensor contractions match by index identity.
 Process-tensor input legs are primed (`plev = 1`) and output legs are unprimed
 (`plev = 0`).
 
-## List of available ITensorMPS functions
 
-ProcessTensors.jl forwards several ITensorMPS operations to the wrapped `.core`
-object and rewraps results when appropriate, preserving the `Hilbert` or
-`Liouville` space label.
+## List of ITensorMPS functions exported by ProcessTensors
+
+ProcessTensors exposes a compact root surface for ordinary Hilbert/Liouville
+workflows. These names are the shared ITensorMPS generics, extended with methods
+that act on wrappers and rewrap results when appropriate, preserving the
+`Hilbert` or `Liouville` space marker. 
+Here is a list of `ITensorMPS.jl` functions that is available in `ProcessTensors.jl`: 
+
+```julia
+siteinds, siteind, linkinds, linkind, linkdim, linkdims, maxlinkdim
+
+apply, contract, add
+
+random_mps, random_mpo, outer, projector
+
+inner, dot, norm, expect, correlation_matrix, entropy, tr
+
+OpSum, add!, op
+```
 
 For generic MPS/MPO algorithmic details and keyword arguments, refer to the
-ITensorMPS documentation. ProcessTensors documentation focuses only on the
-wrapper semantics and Hilbert/Liouville behavior.
+ITensorMPS documentation.
 
-- `siteinds`, `siteind`, `linkinds`, `linkind`, `linkdim`, `linkdims`,
-  `maxlinkdim`, `common_siteind`, `common_siteinds`, `unique_siteind`,
-  `unique_siteinds`, `findfirstsiteind`, `findfirstsiteinds`, `findsite`,
-  `findsites`, `firstsiteind`, `firstsiteinds`, `replace_siteinds`,
-  `replace_siteinds!`, `hassameinds`, `totalqn`, `replaceprime`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `orthogonalize`, `orthogonalize!`, `truncate`, `truncate!`, `normalize!`,
-  `isortho`, `ortho_lims`, `orthocenter`, `set_ortho_lims!`,
-  `reset_ortho_lims!`: [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `apply`, `contract`, `replacebond`, `replacebond!`, `swapbondsites`,
-  `movesite`, `movesites`, `error_contract`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `inner`, `dot`, `⋅`, `loginner`, `logdot`, `norm`, `lognorm`, `expect`,
-  `correlation_matrix`, `sample`, `sample!`, `entropy`, `outer`, `projector`,
-  `state`, `splitblocks`, `tr`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/MPSandMPO.html)
-- `OpSum`, `add!`, `op`, `ops`, `coefficient`:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/OpSum.html)
-- `siteind`, `siteinds`, `state`, `op` for SiteType-based physics indices:
-  [Source Doc](https://docs.itensor.org/ITensorMPS/stable/SiteType.html)
+### Advanced tensor-network surgery
+
+Canonical forms, truncation diagnostics, bond moves, sampling, and related
+technical operations are not defined by ProcessTensors. Use ITensorMPS
+directly, typically on native cores for such algorithms. for example,
+
+```julia
+import ITensorMPS
+expanded_core = ITensorMPS.expand(state.core, operator.core; alg="global_krylov", ...)
+ITensorMPS.orthogonalize!(expanded_core, 1)
+```
 
 ## API Documentation
 
@@ -104,39 +109,44 @@ to_hilbert
 
 ### Liouvillian builders
 
+!!! compat "Renamed Liouvillian constructors"
+    `OpSum_Liouville`, `MPO_Liouville`, and
+    `liouvillian_propagator_itensor` are deprecated aliases of
+    `liouvillian_opsum`, `liouvillian_mpo`, and `liouvillian_propagator`.
+    Prefer the new names; the aliases will be removed in a later `0.3+`
+    release after the migration window.
+
 ```@docs
-OpSum_Liouville(::OpSum)
-OpSum_Liouville(::OpSum, ::Tuple{<:Number,<:AbstractString,<:Integer})
-OpSum_Liouville(::OpSum, ::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}})
-OpSum_Liouville(::OpSum, ::OpSum)
-OpSum_Liouville(::OpSum, ::AbstractVector{<:OpSum})
+liouvillian_opsum(::OpSum)
+liouvillian_opsum(::OpSum, ::Tuple{<:Number,<:AbstractString,<:Integer})
+liouvillian_opsum(::OpSum, ::AbstractVector{<:Tuple{<:Number,<:AbstractString,<:Integer}})
+liouvillian_opsum(::OpSum, ::OpSum)
+liouvillian_opsum(::OpSum, ::AbstractVector{<:OpSum})
 ```
 
 ```@docs
-MPO_Liouville(::OpSum, ::AbstractVector{<:Index})
-MPO_Liouville(::OpSum, ::Any, ::AbstractVector{<:Index})
+liouvillian_mpo(::OpSum, ::AbstractVector{<:Index})
+liouvillian_mpo(::OpSum, ::Any, ::AbstractVector{<:Index})
 ```
 
 ```@docs
-liouvillian_propagator_itensor
+liouvillian_propagator
 ```
 
 ### Process tensors
 
 ```@docs
 ProcessTensor
-AbstractPTBuilder
 Dense
 ```
 
 ```@docs
-generate_pt_legs
 input_sites
 output_sites
 coupling_times
 coupling_sites
 default_schedule
-all_pt_legs_contracted
+isfullycontracted
 open_leg_info
 ```
 
@@ -168,6 +178,9 @@ two_time_correlation_seq
 AbstractSystem
 SpinSystem
 BosonSystem
+```
+
+```@docs
 spin_system
 boson_system
 ```
@@ -181,6 +194,9 @@ SpinMode
 AbstractBath
 BosonicBath
 SpinBath
+```
+
+```@docs
 bosonic_mode
 spin_mode
 bosonic_bath
@@ -206,13 +222,29 @@ TwoLegInstrument
 
 ```@docs
 StatePreparation
-state_preparation
 ObservableMeasurement
-observable_measurement
 TraceOut
-trace_out
 LeftRightOperator
+UnitaryPropagation
+IdentityOperation
+OpenOutput
+OpenInput
+OpenInOut
+CustomTwoLegInstrument
+ProductInstrument
+```
+
+```@docs
+state_preparation
+observable_measurement
+trace_out
 left_right_operator
+unitary_propagation
+identity_operation
+open_output
+open_input
+open_inout
+custom_twoleg_instrument
 ```
 
 ```@docs
@@ -223,25 +255,19 @@ right_action(::OpSum, ::AbstractVector{<:Index})
 ```
 
 ```@docs
-UnitaryPropagation
-unitary_propagation
-IdentityOperation
-identity_operation
-OpenOutput
-open_output
-OpenInput
-open_input
-OpenInOut
-open_inout
-ProductInstrument
-CustomTwoLegInstrument
-custom_twoleg_instrument
 InstrumentSeq
-resolve_instrument
 add!
-instrument_leg_maps
-instrument_itensor
-create_instruments
+```
+
+Schedule inspection and advanced dense materialisation live in the Instruments
+submodule. Ordinary workflows keep schedules lazy and call `evaluate_process` /
+`evolve`; the names below are for explicit materialisation and diagnostics:
+
+```@docs
+ProcessTensors.Instruments.resolve_instrument
+ProcessTensors.Instruments.instrument_leg_maps
+ProcessTensors.Instruments.instrument_itensor
+ProcessTensors.Instruments.create_instruments
 ```
 
 ### Time evolution
@@ -250,6 +276,25 @@ create_instruments
 tebd(::AbstractMPS{Hilbert}, ::OpSum, ::Real, ::Real)
 tebd(::AbstractMPS{Liouville}, ::OpSum, ::Real, ::Real)
 tdvp
+```
+
+Algorithm selectors come from upstream ITensors:
+
+```julia
+using ITensors.Ops: Exact, Trotter
+
+tebd(psi, H, dt, T; alg=Trotter{2}())
+liouvillian_propagator(H, sites_L, dt; alg=Exact())
+```
+
+Advanced gate construction is available by qualification (not root-exported):
+
+```julia
+gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
+U, final_out = ProcessTensors.propagator_itensor_from_gates(gates, sites_L)
+```
+
+```@docs
 trotter_gates
 propagator_itensor_from_gates
 ```

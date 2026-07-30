@@ -6,7 +6,7 @@
 #
 # Provides MPS constructor helpers that forward to ITensorMPS and wrap results.
 
-import ITensorMPS: outer, projector, state
+import ITensorMPS: outer, projector
 
 """
     random_mps(args...; kwargs...) -> MPS{Hilbert}
@@ -25,5 +25,18 @@ random_mps(sites::Vector{<:Index}, state; kwargs...) = MPS{Hilbert}(ITensorMPS.r
 random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}; kwargs...) = MPS{Hilbert}(ITensorMPS.random_mps(eltype, sites; kwargs...))
 random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}, state; kwargs...) = MPS{Hilbert}(ITensorMPS.random_mps(eltype, sites, state; kwargs...))
 
-outer(m1::AbstractMPS, m2::AbstractMPS; kwargs...) = MPO{Hilbert}(ITensorMPS.outer(m1.core, m2.core; kwargs...))
-projector(m::AbstractMPS; kwargs...) = MPO{Hilbert}(ITensorMPS.projector(m.core; kwargs...))
+"""
+    outer(m1::AbstractMPS, m2::AbstractMPS; kwargs...) -> MPO{Hilbert}
+
+Construct the outer-product MPO of two ProcessTensors MPS wrappers.
+"""
+outer(m1::AbstractMPS, m2::AbstractMPS; kwargs...) =
+    MPO{Hilbert}(outer(m1.core, m2.core; kwargs...))
+
+"""
+    projector(m::AbstractMPS; kwargs...) -> MPO{Hilbert}
+
+Construct the projector MPO ``|m\\rangle\\langle m|`` from an MPS wrapper.
+"""
+projector(m::AbstractMPS; kwargs...) =
+    MPO{Hilbert}(projector(m.core; kwargs...))
