@@ -26,6 +26,10 @@ include("networks/indices.jl")
 include("networks/algebra.jl")
 include("networks/observables.jl")
 
+# Terminal feedback
+
+include("terminal/progress.jl")
+
 # MPS and MPO construction
 
 include("mps/constructors.jl")

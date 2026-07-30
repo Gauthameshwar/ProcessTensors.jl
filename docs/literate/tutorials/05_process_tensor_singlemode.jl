@@ -681,6 +681,13 @@ println(corr)
 @assert corr isa ComplexF64
 @assert isfinite(real(corr))
 
+# !!! info "Monitoring long runs"
+#     Larger baths and longer schedules benefit from live progress feedback.
+#     For a dynamic spinner animation and progress bars during CPU-heavy steps, use
+#     at least two threads in your julia command: `julia --project=. -t 2` when 
+#     launching Julia. See [Advanced Usage](@ref) for execution modes, verbose logging, 
+#     threading, and recommended setups.
+
 # ### Summary
 #
 # In this tutorial, we learned that:

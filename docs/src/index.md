@@ -146,6 +146,7 @@ expectation = evaluate_process(pt, seq)
 | Time-dependent Hamiltonians                 | [Laser-driven TDVP dynamics](examples/laser_driven_tdvp.md)         |
 | Multimode baths and multi-time correlations | [Spin-bath process tensor](examples/spin_bath_process_tensor.md)   |
 | End-to-end scripts                          | [Examples](examples/tebd_time_evolution.md)                           |
+| Progress, verbose output, and threading     | [Advanced Usage](advanced_usage.md)                                  |
 | Function reference                          | [API Reference](api.md)                                              |
 
 !!! note "Examples"

@@ -10,12 +10,17 @@
 # Run with:
 #   julia --project=. test/runtests.jl
 
+# Keep progress=:auto silent during local and CI test runs.
+get!(ENV, "CI", "true")
+
 using ProcessTensors
 using Test
 using Aqua
 
 # Fast vs full test runs: set `JULIA_PROCESSTENSORS_RUN_SLOW=false` to skip slow ED / QO suites.
 const JULIA_PROCESSTENSORS_RUN_SLOW = get(ENV, "JULIA_PROCESSTENSORS_RUN_SLOW", "true") == "true"
+
+include(joinpath(@__DIR__, "terminal", "test_progress.jl"))
 
 @testset "Aqua.jl: Code quality checks" begin
     Aqua.test_all(ProcessTensors; piracies=false)

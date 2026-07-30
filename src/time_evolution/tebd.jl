@@ -124,7 +124,7 @@ function _tebd_loop(
     T::Real;
     maxdim::Int=typemax(Int),
     cutoff::Real=1e-8,
-    verbose::Bool=false,
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
 )
     function nsteps(T_duration::Real, dt_step::Real; atol=1e-12, rtol=1e-12)
         dt_step > 0 || throw(ArgumentError("dt must be positive; got dt=$dt_step."))
@@ -137,19 +137,20 @@ function _tebd_loop(
 
     N_steps = nsteps(T, dt)
     ψ = copy(state)
-    for step in 1:N_steps
-        ψ = apply(gates, ψ; cutoff=cutoff, maxdim=maxdim)
-        if verbose
-            χ_max = maxlinkdim(ψ)
-            println("TEBD step $step / $N_steps  |  max bond dim = $χ_max")
+    @progress_bar run "Advancing TEBD steps" N_steps begin
+        for step in 1:N_steps
+            ψ = apply(gates, ψ; cutoff=cutoff, maxdim=maxdim)
+            @progress_update run step (t=step * dt, maxlinkdim=maxlinkdim(ψ))
         end
     end
     return ψ
 end
 
 """
-    tebd(state::AbstractMPS{Hilbert}, H, dt, T; alg=Trotter{2}(), maxdim, cutoff, verbose)
-    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim, cutoff, verbose)
+    tebd(state::AbstractMPS{Hilbert}, H, dt, T; alg=Trotter{2}(), maxdim, cutoff,
+         progress=:auto, verbose=false)
+    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim,
+         cutoff, progress=:auto, verbose=false)
 
 Time-evolve an MPS for total time `T` in steps of `dt` using TEBD.
 
@@ -181,14 +182,34 @@ function tebd(
     alg=Trotter{2}(),
     maxdim::Int=typemax(Int),
     cutoff::Real=1e-8,
+    progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
-    gates = trotter_gates(H, siteinds(state), -im * dt; alg=alg)
-    return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
+    started = time()
+    run = @progress_start progress verbose "TEBD evolution" (
+        total_time=T,
+        dt=dt,
+        space=:Hilbert,
+    )
+    try
+        @progress_stage run "Constructing Trotter gates"
+        gates = trotter_gates(H, siteinds(state), -im * dt; alg=alg)
+        result = _tebd_loop(state, gates, dt, T; maxdim, cutoff, run)
+        @progress_stage run "Completed TEBD evolution" (
+            maxdim=maxdim,
+            cutoff=cutoff,
+            final_maxlinkdim=maxlinkdim(result),
+            elapsed_seconds=(time() - started),
+        )
+        return result
+    finally
+        @progress_finish run
+    end
 end
 
 """
-    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim, cutoff, verbose)
+    tebd(state::AbstractMPS{Liouville}, H, dt, T; jump_ops=[], alg=Trotter{2}(), maxdim,
+         cutoff, progress=:auto, verbose=false)
 
 Liouville-space overload: see the main [`tebd`](@ref) docstring.
 """
@@ -201,9 +222,28 @@ function tebd(
     alg=Trotter{2}(),
     maxdim::Int=typemax(Int),
     cutoff::Real=1e-8,
+    progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
-    L = liouvillian_opsum(H, jump_ops)
-    gates = trotter_gates(L, siteinds(state), dt; alg=alg)
-    return _tebd_loop(state, gates, dt, T; maxdim, cutoff, verbose)
+    started = time()
+    run = @progress_start progress verbose "TEBD evolution" (
+        total_time=T,
+        dt=dt,
+        space=:Liouville,
+    )
+    try
+        L = liouvillian_opsum(H, jump_ops)
+        @progress_stage run "Constructing Trotter gates"
+        gates = trotter_gates(L, siteinds(state), dt; alg=alg)
+        result = _tebd_loop(state, gates, dt, T; maxdim, cutoff, run)
+        @progress_stage run "Completed TEBD evolution" (
+            maxdim=maxdim,
+            cutoff=cutoff,
+            final_maxlinkdim=maxlinkdim(result),
+            elapsed_seconds=(time() - started),
+        )
+        return result
+    finally
+        @progress_finish run
+    end
 end

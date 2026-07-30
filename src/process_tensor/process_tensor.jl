@@ -89,6 +89,32 @@ function Base.setproperty!(pt::ProcessTensor, sym::Symbol, val)
 end
 
 
+function _environment_summary(environment)
+    if environment === nothing
+        return "none"
+    elseif environment isa AbstractBath
+        env = environment
+        nmodes = length(env.modes)
+        d_bath = isempty(env.sites) ? 1 : prod(dim.(env.sites))
+        has_coupling = !isempty(terms(env.coupling)) ||
+            any(!isempty(terms(m.coupling)) for m in env.modes)
+        return string(
+            nameof(typeof(env)),
+            "(nmodes=", nmodes, ", D_bath=", d_bath, ", coupling=", has_coupling, ")",
+        )
+    else
+        return string(typeof(environment))
+    end
+end
+
+struct _InfoText
+    text::String
+end
+
+Base.show(io::IO, item::_InfoText) = print(io, item.text)
+
+_info_text(value::AbstractString) = _InfoText(value)
+
 function Base.show(io::IO, pt::ProcessTensor)
     S, E = typeof(pt).parameters
     t_final = pt.dt * pt.nsteps
@@ -100,18 +126,7 @@ function Base.show(io::IO, pt::ProcessTensor)
     nsites = length(pt.system.sites)
     println(io, "  system:      ", nameof(S), "(nsites=", nsites, ", dissipative=", !isempty(pt.system.jump_ops), ")")
     print(io, "  environment: ")
-    if pt.environment === nothing
-        println(io, "none")
-    elseif pt.environment isa AbstractBath
-        env = pt.environment
-        nmodes = length(env.modes)
-        d_bath = isempty(env.sites) ? 1 : prod(dim.(env.sites))
-        has_coupling = !isempty(terms(env.coupling)) ||
-            any(!isempty(terms(m.coupling)) for m in env.modes)
-        println(io, nameof(typeof(env)), "(nmodes=", nmodes, ", D_bath=", d_bath, ", coupling=", has_coupling, ")")
-    else
-        println(io, typeof(pt.environment))
-    end
+    println(io, _environment_summary(pt.environment))
     ldims = Int[d for d in linkdims(pt.core) if d !== nothing]
     print(io, "  core:        MPO{Liouville}(length=", length(pt.core), ", linkdims=")
     if isempty(ldims)

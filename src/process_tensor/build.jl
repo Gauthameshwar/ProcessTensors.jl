@@ -19,6 +19,7 @@ function _build_process_tensor_cores(
     nsteps::Int,
     alg,
     sys_alg,
+    run,
 )
     throw(ArgumentError("build_process_tensor: process-tensor builder $(typeof(method)) is not implemented."))
 end
@@ -32,6 +33,7 @@ function _build_process_tensor_cores(
     nsteps::Int,
     alg,
     sys_alg,
+    run,
 )
     if environment === nothing
         return _build_trivial_pt_cores(
@@ -39,6 +41,7 @@ function _build_process_tensor_cores(
             coupling_site,
             dt,
             nsteps,
+            run=run,
         )
     end
 
@@ -57,6 +60,7 @@ function _build_process_tensor_cores(
             bath_coupling=bath.coupling,
             alg=alg,
             sys_alg=sys_alg,
+            run=run,
         )
     end
     return _build_multimode_pt_cores(
@@ -67,12 +71,14 @@ function _build_process_tensor_cores(
         nsteps;
         alg=alg,
         sys_alg=sys_alg,
+        run=run,
     )
 end
 
 """
     build_process_tensor(system, coupling_site; method=Dense(), environment=nothing,
-                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}())
+                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}(),
+                         progress=:auto, verbose=false)
 
 Build a single-coupling-site process tensor.
 
@@ -93,6 +99,9 @@ System propagation is always embedded in each process-tensor slab. Insert
 additional unitary control maps with [`UnitaryPropagation`](@ref) rather than
 building a process tensor without system propagation.
 
+`progress` provides live progress feedback on the terminal; `verbose=true` prints persistent
+structured `@info` records suitable for headless runs.
+
 # Examples
 ```julia
 pt = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8)
@@ -108,6 +117,8 @@ function build_process_tensor(
     nsteps::Integer,
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    progress::Union{Bool,Symbol}=:auto,
+    verbose::Bool=false,
 )
     nsteps_int = Int(nsteps)
     nsteps_int >= 1 || throw(ArgumentError("A process tensor requires at least one timestep; got $nsteps."))
@@ -119,23 +130,40 @@ function build_process_tensor(
     )
     ProcessTensors._validate_sys_alg(sys_alg)
 
-    cores = _build_process_tensor_cores(
-        method,
-        system,
-        coupling_site;
-        environment=environment,
-        dt=dt,
+    started = time()
+    run = @progress_start progress verbose "Building process tensor" (
+        method=_info_text(string(nameof(typeof(method)))),
         nsteps=nsteps_int,
-        alg=alg,
-        sys_alg=sys_alg,
+        dt=dt,
+        environment=_info_text(_environment_summary(environment)),
     )
-
-    return ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps_int, coupling_site)
+    try
+        cores = _build_process_tensor_cores(
+            method,
+            system,
+            coupling_site;
+            environment=environment,
+            dt=dt,
+            nsteps=nsteps_int,
+            alg=alg,
+            sys_alg=sys_alg,
+            run=run,
+        )
+        pt = ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps_int, coupling_site)
+        @progress_stage run "Built process tensor" (
+            maxlinkdim=maxlinkdim(pt.core),
+            elapsed_seconds=(time() - started),
+        )
+        return pt
+    finally
+        @progress_finish run
+    end
 end
 
 """
     build_process_tensor(system; method=Dense(), environment=nothing,
-                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}())
+                         dt, nsteps, alg=Exact(), sys_alg=Trotter{1}(),
+                         progress=:auto, verbose=false)
 
 Build a process tensor for a single-site system by using its only Liouville
 site as the coupling site.
@@ -148,6 +176,8 @@ function build_process_tensor(
     nsteps::Integer,
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    progress::Union{Bool,Symbol}=:auto,
+    verbose::Bool=false,
 )
     length(system.sites) == 1 || throw(
         ArgumentError(
@@ -163,5 +193,7 @@ function build_process_tensor(
         nsteps=nsteps,
         alg=alg,
         sys_alg=sys_alg,
+        progress=progress,
+        verbose=verbose,
     )
 end

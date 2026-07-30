@@ -101,12 +101,17 @@ function _build_trivial_pt_cores(
     coupling_site::Index,
     dt::Real,
     nsteps::Int;
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...,
 )
     cores = ITensor[]
-    for k in 0:(nsteps - 1)
-        in_k, out_k = _generate_pt_legs(coupling_site, k)
-        push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
+        for k in 0:(nsteps - 1)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
+            push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
+            step = k + 1
+            @progress_update run step
+        end
     end
     return cores
 end
@@ -124,6 +129,7 @@ function _build_bathmode_pt_cores(
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
     _validate_sys_alg(sys_alg)
@@ -140,6 +146,8 @@ function _build_bathmode_pt_cores(
     # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
+
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
     U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
@@ -148,24 +156,26 @@ function _build_bathmode_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    for k in 0:(nsteps - 1)
-        in_k, out_k = _generate_pt_legs(coupling_site, k)
-        push!(inputs, in_k)
-        push!(outputs, out_k)
-        left = bath_links[k + 1]
-        right = bath_links[k + 2]
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
+        for k in 0:(nsteps - 1)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
+            push!(inputs, in_k)
+            push!(outputs, out_k)
+            left = bath_links[k + 1]
+            right = bath_links[k + 2]
 
-        core_k = replaceind(U_ref, prime(env_liouv), right)
-        core_k = replaceind(core_k, env_liouv, left)
-        core_k = replaceind(core_k, prime(coupling_site), in_k)
-        core_k = replaceind(core_k, coupling_site, out_k)
-        push!(cores, core_k)
+            core_k = replaceind(U_ref, prime(env_liouv), right)
+            core_k = replaceind(core_k, env_liouv, left)
+            core_k = replaceind(core_k, prime(coupling_site), in_k)
+            core_k = replaceind(core_k, coupling_site, out_k)
+            cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
+            push!(cores, cores_k)
+            step = k + 1
+            @progress_update run step
+        end
     end
-    for k in 0:(nsteps - 1)
-        cores[k + 1] = _embed_system_map(
-            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
-        )
-    end
+
+    @progress_stage run "Closing bath boundaries"
     # Contract the first and last bath links with the initial bath state and the trace out
     initial_bath_state = Instruments.instrument_itensor(state_preparation(bathmode.rho0), [bath_links[1]'], 0)
     noprime!(initial_bath_state)
@@ -186,6 +196,7 @@ function _build_multimode_pt_cores(
     nsteps::Int;
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
     _validate_sys_alg(sys_alg)
@@ -235,6 +246,7 @@ function _build_multimode_pt_cores(
     end
     joint_ops += environment.coupling
 
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
     U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
 
     bath_sites = collect(sites_vec[1:(end - 1)])
@@ -251,25 +263,26 @@ function _build_multimode_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    for k in 0:(nsteps - 1)
-        in_k, out_k = _generate_pt_legs(coupling_site, k)
-        push!(inputs, in_k)
-        push!(outputs, out_k)
-        left = bath_links[k + 1]
-        right = bath_links[k + 2]
+    @progress_bar run "Assembling process-tensor cores" nsteps begin
+        for k in 0:(nsteps - 1)
+            in_k, out_k = _generate_pt_legs(coupling_site, k)
+            push!(inputs, in_k)
+            push!(outputs, out_k)
+            left = bath_links[k + 1]
+            right = bath_links[k + 2]
 
-        core_k = replaceind(U_ref, prime(coupling_site), in_k)
-        core_k = replaceind(core_k, coupling_site, out_k)
-        core_k = replaceind(core_k, fused_left, left)
-        core_k = replaceind(core_k, fused_right, right)
-        push!(cores, core_k)
-    end
-    for k in 0:(nsteps - 1)
-        cores[k + 1] = _embed_system_map(
-            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
-        )
+            core_k = replaceind(U_ref, prime(coupling_site), in_k)
+            core_k = replaceind(core_k, coupling_site, out_k)
+            core_k = replaceind(core_k, fused_left, left)
+            core_k = replaceind(core_k, fused_right, right)
+            cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
+            push!(cores, cores_k)
+            step = k + 1
+            @progress_update run step
+        end
     end
 
+    @progress_stage run "Closing bath boundaries"
     bath_state = ITensor(1.0)
     for mode in modes
         site = only(mode.sites)
