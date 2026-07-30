@@ -132,7 +132,7 @@ end
     end
 
     @testset "raw write branches and cursor helpers" begin
-        # IOStream path: POSIX write through a temporary file descriptor.
+        # IOStream path: OS write through a temporary file descriptor.
         mktemp() do path, io
             ProcessTensors._raw_write!(io, "iostream-bytes")
             flush(io)
@@ -151,55 +151,61 @@ end
         # Non-TTY endpoints refuse to hide the cursor.
         @test ProcessTensors._hide_cursor!(IOBuffer()) == false
 
-        # Real TTY endpoints hide and restore the cursor. Prefer a PTY slave so
-        # headless CI still covers the Base.TTY branch when /dev/tty is absent.
-        tty_covered = false
-        master = ccall(:posix_openpt, Cint, (Cint,), 2) # O_RDWR
-        if master >= 0
-            try
-                if ccall(:grantpt, Cint, (Cint,), master) == 0 &&
-                   ccall(:unlockpt, Cint, (Cint,), master) == 0
-                    name_ptr = ccall(:ptsname, Cstring, (Cint,), master)
-                    if name_ptr != C_NULL
-                        slave = ccall(:open, Cint, (Cstring, Cint), name_ptr, 2)
-                        if slave >= 0
-                            tty = Base.TTY(RawFD(slave))
-                            try
-                                @test tty isa Base.TTY
-                                # `_raw_write!` routes non-stdout TTY endpoints to
-                                # fd 2; capture stderr so ANSI codes stay out of
-                                # the test runner log.
-                                mktemp() do _, sink
-                                    redirect_stderr(sink) do
-                                        @test ProcessTensors._hide_cursor!(tty) == true
-                                        ProcessTensors._show_cursor!(tty)
+        if Sys.isunix()
+            # Real TTY endpoints hide and restore the cursor. Prefer a PTY slave
+            # so headless CI still covers the Base.TTY branch when /dev/tty is
+            # absent. PTY helpers are POSIX-only.
+            tty_covered = false
+            master = ccall(:posix_openpt, Cint, (Cint,), 2) # O_RDWR
+            if master >= 0
+                try
+                    if ccall(:grantpt, Cint, (Cint,), master) == 0 &&
+                       ccall(:unlockpt, Cint, (Cint,), master) == 0
+                        name_ptr = ccall(:ptsname, Cstring, (Cint,), master)
+                        if name_ptr != C_NULL
+                            slave = ccall(:open, Cint, (Cstring, Cint), name_ptr, 2)
+                            if slave >= 0
+                                tty = Base.TTY(RawFD(slave))
+                                try
+                                    @test tty isa Base.TTY
+                                    # `_raw_write!` routes non-stdout TTY endpoints
+                                    # to fd 2; capture stderr so ANSI codes stay
+                                    # out of the test runner log.
+                                    mktemp() do _, sink
+                                        redirect_stderr(sink) do
+                                            @test ProcessTensors._hide_cursor!(tty) == true
+                                            ProcessTensors._show_cursor!(tty)
+                                        end
                                     end
+                                    tty_covered = true
+                                finally
+                                    close(tty)
                                 end
-                                tty_covered = true
-                            finally
-                                close(tty)
                             end
                         end
                     end
+                finally
+                    ccall(:close, Cint, (Cint,), master)
                 end
-            finally
-                ccall(:close, Cint, (Cint,), master)
             end
-        end
-        if !tty_covered && ispath("/dev/tty")
-            try
-                open("/dev/tty"; write=true) do tty
-                    if tty isa Base.TTY
-                        @test ProcessTensors._hide_cursor!(tty) == true
-                        ProcessTensors._show_cursor!(tty)
-                        tty_covered = true
+            if !tty_covered && ispath("/dev/tty")
+                try
+                    open("/dev/tty"; write=true) do tty
+                        if tty isa Base.TTY
+                            @test ProcessTensors._hide_cursor!(tty) == true
+                            ProcessTensors._show_cursor!(tty)
+                            tty_covered = true
+                        end
                     end
+                catch err
+                    @info "Skipping TTY cursor hide/show coverage" exception = err
                 end
-            catch err
-                @info "Skipping TTY cursor hide/show coverage" exception = err
             end
+            @test tty_covered
+        else
+            # Windows CI has no POSIX PTY API; keep the non-TTY contract covered.
+            @test ProcessTensors._hide_cursor!(IOBuffer()) == false
         end
-        @test tty_covered
     end
 
     @testset "sticky thread spawn helper" begin

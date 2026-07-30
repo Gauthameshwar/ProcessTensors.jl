@@ -36,10 +36,6 @@ function _render_spinner_line(
     return string(glyph, ' ', header, "    Time: ", _format_elapsed(time() - started))
 end
 
-# Write bytes without Julia's libuv-backed print/flush path.
-#
-# `print`/`flush` on stderr are serviced on the main thread and can block for the
-# whole duration of a BLAS foreign call (same failure mode as `Base.sleep`).
 # POSIX `write(2)` does not. `IOBuffer` (unit tests) keeps the normal `write`
 # path so output stays capturable.
 function _raw_write!(io::IO, bytes::AbstractVector{UInt8})
@@ -47,14 +43,22 @@ function _raw_write!(io::IO, bytes::AbstractVector{UInt8})
         write(io, bytes)
         return nothing
     end
+    # `Base.fd` returned `Int` before Julia 1.12 and `RawFD` afterwards.
+    # `RawFD(...)` normalizes both, and `RawFD` may be passed directly to ccall.
     fd = if io === stdout
-        Cint(1)
+        RawFD(1)
     elseif io isa IOStream
-        Cint(Base.fd(io))
+        RawFD(Base.fd(io))
     else
-        Cint(2) # stderr and TTY endpoints
+        RawFD(2) # stderr and TTY endpoints
     end
-    ccall(:write, Cssize_t, (Cint, Ptr{UInt8}, Csize_t), fd, bytes, Csize_t(length(bytes)))
+    # Prefer the OS write syscall over libuv-backed print/flush. Windows exposes
+    # this as `_write`; POSIX systems use `write(2)`.
+    @static if Sys.iswindows()
+        ccall(:_write, Cint, (RawFD, Ptr{UInt8}, Cuint), fd, bytes, Cuint(length(bytes)))
+    else
+        ccall(:write, Cssize_t, (RawFD, Ptr{UInt8}, Csize_t), fd, bytes, Csize_t(length(bytes)))
+    end
     return nothing
 end
 
