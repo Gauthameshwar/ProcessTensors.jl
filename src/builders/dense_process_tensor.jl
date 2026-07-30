@@ -119,20 +119,17 @@ end
 joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
-# Build one PT core per timestep by embedding a joint bath(+coupling) propagator and retaining one bath memory link.
-function _build_bathmode_pt_cores(
-    system::AbstractSystem,
+# Bath-only core assembly for one mode: joint bath(+coupling) propagator per timestep with the initial bath state and trace-out contracted onto the boundary memory links.
+function _build_bathmode_cores_no_sys(
     coupling_site::Index,
     bathmode::AbstractBathMode,
     dt::Real,
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
-    sys_alg=Trotter{1}(),
     run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
-    _validate_sys_alg(sys_alg)
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
     )
@@ -140,10 +137,10 @@ function _build_bathmode_pt_cores(
     d_env = dim(env_liouv)
     d_sys = dim(coupling_site)
     d_joint = d_env * d_sys
-    _validate_dense_liouville_budget(d_joint; context="_build_bathmode_pt_cores")
+    _validate_dense_liouville_budget(d_joint; context="_build_bathmode_cores_no_sys")
 
     coupling_term = bathmode.coupling == OpSum() ? bath_coupling : bathmode.coupling
-    # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
+    # Joint bath(+coupling) cores only; free-system maps are fused separately.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
 
@@ -168,8 +165,7 @@ function _build_bathmode_pt_cores(
             core_k = replaceind(core_k, env_liouv, left)
             core_k = replaceind(core_k, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
-            cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
-            push!(cores, cores_k)
+            push!(cores, core_k)
             step = k + 1
             @progress_update run step
         end
@@ -184,6 +180,37 @@ function _build_bathmode_pt_cores(
     cores[1] *= initial_bath_state
     cores[end] *= bath_trace
 
+    return cores, inputs, outputs
+end
+
+# Build one PT core per timestep by embedding a joint bath(+coupling) propagator and retaining one bath memory link.
+function _build_bathmode_pt_cores(
+    system::AbstractSystem,
+    coupling_site::Index,
+    bathmode::AbstractBathMode,
+    dt::Real,
+    nsteps::Int;
+    bath_coupling::OpSum=OpSum(),
+    alg=Exact(),
+    sys_alg=Trotter{1}(),
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
+    kwargs...
+)
+    _validate_sys_alg(sys_alg)
+    cores, inputs, outputs = _build_bathmode_cores_no_sys(
+        coupling_site,
+        bathmode,
+        dt,
+        nsteps;
+        bath_coupling=bath_coupling,
+        alg=alg,
+        run=run,
+    )
+    for k in 0:(nsteps - 1)
+        cores[k + 1] = _embed_system_map(
+            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
+        )
+    end
     return cores
 end
 

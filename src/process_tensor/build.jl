@@ -20,6 +20,7 @@ function _build_process_tensor_cores(
     alg,
     sys_alg,
     run,
+    combine_alg=Trotter{1}(),
 )
     throw(ArgumentError("build_process_tensor: process-tensor builder $(typeof(method)) is not implemented."))
 end
@@ -34,6 +35,7 @@ function _build_process_tensor_cores(
     alg,
     sys_alg,
     run,
+    combine_alg=Trotter{1}(),
 )
     if environment === nothing
         return _build_trivial_pt_cores(
@@ -75,10 +77,39 @@ function _build_process_tensor_cores(
     )
 end
 
+function _build_process_tensor_cores(
+    method::ACE,
+    system::AbstractSystem,
+    coupling_site::Index;
+    environment::Union{Nothing,AbstractBath},
+    dt::Real,
+    nsteps::Int,
+    alg,
+    sys_alg,
+    run,
+    combine_alg=Trotter{1}(),
+)
+    if environment === nothing || isempty(environment.modes)
+        return _build_trivial_pt_cores(system, coupling_site, dt, nsteps; run=run)
+    end
+    return _build_ace_pt_cores(
+        method,
+        system,
+        coupling_site,
+        environment;
+        dt=dt,
+        nsteps=nsteps,
+        alg=alg,
+        sys_alg=sys_alg,
+        combine_alg=combine_alg,
+        run=run,
+    )
+end
+
 """
     build_process_tensor(system, coupling_site; method=Dense(), environment=nothing,
                          dt, nsteps, alg=Exact(), sys_alg=Trotter{1}(),
-                         progress=:auto, verbose=false)
+                         combine_alg=Trotter{1}(), progress=:auto, verbose=false)
 
 Build a single-coupling-site process tensor.
 
@@ -88,12 +119,16 @@ bath, and instruments so later contractions match by exact index identity.
 
 `method` selects the process-tensor construction backend. The default
 [`Dense`](@ref) backend builds exact joint-Liouville cores for no-bath,
-single-mode, and small multimode environments.
+single-mode, and small multimode environments. The [`ACE`](@ref) backend joins
+independent bath modes sequentially and compresses the memory bonds after each
+join.
 
 `alg` selects how the joint bath(+coupling) slab is built. `sys_alg` selects the
 *timestep sandwich order* of free-system maps around that bath core
 (`Trotter{1}()` asymmetric ``Q·M(Δt)``, `Trotter{2}()` symmetric
-``M(Δt/2)·Q·M(Δt/2)``). 
+``M(Δt/2)·Q·M(Δt/2)``). For `method=ACE()`, `combine_alg` selects how each new
+mode is joined onto the accumulated process tensor (`Trotter{1}()` same-``Δt``
+join, `Trotter{2}()` symmetric half-``Δt`` join).
 
 System propagation is always embedded in each process-tensor slab. Insert
 additional unitary control maps with [`UnitaryPropagation`](@ref) rather than
@@ -106,6 +141,10 @@ structured `@info` records suitable for headless runs.
 ```julia
 pt = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8)
 pt_sym = build_process_tensor(system, coupling_site; dt=0.1, nsteps=8, sys_alg=Trotter{2}())
+pt_ace = build_process_tensor(
+    system, coupling_site;
+    method=ACE(cutoff=1e-10), environment=bath, dt=0.1, nsteps=8, combine_alg=Trotter{2}(),
+)
 ```
 """
 function build_process_tensor(
@@ -117,6 +156,7 @@ function build_process_tensor(
     nsteps::Integer,
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    combine_alg=Trotter{1}(),
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
@@ -148,6 +188,7 @@ function build_process_tensor(
             alg=alg,
             sys_alg=sys_alg,
             run=run,
+            combine_alg=combine_alg,
         )
         pt = ProcessTensor(CoreMPO(cores), system, environment, dt, nsteps_int, coupling_site)
         @progress_stage run "Built process tensor" (
@@ -163,7 +204,7 @@ end
 """
     build_process_tensor(system; method=Dense(), environment=nothing,
                          dt, nsteps, alg=Exact(), sys_alg=Trotter{1}(),
-                         progress=:auto, verbose=false)
+                         combine_alg=Trotter{1}(), progress=:auto, verbose=false)
 
 Build a process tensor for a single-site system by using its only Liouville
 site as the coupling site.
@@ -176,6 +217,7 @@ function build_process_tensor(
     nsteps::Integer,
     alg=Exact(),
     sys_alg=Trotter{1}(),
+    combine_alg=Trotter{1}(),
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
@@ -193,6 +235,7 @@ function build_process_tensor(
         nsteps=nsteps,
         alg=alg,
         sys_alg=sys_alg,
+        combine_alg=combine_alg,
         progress=progress,
         verbose=verbose,
     )

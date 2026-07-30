@@ -138,6 +138,7 @@ liouvillian_propagator
 ```@docs
 ProcessTensor
 Dense
+ACE
 ```
 
 ```@docs
