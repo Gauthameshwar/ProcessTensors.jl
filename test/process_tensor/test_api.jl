@@ -18,6 +18,7 @@ using Test
 @testset "API surface: process-tensor names and fields" begin
     @test :ProcessTensor ∈ names(ProcessTensors)
     @test :Dense ∈ names(ProcessTensors)
+    @test :ACE ∈ names(ProcessTensors)
     @test :isfullycontracted ∈ names(ProcessTensors)
     @test :open_leg_info ∈ names(ProcessTensors)
     @test :two_time_correlation_seq ∈ names(ProcessTensors)
@@ -32,7 +33,11 @@ using Test
     @test :all_pt_legs_contracted ∉ names(ProcessTensors)
     @test nameof(ProcessTensor) == :ProcessTensor
     @test nameof(Dense) == :Dense
+    @test nameof(ACE) == :ACE
     @test Dense() isa ProcessTensors.AbstractPTBuilder
+    @test ACE() isa ProcessTensors.AbstractPTBuilder
+    @test ACE(; cutoff=1e-12, maxdim=64).cutoff == 1e-12
+    @test ACE(; cutoff=1e-12, maxdim=64).maxdim == 64
 
     # Removed field-accessor sugar is not part of the public API.
     for name in (
