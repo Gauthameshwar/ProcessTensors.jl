@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **`ACE(; cutoff, maxdim)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit.
 
+### Changed
+
+* **`evolve`** takes each intermediate reduced state via a separate `evaluate_process` schedule so SVD-compressed ACE memory bonds stay correctly contracted.
+
 ## v0.2.0 - 2026-08-01
 
 ### Breaking
@@ -42,7 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* **`evolve` takes each intermediate reduced state via a separate `evaluate_process` schedule**. 
 * Internalised Liouvillian OpSum builders as unexported `_build_liouvillian_opsum*` helpers.
 * **`instrument_leg_maps`** dispatches from schedule slots without requiring a `ProcessTensor`.
 * **`create_instruments`** rewrites the schedule, then materializes every slot through `instrument_itensor`.
