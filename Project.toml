@@ -1,7 +1,7 @@
 name = "ProcessTensors"
 uuid = "359c2eb2-a0cb-447a-868d-92de414ddc78"
 authors = ["Gauthameshwar <gauthameshwar_s@mymail.sutd.edu.sg> and contributors"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 ITensorMPS = "0d1a4710-d33b-49a5-8f18-73bdf49b47e2"
