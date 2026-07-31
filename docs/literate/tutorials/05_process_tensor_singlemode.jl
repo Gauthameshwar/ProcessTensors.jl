@@ -708,9 +708,8 @@ println(corr)
 # - lazy instruments defer materialization until contraction; use
 #   `instrument_itensor` and `CustomTwoLegInstrument` for dense control,
 #
-# The examples section takes these same concepts further:
-#
-# - time-dependent Hamiltonians,
-# - two-time and multi-time correlations,
-# - multimode process tensors,
-# - custom interventions and causal breaks.
+# !!! related "Related examples"
+#     - [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) —
+#       single- and multimode process-tensor construction
+#     - [Multi-time correlations](../examples/multitime_correlations.md) —
+#       sequential two-time correlators on a reusable process tensor

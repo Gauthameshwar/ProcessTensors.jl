@@ -498,6 +498,15 @@ println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
 # - trace, Hermiticity, and positivity are the basic sanity checks for
 #   dissipative density-matrix dynamics.
 #
+# !!! related "Related material"
+#     - Theory: [Quantum States and Liouville Space](../theory/liouville_space.md)
+#     - [Dissipative spin chain](../examples/dissipative_spin.md) — bulk amplitude
+#       damping with Liouville TEBD
+#     - [Boundary-driven spin chain](../examples/boundary_driven_spin_chain.md) —
+#       opposing edge reservoirs and spin current with Liouville TDVP
+#     - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md)
+#       — midpoint Liouville TDVP with a time-dependent pump and local loss
+#
 # The next tutorial, [Single-Mode Process Tensor](@ref), moves beyond fixed
 # Markovian Liouvillian generators. Process tensors describe reduced dynamics
 # with memory, where the environment cannot be compressed into a time-local list

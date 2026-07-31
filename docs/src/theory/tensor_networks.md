@@ -286,6 +286,14 @@ In particular, later pages will explain how `ProcessTensors.jl` uses tensor netw
 
 The goal is not to replace `ITensorMPS.jl`, but to extend its style of computation toward open quantum systems and non-Markovian processes.
 
+!!! related "Related tutorials and examples"
+    | Topic | Page |
+    | ----- | ---- |
+    | Named indices and contractions | [ITensor Basics](@ref) |
+    | Hilbert-space MPS / MPO | [MPS and MPO Basics](@ref) |
+    | Density matrices in Liouville space | [Liouville-Space Basics](@ref), [Quantum States and Liouville Space](liouville_space.md) |
+    | Closed TEBD / TDVP | [Unitary Dynamics](@ref), [TEBD time evolution](../examples/tebd_time_evolution.md), [TDVP time evolution](../examples/tdvp_time_evolution.md) |
+
 ## Further reading
 
 This page only provides the vocabulary needed for the rest of the documentation. For a more detailed read, check out the resources below.

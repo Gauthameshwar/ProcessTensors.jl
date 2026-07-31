@@ -63,6 +63,14 @@ Choose a path that suits you best:
 !!! tip "Theory pages"
     Use the theory section as a convention dictionary, not as a prerequisite course for every tutorial.
 
+!!! tip "Performance and feedback (Advanced Usage)"
+    Long runs such as `build_process_tensor`, `evolve`, `evaluate_process`, and `tebd` support
+    `progress` and `verbose` keywords. To maximise performance in benchmarks, parameter sweeps,
+    or HPC jobs, disable transient progress bars (`progress=false`) and choose whether you want
+    durable milestone logs (`verbose=true`) or a silent run (`verbose=false`). See
+    [Advanced Usage](advanced_usage.md) for the recommended combinations, threading notes, and
+    demo scripts under `scripts/terminal/`.
+
 ---
 
 ## Quick start
@@ -136,6 +144,8 @@ expectation = evaluate_process(pt, seq)
 | Goal                                        | Page                                                                 |
 | ------------------------------------------- | -------------------------------------------------------------------- |
 | Open-system / Lindblad evolution            | [Dissipative Dynamics](tutorials/dissipative_dynamics.md)            |
+| Bulk-dissipative spin chain                 | [Dissipative spin chain](examples/dissipative_spin.md)               |
+| Boundary-driven transport                   | [Boundary-driven spin chain](examples/boundary_driven_spin_chain.md) |
 | Driven dissipative bosons                   | [Driven-dissipative Bose–Hubbard](examples/driven_dissipative_bose_hubbard.md) |
 | Process tensors, baths, and instruments     | [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md) |
 | Package setup                               | [Installation](installation.md)                                      |
@@ -151,7 +161,9 @@ expectation = evaluate_process(pt, seq)
 | Function reference                          | [API Reference](api.md)                                              |
 
 !!! note "Examples"
-    Example pages are model-oriented scripts and variations. Some advanced cards still point to runnable scripts while fuller Literate walkthroughs are being developed.
+    Example pages are model-oriented Literate walkthroughs with companion scripts under `scripts/`.
+    Start from the tutorial that matches the physics, then open the corresponding example for a
+    larger lattice or a driven variant.
 
 ---
 
