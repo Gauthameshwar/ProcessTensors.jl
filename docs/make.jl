@@ -78,6 +78,7 @@ const LITERATE_EXAMPLES = [
     ("tebd_time_evolution.jl", "tebd_time_evolution", "TEBD time evolution"),
     ("tdvp_time_evolution.jl", "tdvp_time_evolution", "TDVP time evolution"),
     ("laser_driven_tdvp.jl", "laser_driven_tdvp", "Laser-driven TDVP dynamics"),
+    ("driven_dissipative_bose_hubbard.jl", "driven_dissipative_bose_hubbard", "Driven-dissipative Bose–Hubbard"),
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
@@ -89,7 +90,7 @@ const EXAMPLE_GROUPS = [
     ]),
     ("Dissipative dynamics", [
         ("Dissipative spin", "dissipative_spin"),
-        ("Dissipative boson cavity", "dissipative_boson_cavity"),
+        ("Driven-dissipative Bose–Hubbard", "driven_dissipative_bose_hubbard"),
         ("Boundary-driven chain", "boundary_driven_spin_chain"),
     ]),
     ("Driven systems", [
@@ -152,6 +153,7 @@ stage_example_figures([
     "tdvp_tfim_unitary_liouville_energy_drift.png",
     "tdvp_tfim_unitary_liouville_rho_error.png",
     "laser_driven_tdvp.png",
+    "driven_dissipative_bose_hubbard.png",
     "pt_tfim_singlemode.png",
     "pt_tfim_multimode.png",
     "pt_multitime_correlations.png",

@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Terminal progress and verbose logging** available with the kwargs `progress=:auto|true|false` and `verbose=true|false`
   for `build_process_tensors`, `create_instruments`, `evaluate_process`, `evolve`, and `tebd`. 
 * **Laser-driven midpoint TDVP example** with a callable `OpSum` drive and density plots.
+* **Driven-dissipative Bose–Hubbard example** with midpoint Liouville TDVP, local loss,
+  and a multi-``U`` occupation comparison figure.
 * **`OpenInput` / `OpenInOut`** bookkeeping instruments (aliases: `open_input`, `open_inout`).
 * **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs before contraction.
 * **`instrument_leg_maps(pt, seq)`** thin overload of the seq-first canonical API.

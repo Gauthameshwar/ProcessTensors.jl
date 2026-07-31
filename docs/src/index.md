@@ -136,6 +136,7 @@ expectation = evaluate_process(pt, seq)
 | Goal                                        | Page                                                                 |
 | ------------------------------------------- | -------------------------------------------------------------------- |
 | Open-system / Lindblad evolution            | [Dissipative Dynamics](tutorials/dissipative_dynamics.md)            |
+| Driven dissipative bosons                   | [Driven-dissipative Bose–Hubbard](examples/driven_dissipative_bose_hubbard.md) |
 | Process tensors, baths, and instruments     | [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md) |
 | Package setup                               | [Installation](installation.md)                                      |
 | Physics conventions and notation            | [Theory: Hilbert and Liouville Space](theory/liouville_space.md)     |

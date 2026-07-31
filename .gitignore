@@ -19,6 +19,7 @@ notes/*
 /docs/src/examples/tebd_time_evolution.md
 /docs/src/examples/tdvp_time_evolution.md
 /docs/src/examples/laser_driven_tdvp.md
+/docs/src/examples/driven_dissipative_bose_hubbard.md
 /docs/src/examples/spin_bath_process_tensor.md
 /docs/src/examples/multitime_correlations.md
 
