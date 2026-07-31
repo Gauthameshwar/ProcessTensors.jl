@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Driven-dissipative Bose–Hubbard · ProcessTensors.jl</title><meta name="title" content="Driven-dissipative Bose–Hubbard · ProcessTensors.jl"/><meta property="og:title" content="Driven-dissipative Bose–Hubbard · ProcessTensors.jl"/><meta property="twitter:title" content="Driven-dissipative Bose–Hubbard · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/driven_dissipative_bose_hubbard/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/driven_dissipative_bose_hubbard/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/driven_dissipative_bose_hubbard/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox" checked/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin chain</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven spin chain</a></li><li class="is-active"><a class="tocitem" href>Driven-dissipative Bose–Hubbard</a><ul class="internal"><li><a class="tocitem" href="#Model"><span>Model</span></a></li><li><a class="tocitem" href="#Midpoint-Liouville-TDVP"><span>Midpoint Liouville TDVP</span></a></li><li><a class="tocitem" href="#Physical-response"><span>Physical response</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox"/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Dissipative dynamics</a></li><li class="is-active"><a href>Driven-dissipative Bose–Hubbard</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Driven-dissipative Bose–Hubbard</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/driven_dissipative_bose_hubbard.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Driven-dissipative-Bose–Hubbard-dynamics"><a class="docs-heading-anchor" href="#Driven-dissipative-Bose–Hubbard-dynamics">Driven-dissipative Bose–Hubbard dynamics</a><a id="Driven-dissipative-Bose–Hubbard-dynamics-1"></a><a class="docs-heading-anchor-permalink" href="#Driven-dissipative-Bose–Hubbard-dynamics" title="Permalink"></a></h1><p>This example simulates an open bosonic chain with a smoothly switched-on coherent pump and local particle loss. Its main purpose is to show that the same function-based approach used for a time-dependent Hamiltonian extends directly to dissipative dynamics:</p><ol><li>evaluate the physical Hamiltonian at the midpoint of the current interval,</li><li>combine it with the fixed jump operators to construct a Liouvillian MPO,</li><li>evolve the vectorized density matrix with ordinary two-site TDVP.</li></ol><p>We compare several onsite interaction strengths while keeping the pump, hopping, and loss fixed. This simple example shows the competing behavior of pumping and particle loss in a bosonic lattice.</p><div class="admonition is-category-related" id="Related-material-7c5f48e487734db8"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-7c5f48e487734db8" title="Permalink"></a></header><div class="admonition-body"><ul><li>Tutorial: <a href="../../tutorials/dissipative_dynamics/#Dissipative-Dynamics">Dissipative Dynamics</a> for Lindblad / Liouville TDVP</li><li>Theory: <a href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li>Performance tips for long TDVP runs: <a href="../../advanced_usage/#Advanced-Usage">Advanced Usage</a></li></ul></div></div><div class="admonition is-category-script" id="Companion-script-69a50cb8590e48e6"><header class="admonition-header">Companion script<a class="admonition-anchor" href="#Companion-script-69a50cb8590e48e6" title="Permalink"></a></header><div class="admonition-body"><p>Advanced figures for the driven-dissipative Bose–Hubbard scan are generated by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/driven_dissipative_bose_hubbard.jl"><code>scripts/driven_dissipative_bose_hubbard.jl</code></a>.</p></div></div><h2 id="Model"><a class="docs-heading-anchor" href="#Model">Model</a><a id="Model-1"></a><a class="docs-heading-anchor-permalink" href="#Model" title="Permalink"></a></h2><p>In a frame rotating with the coherent pump,</p><p class="math-container">\[H(t)
+=
+-J\sum_{j=1}^{N-1}
+\left(
+a_j^\dagger a_{j+1}
++
+a_{j+1}^\dagger a_j
+\right)
+-\Delta\sum_{j=1}^{N}n_j
++\frac{U}{2}\sum_{j=1}^{N}n_j(n_j-1)
++F(t)\sum_{j=1}^{N}\left(a_j+a_j^\dagger\right),\]</p><p>where <span>$J$</span> is the hopping strength, <span>$U$</span> is the onsite interaction, <span>$\Delta$</span> is the pump detuning, and <span>$F(t)$</span> is the time-dependent coherent pump amplitude. This model is widely used as a minimal description of driven nonlinear cavity arrays and other interacting bosonic open systems.</p><p>The pump term does not add particles incoherently. Instead, it drives a phase-coherent displacement of every bosonic mode. Starting from vacuum, it raises the occupation of the lattice while hopping redistributes particles and the onsite interaction makes multiple occupation increasingly costly.</p><p>Local one-particle loss is described by</p><p class="math-container">\[\frac{d\rho}{dt}
+=
+-i[H(t),\rho]
++
+\kappa\sum_{j=1}^{N}\mathcal{D}[a_j]\rho .\]</p><p>with</p><p class="math-container">\[\mathcal{D}[a_j]\rho
+=
+a_j\rho a_j^\dagger
+- \frac{1}{2}\left(a_j^\dagger a_j \rho + \rho a_j^\dagger a_j\right).\]</p><h3 id="Parameters-and-setup"><a class="docs-heading-anchor" href="#Parameters-and-setup">Parameters and setup</a><a id="Parameters-and-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters-and-setup" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Printf
+using ITensors
+using ProcessTensors
+
+const N = 4
+const local_dim = 3
+const hopping = 0.5
+const detuning = 0.0
+const interaction = 0.75
+const pump_strength = 0.30
+const ramp_time = 0.6
+const loss_rate = 0.8
+const dt = 0.1
+const final_time = 5.0
+const maxdim = 60
+const cutoff = 1e-10
+
+physical_sites = siteinds(&quot;Boson&quot;, N; dim=local_dim, conserve_qns=false)
+liouville_sites = liouv_sites(physical_sites)
+
+initial_state = MPS(physical_sites, fill(&quot;0&quot;, N))
+initial_density = to_dm(initial_state)
+initial_density_liouville =
+    to_liouville(initial_density; sites=liouville_sites)</code></pre><pre><code class="nohighlight hljs">4-element MPS{Liouville}
+  site dims: 9, 9, 9, 9
+  link dims: 1, 1, 1
+  maxlinkdim: 1
+  combiners: 4 ITensors
+
+  tensors:
+    [1] ((dim=1|id=427|&quot;Link,l=1&quot;), (dim=9|id=300|&quot;Liouv,Site,n=1,ptype=Boson&quot;))
+    [2] ((dim=1|id=840|&quot;Link,l=2&quot;), (dim=1|id=427|&quot;Link,l=1&quot;), (dim=9|id=245|&quot;Liouv,Site,n=2,ptype=Boson&quot;))
+    [3] ((dim=1|id=965|&quot;Link,l=3&quot;), (dim=1|id=840|&quot;Link,l=2&quot;), (dim=9|id=336|&quot;Liouv,Site,n=3,ptype=Boson&quot;))
+    [4] ((dim=1|id=965|&quot;Link,l=3&quot;), (dim=9|id=0|&quot;Liouv,Site,n=4,ptype=Boson&quot;))
+</code></pre><p>The tuple convention <code>(rate, operator, site)</code> adds <code>rate * D[operator_site]</code> to the Liouvillian. These jump operators remain unchanged while the Hamiltonian is rebuilt in time.</p><pre><code class="language-julia hljs">loss_jump_operators = [
+    (loss_rate, &quot;A&quot;, j) for j in 1:N
+]</code></pre><pre><code class="nohighlight hljs">4-element Vector{Tuple{Float64, String, Int64}}:
+ (0.8, &quot;A&quot;, 1)
+ (0.8, &quot;A&quot;, 2)
+ (0.8, &quot;A&quot;, 3)
+ (0.8, &quot;A&quot;, 4)</code></pre><p>We monitor only the mean occupation,</p><p class="math-container">\[\bar n(t)
+=
+\frac{1}{N}\sum_{j=1}^{N}\operatorname{Tr}[n_j\rho(t)],\]</p><p>to observe the dynamics of the system under driven pumping. Vectorizing the observable lets us evaluate it directly through the Hilbert–Schmidt inner product with the Liouville-space density MPS. (link back to the theory section where this was stated)</p><pre><code class="language-julia hljs">mean_occupation_operator = let observable = OpSum()
+    for j in 1:N
+        observable += 1 / N, &quot;N&quot;, j
+    end
+    observable
+end
+
+mean_occupation_mpo = MPO(mean_occupation_operator, physical_sites)
+mean_occupation_liouville =
+    to_liouville(mean_occupation_mpo; sites=liouville_sites)
+
+@assert isapprox(real(tr(initial_density)), 1.0; atol=1e-12)</code></pre><h3 id="Time-dependent-Hamiltonian"><a class="docs-heading-anchor" href="#Time-dependent-Hamiltonian">Time-dependent Hamiltonian</a><a id="Time-dependent-Hamiltonian-1"></a><a class="docs-heading-anchor-permalink" href="#Time-dependent-Hamiltonian" title="Permalink"></a></h3><p>We use</p><p class="math-container">\[F(t)
+=
+F_0\left[
+1-\exp\left(-\frac{t^2}{2\tau^2}\right)
+\right].\]</p><p>The pump begins at zero and smoothly approaches <span>$F_0$</span>. Unlike a pulse that later switches off, this protocol lets the occupation rise and settle under the continued competition between driving and loss. Calling <code>driven_bose_hubbard_hamiltonian(t)</code> returns the <code>OpSum</code> at time <code>t</code>. The interaction uses <span>$n(n-1)=n^2-n$</span>.</p><pre><code class="language-julia hljs">pump_amplitude(t::Real) =
+    pump_strength * (
+        1 - exp(-(t^2) / (2 * ramp_time^2))
+    )
+
+function driven_bose_hubbard_hamiltonian(t::Real)
+    pump = pump_amplitude(t)
+    H = OpSum()
+    for j in 1:(N - 1)
+        H += -hopping, &quot;Adag&quot;, j, &quot;A&quot;, j + 1
+        H += -hopping, &quot;A&quot;, j, &quot;Adag&quot;, j + 1
+    end
+    for j in 1:N
+        H += -detuning, &quot;N&quot;, j
+        H += interaction / 2, &quot;N&quot;, j, &quot;N&quot;, j
+        H += -interaction / 2, &quot;N&quot;, j
+        H += pump, &quot;A&quot;, j
+        H += pump, &quot;Adag&quot;, j
+    end
+    return H
+end
+
+H_final_linear =
+    driven_bose_hubbard_hamiltonian(final_time)
+L_final_linear = liouvillian_mpo(
+    H_final_linear,
+    liouville_sites;
+    jump_ops=loss_jump_operators,
+)
+@assert length(L_final_linear) == N</code></pre><h2 id="Midpoint-Liouville-TDVP"><a class="docs-heading-anchor" href="#Midpoint-Liouville-TDVP">Midpoint Liouville TDVP</a><a id="Midpoint-Liouville-TDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Midpoint-Liouville-TDVP" title="Permalink"></a></h2><p>The vectorized density matrix obeys</p><p class="math-container">\[\frac{d}{dt}|\rho(t)\rangle\rangle
+=
+\mathcal{L}(t)|\rho(t)\rangle\rangle .\]</p><p>On each interval <span>$[t_n,t_n+\Delta t]$</span>, we construct</p><p class="math-container">\[\mathcal{L}_{n+\frac12}
+=
+\mathcal{L}\left(t_n+\frac{\Delta t}{2}\right)\]</p><p>and hold that Liouvillian fixed for one two-site TDVP step. The timestep is the real duration <code>dt</code> because the Hamiltonian factor <span>$-i$</span> is already included in the Liouvillian.</p><p>The complete workflow of this is <code>OpSum</code> → <code>liouvillian_mpo</code> → <code>tdvp</code> for each timestep.</p><pre><code class="language-julia hljs">nsteps = round(Int, final_time / dt)
+times = collect(range(0.0; step=dt, length=nsteps + 1))
+
+trajectory = let
+    density = copy(initial_density_liouville)
+    occupations = Float64[]
+    trace_errors = Float64[]
+    bond_dimensions = Int[]
+
+    for step in eachindex(times)
+        density_trace = tr(to_hilbert(density))
+        push!(
+            occupations,
+            real(inner(mean_occupation_liouville, density) / density_trace),
+        )
+        push!(trace_errors, abs(density_trace - 1))
+        push!(bond_dimensions, maxlinkdim(density))
+
+        step == length(times) &amp;&amp; continue
+
+        midpoint = times[step] + dt / 2
+        L_mid = liouvillian_mpo(
+            driven_bose_hubbard_hamiltonian(midpoint),
+            liouville_sites;
+            jump_ops=loss_jump_operators,
+        )
+        density = tdvp(
+            L_mid,
+            dt,
+            density;
+            time_step=dt,
+            nsite=2,
+            maxdim=maxdim,
+            cutoff=cutoff,
+            outputlevel=0,
+        )
+    end
+
+    (
+        occupations=occupations,
+        trace_errors=trace_errors,
+        bond_dimensions=bond_dimensions,
+    )
+end
+
+@assert all(isfinite, trajectory.occupations)
+@assert all(
+    n -&gt; -1e-8 ≤ n ≤ local_dim - 1 + 1e-8,
+    trajectory.occupations,
+)
+
+max_trace_error = maximum(trajectory.trace_errors)
+@assert max_trace_error &lt; 1e-2
+if max_trace_error &gt; 5e-4
+    @warn &quot;Trace drift exceeds the soft example tolerance.&quot; max_trace_error=max_trace_error
+end
+
+println(&quot;Driven-dissipative Bose–Hubbard (single U)&quot;)
+@printf(&quot;  U = %.3f, final n̄ = %.6f\n&quot;, interaction, trajectory.occupations[end])
+@printf(&quot;  max trace error = %.3e\n&quot;, max_trace_error)
+@printf(&quot;  max bond dim    = %d\n&quot;, maximum(trajectory.bond_dimensions))</code></pre><pre><code class="nohighlight hljs">Driven-dissipative Bose–Hubbard (single U)
+  U = 0.750, final n̄ = 0.188502
+  max trace error = 3.314e-04
+  max bond dim    = 30
+</code></pre><h2 id="Physical-response"><a class="docs-heading-anchor" href="#Physical-response">Physical response</a><a id="Physical-response-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-response" title="Permalink"></a></h2><p>The script-generated figure places the common pump turn-on above the mean occupation curves for all three interaction strengths. Becayse every run uses the same drive, hopping, and loss, differences between them isolate the effect of on-site interaction.</p><p><img src="../../assets/examples/driven_dissipative_bose_hubbard.png" alt="Pump amplitude and mean occupation for several interaction strengths"/></p><p>Initially, there are no particles in the lattice. As the pump turns on, it raises the particle number, and reaches a constant pump ratefor a brief time-window. However, as the time progresses, local loss prevents unbounded growth, thus plateauing to a constant particle occupation. The on-site interaction strength plays an important role in deciding the final particle occupation. If the interaction strength is too strong, the cost of adding more bosons to a site increases, thus leading to a lower final particle occupation. If there is no interaction, the particle excitations caused by hopping are not in good resonance with the pump. The lossy bosonic system, therefore, has the largest particle occupation at an intermediate interaction strength.</p><div class="admonition is-info" id="Numerical-accuracy-c42bd72adf3b6dd6"><header class="admonition-header">Numerical accuracy<a class="admonition-anchor" href="#Numerical-accuracy-c42bd72adf3b6dd6" title="Permalink"></a></header><div class="admonition-body"><p>The main approximations are the midpoint timestep, the local bosonic cutoff <code>local_dim - 1</code>, TDVP projection, and two-site truncation controlled by <code>cutoff</code> and <code>maxdim</code>. The printed trace error is a compact diagnostic for the Liouville-space evolution.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-67426dc5b3c92df5"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-67426dc5b3c92df5" title="Permalink"></a></header><div class="admonition-body"><ul><li>A Julia function returning an <code>OpSum</code> is enough to define <span>$H(t)$</span>.</li><li>Rebuild the midpoint Liouvillian from that <code>OpSum</code> and fixed jump operators.</li><li>Mean occupation and trace drift expose the driven-loss response.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../boundary_driven_spin_chain/">« Boundary-driven spin chain</a><a class="docs-footer-nextpage" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 31 July 2026 16:40">Friday 31 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
