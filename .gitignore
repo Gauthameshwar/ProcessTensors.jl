@@ -16,13 +16,9 @@ notes/*
 !/docs/src/tutorials/README.md
 
 # Literate-generated example pages (source: docs/literate/examples/*.jl)
-/docs/src/examples/tebd_time_evolution.md
-/docs/src/examples/tdvp_time_evolution.md
-/docs/src/examples/dissipative_spin.md
-/docs/src/examples/laser_driven_tdvp.md
-/docs/src/examples/driven_dissipative_bose_hubbard.md
-/docs/src/examples/spin_bath_process_tensor.md
-/docs/src/examples/multitime_correlations.md
+/docs/src/examples/*.md
+# Keep the hand-written instrument-sequences stub until it is Literate-migrated.
+!/docs/src/examples/instrument_sequences.md
 
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/

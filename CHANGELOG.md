@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a multi-``U`` occupation comparison figure.
 * **Dissipative spin-chain example** with Liouville-space TEBD, observe excitations, transverse-field,
  and Trotter-order dense-reference figures.
+* **Boundary-driven XXZ transport example** with Liouville-space TDVP, opposing
+  edge reservoirs, and a mean-current / magnetisation / bond-current figure.
 * **`OpenInput` / `OpenInOut`** bookkeeping instruments (aliases: `open_input`, `open_inout`).
 * **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs before contraction.
 * **`instrument_leg_maps(pt, seq)`** thin overload of the seq-first canonical API.

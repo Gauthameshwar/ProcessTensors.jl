@@ -1,0 +1,309 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
+# SPDX-License-Identifier: MIT #src
+# #src
+# File: docs/literate/examples/boundary_driven_spin_chain.jl #src
+# Contributor: Gauthameshwar S. #src
+# #src
+# Demonstrates spin transport in a boundary-driven XXZ chain using #src
+# Liouville-space TDVP. #src
+
+# # Boundary-driven spin transport
+#
+# A closed spin chain merely redistributes magnetisation already present in the
+# system. To observe sustained transport, we instead attach two reservoirs that favour
+# opposite edge polarisations. The left reservoir tries to polarise the first
+# spin upward, the right reservoir tries to polarise the final spin downward,
+# and the chain must continuously carry spin between them.
+#
+# This boundary-driven setup is a standard nonequilibrium open-system model. It
+# produces three readable signatures:
+#
+# - a spin current that grows from zero,
+# - a magnetisation profile across the chain,
+# - an approximately uniform current once the bulk stops accumulating
+#   magnetisation.
+#
+# The implementation is correspondingly compact:
+#
+# 1. define the XXZ Hamiltonian as a physical `OpSum`;
+# 2. encode the two reservoirs with four boundary `jump_ops`;
+# 3. build one Liouvillian MPO;
+# 4. evolve the vectorized density matrix with two-site TDVP.
+#
+# The companion script
+# [`scripts/boundary_driven_xxz_transport.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/boundary_driven_xxz_transport.jl)
+# repeats the same baths for ``\Delta=0``, ``0.5``, and ``1.0`` and plots the
+# mean bond current, magnetisation profile, and bond-current profile. This page
+# keeps a single ``\Delta=0.5`` run executable.
+
+# ## Model and physical scales
+#
+# We use the spin-``1/2`` XXZ Hamiltonian
+#
+# ```math
+# H
+# =
+# J\sum_{j=1}^{N-1}
+# \left(
+# S_j^x S_{j+1}^x
+# +
+# S_j^y S_{j+1}^y
+# +
+# \Delta S_j^z S_{j+1}^z
+# \right).
+# ```
+#
+# The ``XY`` terms move spin between neighbouring sites, while ``\Delta`` sets
+# the interaction anisotropy. The density matrix obeys
+#
+# ```math
+# \frac{d\rho}{dt}
+# =
+# -i[H,\rho]
+# +
+# \sum_k \mathcal{D}[L_k]\rho ,
+# ```
+#
+# with opposing boundary reservoirs
+#
+# ```math
+# L_{1,+}=\sqrt{\Gamma(1+\mu)}\,S_1^+,
+# \qquad
+# L_{1,-}=\sqrt{\Gamma(1-\mu)}\,S_1^-,
+# ```
+#
+# ```math
+# L_{N,+}=\sqrt{\Gamma(1-\mu)}\,S_N^+,
+# \qquad
+# L_{N,-}=\sqrt{\Gamma(1+\mu)}\,S_N^-.
+# ```
+#
+# Here, the parameter ``\mu`` controls the bias between the left and right reservoirs, 
+# with its range restricted to ``-1 \leq \mu \leq 1`` .
+# An isolated left spin would approach ``\langle S_1^z\rangle=\mu/2``; an
+# isolated right spin would approach ``\langle S_N^z\rangle=-\mu/2``. Their
+# disagreement drives the chain away from equilibrium.
+#
+# Because the bulk Hamiltonian conserves total ``S^z``, the local magnetisation
+# ``m_j=\langle S_j^z\rangle`` obeys a lattice continuity equation. The bond
+# current consistent with ``H`` is
+#
+# ```math
+# \mathcal{J}_j
+# =
+# J\left(
+# S_j^x S_{j+1}^y
+# -
+# S_j^y S_{j+1}^x
+# \right).
+# ```
+#
+# We start from ``|\mathrm{Dn}\cdots\mathrm{Dn}\rangle`` and report the final
+# magnetisation profile together with the mean and standard deviation of the
+# bond currents.
+
+# ### Parameters and operators
+
+using Printf
+using Statistics: mean, std
+using ITensors
+using ProcessTensors
+
+const N = 4
+const J = 1.0
+const Δ = 0.5
+const Γ = 1.0
+const μ = 0.4
+const dt = 0.1
+const final_time = 8.0
+const maxdim = 64
+const cutoff = 1e-10
+
+physical_sites = siteinds("S=1/2", N)
+liouville_sites = liouv_sites(physical_sites)
+
+hamiltonian = let H = OpSum()
+    for j in 1:(N - 1)
+        H += J, "Sx", j, "Sx", j + 1
+        H += J, "Sy", j, "Sy", j + 1
+        H += J * Δ, "Sz", j, "Sz", j + 1
+    end
+    H
+end
+
+# Package jump tuples use the dissipative rate itself, not its square root, so
+# the factors written under the square roots above enter as `Γ * (1 ± μ)`.
+
+jump_operators = [
+    (Γ * (1 + μ), "S+", 1),
+    (Γ * (1 - μ), "S-", 1),
+    (Γ * (1 - μ), "S+", N),
+    (Γ * (1 + μ), "S-", N),
+]
+
+initial_state = MPS(physical_sites, fill("Dn", N))
+initial_density = to_dm(initial_state)
+initial_density_liouville =
+    to_liouville(initial_density; sites=liouville_sites)
+
+liouvillian = liouvillian_mpo(
+    hamiltonian,
+    liouville_sites;
+    jump_ops=jump_operators,
+)
+
+magnetisation_ops = [
+    let observable = OpSum()
+        observable += 1.0, "Sz", j
+        to_liouville(MPO(observable, physical_sites); sites=liouville_sites)
+    end for j in 1:N
+]
+
+current_ops = [
+    let observable = OpSum()
+        observable += J, "Sx", j, "Sy", j + 1
+        observable += -J, "Sy", j, "Sx", j + 1
+        to_liouville(MPO(observable, physical_sites); sites=liouville_sites)
+    end for j in 1:(N - 1)
+]
+
+@assert isapprox(real(tr(initial_density)), 1.0; atol=1e-12)
+
+# ## Liouville-space TDVP
+#
+# Vectorization turns the master equation into
+#
+# ```math
+# \frac{d}{dt}|\rho(t)\rangle\rangle
+# =
+# \mathcal L|\rho(t)\rangle\rangle .
+# ```
+#
+# The Liouvillian is time-independent, so we build it once and advance with
+# two-site TDVP. The evolution argument is the real interval `dt` because
+# `liouvillian_mpo` already includes the Hamiltonian factor ``-i``.
+
+nsteps = round(Int, final_time / dt)
+times = collect(range(0.0; step=dt, length=nsteps + 1))
+@assert isapprox(nsteps * dt, final_time; atol=100eps(Float64))
+
+# ### Time evolution
+#
+# At each stored time we record the mean bond current. The full magnetisation
+# and current profiles are evaluated once at the end.
+
+trajectory = let
+    density = copy(initial_density_liouville)
+    mean_current = Float64[]
+    trace_errors = Float64[]
+    bond_dimensions = Int[]
+
+    for step in eachindex(times)
+        density_trace = tr(to_hilbert(density))
+        bond_currents = [
+            real(inner(observable, density) / density_trace)
+            for observable in current_ops
+        ]
+        push!(mean_current, mean(bond_currents))
+        push!(trace_errors, abs(density_trace - 1))
+        push!(bond_dimensions, maxlinkdim(density))
+
+        step == length(times) && continue
+
+        density = tdvp(
+            liouvillian,
+            dt,
+            density;
+            time_step=dt,
+            nsite=2,
+            maxdim=maxdim,
+            cutoff=cutoff,
+            outputlevel=0,
+        )
+    end
+
+    density_trace = tr(to_hilbert(density))
+    magnetisation_profile = [
+        real(inner(observable, density) / density_trace)
+        for observable in magnetisation_ops
+    ]
+    current_profile = [
+        real(inner(observable, density) / density_trace)
+        for observable in current_ops
+    ]
+
+    (
+        mean_current=mean_current,
+        magnetisation_profile=magnetisation_profile,
+        current_profile=current_profile,
+        trace_errors=trace_errors,
+        bond_dimensions=bond_dimensions,
+    )
+end
+
+# ### Final diagnostics
+
+mean_bond_current = mean(trajectory.current_profile)
+std_bond_current = std(trajectory.current_profile; corrected=false)
+left_right_magnetisation =
+    first(trajectory.magnetisation_profile) - last(trajectory.magnetisation_profile)
+max_trace_error = maximum(trajectory.trace_errors)
+max_bond_dimension = maximum(trajectory.bond_dimensions)
+
+@assert all(isfinite, trajectory.mean_current)
+@assert all(isfinite, trajectory.magnetisation_profile)
+@assert all(isfinite, trajectory.current_profile)
+@assert all(value -> -0.5 - 1e-8 ≤ value ≤ 0.5 + 1e-8, trajectory.magnetisation_profile)
+@assert max_trace_error < 1e-2
+
+println("Boundary-driven XXZ spin chain")
+@printf("  N=%d, J=%.2f, Δ=%.2f, Γ=%.2f, μ=%.2f\n", N, J, Δ, Γ, μ)
+@printf("  simulated to t = %.2f\n", final_time)
+@printf("  final mean bond current = %.6f\n", mean_bond_current)
+@printf("  final bond-current std  = %.3e\n", std_bond_current)
+@printf("  final ⟨S₁ᶻ⟩ − ⟨Sₙᶻ⟩   = %.6f\n", left_right_magnetisation)
+@printf("  max trace error = %.3e, max bond dim = %d\n", max_trace_error, max_bond_dimension)
+
+# ## Transport response and numerical interpretation
+#
+# Starting from all `Dn`, every site begins at ``\langle S_j^z\rangle=-1/2``.
+# The left reservoir injects upward polarisation, so site ``1`` rises toward a
+# positive value, while the right reservoir keeps site ``N`` near a negative value. 
+# This left-to-right bias drives a nonzero spin current through the XXZ chain.
+# The mean bond current rises from zero during the transient and saturate to different
+# values for each ``Delta`` value in the later time, as it nears the steady state.
+#
+# At late times the magnetisation profile settles and the bond currents become
+# more uniform. Continuity then requires that spin entering one bond leave
+# through the next. The resulting state is a
+# nonequilibrium steady state maintained by the reservoirs, not an equilibrium
+# state of the XXZ Hamiltonian.
+#
+# ![Mean bond current, magnetisation profiles, and bond currents in the boundary-driven XXZ chain](../assets/examples/boundary_driven_xxz_transport.png)
+#
+# ### Sources of numerical error
+#
+# - **TDVP / truncation error:** two-site updates allow the Liouville-MPS bond
+#   dimension to grow. `cutoff` and `maxdim` control the discarded weight.
+# - **Finite timestep:** the real-time TDVP step approximates the short-time
+#   propagator generated by ``\mathcal L``.
+# - **Finite simulation window:** `final_time` may be shorter than the time
+#   needed for a fully uniform bond-current profile.
+#
+# Trace drift is a cheap diagnostic for the density-matrix evolution. The mean
+# and standard deviation of the final bond currents give a compact check of
+# spatial uniformity at the simulated time.
+#
+# !!! summary "Example takeaways"
+#     - Opposing boundary reservoirs turn a closed XXZ chain into a driven open
+#       system with a sustained spin current.
+#     - Four rate tuples encode the baths; the bulk remains an ordinary
+#       Hilbert-space `OpSum`.
+#     - The continuity current ``\mathcal J_j`` follows from the XXZ
+#       Hamiltonian and becomes approximately bond-independent once the bulk
+#       magnetisation stops changing.
+#     - Two-site Liouville TDVP evolves the vectorized density while allowing
+#       operator-space correlations generated by the drive to grow.
+#     - The final edge difference ``\langle S_1^z\rangle-\langle S_N^z\rangle``
+#       shows the spatial magnetisation bias; the mean and std of the bond
+#       currents summarize how much of that bias is transmitted.
