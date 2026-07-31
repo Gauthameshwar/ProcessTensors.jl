@@ -48,7 +48,7 @@ Install the current release from GitHub (the package is not yet on the General R
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.1.0")
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.2.0")
 ```
 
 For the latest development version on `main`:
