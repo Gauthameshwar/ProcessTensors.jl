@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Laser-driven midpoint TDVP example** with a callable `OpSum` drive and density plots.
 * **Driven-dissipative Bose–Hubbard example** with midpoint Liouville TDVP, local loss,
   and a multi-``U`` occupation comparison figure.
+* **Dissipative spin-chain example** with Liouville-space TEBD, observe excitations, transverse-field,
+ and Trotter-order dense-reference figures.
 * **`OpenInput` / `OpenInOut`** bookkeeping instruments (aliases: `open_input`, `open_inout`).
 * **`open_leg_info(pt, seq)`** reports claimed, missing, and open legs before contraction.
 * **`instrument_leg_maps(pt, seq)`** thin overload of the seq-first canonical API.
