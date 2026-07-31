@@ -1,0 +1,28 @@
+/* Custom Documenter admonitions for ProcessTensors.jl docs.
+ *
+ * Categories:
+ *   !!! script  — companion plotting / advanced-figure scripts (violet)
+ *   !!! related — suggested theory / tutorial / example reading (violet)
+ *
+ * Styled like built-in note/info/warning boxes: colored border + header text,
+ * transparent header background, default admonition body.
+ *
+ * Theme-prefixed selectors are required so dark-theme Documenter rules
+ * (`html.theme--documenter-dark .admonition { border-color: ... }`) do not
+ * override the violet border.
+ */
+
+.admonition.is-category-script,
+.admonition.is-category-related,
+html.theme--documenter-dark .admonition.is-category-script,
+html.theme--documenter-dark .admonition.is-category-related {
+  border-color: #9b6bdb;
+}
+
+.admonition.is-category-script > .admonition-header,
+.admonition.is-category-related > .admonition-header,
+html.theme--documenter-dark .admonition.is-category-script > .admonition-header,
+html.theme--documenter-dark .admonition.is-category-related > .admonition-header {
+  background-color: transparent;
+  color: #9b6bdb;
+}

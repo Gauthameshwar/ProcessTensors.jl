@@ -504,4 +504,10 @@ compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_de
 # - Liouville TDVP evolves `MPS{Liouville}` with `liouvillian_mpo`; pass `T`.
 # - Reuse `sites_L` across `to_liouville` and `liouvillian_mpo`.
 #
+# !!! related "Related examples"
+#     - [Laser-driven TDVP dynamics](../examples/laser_driven_tdvp.md) — time-dependent
+#       Hilbert-space midpoint TDVP
+#     - [TEBD time evolution](../examples/tebd_time_evolution.md) — Hilbert/Liouville TEBD comparison
+#     - [TDVP time evolution](../examples/tdvp_time_evolution.md) — Hilbert/Liouville TDVP comparison
+#
 # Next: [Dissipative Dynamics](@ref), where jump terms make Liouville space essential.

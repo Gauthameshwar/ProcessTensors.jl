@@ -294,7 +294,9 @@ The memory bond dimensions determine how much temporal correlation is stored. A 
     pt = build_process_tensor(system; environment, dt, nsteps)
     ```
 
-    See [Building the process tensor](@ref building-the-process-tensor) in [Single-Mode Process Tensor](@ref).
+    See [Building the process tensor](@ref building-the-process-tensor) in [Single-Mode Process Tensor](@ref),
+    and the [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) example for single-
+    and multimode constructions with companion plotting scripts.
 
 ### Instruments in process-tensor slots
 
@@ -493,6 +495,15 @@ The theory is the same regardless of the implementation details: the process ten
     Sequential measurement correlations are not automatically the same as theoretical operator correlations. Measurement backaction matters.
 
     A small memory bond does not always mean the process is Markovian. It may mean the non-Markovian memory is efficiently compressible.
+
+!!! related "Related tutorials and examples"
+    | Topic | Page |
+    | ----- | ---- |
+    | Liouville conventions | [Quantum States and Liouville Space](liouville_space.md) |
+    | Constructing and contracting a process tensor | [Single-Mode Process Tensor](@ref) |
+    | Spin bath, single- and multimode PT | [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) |
+    | Sequential two-time correlators | [Multi-time correlations](../examples/multitime_correlations.md) |
+    | Markovian open dynamics (contrast) | [Dissipative Dynamics](@ref), [Dissipative spin chain](../examples/dissipative_spin.md) |
 
 ## Further reading
 

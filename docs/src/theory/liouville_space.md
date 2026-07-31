@@ -675,6 +675,12 @@ In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R`
 
     See [Dissipative Dynamics](@ref) for a full Lindblad walkthrough and [dissipative Lindblad model](@ref dissipative-lindblad-mpo) for the `liouvillian_mpo` construction.
 
+    For larger runnable models after that tutorial, see:
+
+    - [Dissipative spin chain](../examples/dissipative_spin.md) — bulk amplitude damping with Liouville TEBD
+    - [Boundary-driven spin chain](../examples/boundary_driven_spin_chain.md) — opposing edge reservoirs and spin current with Liouville TDVP
+    - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md) — time-dependent pump plus local loss
+
 ### Hilbert-to-Liouville dictionary
 
 The following table summarises the main translations used throughout this documentation.
@@ -705,6 +711,17 @@ The following table summarises the main translations used throughout this docume
     ```
 
     See [Trace and expectation values](@ref liouville-trace-expectations) in [Liouville-Space Basics](@ref).
+
+!!! related "Related tutorials and examples"
+    | Topic | Page |
+    | ----- | ---- |
+    | Vectorisation and overlaps | [Liouville-Space Basics](@ref) |
+    | Closed TEBD / TDVP | [Unitary Dynamics](@ref) |
+    | Lindblad generators and open TEBD / TDVP | [Dissipative Dynamics](@ref) |
+    | Bulk dissipative TFIM | [Dissipative spin chain](../examples/dissipative_spin.md) |
+    | Boundary-driven XXZ transport | [Boundary-driven spin chain](../examples/boundary_driven_spin_chain.md) |
+    | Driven bosons with loss | [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md) |
+    | Non-Markovian reduced dynamics | [Process Tensors](process_tensors.md), [Single-Mode Process Tensor](@ref) |
 
 ## Further reading
 

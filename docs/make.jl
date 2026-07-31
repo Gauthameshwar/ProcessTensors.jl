@@ -78,6 +78,9 @@ const LITERATE_EXAMPLES = [
     ("tebd_time_evolution.jl", "tebd_time_evolution", "TEBD time evolution"),
     ("tdvp_time_evolution.jl", "tdvp_time_evolution", "TDVP time evolution"),
     ("laser_driven_tdvp.jl", "laser_driven_tdvp", "Laser-driven TDVP dynamics"),
+    ("dissipative_spin.jl", "dissipative_spin", "Dissipative spin chain"),
+    ("boundary_driven_spin_chain.jl", "boundary_driven_spin_chain", "Boundary-driven spin chain"),
+    ("driven_dissipative_bose_hubbard.jl", "driven_dissipative_bose_hubbard", "Driven-dissipative Bose–Hubbard"),
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
@@ -88,9 +91,9 @@ const EXAMPLE_GROUPS = [
         ("TDVP time evolution", "tdvp_time_evolution"),
     ]),
     ("Dissipative dynamics", [
-        ("Dissipative spin", "dissipative_spin"),
-        ("Dissipative boson cavity", "dissipative_boson_cavity"),
-        ("Boundary-driven chain", "boundary_driven_spin_chain"),
+        ("Dissipative spin chain", "dissipative_spin"),
+        ("Boundary-driven spin chain", "boundary_driven_spin_chain"),
+        ("Driven-dissipative Bose–Hubbard", "driven_dissipative_bose_hubbard"),
     ]),
     ("Driven systems", [
         ("Laser-driven TDVP dynamics", "laser_driven_tdvp"),
@@ -152,6 +155,10 @@ stage_example_figures([
     "tdvp_tfim_unitary_liouville_energy_drift.png",
     "tdvp_tfim_unitary_liouville_rho_error.png",
     "laser_driven_tdvp.png",
+    "tebd_tfim_dissipative_dynamics_nup.png",
+    "tebd_tfim_dissipative_dynamics_mx.png",
+    "boundary_driven_xxz_transport.png",
+    "driven_dissipative_bose_hubbard.png",
     "pt_tfim_singlemode.png",
     "pt_tfim_multimode.png",
     "pt_multitime_correlations.png",
@@ -172,7 +179,7 @@ makedocs(;
         canonical="https://Gauthameshwar.github.io/ProcessTensors.jl",
         edit_link="main",
         collapselevel=1,
-        assets=String[],
+        assets=String["assets/admonitions.css"],
     ),
     pages=[
         "Home" => "index.md",
