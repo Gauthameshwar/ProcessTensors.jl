@@ -1,0 +1,103 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish as a GitHub Release (e.g. v0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: Release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v[0-9]*) ;;
+            *)
+              echo "Tag must look like vX.Y.Z; got: $TAG" >&2
+              exit 1
+              ;;
+          esac
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.name }}
+          fetch-depth: 0
+
+      - name: Extract CHANGELOG section
+        id: notes
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          python3 <<'PY'
+          import os
+          import pathlib
+          import re
+          import sys
+
+          version = os.environ["VERSION"]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          # Match "## v0.2.0 - date", "## [0.2.0] - date", or "## [Unreleased] — v0.2.0".
+          patterns = [
+              rf"^##[ \t]+v{re.escape(version)}\b[^\n]*$",
+              rf"^##[ \t]+\[{re.escape(version)}\][^\n]*$",
+              rf"^##[ \t]+\[Unreleased\][^\n]*v{re.escape(version)}\b[^\n]*$",
+          ]
+          start = None
+          for pattern in patterns:
+              match = re.search(pattern, text, flags=re.MULTILINE)
+              if match is not None:
+                  start = match.end()
+                  break
+          if start is None:
+              print(f"No CHANGELOG.md section found for version {version}", file=sys.stderr)
+              sys.exit(1)
+
+          rest = text[start:]
+          next_heading = re.search(r"^##[ \t]+", rest, flags=re.MULTILINE)
+          body = rest[: next_heading.start()] if next_heading else rest
+          body = body.strip() + "\n"
+          if not body.strip():
+              print(f"CHANGELOG.md section for {version} is empty", file=sys.stderr)
+              sys.exit(1)
+
+          pathlib.Path("release_notes.md").write_text(body, encoding="utf-8")
+          print(body)
+          PY
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes-file release_notes.md
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes-file release_notes.md \
+              --verify-tag
+          fi

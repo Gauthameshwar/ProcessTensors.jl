@@ -4,28 +4,19 @@ on:
     types:
       - created
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-concurrency:
-  group: TagBot-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   TagBot:
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      github.actor == 'JuliaTagBot'
+    # Official TagBot trigger: JuliaTagBot comments after General registration,
+    # or a manual workflow_dispatch. TagBot does not create GitHub Releases from
+    # manually pushed tags; use the Release workflow for that path.
+    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: JuliaRegistries/TagBot@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # SSH key lets TagBot push version tags when triggered via @JuliaTagBot.
+          # SSH deploy key so Documenter CI is triggered by tags TagBot creates.
           ssh: ${{ secrets.DOCUMENTER_KEY }}
-          # v0.1.0 is GitHub-only; General Registry registration starts in v0.2.0.
+          # Keep false until ProcessTensors is in General; then set true so TagBot
+          # can register subsequent versions automatically after Registrator.
           register: false
-          # Release notes from CHANGELOG.md (section matching the tag version).
-          changelog: true
