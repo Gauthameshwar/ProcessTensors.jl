@@ -30,15 +30,21 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"
           fi
+
           case "$TAG" in
+            *$'\n'*|*$'\r'*)
+              echo "Tag must be a single line; got: $TAG" >&2
+              exit 1
+              ;;
             v[0-9]*) ;;
             *)
-              echo "Tag must look like vX.Y.Z; got: $TAG" >&2
+              echo "Tag must start with v and a digit (e.g. v0.2.0); got: $TAG" >&2
               exit 1
               ;;
           esac
-          echo "name=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+          printf 'name=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
+          printf 'version=%s\n' "${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
         with:
