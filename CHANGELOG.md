@@ -10,10 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * **`ACE(; cutoff, maxdim)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit.
+* ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
+  process-tensor legs with `to_liouville` combiners.
 
 ### Changed
 
 * **`evolve`** takes each intermediate reduced state via a separate `evaluate_process` schedule so SVD-compressed ACE memory bonds stay correctly contracted.
+
+### Fixed
+
+* **ACE bond compression** now follows the native forward join-and-SVD plus
+  backward sweep, using the relative criterion ``σᵢ > ε σ₁`` and per-bond
+  ``σ₁`` rescaling. This replaces generic discarded-weight truncation and
+  prevents long-chain gauge overflow and excessive rank loss.
 
 ## v0.2.0 - 2026-08-01
 

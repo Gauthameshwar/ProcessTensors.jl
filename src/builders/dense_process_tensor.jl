@@ -9,6 +9,7 @@
 
 import ITensors: terms
 import ITensors.Ops: Exact, Trotter
+import ITensorMPS: MPO as CoreMPO
 
 const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
@@ -36,6 +37,41 @@ end
 
 # Internal prime level for mid-legs when fusing free-system maps into a bath core.
 const _INTERNAL_PLEV = 2
+
+# Closed-system channel ``ρ ↦ U ρ U†`` with ``U = exp(-i H Δt)`` built on Hilbert
+# sites, then fused onto the caller's Liouville indices with `to_liouville`
+# combiners (bra, ket) → Liouville. `dag` matches `liouvillian_propagator` primes.
+function _hilbert_unitary_liouville_propagator(
+    os::OpSum,
+    liouv_sites::AbstractVector{<:Index},
+    dt::Real,
+)
+    phys = Index[_phys_site_from_liouv(s) for s in liouv_sites]
+    if isempty(terms(os))
+        U_L = ITensor(1)
+        for s in liouv_sites
+            U_L *= delta(s, prime(s))
+        end
+        return U_L
+    end
+
+    H = foldl(*, CoreMPO(os, phys))
+    U = ITensors.exp(-im * float(dt) * H)
+    ρL = to_liouville(MPO(phys, "Id"); sites=Index[liouv_sites...])
+    Cs = ρL.combiners
+
+    U_ket = replaceinds(U, (prime(s) => prime(s, 2) for s in phys)...)
+    U_bra = replaceinds(conj(U), (prime(s) => prime(s, 1) for s in phys)...)
+    U_bra = replaceinds(U_bra, (s => prime(s, 3) for s in phys)...)
+
+    U_L = U_ket * U_bra
+    for (s, L, C) in zip(phys, liouv_sites, Cs)
+        Cout = replaceinds(C, prime(s) => prime(s, 3), s => prime(s, 2), L => prime(L))
+        U_L *= C
+        U_L *= Cout
+    end
+    return dag(U_L)
+end
 
 # One-step free-system Liouville map on PT legs `(in_k, out_k)` (always Exact ED).
 function _system_liouvillian_pt_core(
@@ -127,6 +163,7 @@ function _build_bathmode_cores_no_sys(
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
+    channel::Symbol=:liouvillian,
     run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
@@ -144,8 +181,19 @@ function _build_bathmode_cores_no_sys(
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
 
-    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
-    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint, channel=channel)
+    U_ref = if channel === :hilbert_unitary
+        _hilbert_unitary_liouville_propagator(joint_ops, sites_vec, dt)
+    elseif channel === :liouvillian
+        liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
+    else
+        throw(
+            ArgumentError(
+                "build_process_tensor: unknown bath-mode channel $(repr(channel)); " *
+                "use :liouvillian or :hilbert_unitary.",
+            ),
+        )
+    end
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]

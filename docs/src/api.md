@@ -135,6 +135,9 @@ liouvillian_propagator
 
 ### Process tensors
 
+`ACE.cutoff` is the relative singular-value threshold ``ε`` used at every
+memory bond: retain ``σᵢ > ε σ₁``. `ACE.maxdim` is an additional safety cap.
+
 ```@docs
 ProcessTensor
 Dense

@@ -29,10 +29,13 @@ Sequential automated-compression-of-environments (ACE) process-tensor builder
 for baths of independent modes.
 
 Joins closed single-mode bath process tensors onto the accumulated process
-tensor one mode at a time and compresses the memory bonds by SVD truncation
-after each join (`cutoff` is the squared-singular-value truncation threshold,
-`maxdim` caps the bond dimension). Requires `environment.coupling` to be empty;
-put every system-mode coupling on the corresponding mode's `coupling` field.
+tensor one mode at a time using a forward join-and-compress sweep followed by
+a backward sweep. At each bond, `cutoff` is the relative ACE threshold
+``ε``: retain singular values satisfying ``σᵢ > ε σ₁``. `maxdim` is an
+additional safety cap on the retained bond dimension.
+
+Requires `environment.coupling` to be empty; put every system-mode coupling on
+the corresponding mode's `coupling` field.
 """
 struct ACE <: AbstractPTBuilder
     cutoff::Float64
@@ -45,4 +48,6 @@ struct ACE <: AbstractPTBuilder
     end
 end
 
-ACE(; cutoff::Real=1e-10, maxdim::Integer=typemax(Int)) = ACE(cutoff, maxdim)
+function ACE(; cutoff::Real=1e-10, maxdim::Integer=typemax(Int))
+    return ACE(cutoff, maxdim)
+end

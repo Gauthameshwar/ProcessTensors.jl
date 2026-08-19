@@ -120,8 +120,10 @@ bath, and instruments so later contractions match by exact index identity.
 `method` selects the process-tensor construction backend. The default
 [`Dense`](@ref) backend builds exact joint-Liouville cores for no-bath,
 single-mode, and small multimode environments. The [`ACE`](@ref) backend joins
-independent bath modes sequentially and compresses the memory bonds after each
-join.
+independent bath modes sequentially and compresses memory bonds with an
+interleaved forward join-and-SVD sweep followed by a backward sweep. For
+`ACE`, `method.cutoff` retains bond singular values satisfying
+``σᵢ > cutoff σ₁``; `method.maxdim` is an additional safety cap.
 
 `alg` selects how the joint bath(+coupling) slab is built. `sys_alg` selects the
 *timestep sandwich order* of free-system maps around that bath core

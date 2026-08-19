@@ -47,6 +47,10 @@ function _ace_spin_mode(h_coeff::Real, cpl_coeff::Real; cpl_op::AbstractString="
 end
 
 @testset "ACE builder: constructor and build guards" begin
+    @test ACE().cutoff == 1e-10
+    @test ACE().maxdim == typemax(Int)
+    @test ACE(; cutoff=1e-8, maxdim=32).cutoff == 1e-8
+    @test ACE(; cutoff=1e-8, maxdim=32).maxdim == 32
     @test_throws ArgumentError ACE(; cutoff=-1e-3)
     @test_throws ArgumentError ACE(; maxdim=0)
 
@@ -233,7 +237,7 @@ end
     @test _ace_traj_err(_ace_dense_traj(pt_ace, rho0_h), _ace_dense_traj(pt_free, rho0_h)) < 1e-10
 end
 
-@testset "ACE compression: finite cutoff lowers χ, tighter cutoff lowers error" begin
+@testset "ACE compression: relative ε lowers χ and controls error" begin
     sys_phys = siteinds("S=1/2", 1)
     system = spin_system(sys_phys, OpSum() + (0.3, "Sz", 1) + (0.2, "Sx", 1))
     bath = spin_bath([_ace_spin_mode(0.5, 0.4), _ace_spin_mode(0.7, 0.5)])
@@ -269,7 +273,7 @@ end
     @test err_loose < 1e-3
     @test err_tight <= err_loose + 1e-12
 
-    # maxdim cap alone also compresses while staying accurate here.
+    # maxdim remains an independent safety cap.
     pt_capped = build_ace(0.0; maxdim=4)
     @test maxlinkdim(pt_capped.core) == 4
     @test _ace_traj_err(_ace_dense_traj(pt_capped, rho0_h), traj_dense) < 1e-6
@@ -411,7 +415,7 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
         )
         @test _ace_traj_err(_ace_dense_traj(pt_ace2, rho0_h), traj_dense2) < 1e-8
 
-        # Finite cutoff compresses the boson memory bond while staying accurate.
+        # A finite relative ε compresses the boson memory bond while staying accurate.
         pt_ace2c = build_process_tensor(
             system, system.sites[1];
             method=ACE(cutoff=1e-8), environment=bath2, dt=dt, nsteps=nsteps,
