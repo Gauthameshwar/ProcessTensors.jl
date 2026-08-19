@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **`ACE(; cutoff, maxdim)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit.
 * ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
   process-tensor legs with `to_liouville` combiners.
+* **Central-spin ACE example** reproducing the fully polarized Cygorek
+  benchmark, with a modest Literate walkthrough and a companion
+  ``N = 5, 10, 100, 1000`` scaling script.
 
 ### Changed
 
