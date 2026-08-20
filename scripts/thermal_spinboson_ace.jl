@@ -15,7 +15,7 @@
 #   ACE threshold epsilon = 1e-5
 #   Omega = 3 ps^-1
 #   N_bath = 60
-#   local boson Hilbert dimension M = 3
+#   local boson Hilbert dimension M = 5
 #   omega in [0, 30] ps^-1
 #   k_B T / hbar: thermal_frequency and hot_thermal_frequency (ps^-1)
 #   J(omega) = 0.2 omega exp[-omega/(3 ps^-1)]
