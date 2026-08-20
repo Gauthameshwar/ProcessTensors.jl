@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Central-spin dynamics using ACE · ProcessTensors.jl</title><meta name="title" content="Central-spin dynamics using ACE · ProcessTensors.jl"/><meta property="og:title" content="Central-spin dynamics using ACE · ProcessTensors.jl"/><meta property="twitter:title" content="Central-spin dynamics using ACE · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/central_spin_ace/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/central_spin_ace/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/central_spin_ace/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin chain</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven spin chain</a></li><li><a class="tocitem" href="../driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox" checked/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li><li class="is-active"><a class="tocitem" href>Central-spin dynamics using ACE</a><ul class="internal"><li><a class="tocitem" href="#The-central-spin-model"><span>The central-spin model</span></a></li><li><a class="tocitem" href="#Build-one-modest-bath"><span>Build one modest bath</span></a></li><li><a class="tocitem" href="#Compress-the-environment-into-a-process-tensor"><span>Compress the environment into a process tensor</span></a></li><li><a class="tocitem" href="#Evolve-the-central-spin-through-the-process-tensor"><span>Evolve the central spin through the process tensor</span></a></li><li><a class="tocitem" href="#From-one-process-tensor-to-the-benchmark"><span>From one process tensor to the benchmark</span></a></li></ul></li><li><a class="tocitem" href="../thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Process tensors</a></li><li class="is-active"><a href>Central-spin dynamics using ACE</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Central-spin dynamics using ACE</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/central_spin_ace.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Central-spin-dynamics-using-ACE"><a class="docs-heading-anchor" href="#Central-spin-dynamics-using-ACE">Central-spin dynamics using ACE</a><a id="Central-spin-dynamics-using-ACE-1"></a><a class="docs-heading-anchor-permalink" href="#Central-spin-dynamics-using-ACE" title="Permalink"></a></h1><p>A central spin coupled to many microscopic bath spins is one of the simplest models in which an environment is both genuinely many-body and strongly non-Markovian. The bath spins do not interact with one another directly. Instead, each of them talks to the same central spin, so information deposited in the bath can later return to the system.</p><p>This example follows the fully polarized central-spin benchmark used by Cygorek <em>et al.</em> to demonstrate Automated Compression of Environments (ACE). We first build the microscopic system and bath mode by mode, then let ACE combine those independent mode influences into a single process tensor.</p><div class="admonition is-category-related" id="Related-material-c14c75d9cbffcd94"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-c14c75d9cbffcd94" title="Permalink"></a></header><div class="admonition-body"><ul><li>Tutorial: <a href="../../tutorials/process_tensor_singlemode/#Single-Mode-Process-Tensor">Single-Mode Process Tensor</a></li><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li></ul></div></div><div class="admonition is-category-script" id="Companion-script-6c21a1fe014a30d3"><header class="admonition-header">Companion script<a class="admonition-anchor" href="#Companion-script-6c21a1fe014a30d3" title="Permalink"></a></header><div class="admonition-body"><p>The larger <span>$N=5,10,100,1000$</span> comparison and the bond-dimension scaling figure are generated by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/central_spin_ace.jl"><code>scripts/central_spin_ace.jl</code></a>.</p></div></div><h2 id="The-central-spin-model"><a class="docs-heading-anchor" href="#The-central-spin-model">The central-spin model</a><a id="The-central-spin-model-1"></a><a class="docs-heading-anchor-permalink" href="#The-central-spin-model" title="Permalink"></a></h2><p>We consider one spin-<span>$1/2$</span> system, <span>$\mathbf S$</span>, coupled isotropically to <span>$N$</span> bath spins <span>$\mathbf s_k$</span>. In the benchmark there is no free system or bath Hamiltonian,</p><p class="math-container">\[H_S = 0,
+\qquad
+H_B = 0,\]</p><p>and all dynamics comes from the central-spin interaction</p><p class="math-container">\[H_{\mathrm{int}}
+=
+\sum_{k=1}^{N}
+J_k
+\left(
+S_x s_k^x
++ S_y s_k^y
++ S_z s_k^z
+\right),
+\qquad
+J_k=\frac{J}{N}.\]</p><p>We use the natural units of the benchmark, <span>$J=\hbar=1$</span>. Dividing the coupling by <span>$N$</span> is important: adding more bath spins refines the collective environment without simply making the total interaction <span>$N$</span> times larger.</p><p>The central spin begins along <span>$+x$</span>,</p><p class="math-container">\[\rho_S(0)=|+\rangle_x\langle+|,\]</p><p>while every bath spin is polarized along <span>$+z$</span>,</p><p class="math-container">\[\rho_B(0)
+=
+\bigotimes_{k=1}^{N}
+|\uparrow\rangle_k\langle\uparrow|.\]</p><p>This is already enough to produce non-trivial dynamics. The <span>$+x$</span> state is a superposition in the <span>$z$</span> basis, and the exchange part of the isotropic coupling allows the central spin and bath to exchange angular momentum. Consequently <span>$\langle S_x(t)\rangle$</span> oscillates even though both <span>$H_S$</span> and <span>$H_B$</span> vanish.</p><p>As <span>$N$</span> grows, each individual coupling <span>$J/N$</span> becomes weaker and the finite-size bath approaches the collective large-<span>$N$</span> response. For this normalization the analytical limiting curve is</p><p class="math-container">\[\frac{\langle S_x(t)\rangle}{\hbar}
+\longrightarrow
+\frac{1}{2}\cos\!\left(\frac{tJ}{2\hbar}\right).\]</p><p>The companion benchmark will show this convergence directly.</p><h2 id="Build-one-modest-bath"><a class="docs-heading-anchor" href="#Build-one-modest-bath">Build one modest bath</a><a id="Build-one-modest-bath-1"></a><a class="docs-heading-anchor-permalink" href="#Build-one-modest-bath" title="Permalink"></a></h2><p>This example uses a small bath and a short process tensor so that both ACE construction and <span>$evolve$</span> stay cheap. The companion script uses the paper timestep <span>$dt=0.01$</span> out to <span>$t=20$</span>.</p><pre><code class="language-julia hljs">using Logging
+using Printf
+using ITensors
+using ITensors.Ops: Trotter
+using ProcessTensors
+
+function one_site_density_matrix(ρ)
+    tensor = foldl(*, ρ)
+    site = only(
+        filter(
+            index -&gt; plev(index) == 0 &amp;&amp; hastags(index, &quot;Site&quot;),
+            inds(tensor),
+        ),
+    )
+    return ComplexF64.(Array(tensor, prime(site), site))
+end
+
+const N_bath = 5
+const J = 1.0
+const dt = 0.2
+const nsteps = 20
+const final_time = (nsteps - 1) * dt
+const ace_cutoff = 1e-8
+const ace_maxdim = 32</code></pre><pre><code class="nohighlight hljs">32</code></pre><p>Empty free Hamiltonians are intentional in this benchmark. We want the central spin particle to be free and through the bath spins, experience an effective magnetic field trying to polarise it.</p><pre><code class="language-julia hljs">system_sites = siteinds(&quot;S=1/2&quot;, 1)
+system = with_logger(NullLogger()) do
+    spin_system(system_sites, OpSum())
+end;</code></pre><p>The initial central spin points along +x.</p><pre><code class="language-julia hljs">initial_density = to_dm(MPS(system_sites, [&quot;+&quot;]));</code></pre><p>Each bath spin is represented as one independent ACE mode. The mode has no free Hamiltonian, starts in |↑&gt;&lt;↑|, and carries its own system-mode coupling.</p><pre><code class="language-julia hljs">bath_sites = siteinds(&quot;S=1/2&quot;, N_bath)
+bath_liouville_sites = liouv_sites(bath_sites)
+mode_coupling = J / N_bath
+
+modes = with_logger(NullLogger()) do
+    [
+        let
+            initial_mode_density = to_liouville(
+                to_dm(MPS([bath_sites[k]], [&quot;Up&quot;]));
+                sites=[bath_liouville_sites[k]],
+            )
+
+            coupling = OpSum()
+            coupling += mode_coupling, &quot;Sx&quot;, 1, &quot;Sx&quot;, 2
+            coupling += mode_coupling, &quot;Sy&quot;, 1, &quot;Sy&quot;, 2
+            coupling += mode_coupling, &quot;Sz&quot;, 1, &quot;Sz&quot;, 2
+
+            spin_mode(
+                [bath_liouville_sites[k]],
+                OpSum(),
+                initial_mode_density;
+                coupling=coupling,
+            )
+        end for k in 1:N_bath
+    ]
+end;</code></pre><p>There are deliberately no bath-bath terms here. The modes are independent before they are combined by ACE; their only communication is mediated by the central spin.</p><pre><code class="language-julia hljs">bath = spin_bath(modes);
+
+println(&quot;Central-spin ACE setup&quot;)
+@printf(&quot;  bath spins:                    %d\n&quot;, N_bath)
+@printf(&quot;  coupling per bath spin J/N:    %.6f\n&quot;, mode_coupling)
+@printf(&quot;  timestep dt:                   %.3f\n&quot;, dt)
+@printf(&quot;  final time:                    %.1f\n&quot;, final_time)
+@printf(&quot;  snapshots:                     %d\n&quot;, nsteps)
+@printf(&quot;  ACE cutoff:                    %.1e\n&quot;, ace_cutoff)
+@printf(&quot;  ACE maxdim:                    %d\n&quot;, ace_maxdim)</code></pre><pre><code class="nohighlight hljs">Central-spin ACE setup
+  bath spins:                    5
+  coupling per bath spin J/N:    0.200000
+  timestep dt:                   0.200
+  final time:                    3.8
+  snapshots:                     20
+  ACE cutoff:                    1.0e-08
+  ACE maxdim:                    32
+</code></pre><h2 id="Compress-the-environment-into-a-process-tensor"><a class="docs-heading-anchor" href="#Compress-the-environment-into-a-process-tensor">Compress the environment into a process tensor</a><a id="Compress-the-environment-into-a-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Compress-the-environment-into-a-process-tensor" title="Permalink"></a></h2><p>If we propagated the complete system-bath density matrix directly, the bath Liouville space would grow as <span>$4^N$</span>. ACE avoids carrying that full object. Instead, it constructs the influence of one bath mode at a time, joins those influences along the temporal direction, and truncates the resulting temporal bonds after each combination.</p><p>The object returned below is therefore not a bath trajectory. It is the multi-time map seen by the central spin after the microscopic bath spins have been eliminated.</p><p>We use symmetric second-order splittings for the system-mode propagation and for combining mode process tensors.</p><pre><code class="language-julia hljs">build_time = @elapsed begin
+    process_tensor = build_process_tensor(
+        system;
+        method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+        environment=bath,
+        dt=dt,
+        nsteps=nsteps,
+        sys_alg=Trotter{2}(),
+        combine_alg=Trotter{2}(),
+    )
+end
+
+println(process_tensor)</code></pre><pre><code class="nohighlight hljs">20-step ProcessTensor{SpinSystem, SpinBath} | dt=0.2 | t_final=4.0 | maxlinkdim=13
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: SpinBath(nmodes=5, D_bath=1024, coupling=true)
+  core:        MPO{Liouville}(length=20, linkdims=[4, 9, 11, …, 9])
+
+</code></pre><p>The temporal bond dimension tells us how much information ACE had to retain between neighboring times. It is therefore also a useful numerical diagnostic of the compressed environmental memory.</p><pre><code class="language-julia hljs">max_pt_bond = maxlinkdim(process_tensor)
+
+@printf(&quot;  maximum PT bond dimension:     %d\n&quot;, max_pt_bond)
+@printf(&quot;  PT build time:                 %.3f s\n&quot;, build_time)
+
+@assert max_pt_bond &lt; ace_maxdim</code></pre><pre><code class="nohighlight hljs">  maximum PT bond dimension:     13
+  PT build time:                 11.313 s
+</code></pre><h2 id="Evolve-the-central-spin-through-the-process-tensor"><a class="docs-heading-anchor" href="#Evolve-the-central-spin-through-the-process-tensor">Evolve the central spin through the process tensor</a><a id="Evolve-the-central-spin-through-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Evolve-the-central-spin-through-the-process-tensor" title="Permalink"></a></h2><p>The expensive environmental calculation is now finished. Applying the process tensor to <span>$rho_S(0)$</span> produces the reduced central-spin trajectory without explicitly restoring the bath degrees of freedom.</p><pre><code class="language-julia hljs">evolution_time = @elapsed begin
+    trajectory = evolve(process_tensor, initial_density)
+end
+
+Sx_matrix = ComplexF64.(
+    Array(
+        op(&quot;Sx&quot;, system_sites[1]),
+        prime(system_sites[1]),
+        system_sites[1],
+    ),
+)
+
+spin_x = Float64[]
+trace_errors = Float64[]
+
+for ρ in trajectory.states_hilbert
+    ρ_matrix = one_site_density_matrix(ρ)
+    trace_value = tr(ρ_matrix)
+
+    push!(
+        spin_x,
+        real(tr(Sx_matrix * ρ_matrix) / trace_value),
+    )
+    push!(trace_errors, abs(trace_value - 1))
+end
+
+max_trace_error = maximum(trace_errors)
+
+@assert all(isfinite, spin_x)
+@assert all(value -&gt; -0.5 - 1e-3 ≤ value ≤ 0.5 + 1e-3, spin_x)
+@assert max_trace_error &lt; 1e-3
+
+println(&quot;Central-spin trajectory diagnostics&quot;)
+@printf(&quot;  &lt;Sx&gt;(0):                       %.6f\n&quot;, first(spin_x))
+@printf(&quot;  &lt;Sx&gt;(t_final):                 %.6f\n&quot;, last(spin_x))
+@printf(&quot;  maximum trace error:           %.3e\n&quot;, max_trace_error)
+@printf(&quot;  trajectory evolution time:     %.3f s\n&quot;, evolution_time)</code></pre><pre><code class="nohighlight hljs">Central-spin trajectory diagnostics
+  &lt;Sx&gt;(0):                       0.497004
+  &lt;Sx&gt;(t_final):                 -0.226618
+  maximum trace error:           2.736e-04
+  trajectory evolution time:     0.026 s
+</code></pre><h2 id="From-one-process-tensor-to-the-benchmark"><a class="docs-heading-anchor" href="#From-one-process-tensor-to-the-benchmark">From one process tensor to the benchmark</a><a id="From-one-process-tensor-to-the-benchmark-1"></a><a class="docs-heading-anchor-permalink" href="#From-one-process-tensor-to-the-benchmark" title="Permalink"></a></h2><p>Repeating exactly the same construction for larger <span>$N$</span> gives the upper panel below. The finite baths <span>$N=5$</span> and <span>$N=10$</span> visibly oscillate at a shifted frequency, while <span>$N=100$</span> and <span>$N=1000$</span> lie almost on top of the analytical <span>$N\rightarrow\infty$</span> result, shown as sparse ED crosses. The convergence is especially satisfying because nothing about that limiting curve was inserted into ACE: it emerges from combining the microscopic spin modes.</p><p>The lower panel reports the corresponding density-matrix diagnostics on a logarithmic scale: the trace error, the Hermiticity defect, and the deviation of <span>$\langle S_x\rangle$</span> from the <span>$N\rightarrow\infty$</span> ED curve. Colors match the <span>$N$</span> values in the upper panel.</p><p><img src="../../assets/examples/central_spin_ace.png" alt="Fully polarized central-spin ACE dynamics with sparse ED markers and density-matrix errors"/></p><div class="admonition is-info" id="Numerical-accuracy-40f54790b7a72b58"><header class="admonition-header">Numerical accuracy<a class="admonition-anchor" href="#Numerical-accuracy-40f54790b7a72b58" title="Permalink"></a></header><div class="admonition-body"><p>The benchmark uses <span>$dt=0.01$</span> and an ACE truncation threshold of <span>$10^{-10}$</span>. The remaining approximations are the second-order Trotter splitting and the finite process-tensor bond truncation. A convergence check should reduce <span>$dt$</span>, tighten the ACE cutoff, and increase <span>$maxdim$</span> until the observable of interest is unchanged.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-5e94ab055bbae84"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-5e94ab055bbae84" title="Permalink"></a></header><div class="admonition-body"><ul><li>The central-spin benchmark contains no free system or bath dynamics; all reduced dynamics comes from the isotropic <span>$S\cdot s_k$</span> coupling.</li><li>A fully <span>$+z$</span>-polarized spin bath can be assembled transparently from independent <a href="../../api/#ProcessTensors.Environments.SpinMode"><code>SpinMode</code></a> objects with <span>$J_k=J/N$</span>.</li><li>ACE eliminates those microscopic bath spins and stores their complete multi-time influence as a temporally compressed process tensor.</li><li>Increasing <span>$N$</span> drives the finite bath toward the analytical <span>$N\rightarrow\infty$</span> central-spin oscillation. Trace and Hermiticity errors stay small, while the deviation from the ED curve falls with <span>$N$</span>.</li><li>Once built, the same process tensor can be reused with different system preparations and later with multi-time instrument sequences.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spin_bath_process_tensor/">« Spin-bath process tensor</a><a class="docs-footer-nextpage" href="../thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 20 August 2026 10:21">Thursday 20 August 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

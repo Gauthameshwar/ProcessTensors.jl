@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Thermal spin-boson dynamics using ACE · ProcessTensors.jl</title><meta name="title" content="Thermal spin-boson dynamics using ACE · ProcessTensors.jl"/><meta property="og:title" content="Thermal spin-boson dynamics using ACE · ProcessTensors.jl"/><meta property="twitter:title" content="Thermal spin-boson dynamics using ACE · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/thermal_spinboson_ace/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/thermal_spinboson_ace/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/thermal_spinboson_ace/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin chain</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven spin chain</a></li><li><a class="tocitem" href="../driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox" checked/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li><li><a class="tocitem" href="../central_spin_ace/">Central-spin dynamics using ACE</a></li><li class="is-active"><a class="tocitem" href>Thermal spin-boson dynamics using ACE</a><ul class="internal"><li><a class="tocitem" href="#A-driven-two-level-system"><span>A driven two-level system</span></a></li><li><a class="tocitem" href="#Assemble-a-modest-thermal-bath"><span>Assemble a modest thermal bath</span></a></li><li><a class="tocitem" href="#Compress-the-thermal-environment"><span>Compress the thermal environment</span></a></li><li><a class="tocitem" href="#Watch-the-Rabi-clock-lose-its-rhythm"><span>Watch the Rabi clock lose its rhythm</span></a></li><li><a class="tocitem" href="#What-the-bath-does"><span>What the bath does</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Process tensors</a></li><li class="is-active"><a href>Thermal spin-boson dynamics using ACE</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Thermal spin-boson dynamics using ACE</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/thermal_spinboson_ace.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Thermal-spin-boson-dynamics-using-ACE"><a class="docs-heading-anchor" href="#Thermal-spin-boson-dynamics-using-ACE">Thermal spin-boson dynamics using ACE</a><a id="Thermal-spin-boson-dynamics-using-ACE-1"></a><a class="docs-heading-anchor-permalink" href="#Thermal-spin-boson-dynamics-using-ACE" title="Permalink"></a></h1><p>A coherently driven two-level system has perhaps the cleanest clock in quantum dynamics: prepare one level, turn on a resonant transverse drive, and the population undergoes perfectly periodic Rabi oscillations. A thermal environment spoils that clock.</p><p>Here we reproduce the spin-boson example used in the ACE toolkit paper. The environment is a continuum of harmonic modes sampled from an Ohmic spectral density. Each mode begins in a thermal state and couples to the excited-state population of the two-level system. ACE builds the influence of these modes one by one and compresses their combined memory into a process-tensor MPO.</p><p>The physical question is deliberately simple:</p><blockquote><p>What becomes of coherent Rabi rotations once the two-level system is allowed to leave distinguishable displacements in a thermal bosonic environment?</p></blockquote><div class="admonition is-category-related" id="Related-material-c14c75d9cbffcd94"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-c14c75d9cbffcd94" title="Permalink"></a></header><div class="admonition-body"><ul><li>Tutorial: <a href="../../tutorials/process_tensor_singlemode/#Single-Mode-Process-Tensor">Single-Mode Process Tensor</a></li><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li></ul></div></div><div class="admonition is-category-script" id="Companion-script-e6da3347e55ac563"><header class="admonition-header">Companion script<a class="admonition-anchor" href="#Companion-script-e6da3347e55ac563" title="Permalink"></a></header><div class="admonition-body"><p>The full <span>$60$</span>-mode calculation using the parameters of the ACE toolkit paper and the staged figure are generated by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/thermal_spinboson_ace.jl"><code>scripts/thermal_spinboson_ace.jl</code></a>.</p></div></div><h2 id="A-driven-two-level-system"><a class="docs-heading-anchor" href="#A-driven-two-level-system">A driven two-level system</a><a id="A-driven-two-level-system-1"></a><a class="docs-heading-anchor-permalink" href="#A-driven-two-level-system" title="Permalink"></a></h2><p>In units with <span>$\hbar=1$</span>, the isolated system Hamiltonian is</p><p class="math-container">\[H_S=\frac{\Omega}{2}\sigma_x=\Omega S_x.\]</p><p>Starting from <span>$|g\rangle$</span>, the excited-state population would therefore be</p><p class="math-container">\[P_e(t)=\sin^2\!\left(\frac{\Omega t}{2}\right),\]</p><p>and the oscillations would continue indefinitely.</p><p>The bath changes this by coupling the excited-state projector <span>$A=|e\rangle\langle e|$</span> to harmonic modes,</p><p class="math-container">\[H_E
+=
+\sum_k \omega_k b_k^\dagger b_k
++
+\sum_k g_k(b_k+b_k^\dagger)A
++
+\Delta H_{\mathrm{PS}}.\]</p><p>The final term,</p><p class="math-container">\[\Delta H_{\mathrm{PS}}
+=
+\sum_k\frac{g_k^2}{\omega_k}A,\]</p><p>is the usual polaron-shift counterterm. It removes the static energy renormalization caused by displacing the oscillators, leaving the comparison with the resonantly driven isolated system clean.</p><p>The bath is summarized by the Ohmic spectral density used in the ACE toolkit example,</p><p class="math-container">\[J(\omega)
+=
+0.2\,\omega\,
+\exp\!\left[-\frac{\omega}{3\,\mathrm{ps}^{-1}}\right].\]</p><p>Instead of treating this continuum analytically, ACE asks for its microscopic modes. Dividing <span>$[\omega_{\min},\omega_{\max}]$</span> into equal bins gives</p><p class="math-container">\[\omega_k
+=
+\omega_{\min}+\left(k-\frac12\right)\Delta\omega,
+\qquad
+g_k=\sqrt{J(\omega_k)\Delta\omega}.\]</p><p>Increasing the number of modes therefore refines the same spectral environment rather than arbitrarily rescaling its interaction strength.</p><h2 id="Assemble-a-modest-thermal-bath"><a class="docs-heading-anchor" href="#Assemble-a-modest-thermal-bath">Assemble a modest thermal bath</a><a id="Assemble-a-modest-thermal-bath-1"></a><a class="docs-heading-anchor-permalink" href="#Assemble-a-modest-thermal-bath" title="Permalink"></a></h2><p>The publication calculation uses <span>$60$</span> modes. For the executable documentation build we keep the same model but use a smaller discretization and a short process tensor so ACE construction and <span>$evolve$</span> stay cheap. The companion script performs the full calculation.</p><pre><code class="language-julia hljs">using Logging
+using Printf
+using ITensors
+using ITensors.Ops: Trotter
+using ProcessTensors
+
+ohmic_spectral_density(ω) = 0.2 * ω * exp(-ω / 3)
+
+function thermal_boson_density(
+    physical_site,
+    liouville_site,
+    ω,
+    thermal_frequency,
+    local_dim,
+)
+    occupations = 0:(local_dim - 1)
+    weights = exp.(-ω .* occupations ./ thermal_frequency)
+    weights ./= sum(weights)
+
+    number_states = [
+        MPS([physical_site], [string(n)])
+        for n in occupations
+    ]
+    density = to_dm(number_states; coeffs=weights)
+
+    return to_liouville(
+        density;
+        sites=[liouville_site],
+    )
+end
+
+function one_site_density_matrix(ρ)
+    tensor = foldl(*, ρ)
+    site = only(
+        filter(
+            index -&gt; plev(index) == 0 &amp;&amp; hastags(index, &quot;Site&quot;),
+            inds(tensor),
+        ),
+    )
+    return ComplexF64.(Array(tensor, prime(site), site))
+end
+
+const N_bath = 4
+const local_dim = 3
+
+const Ω = 3.0
+const ω_min = 0.0
+const ω_max = 30.0
+const thermal_frequency = 1.0 # k_B T / ħ, in ps^-1
+
+const dt = 0.20
+const nsteps = 12
+const final_time = (nsteps - 1) * dt
+
+const ace_cutoff = 1e-5
+const ace_maxdim = 64
+
+Δω = (ω_max - ω_min) / N_bath
+frequencies = [
+    ω_min + (k - 0.5) * Δω
+    for k in 1:N_bath
+]
+couplings = sqrt.(
+    ohmic_spectral_density.(frequencies) .* Δω
+)
+
+@assert all(&gt;(0), frequencies)
+@assert all(isfinite, couplings)</code></pre><p>The two-level system starts in |g&gt;. We identify <code>Dn</code> with |g&gt; and <code>Up</code> with |e&gt;, so <code>ProjUp</code> is the spin-boson coupling operator A.</p><pre><code class="language-julia hljs">system_sites = siteinds(&quot;S=1/2&quot;, 1)
+
+system_hamiltonian = OpSum()
+system_hamiltonian += Ω, &quot;Sx&quot;, 1
+
+system = spin_system(system_sites, system_hamiltonian)
+initial_density = to_dm(MPS(system_sites, [&quot;Dn&quot;]));</code></pre><p>Each oscillator is an independent <a href="../../api/#ProcessTensors.Environments.BosonicMode"><code>BosonicMode</code></a>. Its local Hamiltonian is <span>$ω_k b_k†b_k$</span> and its initial state is the truncated Gibbs state</p><p class="math-container">\[\rho_k^{\mathrm{th}}
+=
+\frac{1}{Z_k}
+\sum_{n=0}^{M-1}
+e^{-n\omega_k/(k_BT/\hbar)}
+|n\rangle\langle n|.\]</p><p>The coupling <code>OpSum</code> uses local site <code>1</code> for the bath mode and local site <code>2</code> for the system. Each mode also carries the polaron-shift counterterm <span>$(g_k^2/ω_k)|e\rangle\langle e|$</span>.</p><pre><code class="language-julia hljs">bath_sites = siteinds(&quot;Boson&quot;, N_bath; dim=local_dim)
+bath_liouville_sites = liouv_sites(bath_sites)
+
+modes = [
+    let
+        ωk = frequencies[k]
+        gk = couplings[k]
+
+        mode_hamiltonian = OpSum()
+        mode_hamiltonian += ωk, &quot;N&quot;, 1
+
+        mode_coupling = OpSum()
+        mode_coupling += gk, &quot;A&quot;, 1, &quot;ProjUp&quot;, 2
+        mode_coupling += gk, &quot;Adag&quot;, 1, &quot;ProjUp&quot;, 2
+        mode_coupling += gk^2 / ωk, &quot;ProjUp&quot;, 2
+
+        initial_mode_density = thermal_boson_density(
+            bath_sites[k],
+            bath_liouville_sites[k],
+            ωk,
+            thermal_frequency,
+            local_dim,
+        )
+
+        bosonic_mode(
+            [bath_liouville_sites[k]],
+            mode_hamiltonian,
+            initial_mode_density;
+            coupling=mode_coupling,
+        )
+    end for k in 1:N_bath
+];</code></pre><p>There are no direct oscillator-oscillator interactions. ACE can therefore absorb their influences sequentially. The Dense-construction size warning is expected and is silenced here because this example never builds a joint bath tensor.</p><pre><code class="language-julia hljs">bath = with_logger(NullLogger()) do
+    bosonic_bath(modes)
+end;
+
+println(&quot;Thermal spin-boson ACE setup&quot;)
+@printf(&quot;  bath modes:                    %d\n&quot;, N_bath)
+@printf(&quot;  local boson dimension:         %d\n&quot;, local_dim)
+@printf(&quot;  drive Ω:                       %.3f ps^-1\n&quot;, Ω)
+@printf(&quot;  frequency window:              [%.1f, %.1f] ps^-1\n&quot;, ω_min, ω_max)
+@printf(&quot;  frequency spacing Δω:          %.3f ps^-1\n&quot;, Δω)
+@printf(&quot;  k_B T / ħ:                     %.3f ps^-1\n&quot;, thermal_frequency)
+@printf(&quot;  timestep dt:                   %.3f ps\n&quot;, dt)
+@printf(&quot;  final time:                    %.2f ps\n&quot;, final_time)
+@printf(&quot;  ACE threshold ε:               %.1e\n&quot;, ace_cutoff)</code></pre><pre><code class="nohighlight hljs">Thermal spin-boson ACE setup
+  bath modes:                    4
+  local boson dimension:         3
+  drive Ω:                       3.000 ps^-1
+  frequency window:              [0.0, 30.0] ps^-1
+  frequency spacing Δω:          7.500 ps^-1
+  k_B T / ħ:                     1.000 ps^-1
+  timestep dt:                   0.200 ps
+  final time:                    2.20 ps
+  ACE threshold ε:               1.0e-05
+</code></pre><h2 id="Compress-the-thermal-environment"><a class="docs-heading-anchor" href="#Compress-the-thermal-environment">Compress the thermal environment</a><a id="Compress-the-thermal-environment-1"></a><a class="docs-heading-anchor-permalink" href="#Compress-the-thermal-environment" title="Permalink"></a></h2><p>A direct bath density matrix for <span>$N$</span> truncated oscillators lives in a Liouville space of dimension <span>$M^{2N}$</span>. ACE never constructs that joint object. It builds the influence of one oscillator, joins it to the accumulated process tensor, and performs forward/backward SVD sweeps before moving to the next mode.</p><p>Singular directions are retained when <span>$σ_i &gt; ε σ_1$</span>.</p><pre><code class="language-julia hljs">build_time = @elapsed begin
+    process_tensor = build_process_tensor(
+        system;
+        method=ACE(
+            cutoff=ace_cutoff,
+            maxdim=ace_maxdim,
+        ),
+        environment=bath,
+        dt=dt,
+        nsteps=nsteps,
+        sys_alg=Trotter{2}(),
+        combine_alg=Trotter{2}(),
+        progress=false,
+    )
+end
+
+println(process_tensor)
+
+bath_hilbert_dimension = BigInt(local_dim)^N_bath
+bath_liouville_dimension = BigInt(local_dim)^(2N_bath)
+max_pt_bond = maxlinkdim(process_tensor)
+
+println(&quot;ACE compression diagnostics&quot;)
+println(&quot;  formal bath Hilbert dimension:   $bath_hilbert_dimension&quot;)
+println(&quot;  formal bath Liouville dimension: $bath_liouville_dimension&quot;)
+@printf(&quot;  maximum PT bond dimension:       %d\n&quot;, max_pt_bond)
+@printf(&quot;  process-tensor build time:       %.3f s\n&quot;, build_time)
+
+max_pt_bond &lt; ace_maxdim || error(
+    &quot;ACE reached the maxdim safety cap; increase ace_maxdim.&quot;,
+)</code></pre><pre><code class="nohighlight hljs">true</code></pre><h2 id="Watch-the-Rabi-clock-lose-its-rhythm"><a class="docs-heading-anchor" href="#Watch-the-Rabi-clock-lose-its-rhythm">Watch the Rabi clock lose its rhythm</a><a id="Watch-the-Rabi-clock-lose-its-rhythm-1"></a><a class="docs-heading-anchor-permalink" href="#Watch-the-Rabi-clock-lose-its-rhythm" title="Permalink"></a></h2><p>Once the process tensor is built, the bath no longer appears explicitly. We simply pass the ground-state preparation through the stored multi-time environment and read out <span>$P_e(t)$</span>.</p><pre><code class="language-julia hljs">evolution_time = @elapsed begin
+    trajectory = evolve(process_tensor, initial_density)
+end
+
+excited_projector = ComplexF64.(
+    Array(
+        op(&quot;ProjUp&quot;, system_sites[1]),
+        prime(system_sites[1]),
+        system_sites[1],
+    ),
+)
+
+excited_population = Float64[]
+trace_errors = Float64[]
+
+for ρ in trajectory.states_hilbert
+    ρ_matrix = one_site_density_matrix(ρ)
+    trace_value = tr(ρ_matrix)
+
+    push!(
+        excited_population,
+        real(tr(excited_projector * ρ_matrix) / trace_value),
+    )
+    push!(trace_errors, abs(trace_value - 1))
+end
+
+max_trace_error = maximum(trace_errors)
+
+@assert all(isfinite, excited_population)
+@assert all(value -&gt; -2e-3 ≤ value ≤ 1 + 2e-3, excited_population)
+@assert max_trace_error &lt; 2e-3
+
+println(&quot;Reduced-system diagnostics&quot;)
+@printf(&quot;  P_e(0):                         %.6f\n&quot;, first(excited_population))
+@printf(&quot;  P_e(t_final):                   %.6f\n&quot;, last(excited_population))
+@printf(&quot;  maximum trace error:            %.3e\n&quot;, max_trace_error)
+@printf(&quot;  trajectory evolution time:      %.3f s\n&quot;, evolution_time)</code></pre><pre><code class="nohighlight hljs">Reduced-system diagnostics
+  P_e(0):                         0.085585
+  P_e(t_final):                   0.164671
+  maximum trace error:            4.134e-06
+  trajectory evolution time:      0.501 s
+</code></pre><h2 id="What-the-bath-does"><a class="docs-heading-anchor" href="#What-the-bath-does">What the bath does</a><a id="What-the-bath-does-1"></a><a class="docs-heading-anchor-permalink" href="#What-the-bath-does" title="Permalink"></a></h2><p>The companion calculation below restores the published <span>$60$</span>-mode discretization. The upper panel shows the Ohmic spectral density sampled on a uniform frequency grid. The lower panel compares the isolated Rabi clock with ACE trajectories at two bath temperatures on that same oscillator grid.</p><p><img src="../../assets/examples/thermal_spinboson_ace.png" alt="Ohmic spectral density and damping of Rabi oscillations by a thermal spin-boson environment"/></p><p>Without the bath, the drive continually rotates population between <span>$|g&gt;$</span> and <span>$|e&gt;$</span>. Coupling <span>$|e&gt;&lt;e|$</span> to the oscillator coordinates makes those two system histories leave different states in the environment. The bath thereby acquires which-state information, suppresses the phase coherence that sustains the Rabi rotations, and progressively removes their contrast. The excited-state population consequently approaches <span>$P_e=1/2$</span>: the driven spin is left with approximately equal <span>$|g&gt;$</span> and <span>$|e&gt;$</span> populations rather than continuing to execute coherent rotations.</p><p>Temperature adds another ingredient: the oscillators are not initially in vacuum, so both thermal fluctuations and the coherent system-driven displacements contribute to the environmental back-action. The two ACE curves use exactly the same frequencies, couplings, and spectral density; only their initial Gibbs temperatures differ. The hotter <span>$k_{\mathrm B}T/\hbar=6$</span> <span>$\mathrm{ps}^{-1}$</span> bath erases the oscillation contrast faster than the <span>$k_{\mathrm B}T/\hbar=1.5$</span> <span>$\mathrm{ps}^{-1}$</span> bath and drives <span>$P_e(t)$</span> toward <span>$1/2$</span> sooner.</p><p>Here “thermalising to a 50–50 spin state” refers to the observed loss of Rabi contrast and approach to equal populations in this continuously driven, projector-coupled model. It should not be confused with undriven energy relaxation to a Gibbs population set by a transverse exchange interaction. The process tensor captures this temperature-dependent history before we choose how to probe the two-level system.</p><div class="admonition is-info" id="Numerical-accuracy-f9c33a7ed5b8bf65"><header class="admonition-header">Numerical accuracy<a class="admonition-anchor" href="#Numerical-accuracy-f9c33a7ed5b8bf65" title="Permalink"></a></header><div class="admonition-body"><p>The companion benchmark follows the ACE toolkit values <span>$dt=0.05$</span> ps, <span>$N=60$</span>, local boson dimension <span>$5$</span>, and <span>$ε=10^{-5}$</span>. Convergence can be checked independently by reducing <code>dt</code>, increasing the local boson dimension, refining the frequency discretization, and tightening the ACE threshold.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-4b8c4e91f8d05605"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-4b8c4e91f8d05605" title="Permalink"></a></header><div class="admonition-body"><ul><li>A thermal spin-boson bath is specified microscopically by sampling a spectral density into oscillator frequencies and couplings.</li><li>Each <a href="../../api/#ProcessTensors.Environments.BosonicMode"><code>BosonicMode</code></a> carries its own Hamiltonian, Gibbs state, and system-mode interaction; the modes remain independent before ACE combines their influences.</li><li>ACE converts an exponentially large formal bosonic environment into a compressed temporal process tensor using the relative singular-value threshold <span>$σ_i &gt; ε σ_1$</span>.</li><li>The bath destroys the coherence sustaining the Rabi oscillations, so their contrast decays and the driven spin approaches equal ground- and excited-state populations, <span>$P_e=1/2$</span>.</li><li>On the same mode grid and spectral density, the hotter Gibbs bath suppresses coherence faster and reaches the equal-population regime sooner.</li><li>After construction, the same thermal process tensor can be reused for new system preparations, controls, observables, and multi-time probes.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../central_spin_ace/">« Central-spin dynamics using ACE</a><a class="docs-footer-nextpage" href="../instrument_sequences/">Instrument sequences »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 20 August 2026 10:21">Thursday 20 August 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
