@@ -5,7 +5,7 @@
 <h1 align="center">ProcessTensors.jl</h1>
 
 <p align="center">
-    MPS-based process tensors for non-Markovian open quantum systems in Julia.
+    <b>Tensor-network methods for process tensors and non-Markovian quantum dynamics.</b>
 </p>
 
 <p align="center">
@@ -26,41 +26,46 @@
   </a>
 </p>
 
-`ProcessTensors.jl` is a Julia package for constructing and contracting process tensors
-as matrix-product objects. It extends the familiar `ITensorMPS.jl` workflow with
-Hilbert/Liouville-space wrappers, system and bath abstractions, instrument sequences,
-and high-level routines for reduced dynamics and multi-time correlations.
+`ProcessTensors.jl` is a Julia package for simulating open quantum systems with matrix-product states and operators. It is built on `ITensorMPS.jl` and keeps the physics-facing workflow close to the equations: define a system, describe its environment, build a process tensor, and then ask what experiments that process would produce.
 
-## Features
+The same package can also be used before process tensors enter the story: closed-system Hilbert-space dynamics, vectorized Liouville-space evolution, Lindblad generators, TEBD, TDVP, driven systems, and dissipative many-body models all live under the same interface.
 
-- Hilbert- and Liouville-space `MPS`/`MPO` wrappers built on `ITensorMPS.jl`
-- Spin and bosonic system definitions with Hamiltonian and jump-operator support
-- Spin and bosonic bath modes with compact bath containers
-- Dense Liouville construction of single- and multi-mode process tensors
-- Instrument sequences: state preparation, trace-out, observables, left/right actions, open outputs
-- Reduced evolution through `evolve`
-- Process contraction through `evaluate_process`
-- Sequential multi-time correlations through `two_time_correlation_seq`
+## What can you do with it?
+
+| | |
+| --- | --- |
+| **Evolve quantum states** | Work with Hilbert- and Liouville-space `MPS`/`MPO` objects, unitary dynamics, Lindblad evolution, TEBD, TDVP, and time-dependent Hamiltonians. |
+| **Build environmental memory** | Construct spin and bosonic baths mode by mode, then turn their influence into an MPO process tensor with `Dense()` or **ACE**. |
+| **Run experiments on a process** | Assemble preparations, controls, measurements, left/right actions, trace-outs, and open legs into an `InstrumentSeq`, then contract it with `evaluate_process`. |
+| **Reuse the same environment** | Once a process tensor is built, evolve new initial states with `evolve`, evaluate different protocols, or probe multi-time correlations without rebuilding the bath. |
 
 ## Installation
 
-Install the current release from GitHub (the package is not yet on the General Registry):
+Install the latest tagged release from GitHub:
 
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.2.0")
 ```
 
-For the latest development version on `main`:
+For the latest development version:
 
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl")
 ```
 
-## Quick Start
+### ACE: compress the environment, keep the memory
 
-### Defining a Process Tensor
+`ACE()` — Automated Compression of Environments — sequentially incorporates independent microscopic bath modes and compresses the temporal memory they leave behind.
+
+That makes models such as a central spin surrounded by hundreds of bath spins, or a driven two-level system coupled to a thermal bosonic continuum, accessible without explicitly propagating the exponentially large joint environment (see the [Central-spin ACE example](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/central_spin_ace/) and [Thermal spin-boson ACE example](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/thermal_spinboson_ace/)
+for complete walkthroughs).
+
+## A process tensor in a few lines
+
+Define the system and one bath mode:
+
 ```julia
 using ITensors
 using ProcessTensors
@@ -68,74 +73,82 @@ using ProcessTensors
 dt = 0.1
 nsteps = 24
 
-# Physical sites
 sys = siteinds("S=1/2", 1)
-bath = siteinds("S=1/2", 1)
+bath_site = siteinds("S=1/2", 1)
+bathL = liouv_sites(bath_site)
 
-sysL = liouv_sites(sys)
-bathL = liouv_sites(bath)
-
-# System Hamiltonian
 Hsys = OpSum()
 Hsys += 1.0, "Sx", 1
 system = spin_system(sys, Hsys)
 
-# Bath initial state and Hamiltonian
-ρbath0 = to_liouville(to_dm(MPS(bath, ["Up"])); sites=bathL)
+ρbath0 = to_liouville(
+    to_dm(MPS(bath_site, ["Up"]));
+    sites=bathL,
+)
 
 Hbath = OpSum()
 Hbath += 1.0, "Sx", 1
 
-Hcoupling = OpSum()
-Hcoupling += 1.0, "Sz", 1, "Sz", 2
+Hint = OpSum()
+Hint += 1.0, "Sz", 1, "Sz", 2
 
-mode = spin_mode(bathL, Hbath, ρbath0; coupling=Hcoupling)
+mode = spin_mode(bathL, Hbath, ρbath0; coupling=Hint)
 environment = spin_bath([mode])
 
-pt = build_process_tensor(system, system.sites[1]; environment, dt, nsteps)
+pt = build_process_tensor(
+    system;
+    environment,
+    dt,
+    nsteps,
+)
 ```
 
-### Evolve the Reduced System
+Then reuse that process tensor however you like.
+
+Follow the reduced non-Markovian trajectory:
+
 ```julia
-ρsys0 = to_dm(MPS(sys, ["Up"]))
-trajectory = evolve(pt, ρsys0)
-
-trajectory.times
-trajectory.states_liouville
+ρ0 = to_dm(MPS(sys, ["Up"]))
+trajectory = evolve(pt, ρ0)
 ```
 
-### Evaluate Processes
+Or ask an explicit experimental question:
+
 ```julia
 obs = OpSum()
 obs += 1.0, "Sz", 1
 
 seq = default_schedule(pt)
-add!(seq, 0, state_preparation(ρsys0))
+add!(seq, 0, state_preparation(ρ0))
 add!(seq, nsteps, observable_measurement(obs))
 
 expectation = evaluate_process(pt, seq)
 ```
 
-## Examples
+The process tensor is the reusable object in the middle: change the preparation,
+measurement, control sequence, or multi-time probe without reconstructing the
+environment.
 
-Runnable scripts and longer worked examples live under `scripts/` and in the
-[Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/)
-section of the documentation:
+## Pick your route through the docs
 
-| Topic | Script | Docs |
-| ----- | ------ | ---- |
-| Spin-bath process tensor | `scripts/pt_tfim_singlemode.jl`, `scripts/pt_tfim_multimode.jl` | [Spin-bath process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_bath_process_tensor/) |
-| Multi-time correlations | `scripts/pt_multitime_correlations.jl` | [Multi-time correlations](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/multitime_correlations/) |
-| TFIM TEBD (unitary) | `scripts/tebd_tfim_unitary.jl` | [TEBD time evolution](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/) |
-| TFIM TEBD (dissipative) | `scripts/tebd_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
-| TFIM TDVP (unitary) | `scripts/tdvp_tfim_unitary.jl` | [Unitary Dynamics tutorial](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/unitary_dynamics/) |
-| TFIM TDVP (dissipative) | `scripts/tdvp_tfim_dissipative.jl` | [Dissipative spin](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/dissipative_spin/) |
+The documentation is written as a progression rather than an API dump.
 
-## Changelog
+- **New to the tensor-network conventions?** Start with [ITensor Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/itensor_basics/) and [MPS and MPO Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/mps_mpo_basics/).
+- **Want open-system dynamics first?** Go to [Liouville-Space Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/liouville_basics/) and [Dissipative Dynamics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/dissipative_dynamics/).
+- **Here for process tensors?** Start with the [Single-Mode Process Tensor tutorial](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/process_tensor_singlemode/), then move to the ACE examples.
+- **Already know the theory?** Jump straight to the [Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/) or the [API Reference](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/api/).
 
-See [CHANGELOG.md](CHANGELOG.md) for release notes. The current release is **v0.1.0** (July 2026).
+## Contributing
+
+`ProcessTensors.jl` is under active development. Bug reports, physics examples,
+algorithm implementations, documentation improvements, and discussions about
+future process-tensor methods are most welcome!
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md) for
+development and release information.
 
 ---
 
-_No tensor indices were harmed during the development of this package.
-Several, however, were accidentally contracted with the wrong ones before eventually finding their soulmate (after three hours of debugging)._
+_No tensor indices were harmed during the development of this package. Several,
+however, were accidentally contracted with the wrong ones before eventually
+finding their soulmate._
