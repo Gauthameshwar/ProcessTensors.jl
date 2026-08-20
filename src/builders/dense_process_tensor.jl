@@ -9,6 +9,7 @@
 
 import ITensors: terms
 import ITensors.Ops: Exact, Trotter
+import ITensorMPS: MPO as CoreMPO
 
 const MAX_DENSE_LIOUVILLE_DIM = 5_000
 
@@ -36,6 +37,41 @@ end
 
 # Internal prime level for mid-legs when fusing free-system maps into a bath core.
 const _INTERNAL_PLEV = 2
+
+# Closed-system channel ``ρ ↦ U ρ U†`` with ``U = exp(-i H Δt)`` built on Hilbert
+# sites, then fused onto the caller's Liouville indices with `to_liouville`
+# combiners (bra, ket) → Liouville. `dag` matches `liouvillian_propagator` primes.
+function _hilbert_unitary_liouville_propagator(
+    os::OpSum,
+    liouv_sites::AbstractVector{<:Index},
+    dt::Real,
+)
+    phys = Index[_phys_site_from_liouv(s) for s in liouv_sites]
+    if isempty(terms(os))
+        U_L = ITensor(1)
+        for s in liouv_sites
+            U_L *= delta(s, prime(s))
+        end
+        return U_L
+    end
+
+    H = foldl(*, CoreMPO(os, phys))
+    U = ITensors.exp(-im * float(dt) * H)
+    ρL = to_liouville(MPO(phys, "Id"); sites=Index[liouv_sites...])
+    Cs = ρL.combiners
+
+    U_ket = replaceinds(U, (prime(s) => prime(s, 2) for s in phys)...)
+    U_bra = replaceinds(conj(U), (prime(s) => prime(s, 1) for s in phys)...)
+    U_bra = replaceinds(U_bra, (s => prime(s, 3) for s in phys)...)
+
+    U_L = U_ket * U_bra
+    for (s, L, C) in zip(phys, liouv_sites, Cs)
+        Cout = replaceinds(C, prime(s) => prime(s, 3), s => prime(s, 2), L => prime(L))
+        U_L *= C
+        U_L *= Cout
+    end
+    return dag(U_L)
+end
 
 # One-step free-system Liouville map on PT legs `(in_k, out_k)` (always Exact ED).
 function _system_liouvillian_pt_core(
@@ -119,20 +155,18 @@ end
 joint_liouville_dim(bath::AbstractBath, coupling_site::Index) =
     prod(dim.(collect(Index[vcat([only(m.sites) for m in bath.modes], [coupling_site])...])))
 
-# Build one PT core per timestep by embedding a joint bath(+coupling) propagator and retaining one bath memory link.
-function _build_bathmode_pt_cores(
-    system::AbstractSystem,
+# Bath-only core assembly for one mode: joint bath(+coupling) propagator per timestep with the initial bath state and trace-out contracted onto the boundary memory links.
+function _build_bathmode_cores_no_sys(
     coupling_site::Index,
     bathmode::AbstractBathMode,
     dt::Real,
     nsteps::Int;
     bath_coupling::OpSum=OpSum(),
     alg=Exact(),
-    sys_alg=Trotter{1}(),
+    channel::Symbol=:liouvillian,
     run::_AbstractRunReporter=_NO_RUN_REPORTER,
     kwargs...
 )
-    _validate_sys_alg(sys_alg)
     length(bathmode.sites) == 1 || throw(
         ArgumentError("build_process_tensor: AbstractBathMode must have exactly one site index. Got $(length(bathmode.sites)).")
     )
@@ -140,15 +174,26 @@ function _build_bathmode_pt_cores(
     d_env = dim(env_liouv)
     d_sys = dim(coupling_site)
     d_joint = d_env * d_sys
-    _validate_dense_liouville_budget(d_joint; context="_build_bathmode_pt_cores")
+    _validate_dense_liouville_budget(d_joint; context="_build_bathmode_cores_no_sys")
 
     coupling_term = bathmode.coupling == OpSum() ? bath_coupling : bathmode.coupling
-    # Joint bath(+coupling) slab only; free-system maps are fused via `sys_alg`.
+    # Joint bath(+coupling) cores only; free-system maps are fused separately.
     joint_ops = bathmode.H + coupling_term
     sites_vec = Index[env_liouv, coupling_site]
 
-    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint,)
-    U_ref = liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
+    @progress_stage run "Constructing joint propagator" (joint_dimension=d_joint, channel=channel)
+    U_ref = if channel === :hilbert_unitary
+        _hilbert_unitary_liouville_propagator(joint_ops, sites_vec, dt)
+    elseif channel === :liouvillian
+        liouvillian_propagator(joint_ops, sites_vec, dt; alg=alg)
+    else
+        throw(
+            ArgumentError(
+                "build_process_tensor: unknown bath-mode channel $(repr(channel)); " *
+                "use :liouvillian or :hilbert_unitary.",
+            ),
+        )
+    end
 
     # Bath virtual memory legs: nsteps cores use nsteps+1 links.
     bath_links = [Index(d_env; tags="PT,Link,tstep=$k") for k in 0:nsteps]
@@ -168,8 +213,7 @@ function _build_bathmode_pt_cores(
             core_k = replaceind(core_k, env_liouv, left)
             core_k = replaceind(core_k, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
-            cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
-            push!(cores, cores_k)
+            push!(cores, core_k)
             step = k + 1
             @progress_update run step
         end
@@ -184,6 +228,37 @@ function _build_bathmode_pt_cores(
     cores[1] *= initial_bath_state
     cores[end] *= bath_trace
 
+    return cores, inputs, outputs
+end
+
+# Build one PT core per timestep by embedding a joint bath(+coupling) propagator and retaining one bath memory link.
+function _build_bathmode_pt_cores(
+    system::AbstractSystem,
+    coupling_site::Index,
+    bathmode::AbstractBathMode,
+    dt::Real,
+    nsteps::Int;
+    bath_coupling::OpSum=OpSum(),
+    alg=Exact(),
+    sys_alg=Trotter{1}(),
+    run::_AbstractRunReporter=_NO_RUN_REPORTER,
+    kwargs...
+)
+    _validate_sys_alg(sys_alg)
+    cores, inputs, outputs = _build_bathmode_cores_no_sys(
+        coupling_site,
+        bathmode,
+        dt,
+        nsteps;
+        bath_coupling=bath_coupling,
+        alg=alg,
+        run=run,
+    )
+    for k in 0:(nsteps - 1)
+        cores[k + 1] = _embed_system_map(
+            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
+        )
+    end
     return cores
 end
 

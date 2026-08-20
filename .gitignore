@@ -23,8 +23,10 @@ notes/*
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/
 
-# Auto-provisioned env for plotting scripts (CairoMakie; not part of the library project)
-/scripts/.plot_examples_env/
+# Local throwaway project environments at any depth (e.g. .bench_env, .plot_env,
+# scripts/.plot_examples_env). Trailing slash limits the match to directories.
+.*env/
+**/.*env/
 
 # MacOS hidden files
 .DS_Store

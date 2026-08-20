@@ -87,6 +87,7 @@ Base.include(
 
 include("builders/abstract_builders.jl")
 include("builders/dense_process_tensor.jl")
+include("builders/ace_process_tensor.jl")
 include("process_tensor/build.jl")
 include("process_tensor/evaluate.jl")
 include("process_tensor/evolve.jl")
@@ -158,7 +159,7 @@ export custom_twoleg_instrument
 export left_action, right_action
 
 # Process tensors
-export Dense
+export Dense, ACE
 export ProcessTensor
 export build_process_tensor, default_schedule
 export evaluate_process, evolve

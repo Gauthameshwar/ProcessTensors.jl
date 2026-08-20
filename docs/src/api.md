@@ -135,9 +135,14 @@ liouvillian_propagator
 
 ### Process tensors
 
+`ACE.cutoff` is the relative singular-value threshold ``ε`` used at every
+memory bond: retain ``σᵢ > ε σ₁``. `ACE.maxdim` is an additional safety cap.
+`ACE.compression` is `:canonzip` (default) or `:zipup`.
+
 ```@docs
 ProcessTensor
 Dense
+ACE
 ```
 
 ```@docs

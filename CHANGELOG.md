@@ -5,6 +5,33 @@ All notable changes to [ProcessTensors.jl](https://github.com/Gauthameshwar/Proc
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+* **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:canonzip` joins each mode fully, then truncates right-to-left; `:zipup` truncates during the forward join.
+* ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
+  process-tensor legs with `to_liouville` combiners.
+* **Central-spin ACE example** reproducing the fully polarized Cygorek
+  benchmark, with a modest Literate walkthrough and a companion
+  ``N = 5, 10, 100, 1000`` scaling script.
+* **Thermal spin-boson ACE example** sampling an Ohmic bath into independent
+  oscillators, with a modest Literate walkthrough and a companion ``60``-mode
+  figure comparing two bath temperatures.
+
+### Changed
+
+* **`evolve`** takes each intermediate reduced state via a separate `evaluate_process` schedule so SVD-compressed ACE memory bonds stay correctly contracted.
+* **ACE `compression`** is `:canonzip` (default) or `:zipup`. The experimental
+  `:zipper` path is removed.
+
+### Fixed
+
+* **ACE bond compression** now follows the native forward join-and-SVD plus
+  backward sweep, using the relative criterion ``σᵢ > ε σ₁`` and per-bond
+  ``σ₁`` rescaling. This replaces generic discarded-weight truncation and
+  prevents long-chain gauge overflow and excessive rank loss.
+
 ## v0.2.0 - 2026-08-01
 
 ### Breaking

@@ -82,6 +82,8 @@ const LITERATE_EXAMPLES = [
     ("boundary_driven_spin_chain.jl", "boundary_driven_spin_chain", "Boundary-driven spin chain"),
     ("driven_dissipative_bose_hubbard.jl", "driven_dissipative_bose_hubbard", "Driven-dissipative Bose–Hubbard"),
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
+    ("central_spin_ace.jl", "central_spin_ace", "Central-spin dynamics using ACE"),
+    ("thermal_spinboson_ace.jl", "thermal_spinboson_ace", "Thermal spin-boson dynamics using ACE"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
 
@@ -100,6 +102,8 @@ const EXAMPLE_GROUPS = [
     ]),
     ("Process tensors", [
         ("Spin-bath process tensor", "spin_bath_process_tensor"),
+        ("Central-spin dynamics using ACE", "central_spin_ace"),
+        ("Thermal spin-boson dynamics using ACE", "thermal_spinboson_ace"),
     ]),
     ("Instruments and correlations", [
         ("Instrument sequences", "instrument_sequences"),
@@ -161,6 +165,8 @@ stage_example_figures([
     "driven_dissipative_bose_hubbard.png",
     "pt_tfim_singlemode.png",
     "pt_tfim_multimode.png",
+    "central_spin_ace.png",
+    "thermal_spinboson_ace.png",
     "pt_multitime_correlations.png",
 ])
 
