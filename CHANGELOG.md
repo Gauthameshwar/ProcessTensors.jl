@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:canonzip` joins each mode fully, then truncates right-to-left; `:zipup` truncates during the forward join.
 * ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
   process-tensor legs with `to_liouville` combiners.
 * **Central-spin ACE example** reproducing the fully polarized Cygorek
@@ -21,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * **`evolve`** takes each intermediate reduced state via a separate `evaluate_process` schedule so SVD-compressed ACE memory bonds stay correctly contracted.
+* **ACE `compression`** is `:canonzip` (default) or `:zipup`. The experimental
+  `:zipper` path is removed.
 
 ### Fixed
 

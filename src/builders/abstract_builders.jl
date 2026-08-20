@@ -23,16 +23,23 @@ small multimode environments.
 struct Dense <: AbstractPTBuilder end
 
 """
-    ACE(; cutoff=1e-10, maxdim=typemax(Int))
+    ACE(; cutoff=1e-10, maxdim=typemax(Int), compression=:canonzip)
 
 Sequential automated-compression-of-environments (ACE) process-tensor builder
 for baths of independent modes.
 
 Joins closed single-mode bath process tensors onto the accumulated process
-tensor one mode at a time using a forward join-and-compress sweep followed by
-a backward sweep. At each bond, `cutoff` is the relative ACE threshold
+tensor one mode at a time. At each bond, `cutoff` is the relative ACE threshold
 ``ε``: retain singular values satisfying ``σᵢ > ε σ₁``. `maxdim` is an
 additional safety cap on the retained bond dimension.
+
+`compression` selects the join/truncation schedule:
+
+- `:canonzip` (default) joins one complete mode without truncation, moves the
+  orthogonality center to the final time, then applies a right-to-left ACE SVD
+  sweep.
+- `:zipup` truncates each temporal bond during the forward join, then sweeps
+  backward.
 
 Requires `environment.coupling` to be empty; put every system-mode coupling on
 the corresponding mode's `coupling` field.
@@ -40,14 +47,26 @@ the corresponding mode's `coupling` field.
 struct ACE <: AbstractPTBuilder
     cutoff::Float64
     maxdim::Int
+    compression::Symbol
 
-    function ACE(cutoff::Real, maxdim::Integer)
+    function ACE(cutoff::Real, maxdim::Integer, compression::Symbol)
         cutoff >= 0 || throw(ArgumentError("ACE: cutoff must be non-negative; got $cutoff."))
         maxdim >= 1 || throw(ArgumentError("ACE: maxdim must be at least 1; got $maxdim."))
-        return new(float(cutoff), Int(maxdim))
+        compression === :zipup || compression === :canonzip || throw(
+            ArgumentError(
+                "ACE: compression must be :canonzip or :zipup; got $compression.",
+            ),
+        )
+        return new(float(cutoff), Int(maxdim), compression)
     end
 end
 
-function ACE(; cutoff::Real=1e-10, maxdim::Integer=typemax(Int))
-    return ACE(cutoff, maxdim)
+ACE(cutoff::Real, maxdim::Integer) = ACE(cutoff, maxdim, :canonzip)
+
+function ACE(;
+    cutoff::Real=1e-10,
+    maxdim::Integer=typemax(Int),
+    compression::Symbol=:canonzip,
+)
+    return ACE(cutoff, maxdim, compression)
 end

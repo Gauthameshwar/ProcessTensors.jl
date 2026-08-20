@@ -38,6 +38,7 @@ using Test
     @test ACE() isa ProcessTensors.AbstractPTBuilder
     @test ACE(; cutoff=1e-12, maxdim=64).cutoff == 1e-12
     @test ACE(; cutoff=1e-12, maxdim=64).maxdim == 64
+    @test ACE().compression === :canonzip
 
     # Removed field-accessor sugar is not part of the public API.
     for name in (
