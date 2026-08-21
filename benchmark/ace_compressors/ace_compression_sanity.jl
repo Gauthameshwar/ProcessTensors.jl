@@ -1,14 +1,14 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: benchmark/ace_compression_sanity.jl
+# File: benchmark/ace_compressors/ace_compression_sanity.jl
 # Contributor: Gauthameshwar S.
 #
 # Compares zip-up and canonzip ACE against Dense on a tiny two-mode
 # noncommuting spin bath at ε = 0 and ε = 1e-10.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/ace_compression_sanity.jl
+#   julia -t auto --project=. benchmark/ace_compressors/ace_compression_sanity.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 

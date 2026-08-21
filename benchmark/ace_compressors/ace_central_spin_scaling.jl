@@ -1,7 +1,7 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: benchmark/ace_central_spin_scaling.jl
+# File: benchmark/ace_compressors/ace_central_spin_scaling.jl
 # Contributor: Gauthameshwar S.
 #
 # Scaling comparison of zip-up and canonzip ACE on the polarized central-spin
@@ -9,8 +9,8 @@
 # compression-error metric.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/ace_central_spin_scaling.jl
-#   ACE_RUN_LARGE=true julia -t auto --project=. benchmark/ace_central_spin_scaling.jl
+#   julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
+#   ACE_RUN_LARGE=true julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 

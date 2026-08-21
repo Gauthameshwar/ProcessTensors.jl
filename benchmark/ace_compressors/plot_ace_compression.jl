@@ -1,19 +1,19 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: benchmark/plot_ace_compression.jl
+# File: benchmark/ace_compressors/plot_ace_compression.jl
 # Contributor: Gauthameshwar S.
 #
-# Reads ACE compression CSVs from benchmark/results/ and writes error-vs-cost
-# and scaling figures next to them.
+# Reads ACE compression CSVs from benchmark/ace_compressors/results/ and writes
+# error-vs-cost and scaling figures next to them.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/plot_ace_compression.jl
+#   julia -t auto --project=. benchmark/ace_compressors/plot_ace_compression.jl
 
 import Pkg
 
 const PACK_DIR = @__DIR__
-const PLOT_ENV = joinpath(PACK_DIR, ".plot_env")
+const PLOT_ENV = joinpath(dirname(PACK_DIR), ".plot_env")
 const RESULTS_DIR = joinpath(PACK_DIR, "results")
 
 function activate_plot_env!()
