@@ -1,7 +1,7 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: benchmark/ace_compression_benchmark.jl
+# File: benchmark/ace_compressors/ace_compression_benchmark.jl
 # Contributor: Gauthameshwar S.
 #
 # ACE compression benchmark: compares zip-up and canonzip compression across
@@ -10,7 +10,7 @@
 # canonzip ACE at ε = 1e-13.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/ace_compression_benchmark.jl
+#   julia -t auto --project=. benchmark/ace_compressors/ace_compression_benchmark.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 

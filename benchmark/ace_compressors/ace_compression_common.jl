@@ -1,16 +1,17 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: benchmark/ace_compression_common.jl
+# File: benchmark/ace_compressors/ace_compression_common.jl
 # Contributor: Gauthameshwar S.
 #
 # Shared helpers for ACE zip-up vs canonzip compression benchmarks. Writes CSV
-# output under benchmark/results/. Runtime and memory come from BenchmarkTools
-# after warmup, not a single compiling @elapsed.
+# output under benchmark/ace_compressors/results/. Runtime and memory come from
+# BenchmarkTools after warmup, not a single compiling @elapsed.
 
 import Pkg
 
-const _BENCH_ENV = joinpath(@__DIR__, ".bench_env")
+const _BENCH_ROOT = dirname(@__DIR__)
+const _BENCH_ENV = joinpath(_BENCH_ROOT, ".bench_env")
 const _ORIG_PROJECT = Base.active_project()
 mkpath(_BENCH_ENV)
 Pkg.activate(_BENCH_ENV)
