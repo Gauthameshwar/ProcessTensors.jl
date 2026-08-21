@@ -96,26 +96,26 @@ exact_final_density =
 sx_exact =
     exact_sx_trajectory(H_dense, density_dense, mean_x_dense, times)</code></pre><pre><code class="nohighlight hljs">21-element Vector{Float64}:
  0.0
- 0.034963727283138055
- 0.12811205978038068
+ 0.03496372728313803
+ 0.12811205978038065
  0.24902343563310836
- 0.3608257508147048
+ 0.36082575081470475
  0.4343349976997018
  0.4579367695107651
  0.4392972906550874
- 0.3989591435399823
- 0.35955603186076457
- 0.33600030289414273
- 0.3309091981298635
- 0.3364959718352232
- 0.34085721486801923
- 0.33474270215019547
- 0.3153140117720468
- 0.28562652021401375
- 0.2511992141585859
+ 0.39895914353998235
+ 0.3595560318607647
+ 0.3360003028941427
+ 0.33090919812986364
+ 0.33649597183522306
+ 0.3408572148680193
+ 0.3347427021501954
+ 0.3153140117720465
+ 0.2856265202140134
+ 0.2511992141585857
  0.21653764043956134
- 0.1840570328443326
- 0.15588643443832445</code></pre><h2 id="Hilbert-space-Two-siteTDVP"><a class="docs-heading-anchor" href="#Hilbert-space-Two-siteTDVP">Hilbert-space Two-siteTDVP</a><a id="Hilbert-space-Two-siteTDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-space-Two-siteTDVP" title="Permalink"></a></h2><p>Schrödinger evolution obeys</p><p class="math-container">\[\frac{d}{dt}|\psi(t)\rangle=-iH|\psi(t)\rangle .\]</p><p>Therefore the two-site TDVP (2TDVP) timestep is complex, <code>-1im * dt</code>, and the operator is the Hamiltonian MPO. We implement the 2TDVP variant with <code>nsite=2</code> to allow for entanglement and operator-space bonds to grow.</p><pre><code class="language-julia hljs">hilbert_trajectory = let
+ 0.18405703284433284
+ 0.1558864344383244</code></pre><h2 id="Hilbert-space-Two-siteTDVP"><a class="docs-heading-anchor" href="#Hilbert-space-Two-siteTDVP">Hilbert-space Two-siteTDVP</a><a id="Hilbert-space-Two-siteTDVP-1"></a><a class="docs-heading-anchor-permalink" href="#Hilbert-space-Two-siteTDVP" title="Permalink"></a></h2><p>Schrödinger evolution obeys</p><p class="math-container">\[\frac{d}{dt}|\psi(t)\rangle=-iH|\psi(t)\rangle .\]</p><p>Therefore the two-site TDVP (2TDVP) timestep is complex, <code>-1im * dt</code>, and the operator is the Hamiltonian MPO. We implement the 2TDVP variant with <code>nsite=2</code> to allow for entanglement and operator-space bonds to grow.</p><pre><code class="language-julia hljs">hilbert_trajectory = let
     state = copy(initial_state)
     sx = Float64[real(inner(state&#39;, mean_x_mpo, state))]
     energies = Float64[real(inner(state&#39;, H_mpo, state))]
@@ -163,7 +163,7 @@ println(&quot;    Max bond dim of final state: $(maxlinkdim(hilbert_trajectory.s
 @assert maximum(abs.(hilbert_trajectory.sx - sx_exact)) &lt; 0.05
 @assert hilbert_error &lt; 0.05
 @assert hilbert_energy_drift &lt; 1e-6</code></pre><pre><code class="nohighlight hljs">2TDVP on Hilbert space with dt=0.1
-    Wall time to final state: 0.4375 s
+    Wall time to final state: 0.3396 s
     Relative error of the final density matrix: 1.9e-5
     Maximum energy drift: 1.389e-10
     Max bond dim of final state: 4
@@ -246,7 +246,7 @@ println(&quot;    Max bond dim of final state: $(maxlinkdim(liouville_trajectory
 
 @assert maximum(abs.(liouville_trajectory.sx - sx_exact)) &lt; 0.05
 @assert liouville_error &lt; 0.05</code></pre><pre><code class="nohighlight hljs">2TDVP on Liouville space with dt=0.1
-    Wall time to final state: 1.9251 s
+    Wall time to final state: 1.5756 s
     Relative error of the final density matrix: 2.5e-5
     Max bond dim of final state: 16
-</code></pre><p>GSE also prevents plain Liouville 1TDVP from remaining confined to its initial operator-space bonds, although this method no longer conserves energy. This is because, in Liouville space, TDVP is applied to the vectorise density matrix under the Liouvillian superoperator. The physical energy <span>$E(t) = \mathrm{tr}(\rho(t)H)$</span> is not the same variational obhect that Hilbert-space 1TDVP conservation argument protects. Therefore, energy conservation in Liouville space should not be interpreted in the same way as in Hilbert space.</p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space TDVP and exact mean spin"/> <img src="../../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png" alt="Liouville-space TDVP density-matrix error with respect to ED"/> <img src="../../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png" alt="Liouville-space TDVP energy drift"/></p><div class="admonition is-info" id="Variational-meaning-97f4a491d95d824b"><header class="admonition-header">Variational meaning<a class="admonition-anchor" href="#Variational-meaning-97f4a491d95d824b" title="Permalink"></a></header><div class="admonition-body"><p>Hilbert-space TDVP projects Schrödinger evolution for a pure state. Liouville-space TDVP projects the superoperator evolution of a vectorized density matrix. They encode the same closed-system physics here, but act on different MPS manifolds and generally have different bond dimensions.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-42776ab2b065fc97"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-42776ab2b065fc97" title="Permalink"></a></header><div class="admonition-body"><ul><li>Hilbert TDVP uses <code>H_mpo</code> with the complex timestep <code>-1im * dt</code>.</li><li>Liouville TDVP uses <code>L_mpo = liouvillian_mpo(...)</code> with the real timestep <code>dt</code>.</li><li><code>nsite=2</code> allows entanglement and operator-space bonds to grow.</li><li>Global subspace expansion adds Krylov directions so 1TDVP is not trapped in the fixed bond dimensions of the initial MPS.</li><li>Energy is conserved for the Hilbert-space 1TDVP, but not for the Liouville-space 1TDVP.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tebd_time_evolution/">« TEBD time evolution</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin chain »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 20 August 2026 10:21">Thursday 20 August 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre><p>GSE also prevents plain Liouville 1TDVP from remaining confined to its initial operator-space bonds, although this method no longer conserves energy. This is because, in Liouville space, TDVP is applied to the vectorise density matrix under the Liouvillian superoperator. The physical energy <span>$E(t) = \mathrm{tr}(\rho(t)H)$</span> is not the same variational obhect that Hilbert-space 1TDVP conservation argument protects. Therefore, energy conservation in Liouville space should not be interpreted in the same way as in Hilbert space.</p><p><img src="../../assets/examples/tdvp_tfim_unitary_liouville_dynamics_mx.png" alt="Liouville-space TDVP and exact mean spin"/> <img src="../../assets/examples/tdvp_tfim_unitary_liouville_rho_error.png" alt="Liouville-space TDVP density-matrix error with respect to ED"/> <img src="../../assets/examples/tdvp_tfim_unitary_liouville_energy_drift.png" alt="Liouville-space TDVP energy drift"/></p><div class="admonition is-info" id="Variational-meaning-97f4a491d95d824b"><header class="admonition-header">Variational meaning<a class="admonition-anchor" href="#Variational-meaning-97f4a491d95d824b" title="Permalink"></a></header><div class="admonition-body"><p>Hilbert-space TDVP projects Schrödinger evolution for a pure state. Liouville-space TDVP projects the superoperator evolution of a vectorized density matrix. They encode the same closed-system physics here, but act on different MPS manifolds and generally have different bond dimensions.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-42776ab2b065fc97"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-42776ab2b065fc97" title="Permalink"></a></header><div class="admonition-body"><ul><li>Hilbert TDVP uses <code>H_mpo</code> with the complex timestep <code>-1im * dt</code>.</li><li>Liouville TDVP uses <code>L_mpo = liouvillian_mpo(...)</code> with the real timestep <code>dt</code>.</li><li><code>nsite=2</code> allows entanglement and operator-space bonds to grow.</li><li>Global subspace expansion adds Krylov directions so 1TDVP is not trapped in the fixed bond dimensions of the initial MPS.</li><li>Energy is conserved for the Hilbert-space 1TDVP, but not for the Liouville-space 1TDVP.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tebd_time_evolution/">« TEBD time evolution</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin chain »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 21 August 2026 14:35">Friday 21 August 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
