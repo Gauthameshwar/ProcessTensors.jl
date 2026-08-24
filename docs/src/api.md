@@ -277,6 +277,29 @@ ProcessTensors.Instruments.instrument_itensor
 ProcessTensors.Instruments.create_instruments
 ```
 
+### Testers and tester schedules
+
+```@docs
+Tester
+tester
+AbstractTesterAction
+TesterIdentity
+TesterPropagation
+TesterUnitary
+JointPropagation
+JointUnitary
+```
+
+```@docs
+tester_identity
+tester_propagation
+tester_unitary
+joint_propagation
+joint_unitary
+TesterSeq
+ProcessTensors.Instruments.resolve_tester_action
+```
+
 ### Time evolution
 
 ```@docs

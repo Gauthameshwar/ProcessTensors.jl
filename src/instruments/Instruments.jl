@@ -4,8 +4,8 @@
 # File: src/instruments/Instruments.jl
 # Contributor: Gauthameshwar S.
 #
-# Defines the Instruments submodule shell and lazy instrument exports used by
-# process-tensor schedules.
+# Defines the Instruments submodule shell and exports for process-tensor
+# instruments, memory-bearing testers, and schedules.
 
 module Instruments
 
@@ -16,9 +16,10 @@ using LinearAlgebra
 import ITensors.Ops: Exact, Trotter
 using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouville, MPO,
                         OpSum, liouvillian_opsum, Index, ITensor, apply, dim, plev, prime,
-                        replaceind, siteinds, tag_value, to_dm, to_liouville,
+                        replaceind, siteinds, tag_tokens, tag_value, has_tag_token,
+                        liouv_sites, to_dm, to_liouville,
                         _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
-                        liouvillian_propagator,
+                        _liouv_site_type, liouvillian_propagator,
                         _phys_sites_from_hilbert_mpo
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
@@ -31,8 +32,15 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        open_output, open_input, open_inout,
        custom_twoleg_instrument,
        InstrumentSeq, add!, resolve_instrument, instrument_leg_maps,
-       instrument_itensor, create_instruments
+       instrument_itensor, create_instruments,
+       Tester, tester, AbstractTesterAction,
+       TesterIdentity, TesterPropagation, TesterUnitary,
+       JointPropagation, JointUnitary,
+       tester_identity, tester_propagation, tester_unitary,
+       joint_propagation, joint_unitary,
+       TesterSeq, resolve_tester_action
 
 include("lazy_instruments.jl")
+include("testers.jl")
 
 end # module Instruments

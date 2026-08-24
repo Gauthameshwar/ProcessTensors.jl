@@ -68,6 +68,7 @@ end
 # Systems test sets
 include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
+include(joinpath(@__DIR__, "systems", "test_testers.jl"))
 
 # Process tensor test sets
 include(joinpath(@__DIR__, "process_tensor", "test_structure.jl"))

@@ -73,6 +73,11 @@ using .Instruments: open_output, open_input, open_inout
 using .Instruments: custom_twoleg_instrument
 using .Instruments: left_action, right_action
 using .Instruments: InstrumentSeq
+using .Instruments: Tester, tester, AbstractTesterAction
+using .Instruments: TesterIdentity, TesterPropagation, TesterUnitary
+using .Instruments: JointPropagation, JointUnitary
+using .Instruments: tester_identity, tester_propagation, tester_unitary
+using .Instruments: joint_propagation, joint_unitary, TesterSeq
 using .Instruments: add!
 
 # Process tensors
@@ -157,6 +162,14 @@ export open_output, open_input, open_inout
 export custom_twoleg_instrument
 
 export left_action, right_action
+
+# Memory-bearing testers
+export Tester, tester, TesterSeq
+export AbstractTesterAction
+export TesterIdentity, TesterPropagation, TesterUnitary
+export JointPropagation, JointUnitary
+export tester_identity, tester_propagation, tester_unitary
+export joint_propagation, joint_unitary
 
 # Process tensors
 export Dense, ACE
