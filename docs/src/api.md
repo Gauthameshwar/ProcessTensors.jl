@@ -140,6 +140,8 @@ memory bond: retain ``σᵢ > ε σ₁``. `ACE.maxdim` is an additional safety c
 `ACE.compression` is `:canonzip` (default) or `:zipup`.
 `evaluate_process` accepts optional `tester` and `tester_seq` keywords for
 memory-bearing ancillary controls.
+`evolve` additionally returns tester trajectories by default when `tester` is
+provided, with joint system-tester trajectories available through `return_joint`.
 
 ```@docs
 ProcessTensor

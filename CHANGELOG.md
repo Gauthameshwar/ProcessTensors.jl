@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state, while `TesterSeq` schedules tester-only and joint system-tester
   Hamiltonian or unitary actions. `evaluate_process` optionally contracts these
   controls with persistent tester memory and traces the tester at the end.
+  `evolve` returns reduced system and tester trajectories, with joint
+  system-tester trajectories available on request.
 * **`QubitSystem` / `qubit_system`.** Circuit-style ITensor `"Qubit"` sites can
   now define process-tensor systems. An omitted Hamiltonian selects identity
   free-system evolution without introducing a separate qubit bath type.

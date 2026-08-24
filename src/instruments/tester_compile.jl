@@ -10,6 +10,7 @@
 const _TesterOnlyAction = Union{TesterIdentity,TesterPropagation,TesterUnitary}
 const _JointTesterAction = Union{JointPropagation,JointUnitary}
 
+# Recover Hilbert sites from mixed Hilbert/Liouville tester indices.
 function _physical_tester_sites(sites::AbstractVector{<:Index})
     return Index[
         has_tag_token(site, "Liouv") ? _phys_site_from_liouv(site) : site
@@ -37,6 +38,7 @@ function _retarget_liouville_map(
     return result
 end
 
+# Build exp(-i H dt) as a Liouville map and attach it to the runtime legs.
 function _opsum_liouville_map(
     H::OpSum,
     action_sites::AbstractVector{<:Index},
@@ -59,6 +61,7 @@ function _opsum_liouville_map(
     )
 end
 
+# Dense unitary matrix from a Hilbert ITensor; reject non-unitary data.
 function _unitary_matrix(
     U::ITensor,
     physical_sites::AbstractVector{<:Index};
@@ -77,6 +80,7 @@ function _unitary_matrix(
     return matrix
 end
 
+# Convert a Hilbert unitary into a Liouville superoperator on the runtime legs.
 function _unitary_liouville_map(
     U::ITensor,
     physical_sites::AbstractVector{<:Index},
@@ -119,6 +123,7 @@ function _unitary_half(
     )
 end
 
+# Identity tester action: copy memory from input to output.
 function _materialize_tester_action(
     ::TesterIdentity,
     memory_input::Index,
@@ -128,6 +133,7 @@ function _materialize_tester_action(
     return delta(memory_input, memory_output)
 end
 
+# Tester-only Hamiltonian step on the memory wire.
 function _materialize_tester_action(
     action::TesterPropagation,
     memory_input::Index,
@@ -143,6 +149,7 @@ function _materialize_tester_action(
     )
 end
 
+# Tester-only unitary on the memory wire.
 function _materialize_tester_action(
     action::TesterUnitary,
     memory_input::Index,
@@ -158,6 +165,7 @@ function _materialize_tester_action(
     )
 end
 
+# Joint Hamiltonian map on system ⊗ tester for duration `dt`.
 function _materialize_tester_action(
     action::JointPropagation,
     system_input::Index,
@@ -175,6 +183,7 @@ function _materialize_tester_action(
     )
 end
 
+# Split a joint Hamiltonian into G^{1/2} before and after the PT core.
 function _materialize_joint_halves(
     action::JointPropagation,
     pre_system::Index,
@@ -205,6 +214,7 @@ function _materialize_joint_halves(
     return pre, post
 end
 
+# Split a joint unitary into √U before and after the PT core.
 function _materialize_joint_halves(
     action::JointUnitary,
     pre_system::Index,
@@ -235,11 +245,13 @@ function _materialize_joint_halves(
     return pre, post
 end
 
+# Fresh system index with the same tags/prime as a PT leg, used to insert G^{1/2}.
 function _temporary_system_leg(site::Index)
     temporary = Index(dim(site); tags=tags(site))
     return plev(site) == 0 ? temporary : prime(temporary, plev(site))
 end
 
+# Tester-only interval: full map in `pre`, identity `post`.
 function _materialize_interval(
     action::_TesterOnlyAction,
     ::Index,
@@ -256,6 +268,7 @@ function _materialize_interval(
     )
 end
 
+# Joint interval: G^{1/2} on the input (`pre`) and G^{1/2} on the output (`post`).
 function _materialize_interval(
     action::_JointTesterAction,
     core_input::Index,
@@ -287,11 +300,13 @@ function _materialize_interval(
     )
 end
 
+# Bind the tstep=0 tester-only map from stored tester sites onto the first memory link.
 function _initial_tester_map(
     action::_TesterOnlyAction,
     memory::Tester,
     memory_output::Index,
     dt::Real,
+    ::AbstractString,
 )
     validate_tester_action(action, memory)
     return _materialize_tester_action(
@@ -302,41 +317,48 @@ function _initial_tester_map(
     )
 end
 
+# Reject joint actions at tstep=0; they have no preceding system output.
 function _initial_tester_map(
     ::_JointTesterAction,
     ::Tester,
     ::Index,
     ::Real,
+    owner::AbstractString,
 )
-    throw(ArgumentError("evaluate_process: joint tester actions are not allowed at tstep=0."))
+    throw(ArgumentError("$owner: joint tester actions are not allowed at tstep=0."))
 end
 
+# Replace `source` by `target` only when the tensor still carries `source`.
 _relabel_if_present(tensor::ITensor, source::Index, target::Index) =
     hasind(tensor, source) ? replaceind(tensor, source, target) : tensor
 
+# Check a tester-only action against stored tester sites.
 _validate_runtime_action(action::_TesterOnlyAction, memory::Tester, ::AbstractVector{<:Index}) =
     validate_tester_action(action, memory)
 
+# Check a joint action against both system sites and stored tester sites.
 _validate_runtime_action(
     action::_JointTesterAction,
     memory::Tester,
     system_sites::AbstractVector{<:Index},
 ) = validate_tester_action(action, memory; system_sites)
 
-function _compile_tester_control(
+# Fold tester init + interval pres onto instruments; keep pending posts for evolve snapshots.
+function _compile_tester_control_data(
     pt,
     instruments::AbstractVector{<:ITensor},
     memory::Tester,
     schedule::TesterSeq,
+    owner::AbstractString,
 )
     schedule.nsteps == pt.nsteps || throw(
         ArgumentError(
-            "evaluate_process: tester_seq.nsteps=$(schedule.nsteps) must equal " *
+            "$owner: tester_seq.nsteps=$(schedule.nsteps) must equal " *
             "pt.nsteps=$(pt.nsteps).",
         ),
     )
     length(instruments) == pt.nsteps + 1 || throw(
-        ArgumentError("evaluate_process: instrument tensor count does not match pt.nsteps."),
+        ArgumentError("$owner: instrument tensor count does not match pt.nsteps."),
     )
 
     system_sites = Index[_phys_site_from_liouv(site) for site in pt.system.sites]
@@ -352,6 +374,7 @@ function _compile_tester_control(
         memory,
         memory_links[1],
         pt.dt,
+        owner,
     )
     initial_state = _coerce_liouville_state(memory.rho0, memory.sites)
     initial_tensor = _reindex_itensor(
@@ -415,24 +438,62 @@ function _compile_tester_control(
         compiled[step + 1] = bridge * following.pre
     end
 
-    final_interval = last(intervals)
+    return (
+        instruments=compiled,
+        pending_post=ITensor[interval.post for interval in intervals],
+        post_system=Union{Nothing,Index}[interval.post_system for interval in intervals],
+        memory_output=memory_links[2:end],
+        tester_sites=memory.sites,
+    )
+end
+
+# Evaluate compile: apply the last post-half and trace the tester memory wire.
+function _compile_tester_control(
+    pt,
+    instruments::AbstractVector{<:ITensor},
+    memory::Tester,
+    schedule::TesterSeq,
+)
+    data = _compile_tester_control_data(
+        pt,
+        instruments,
+        memory,
+        schedule,
+        "evaluate_process",
+    )
+    compiled = data.instruments
     final_output = only(ProcessTensors.output_sites(pt, pt.nsteps - 1))
     terminal = compiled[end]
-    if final_interval.post_system !== nothing
+    final_post_system = last(data.post_system)
+    if final_post_system !== nothing
         terminal = _relabel_if_present(
             terminal,
             final_output,
-            final_interval.post_system,
+            final_post_system,
         )
     end
-    terminal *= final_interval.post
-    terminal *= _vectorized_identity_itensor(Index[last(memory_links)])
+    terminal *= last(data.pending_post)
+    terminal *= _vectorized_identity_itensor(Index[last(data.memory_output)])
     compiled[end] = terminal
     return compiled
 end
 
+# Missing tester_seq: compile identity tester dynamics.
+function _compile_tester_control_data(
+    pt,
+    instruments::AbstractVector{<:ITensor},
+    memory::Tester,
+    ::Nothing,
+    owner::AbstractString,
+)
+    schedule = TesterSeq(default=tester_identity(), nsteps=pt.nsteps)
+    return _compile_tester_control_data(pt, instruments, memory, schedule, owner)
+end
+
+# No tester: leave the instrument tensors unchanged.
 _compile_tester_control(pt, instruments, ::Nothing, ::Nothing) = instruments
 
+# A schedule without memory is invalid.
 function _compile_tester_control(
     ::Any,
     ::AbstractVector{<:ITensor},
@@ -442,6 +503,7 @@ function _compile_tester_control(
     throw(ArgumentError("evaluate_process: tester_seq requires a tester."))
 end
 
+# Missing tester_seq: evaluate with identity tester dynamics.
 function _compile_tester_control(
     pt,
     instruments::AbstractVector{<:ITensor},

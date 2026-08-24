@@ -60,37 +60,61 @@ function _evaluate_result_summary(result)
     )
 end
 
-# Wrap a contracted ITensor (reduced density-matrix vector) into an MPS{Liouville}.
+# Wrap a contracted density-matrix vector into an MPS{Liouville}.
 function _liouville_mps_from_itensor(t::ITensor, liouv_sites::AbstractVector{<:Index})
-    length(liouv_sites) == 1 || throw(ArgumentError("_liouville_mps_from_itensor currently supports a single Liouville site."))
-    liouv_site = only(liouv_sites)
+    sites = Index[liouv_sites...]
+    isempty(sites) && throw(
+        ArgumentError("_liouville_mps_from_itensor requires at least one Liouville site."),
+    )
     t_loc = t
-    if !hasind(t_loc, liouv_site)
-        hasind(t_loc, prime(liouv_site)) || throw(
-            ArgumentError("_liouville_mps_from_itensor: reduced tensor is missing Liouville site $(liouv_site)."),
+    combiners = ITensor[]
+    for liouv_site in sites
+        if !hasind(t_loc, liouv_site)
+            hasind(t_loc, prime(liouv_site)) || throw(
+                ArgumentError(
+                    "_liouville_mps_from_itensor: reduced tensor is missing " *
+                    "Liouville site $(liouv_site).",
+                ),
+            )
+            t_loc = replaceind(t_loc, prime(liouv_site), liouv_site)
+        end
+        phys_site = _phys_site_from_liouv(liouv_site)
+        d = dim(phys_site)
+        d2 = dim(liouv_site)
+        d * d == d2 || throw(
+            ArgumentError(
+                "_liouville_mps_from_itensor expects dim(liouv_site)=d^2; " *
+                "got dim=$d2.",
+            ),
         )
+
+        # PT legs use the transpose of the package's local vectorization order.
+        perm = zeros(ComplexF64, d2, d2)
+        for i in 1:d, j in 1:d
+            old = (i - 1) * d + j
+            new = (j - 1) * d + i
+            perm[new, old] = 1.0
+        end
+        transpose_map = ITensor(perm, prime(liouv_site), liouv_site)
+        t_loc = transpose_map * t_loc
         t_loc = replaceind(t_loc, prime(liouv_site), liouv_site)
-    end
-    phys_site = _phys_site_from_liouv(liouv_site)
-    d = dim(phys_site)
-    d2 = dim(liouv_site)
-    d * d == d2 || throw(ArgumentError("_liouville_mps_from_itensor expects dim(liouv_site)=d^2."))
 
-    # Convert PT's local Liouville basis ordering to the package's canonical ordering
-    # used by to_liouville/to_hilbert by applying vec(ρ) -> vec(ρᵀ).
-    perm = zeros(ComplexF64, d2, d2)
-    for i in 1:d, j in 1:d
-        old = (i - 1) * d + j
-        new = (j - 1) * d + i
-        perm[new, old] = 1.0
+        comb = combiner(phys_site, prime(phys_site); tags=tags(liouv_site))
+        push!(combiners, replaceind(comb, combinedind(comb), liouv_site))
     end
-    transpose_map = ITensor(perm, prime(liouv_site), liouv_site)
-    t_loc = transpose_map * t_loc
-    t_loc = replaceind(t_loc, prime(liouv_site), liouv_site)
 
-    comb = combiner(phys_site, prime(phys_site); tags=tags(liouv_site))
-    comb = replaceind(comb, combinedind(comb), liouv_site)
-    return MPS{Liouville}(CoreMPS([t_loc]), ITensor[comb])
+    core = length(sites) == 1 ? CoreMPS([t_loc]) : CoreMPS(t_loc, sites)
+    return MPS{Liouville}(core, combiners)
+end
+
+# Trace every Liouville index except the explicitly retained state sites.
+function _trace_out_except(t::ITensor, keep::AbstractVector{<:Index})
+    reduced = t
+    for idx in inds(reduced)
+        idx in keep && continue
+        reduced *= Instruments._vectorized_identity_itensor(Index[idx])
+    end
+    return reduced
 end
 
 """

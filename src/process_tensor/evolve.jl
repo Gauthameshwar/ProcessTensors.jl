@@ -172,11 +172,7 @@ function _evolve(
             end
             # Close leftover legs (Dense fused-bath traces; ACE should already
             # be absorbed by the closures) except the open system output.
-            reduced = snapshot
-            for idx in inds(reduced)
-                idx in out_sites && continue
-                reduced *= Instruments._vectorized_identity_itensor(Index[idx])
-            end
+            reduced = _trace_out_except(snapshot, out_sites)
             rho_liouv = _liouville_mps_from_itensor(reduced, out_sites)
             states_liouville[k + 1] = rho_liouv
             states_hilbert[k + 1] = to_hilbert(rho_liouv)
@@ -185,6 +181,185 @@ function _evolve(
         end
     end
     return (times=times, states_liouville=states_liouville, states_hilbert=states_hilbert)
+end
+
+# Multiple dispatch helpers for evolve storage depending on what trajectories the user wants
+function _evolve_storage(::Val{false}, ::Val{false}, nsteps::Int)
+    return (
+        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+    )
+end
+
+function _evolve_storage(::Val{true}, ::Val{false}, nsteps::Int)
+    return (
+        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+    )
+end
+
+function _evolve_storage(::Val{false}, ::Val{true}, nsteps::Int)
+    return (
+        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+    )
+end
+
+function _evolve_storage(::Val{true}, ::Val{true}, nsteps::Int)
+    return (
+        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
+        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+    )
+end
+
+function _store_evolve_snapshot!(
+    storage,
+    snapshot::ITensor,
+    system_sites::AbstractVector{<:Index},
+    tester_sites::AbstractVector{<:Index},
+    slot::Int,
+    ::Val{ReturnTester},
+    ::Val{ReturnJoint},
+) where {ReturnTester,ReturnJoint}
+    system_state = _liouville_mps_from_itensor(
+        _trace_out_except(snapshot, system_sites),
+        system_sites,
+    )
+    storage.states_liouville[slot] = system_state
+    storage.states_hilbert[slot] = to_hilbert(system_state)
+
+    if ReturnTester
+        tester_state = _liouville_mps_from_itensor(
+            _trace_out_except(snapshot, tester_sites),
+            tester_sites,
+        )
+        storage.tester_states_liouville[slot] = tester_state
+        storage.tester_states_hilbert[slot] = to_hilbert(tester_state)
+    end
+
+    if ReturnJoint
+        joint_sites = vcat(system_sites, tester_sites)
+        joint_state = _liouville_mps_from_itensor(
+            _trace_out_except(snapshot, joint_sites),
+            joint_sites,
+        )
+        storage.joint_states_liouville[slot] = joint_state
+        storage.joint_states_hilbert[slot] = to_hilbert(joint_state)
+    end
+    return nothing
+end
+
+function _evolve(
+    ::Val{:closures},
+    pt::ProcessTensor,
+    seq::InstrumentSeq,
+    return_tester::Val,
+    return_joint::Val;
+    default_instr::AbstractInstrument,
+    alg,
+    tester::Tester,
+    tester_seq::Union{Nothing,TesterSeq},
+    run,
+)
+    times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
+    storage = _evolve_storage(return_tester, return_joint, pt.nsteps)
+
+    @progress_stage run "Preparing trajectory"
+    instruments = Instruments._create_instruments(
+        pt,
+        seq;
+        default=default_instr,
+        alg=alg,
+        run=_NO_RUN_REPORTER,
+    )
+    control = Instruments._compile_tester_control_data(
+        pt,
+        instruments,
+        tester,
+        tester_seq,
+        "evolve",
+    )
+
+    @progress_stage run "Computing bond closures"
+    closures = _pt_bond_closures(pt)
+
+    prefix = pt.core[1] * control.instruments[1]
+    @progress_bar run "Computing reduced snapshots" pt.nsteps begin
+        for k in 0:(pt.nsteps - 1)
+            if k > 0
+                prefix *= control.instruments[k + 1]
+                prefix *= pt.core[k + 1]
+            end
+
+            system_sites = output_sites(pt, k)
+            snapshot = prefix * control.pending_post[k + 1]
+            post_system = control.post_system[k + 1]
+            if post_system !== nothing
+                snapshot = replaceind(snapshot, post_system, only(system_sites))
+            end
+            snapshot = replaceind(
+                snapshot,
+                control.memory_output[k + 1],
+                only(control.tester_sites),
+            )
+            if k + 1 <= length(closures)
+                snapshot *= closures[k + 1]
+            end
+
+            slot = k + 1
+            _store_evolve_snapshot!(
+                storage,
+                snapshot,
+                system_sites,
+                control.tester_sites,
+                slot,
+                return_tester,
+                return_joint,
+            )
+            @progress_update run slot (t=times[slot],)
+        end
+    end
+    return (; times, storage...)
+end
+
+function _evolve(
+    ::Val{:evaluate},
+    ::ProcessTensor,
+    ::InstrumentSeq,
+    ::Val,
+    ::Val;
+    tester::Tester,
+    kwargs...,
+)
+    throw(
+        ArgumentError(
+            "evolve: tester trajectories require contraction=:closures; " *
+            "contraction=:evaluate traces tester memory at each schedule end.",
+        ),
+    )
+end
+
+function _evolve(
+    ::Val{S},
+    ::ProcessTensor,
+    ::InstrumentSeq,
+    ::Val,
+    ::Val;
+    kwargs...,
+) where {S}
+    throw(
+        ArgumentError(
+            "evolve: contraction must be :evaluate or :closures; got :$S.",
+        ),
+    )
 end
 
 function _evolve(::Val{S}, pt::ProcessTensor, seq::InstrumentSeq; kwargs...) where {S}
@@ -196,12 +371,24 @@ function _evolve(::Val{S}, pt::ProcessTensor, seq::InstrumentSeq; kwargs...) whe
 end
 
 """
-    evolve(pt, seq; default_instr=_schedule_default_instr(pt),
-           contraction=:closures, alg=Trotter{2}(),
+    evolve(pt, seq; tester=nothing, tester_seq=nothing,
+           return_tester=nothing, return_joint=false,
+           default_instr=_schedule_default_instr(pt), contraction=:closures,
+           alg=Trotter{2}(),
            progress=:auto, verbose=false)
 
 Return reduced system snapshots generated by contracting a process tensor with
 an instrument schedule.
+
+Pass `tester` and optionally `tester_seq` to propagate ancillary tester memory.
+Tester states are returned by default when a tester is present; set
+`return_tester=false` to omit them or `return_joint=true` to additionally return
+joint system-tester states. 
+
+Tester trajectories use the fields `tester_states_liouville` and
+`tester_states_hilbert`; requested joint trajectories use
+`joint_states_liouville` and `joint_states_hilbert`. The system fields
+`states_liouville` and `states_hilbert` are always returned.
 
 `contraction` selects the contraction algorithm:
 
@@ -216,6 +403,10 @@ an instrument schedule.
 trajectory = evolve(pt, ρ0)
 ρ_t = trajectory.states_hilbert[3]
 trajectory_ref = evolve(pt, ρ0; contraction=:evaluate)
+
+sA = siteinds("Qubit", 1)
+memory = tester(sA, to_dm(MPS(sA, ["0"])))
+tester_trajectory = evolve(pt, ρ0; tester=memory)
 ```
 """
 function evolve(
@@ -224,10 +415,23 @@ function evolve(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     contraction::Symbol=:closures,
     alg=Trotter{2}(),
+    tester::Union{Nothing,Tester}=nothing,
+    tester_seq::Union{Nothing,TesterSeq}=nothing,
+    return_tester::Union{Nothing,Bool}=nothing,
+    return_joint::Bool=false,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evolve")
+    tester === nothing && tester_seq !== nothing && throw(
+        ArgumentError("evolve: tester_seq requires a tester."),
+    )
+    want_tester = something(return_tester, tester !== nothing)
+    (want_tester || return_joint) && tester === nothing && throw(
+        ArgumentError(
+            "evolve: return_tester=true or return_joint=true requires a tester.",
+        ),
+    )
     started = time()
     run = @progress_start progress verbose "Evolving reduced system" (
         nsteps=pt.nsteps,
@@ -235,14 +439,29 @@ function evolve(
         contraction=contraction,
     )
     try
-        result = _evolve(
-            Val(contraction),
-            pt,
-            seq;
-            default_instr=default_instr,
-            alg=alg,
-            run=run,
-        )
+        result = if tester === nothing
+            _evolve(
+                Val(contraction),
+                pt,
+                seq;
+                default_instr=default_instr,
+                alg=alg,
+                run=run,
+            )
+        else
+            _evolve(
+                Val(contraction),
+                pt,
+                seq,
+                Val(want_tester),
+                Val(return_joint);
+                default_instr=default_instr,
+                alg=alg,
+                tester=tester,
+                tester_seq=tester_seq,
+                run=run,
+            )
+        end
         @progress_stage run "Evolved reduced system" (
             nsteps=pt.nsteps,
             dt=pt.dt,

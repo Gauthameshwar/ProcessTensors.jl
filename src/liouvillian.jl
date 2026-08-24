@@ -285,7 +285,7 @@ end
 # Physical Hilbert sites from a density matrix MPO (unprimed leg at each site).
 function _phys_sites_from_hilbert_mpo(mpo::AbstractMPO{Hilbert})
     return Index[
-        only(filter(i -> plev(i) == 0, inds(mpo.core[j])))
+        only(filter(i -> plev(i) == 0 && has_tag_token(i, "Site"), inds(mpo.core[j])))
         for j in eachindex(mpo.core)
     ]
 end
