@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **`QubitSystem` / `qubit_system`.** Circuit-style ITensor `"Qubit"` sites can
+  now define process-tensor systems. An omitted Hamiltonian selects identity
+  free-system evolution without introducing a separate qubit bath type.
 * **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:canonzip` joins each mode fully, then truncates right-to-left; `:zipup` truncates during the forward join.
 * ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
   process-tensor legs with `to_liouville` combiners.

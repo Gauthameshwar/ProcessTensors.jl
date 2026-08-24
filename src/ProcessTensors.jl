@@ -129,8 +129,8 @@ export OpSum_Liouville, MPO_Liouville, liouvillian_propagator_itensor
 
 # Systems
 export AbstractSystem
-export SpinSystem, BosonSystem
-export spin_system, boson_system
+export SpinSystem, BosonSystem, QubitSystem
+export spin_system, boson_system, qubit_system
 
 # Environments
 export AbstractBathMode, AbstractBath

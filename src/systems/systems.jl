@@ -14,8 +14,9 @@ import Base: show
 
 Abstract interface for system models used in process-tensor construction.
 
-Concrete systems store a Hamiltonian `H`, Lindblad jump operators `jump_ops`, and
-canonical Liouville-space `sites` for the system degrees of freedom.
+[`SpinSystem`](@ref), [`BosonSystem`](@ref), and [`QubitSystem`](@ref) store a
+Hamiltonian `H`, Lindblad jump operators `jump_ops`, and canonical
+Liouville-space `sites` for the system degrees of freedom.
 """
 abstract type AbstractSystem end
 
@@ -91,6 +92,30 @@ struct BosonSystem <: AbstractSystem
 end
 
 """
+    QubitSystem(sites, H, jump_ops)
+
+Qubit-site system model for process-tensor construction.
+
+`sites` must be ITensor `"Qubit"` indices, rather than `"S=1/2"` spin indices,
+and may be either all Hilbert-space or Liouville-space indices. Hilbert
+sites are converted with [`liouv_sites`](@ref); mixed Hilbert/Liouville inputs
+are rejected. `H` is a physical `OpSum`, conventionally written using Pauli
+operators `"X"`, `"Y"`, and `"Z"`, and `jump_ops` contains Lindblad-channel
+`OpSum`s. An empty `H` with no jump operators represents identity free-system
+evolution and does not emit a warning.
+"""
+struct QubitSystem <: AbstractSystem
+    H::OpSum
+    jump_ops::Vector{OpSum}
+    sites::Vector{Index}
+
+    function QubitSystem(sites::AbstractVector{<:Index}, H::OpSum, jump_ops::AbstractVector{<:OpSum})
+        liouv = _normalize_system_sites(sites, "QubitSystem", "Qubit", "qubit indices")
+        new(H, collect(jump_ops), liouv)
+    end
+end
+
+"""
     spin_system(sites, H; jump_ops=OpSum[])
 
 Construct a [`SpinSystem`](@ref) using keyword-style Lindblad jump operators.
@@ -105,6 +130,28 @@ Construct a [`BosonSystem`](@ref) using keyword-style Lindblad jump operators.
 """
 boson_system(sites::AbstractVector{<:Index}, H::OpSum; jump_ops::AbstractVector{<:OpSum}=OpSum[]) =
     BosonSystem(sites, H, collect(jump_ops))
+
+"""
+    qubit_system(sites, H=OpSum(); jump_ops=OpSum[])
+
+Construct a [`QubitSystem`](@ref) from ITensor `"Qubit"` sites.
+
+Omitting `H` selects identity free-system evolution when `jump_ops` is also
+empty. Supply Pauli-operator terms in `H` for coherent dynamics or physical
+qubit-basis `OpSum`s in `jump_ops` for Lindblad channels.
+
+# Examples
+```julia
+s = siteinds("Qubit", 1)
+sys = qubit_system(s)
+sys = qubit_system(s, OpSum() + (0.5, "Z", 1) + (0.2, "X", 1))
+```
+"""
+qubit_system(
+    sites::AbstractVector{<:Index},
+    H::OpSum=OpSum();
+    jump_ops::AbstractVector{<:OpSum}=OpSum[],
+) = QubitSystem(sites, H, collect(jump_ops))
 
 function Base.show(io::IO, sys::SpinSystem)
     ns = length(sys.sites)
@@ -138,5 +185,22 @@ function Base.show(io::IO, sys::BosonSystem)
     println(io, "  dissipative: ", !isempty(sys.jump_ops))
 end
 
+function Base.show(io::IO, sys::QubitSystem)
+    ns = length(sys.sites)
+    println(io, "ProcessTensors.QubitSystem")
+    println(io, "  sites: ", ns)
+    space = any(!has_tag_token(s, "Liouv") for s in sys.sites) ? "Hilbert" : "Liouville"
+    println(io, "  space: ", space)
+    site_dims = dim.(sys.sites)
+    print(io, "  site dims: ")
+    if length(site_dims) <= 10
+        println(io, join(site_dims, ", "))
+    else
+        println(io, join(site_dims[1:5], ", "), ", ..., ", join(site_dims[(end - 4):end], ", "))
+    end
+    println(io, "  dissipative: ", !isempty(sys.jump_ops))
+end
+
 Base.show(io::IO, ::MIME"text/plain", sys::SpinSystem) = show(io, sys)
 Base.show(io::IO, ::MIME"text/plain", sys::BosonSystem) = show(io, sys)
+Base.show(io::IO, ::MIME"text/plain", sys::QubitSystem) = show(io, sys)

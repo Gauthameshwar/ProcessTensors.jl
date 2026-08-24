@@ -254,6 +254,42 @@ end
         end
     end
 
+    @testset "QubitSystem uses existing process-tensor paths" begin
+        s = siteinds("Qubit", 1)
+        system_identity = @test_nowarn qubit_system(s)
+        pt_identity = build_process_tensor(system_identity; dt=0.05, nsteps=4)
+        rho0_h = to_dm(MPS(s, ["+"]))
+        rho0_dense = _one_site_hilbert_mpo_to_dense(rho0_h)
+
+        trj_identity = evolve(pt_identity, rho0_h)
+        for ρ_l in trj_identity.states_liouville
+            @test _one_site_liouville_state_to_dense(ρ_l) ≈ rho0_dense atol=1e-10 rtol=1e-9
+        end
+
+        H = OpSum() + (0.45, "Z", 1)
+        system_driven = qubit_system(s, H)
+        pt_driven = build_process_tensor(system_driven; dt=0.05, nsteps=4)
+        rho_z = to_dm(MPS(s, ["0"]))
+        trj_driven = evolve(pt_driven, rho_z)
+        seq_id = _identity_instrument_seq(pt_driven, rho_z)
+        rho_eval = to_hilbert(evaluate_process(pt_driven, seq_id))
+        @test _one_site_hilbert_mpo_to_dense(rho_eval) ≈
+              _one_site_liouville_state_to_dense(trj_driven.states_liouville[end]) atol=1e-10
+
+        bath_phys = siteinds("S=1/2", 1)
+        bath_liouv = liouv_sites(bath_phys)
+        rho_bath = to_liouville(to_dm(MPS(bath_phys, ["Up"])); sites=bath_liouv)
+        mode = spin_mode(
+            bath_liouv,
+            OpSum() + (0.3, "Sx", 1),
+            rho_bath;
+            coupling=OpSum() + (0.1, "Sz", 1, "Z", 2),
+        )
+        bath = spin_bath([mode])
+        pt_bath = build_process_tensor(system_identity; environment=bath, dt=0.05, nsteps=2)
+        @test length(evolve(pt_bath, to_dm(MPS(s, ["0"]))).states_liouville) == 2
+    end
+
     @testset "identity instrument chain matches no-instrument evolve baseline" begin
         s = siteinds("S=1/2", 1)
         H = OpSum() + (0.45, "Sz", 1)

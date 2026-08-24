@@ -183,11 +183,13 @@ two_time_correlation_seq
 AbstractSystem
 SpinSystem
 BosonSystem
+QubitSystem
 ```
 
 ```@docs
 spin_system
 boson_system
+qubit_system
 ```
 
 ### Baths and spectral densities
