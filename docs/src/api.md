@@ -138,6 +138,8 @@ liouvillian_propagator
 `ACE.cutoff` is the relative singular-value threshold ``ε`` used at every
 memory bond: retain ``σᵢ > ε σ₁``. `ACE.maxdim` is an additional safety cap.
 `ACE.compression` is `:canonzip` (default) or `:zipup`.
+`evaluate_process` accepts optional `tester` and `tester_seq` keywords for
+memory-bearing ancillary controls.
 
 ```@docs
 ProcessTensor

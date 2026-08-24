@@ -170,34 +170,14 @@ function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
     )
 end
 
-"""
-    evaluate_process(pt, seq; kwargs...) -> Union{ComplexF64, MPS{Liouville}, ITensor}
-
-Contract a process tensor with an instrument schedule.
-
-Return type depends on the number of uncontracted system legs after contraction:
-
-| open legs | return |
-|-----------|--------|
-| 0 | `ComplexF64` |
-| 1 | `MPS{Liouville}` |
-| ≥ 2 | `ITensor` |
-
-# Examples
-```julia
-seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)
-add!(seq, open_output(), pt.nsteps)
-result = evaluate_process(pt, seq)
-@assert result isa MPS{Liouville}
-```
-"""
 function _evaluate_process(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
+    tester::Union{Nothing,Tester}=nothing,
+    tester_seq::Union{Nothing,TesterSeq}=nothing,
     run::_AbstractRunReporter=_NO_RUN_REPORTER,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evaluate_process")
@@ -208,6 +188,12 @@ function _evaluate_process(
         default=default_instr,
         alg=alg,
         run=run,
+    )
+    instruments = Instruments._compile_tester_control(
+        pt,
+        instruments,
+        tester,
+        tester_seq,
     )
     result = pt.core[1] * instruments[1]
     @progress_bar run "Contracting process tensor" max(pt.nsteps - 1, 1) begin
@@ -239,12 +225,45 @@ function _evaluate_process(
     end
 end
 
+"""
+    evaluate_process(pt, seq; tester=nothing, tester_seq=nothing, kwargs...)
+        -> Union{ComplexF64, MPS{Liouville}, ITensor}
+
+Contract a process tensor with an instrument schedule.
+
+Pass a [`Tester`](@ref) to include a persistent ancillary memory. When
+`tester_seq` is omitted, the tester is carried forward unchanged. A supplied
+[`TesterSeq`](@ref) must have the same `nsteps` as `pt`; the tester is traced
+out after the final interval.
+
+Return type depends on the number of uncontracted system legs after contraction:
+
+| open legs | return |
+|-----------|--------|
+| 0 | `ComplexF64` |
+| 1 | `MPS{Liouville}` |
+| ≥ 2 | `ITensor` |
+
+# Examples
+```julia
+seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
+add!(seq, state_preparation(ρ0), 0)
+add!(seq, open_output(), pt.nsteps)
+
+s_tester = siteinds("Qubit", 1)
+memory = tester(s_tester, to_dm(MPS(s_tester, ["0"])))
+controls = TesterSeq(nsteps=pt.nsteps)
+result = evaluate_process(pt, seq; tester=memory, tester_seq=controls)
+```
+"""
 function evaluate_process(
     pt::ProcessTensor,
     seq::InstrumentSeq;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
+    tester::Union{Nothing,Tester}=nothing,
+    tester_seq::Union{Nothing,TesterSeq}=nothing,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
@@ -257,6 +276,8 @@ function evaluate_process(
             default_instr=default_instr,
             alg=alg,
             all_legs_contracted=all_legs_contracted,
+            tester=tester,
+            tester_seq=tester_seq,
             run=run,
         )
         @progress_stage run "Evaluated process" merge(
@@ -280,6 +301,8 @@ function evaluate_process(
     seqs::AbstractVector{<:InstrumentSeq};
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
+    tester::Union{Nothing,Tester}=nothing,
+    tester_seq::Union{Nothing,TesterSeq}=nothing,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
@@ -297,6 +320,8 @@ function evaluate_process(
                     seqs[i];
                     default_instr=default_instr,
                     alg=alg,
+                    tester=tester,
+                    tester_seq=tester_seq,
                 )
                 val isa ComplexF64 || throw(
                     ArgumentError(

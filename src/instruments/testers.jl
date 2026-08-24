@@ -5,7 +5,7 @@
 # Contributor: Gauthameshwar S.
 #
 # Defines memory-bearing tester ancillas, tester actions, and intervention
-# schedules for later process-tensor contraction.
+# schedules used during process-tensor contraction.
 
 # Return the physical local dimension and SiteType encoded by a Hilbert or
 # Liouville site. Actions are compared by physical meaning, not Index identity.
@@ -255,6 +255,11 @@ end
     tester_identity()
 
 Construct the default action that carries tester memory forward unchanged.
+
+# Examples
+```julia
+seq = TesterSeq(default=tester_identity(), nsteps=4)
+```
 """
 tester_identity() = TesterIdentity()
 
@@ -263,7 +268,15 @@ tester_identity() = TesterIdentity()
 
 Store a tester-only Hamiltonian for later propagation on `sites`.
 
-The Hamiltonian is stored as a lazy object and used when constructing the unitary during `evaluate_process`.
+The Hamiltonian is stored and materialized during
+[`ProcessTensors.evaluate_process`](@ref).
+
+# Examples
+```julia
+s = siteinds("Qubit", 1)
+H = OpSum() + (0.2, "X", 1)
+action = tester_propagation(H, s)
+```
 """
 tester_propagation(H::OpSum, sites::AbstractVector{<:Index}) =
     TesterPropagation(H, Index[sites...])
@@ -275,6 +288,12 @@ Store a ready-made tester-only Hilbert-space unitary.
 
 `U` must contain each supplied site as an unprimed input index and the
 corresponding primed output index.
+
+# Examples
+```julia
+s = siteinds("Qubit", 1)
+action = tester_unitary(op("X", only(s)), s)
+```
 """
 tester_unitary(U::ITensor, sites::AbstractVector{<:Index}) =
     TesterUnitary(U, Index[sites...])
@@ -286,8 +305,16 @@ Store a joint system-tester Hamiltonian for later propagation.
 
 OpSum site numbers refer to `vcat(system_sites, tester_sites)`. For the initial
 one-system-site/one-tester-site implementation, site `1` is the system and site
-`2` is the tester. The Hamiltonian is stored as a lazy object and used when 
-constructing the unitary during `evaluate_process`.
+`2` is the tester. The Hamiltonian is stored and materialized during
+[`ProcessTensors.evaluate_process`](@ref).
+
+# Examples
+```julia
+s_system = siteinds("Qubit", 1)
+s_tester = siteinds("Qubit", 1)
+H = OpSum() + (0.1, "Z", 1, "Z", 2)
+action = joint_propagation(H, s_system, s_tester)
+```
 """
 joint_propagation(
     H::OpSum,
@@ -301,7 +328,15 @@ joint_propagation(
 Store a ready-made joint system-tester Hilbert-space unitary.
 
 `U` must contain one unprimed input and one primed output index for every
-supplied system and tester site. 
+supplied system and tester site.
+
+# Examples
+```julia
+s_system = siteinds("Qubit", 1)
+s_tester = siteinds("Qubit", 1)
+U = op("CNOT", only(s_system), only(s_tester))
+action = joint_unitary(U, s_system, s_tester)
+```
 """
 joint_unitary(
     U::ITensor,

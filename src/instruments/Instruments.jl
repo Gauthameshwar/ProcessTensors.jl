@@ -20,7 +20,7 @@ using ..ProcessTensors: AbstractMPO, AbstractMPS, AbstractSystem, Hilbert, Liouv
                         liouv_sites, to_dm, to_liouville,
                         _phys_site_from_liouv, _superop_matrix, _LiouvLeft, _LiouvRight,
                         _liouv_site_type, liouvillian_propagator,
-                        _phys_sites_from_hilbert_mpo
+                        _phys_sites_from_hilbert_mpo, _hilbert_itensor_to_liouville
 
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
        StatePreparation, ObservableMeasurement, TraceOut,
@@ -42,5 +42,6 @@ export AbstractInstrument, SingleLegInstrument, TwoLegInstrument,
 
 include("lazy_instruments.jl")
 include("testers.jl")
+include("tester_compile.jl")
 
 end # module Instruments
