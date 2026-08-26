@@ -156,6 +156,7 @@ expectation = evaluate_process(pt, seq)
 | Closed-system TEBD/TDVP                     | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)          |
 | Time-dependent Hamiltonians                 | [Laser-driven TDVP dynamics](examples/laser_driven_tdvp.md)         |
 | Multimode baths and multi-time correlations | [Spin-bath process tensor](examples/spin_bath_process_tensor.md)   |
+| Memory-assisted control of a noisy qubit     | [Testers and noisy quantum circuit](examples/noisy_quantum_circuit_tester.md) |
 | End-to-end scripts                          | [Examples](examples/tebd_time_evolution.md)                           |
 | Progress, verbose output, and threading     | [Advanced Usage](advanced_usage.md)                                  |
 | Function reference                          | [API Reference](api.md)                                              |

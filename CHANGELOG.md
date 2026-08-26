@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **Testers and noisy quantum qubits example:** A Literate walkthrough and
+  companion ACE script demonstrate store–wait–retrieve control, tester-only
+  phase operations, joint trajectories, and system–tester mutual information.
+  `scripts/noisy_quantum_circuit_tester.jl` caches the ACE process tensor and
+  reuses a matching cache on later runs.
 * **Memory-bearing tester architecture.** `Tester` stores an ancillary quantum
   state, while `TesterSeq` schedules tester-only and joint system-tester
   Hamiltonian or unitary actions. `evaluate_process` optionally contracts these

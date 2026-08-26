@@ -84,6 +84,7 @@ const LITERATE_EXAMPLES = [
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
     ("central_spin_ace.jl", "central_spin_ace", "Central-spin dynamics using ACE"),
     ("thermal_spinboson_ace.jl", "thermal_spinboson_ace", "Thermal spin-boson dynamics using ACE"),
+    ("noisy_quantum_circuit_tester.jl", "noisy_quantum_circuit_tester", "Noisy quantum circuit and testers"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
 
@@ -104,6 +105,7 @@ const EXAMPLE_GROUPS = [
         ("Spin-bath process tensor", "spin_bath_process_tensor"),
         ("Central-spin dynamics using ACE", "central_spin_ace"),
         ("Thermal spin-boson dynamics using ACE", "thermal_spinboson_ace"),
+        ("Testers and noisy quantum qubits", "noisy_quantum_circuit_tester"),
     ]),
     ("Instruments and correlations", [
         ("Instrument sequences", "instrument_sequences"),
@@ -167,6 +169,7 @@ stage_example_figures([
     "pt_tfim_multimode.png",
     "central_spin_ace.png",
     "thermal_spinboson_ace.png",
+    "noisy_quantum_circuit_tester.png",
     "pt_multitime_correlations.png",
 ])
 
