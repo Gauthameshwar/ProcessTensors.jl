@@ -28,10 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   process-tensor legs with `to_liouville` combiners.
 * **Central-spin ACE example** reproducing the fully polarized Cygorek
   benchmark, with a modest Literate walkthrough and a companion
-  ``N = 5, 10, 100, 1000`` scaling script.
+  ``N = 5, 10, 100, 1000`` scaling script. The companion script uses ACE
+  ``:zipup`` compression on the 2001-step chain, caches each process tensor,
+  and reuses a matching cache on later runs.
 * **Thermal spin-boson ACE example** sampling an Ohmic bath into independent
   oscillators, with a modest Literate walkthrough and a companion ``60``-mode
-  figure comparing two bath temperatures.
+  figure comparing two bath temperatures. The companion script caches both
+  ACE process tensors and reuses a matching cache on later runs.
 
 ### Changed
 

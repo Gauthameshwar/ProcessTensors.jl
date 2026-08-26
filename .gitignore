@@ -28,6 +28,9 @@ notes/*
 .*env/
 **/.*env/
 
+# Serialized process-tensor caches from companion scripts
+scripts/.cache/
+
 # MacOS hidden files
 .DS_Store
 
