@@ -22,6 +22,9 @@
 #
 # Run with:
 #   julia --project=. scripts/thermal_spinboson_ace.jl
+#
+# Matching ACE caches in scripts/.cache skip process-tensor construction.
+# Override with PT_THERMAL_CACHE or force a rebuild with PT_ACE_REBUILD=1.
 
 import Pkg
 
@@ -50,6 +53,7 @@ activate_plot_examples_env!()
 
 using Logging
 using Printf
+using Serialization
 using CairoMakie
 using ITensors
 using ITensors.Ops: Trotter
@@ -57,6 +61,97 @@ using LaTeXStrings
 using ProcessTensors
 
 CairoMakie.activate!()
+
+function slim_process_tensor(pt)
+    return ProcessTensor(
+        pt.core,
+        pt.system,
+        nothing,
+        pt.dt,
+        pt.nsteps,
+        pt.coupling_site,
+    )
+end
+
+function save_ace_cache(path, payload)
+    mkpath(dirname(path))
+    open(path, "w") do io
+        serialize(io, payload)
+    end
+    return path
+end
+
+function cache_parameter_mismatch(metadata, params, keys, format)
+    mismatches = String[]
+    hasproperty(metadata, :format) || return ["format: missing"]
+    metadata.format == format || return [
+        "format: cache=$(metadata.format) script=$format",
+    ]
+    for key in keys
+        cached = getproperty(metadata, key)
+        current = getproperty(params, key)
+        agrees = cached isa Real && current isa Real && !(cached isa Integer && current isa Integer) ?
+            isapprox(cached, current; atol=0, rtol=1e-12) :
+            cached == current
+        agrees || push!(mismatches, "$key: cache=$cached script=$current")
+    end
+    return mismatches
+end
+
+function load_or_build_ace_cache(
+    path,
+    params,
+    keys,
+    format,
+    builder;
+    label::AbstractString,
+)
+    force_rebuild = get(ENV, "PT_ACE_REBUILD", "0") == "1"
+    if force_rebuild
+        println("PT_ACE_REBUILD=1; constructing $label.")
+    elseif isfile(path)
+        payload = try
+            open(deserialize, path)
+        catch err
+            @warn "Could not read the process-tensor cache; rebuilding." exception = (
+                err,
+                catch_backtrace(),
+            )
+            nothing
+        end
+        if payload !== nothing
+            mismatches = cache_parameter_mismatch(payload.metadata, params, keys, format)
+            if isempty(mismatches)
+                println("Found a matching ACE cache; skipping process-tensor construction.")
+                println("  cache file:                  $path")
+                if hasproperty(payload.metadata, :maxlinkdim)
+                    @printf(
+                        "  maximum PT bond dimension:   %d\n",
+                        payload.metadata.maxlinkdim,
+                    )
+                end
+                return payload, 0.0
+            end
+            println("Cached process tensor does not match the script parameters; rebuilding.")
+            for line in mismatches
+                println("  $line")
+            end
+        end
+    else
+        println("No process-tensor cache at $path; building.")
+    end
+
+    build_seconds = @elapsed begin
+        payload = builder()
+    end
+    save_ace_cache(path, payload)
+    @printf("  ACE build time:              %.3f s\n", build_seconds)
+    @printf("  wrote cache:                 %s\n", path)
+    if hasproperty(payload.metadata, :maxlinkdim)
+        @printf("  maximum PT bond dimension:   %d\n", payload.metadata.maxlinkdim)
+    end
+    return payload, build_seconds
+end
 
 # ------------------------------------------------------------------------------
 # 1. Small utilities
@@ -224,6 +319,27 @@ const population_tolerance = 2e-3
 output_dir = joinpath(@__DIR__, "figures")
 mkpath(output_dir)
 figure_path = joinpath(output_dir, "thermal_spinboson_ace.png")
+cache_dir = joinpath(@__DIR__, ".cache")
+cache_path = get(
+    ENV,
+    "PT_THERMAL_CACHE",
+    joinpath(cache_dir, "thermal_spinboson_ace.jls"),
+)
+const THERMAL_CACHE_FORMAT = 1
+const THERMAL_CACHE_KEYS = (
+    :N_bath,
+    :local_dim,
+    :Ω,
+    :ω_min,
+    :ω_max,
+    :thermal_frequency,
+    :hot_thermal_frequency,
+    :dt,
+    :final_time,
+    :nsteps,
+    :ace_cutoff,
+    :ace_maxdim,
+)
 
 frequencies, spacings, couplings =
     uniform_mode_grid(N_bath, ω_min, ω_max)
@@ -312,78 +428,119 @@ closed_analytic_error =
 )
 
 # ------------------------------------------------------------------------------
-# 5. Thermal baths on the same oscillator grid
+# 5–6. Thermal baths and ACE process tensors
 # ------------------------------------------------------------------------------
 
-print_section("Preparing 60-mode thermal baths")
-
-bath_T1 = thermal_spinboson_bath(frequencies, couplings, thermal_frequency)
-bath_T3 = thermal_spinboson_bath(frequencies, couplings, hot_thermal_frequency)
+print_section("ACE process tensors")
 
 formal_hilbert_dimension = BigInt(local_dim)^N_bath
 formal_liouville_dimension = BigInt(local_dim)^(2N_bath)
-
 println("Formal environment sizes after local truncation:")
 println("  bath Hilbert dimension:        $formal_hilbert_dimension")
 println("  bath Liouville dimension:      $formal_liouville_dimension")
 
-# ------------------------------------------------------------------------------
-# 6. ACE process tensors
-# ------------------------------------------------------------------------------
+thermal_cache_params = (;
+    N_bath,
+    local_dim,
+    Ω,
+    ω_min,
+    ω_max,
+    thermal_frequency,
+    hot_thermal_frequency,
+    dt,
+    final_time,
+    nsteps,
+    ace_cutoff,
+    ace_maxdim,
+)
 
-print_section(@sprintf("Building ACE process tensor at T=%g", thermal_frequency))
+payload, ace_build_elapsed = load_or_build_ace_cache(
+    cache_path,
+    thermal_cache_params,
+    THERMAL_CACHE_KEYS,
+    THERMAL_CACHE_FORMAT,
+    () -> begin
+        print_section("Preparing 60-mode thermal baths")
+        bath_T1 = thermal_spinboson_bath(frequencies, couplings, thermal_frequency)
+        bath_T3 = thermal_spinboson_bath(frequencies, couplings, hot_thermal_frequency)
 
-println("Live mode-join progress is reported by ProcessTensors.jl.")
-ace_build_time_T1 = @elapsed begin
-    process_tensor_T1 = build_process_tensor(
-        system;
-        method=ACE(
-            cutoff=ace_cutoff,
-            maxdim=ace_maxdim,
-        ),
-        environment=bath_T1,
-        dt=dt,
-        nsteps=nsteps,
-        sys_alg=Trotter{2}(),
-        combine_alg=Trotter{2}(),
-        progress=true,
-        verbose=false,
-    )
-end
+        print_section(@sprintf("Building ACE process tensor at T=%g", thermal_frequency))
+        println("Live mode-join progress is reported by ProcessTensors.jl.")
+        process_tensor_T1 = build_process_tensor(
+            system;
+            method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+            environment=bath_T1,
+            dt=dt,
+            nsteps=nsteps,
+            sys_alg=Trotter{2}(),
+            combine_alg=Trotter{2}(),
+            progress=true,
+            verbose=false,
+        )
 
-max_pt_bond_T1 = maxlinkdim(process_tensor_T1)
+        print_section(@sprintf("Building ACE process tensor at T=%g", hot_thermal_frequency))
+        println("Live mode-join progress is reported by ProcessTensors.jl.")
+        process_tensor_T3 = build_process_tensor(
+            system;
+            method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+            environment=bath_T3,
+            dt=dt,
+            nsteps=nsteps,
+            sys_alg=Trotter{2}(),
+            combine_alg=Trotter{2}(),
+            progress=true,
+            verbose=false,
+        )
+
+        slim_T1 = slim_process_tensor(process_tensor_T1)
+        slim_T3 = slim_process_tensor(process_tensor_T3)
+        return (;
+            process_tensor_T1=slim_T1,
+            process_tensor_T3=slim_T3,
+            system_sites,
+            metadata=(;
+                format=THERMAL_CACHE_FORMAT,
+                N_bath,
+                local_dim,
+                Ω,
+                ω_min,
+                ω_max,
+                thermal_frequency,
+                hot_thermal_frequency,
+                dt,
+                final_time,
+                nsteps,
+                ace_cutoff,
+                ace_maxdim,
+                maxlinkdim=max(maxlinkdim(slim_T1), maxlinkdim(slim_T3)),
+                maxlinkdim_T1=maxlinkdim(slim_T1),
+                maxlinkdim_T3=maxlinkdim(slim_T3),
+            ),
+        )
+    end;
+    label="thermal spin-boson ACE process tensors",
+)
+
+process_tensor_T1 = payload.process_tensor_T1
+process_tensor_T3 = payload.process_tensor_T3
+open_system_sites = payload.system_sites
+initial_density = to_dm(MPS(open_system_sites, ["Dn"]))
+excited_projector = ComplexF64.(
+    Array(
+        op("ProjUp", open_system_sites[1]),
+        prime(open_system_sites[1]),
+        open_system_sites[1],
+    ),
+)
+max_pt_bond_T1 = hasproperty(payload.metadata, :maxlinkdim_T1) ?
+    payload.metadata.maxlinkdim_T1 : maxlinkdim(process_tensor_T1)
+max_pt_bond_T3 = hasproperty(payload.metadata, :maxlinkdim_T3) ?
+    payload.metadata.maxlinkdim_T3 : maxlinkdim(process_tensor_T3)
 
 println()
-println(@sprintf("ACE build complete at T=%g.", thermal_frequency))
-@printf("  build time:                     %.3f s\n", ace_build_time_T1)
-@printf("  maximum retained PT bond:       %d\n", max_pt_bond_T1)
-
-print_section(@sprintf("Building ACE process tensor at T=%g", hot_thermal_frequency))
-
-println("Live mode-join progress is reported by ProcessTensors.jl.")
-ace_build_time_T3 = @elapsed begin
-    process_tensor_T3 = build_process_tensor(
-        system;
-        method=ACE(
-            cutoff=ace_cutoff,
-            maxdim=ace_maxdim,
-        ),
-        environment=bath_T3,
-        dt=dt,
-        nsteps=nsteps,
-        sys_alg=Trotter{2}(),
-        combine_alg=Trotter{2}(),
-        progress=true,
-        verbose=false,
-    )
-end
-
-max_pt_bond_T3 = maxlinkdim(process_tensor_T3)
-
-println()
-println(@sprintf("ACE build complete at T=%g.", hot_thermal_frequency))
-@printf("  build time:                     %.3f s\n", ace_build_time_T3)
-@printf("  maximum retained PT bond:       %d\n", max_pt_bond_T3)
+println(@sprintf("ACE process tensors ready at T=%g and T=%g.", thermal_frequency, hot_thermal_frequency))
+@printf("  maximum retained PT bond, T=%g: %d\n", thermal_frequency, max_pt_bond_T1)
+@printf("  maximum retained PT bond, T=%g: %d\n", hot_thermal_frequency, max_pt_bond_T3)
 
 if max(max_pt_bond_T1, max_pt_bond_T3) >= ace_maxdim
     @warn(
@@ -475,7 +632,7 @@ T1_color = :steelblue
 T3_color = :darkorange
 ace_fill = :lightskyblue
 
-figure = Figure(size=(1100, 850))
+figure = Figure(size=(1100, 850), fontsize=18)
 
 spectral_axis = Axis(
     figure[1, 1];
@@ -510,7 +667,7 @@ population_axis = Axis(
     figure[2, 1];
     xlabel=L"t\;(\mathrm{ps})",
     ylabel=L"P_e(t)",
-    title=L"Thermal spin-boson damping ($k_{\mathrm{B}}T/\hbar$ in $\mathrm{ps}^{-1}$)",
+    title="Thermal spin-boson damping (kᵦT/ℏ in ps⁻¹)",
 )
 
 lines!(
@@ -561,6 +718,5 @@ println("  figure:                         $figure_path")
 @printf("  %s χmax:                   %d\n", ace_T_label(hot_thermal_frequency), max_pt_bond_T3)
 @printf("  maximum trace error:            %.3e\n", max_trace_error)
 @printf("  closed analytic error:          %.3e\n", closed_analytic_error)
-@printf("  %s build time:             %.3f s\n", ace_T_label(thermal_frequency), ace_build_time_T1)
-@printf("  %s build time:             %.3f s\n", ace_T_label(hot_thermal_frequency), ace_build_time_T3)
+@printf("  ACE construction time:          %.3f s\n", ace_build_elapsed)
 println("  formal bath Liouville dim:      $formal_liouville_dimension")

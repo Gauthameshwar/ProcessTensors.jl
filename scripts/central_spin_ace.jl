@@ -13,6 +13,7 @@
 #   dt = 0.01
 #   t_final = 20
 #   ACE threshold ε = 1e-10
+#   ACE compression = zip-up (forward truncation on the 2001-step chain)
 #   bath initial state: every spin along +z
 #
 # The paper reports d_max = 4 for N = 10, 100, and 1000, and the reduced
@@ -20,6 +21,10 @@
 #
 # Run with:
 #   julia --project=. scripts/central_spin_ace.jl
+#
+# Matching ACE caches in scripts/.cache skip process-tensor construction.
+# Override the cache directory with PT_CENTRAL_CACHE_DIR, or force a rebuild
+# with PT_ACE_REBUILD=1.
 
 import Pkg
 
@@ -49,6 +54,7 @@ activate_plot_examples_env!()
 using Logging
 using LinearAlgebra
 using Printf
+using Serialization
 using CairoMakie
 using ITensors
 using ITensors.Ops: Trotter
@@ -56,6 +62,101 @@ using LaTeXStrings
 using ProcessTensors
 
 CairoMakie.activate!()
+
+function slim_process_tensor(pt)
+    return ProcessTensor(
+        pt.core,
+        pt.system,
+        nothing,
+        pt.dt,
+        pt.nsteps,
+        pt.coupling_site,
+    )
+end
+
+function save_ace_cache(path, payload)
+    mkpath(dirname(path))
+    open(path, "w") do io
+        serialize(io, payload)
+    end
+    return path
+end
+
+function cache_parameter_mismatch(metadata, params, keys, format)
+    mismatches = String[]
+    hasproperty(metadata, :format) || return ["format: missing"]
+    metadata.format == format || return [
+        "format: cache=$(metadata.format) script=$format",
+    ]
+    for key in keys
+        cached = getproperty(metadata, key)
+        current = getproperty(params, key)
+        agrees = if cached isa Integer && current isa Integer
+            cached == current
+        elseif cached isa Number && current isa Number
+            isapprox(cached, current; atol=0, rtol=1e-12)
+        else
+            cached == current
+        end
+        agrees || push!(mismatches, "$key: cache=$cached script=$current")
+    end
+    return mismatches
+end
+
+function load_or_build_ace_cache(
+    path,
+    params,
+    keys,
+    format,
+    builder;
+    label::AbstractString,
+)
+    force_rebuild = get(ENV, "PT_ACE_REBUILD", "0") == "1"
+    if force_rebuild
+        println("PT_ACE_REBUILD=1; constructing $label.")
+    elseif isfile(path)
+        payload = try
+            open(deserialize, path)
+        catch err
+            @warn "Could not read the process-tensor cache; rebuilding." exception = (
+                err,
+                catch_backtrace(),
+            )
+            nothing
+        end
+        if payload !== nothing
+            mismatches = cache_parameter_mismatch(payload.metadata, params, keys, format)
+            if isempty(mismatches)
+                println("Found a matching ACE cache; skipping process-tensor construction.")
+                println("  cache file:                  $path")
+                if hasproperty(payload.metadata, :maxlinkdim)
+                    @printf(
+                        "  maximum PT bond dimension:   %d\n",
+                        payload.metadata.maxlinkdim,
+                    )
+                end
+                return payload, 0.0
+            end
+            println("Cached process tensor does not match the script parameters; rebuilding.")
+            for line in mismatches
+                println("  $line")
+            end
+        end
+    else
+        println("No process-tensor cache at $path; building.")
+    end
+
+    build_seconds = @elapsed begin
+        payload = builder()
+    end
+    save_ace_cache(path, payload)
+    @printf("  ACE build time:              %.3f s\n", build_seconds)
+    @printf("  wrote cache:                 %s\n", path)
+    if hasproperty(payload.metadata, :maxlinkdim)
+        @printf("  maximum PT bond dimension:   %d\n", payload.metadata.maxlinkdim)
+    end
+    return payload, build_seconds
+end
 
 # ------------------------------------------------------------------------------
 # 1. Small script utilities
@@ -164,6 +265,7 @@ const final_time = 20.0
 const nsteps = round(Int, final_time / dt) + 1
 const ace_cutoff = 1e-10
 const ace_maxdim = 1024
+const ace_compression = :zipup
 const N_bath_values = [5, 10, 100, 1000]
 const published_polarized_rank = 4
 const trace_warning_tolerance = 1e-4
@@ -175,6 +277,22 @@ const line_colors = [:dodgerblue, :darkorange, :seagreen, :mediumpurple]
 output_dir = joinpath(@__DIR__, "figures")
 mkpath(output_dir)
 figure_path = joinpath(output_dir, "central_spin_ace.png")
+cache_dir = get(
+    ENV,
+    "PT_CENTRAL_CACHE_DIR",
+    joinpath(@__DIR__, ".cache"),
+)
+const CENTRAL_CACHE_FORMAT = 1
+const CENTRAL_CACHE_KEYS = (
+    :N_bath,
+    :J,
+    :dt,
+    :final_time,
+    :nsteps,
+    :ace_cutoff,
+    :ace_maxdim,
+    :ace_compression,
+)
 
 # ------------------------------------------------------------------------------
 # 3. Physical problem
@@ -194,6 +312,7 @@ println("  coupling per mode:            J_k = J / N")
 @printf("  snapshots:                    %d\n", nsteps)
 @printf("  ACE cutoff ε:                 %.1e\n", ace_cutoff)
 @printf("  ACE maxdim safety cap:        %d\n", ace_maxdim)
+println("  ACE compression:              $ace_compression")
 println("  ACE mode maps:                Hilbert U = exp(-i H Δt), fused onto Liouville PT legs")
 println("  N values:                     $(join(N_bath_values, ", "))")
 println("  published polarized d_max:    $published_polarized_rank")
@@ -223,26 +342,72 @@ for N_bath in N_bath_values
     println()
     println("N = $N_bath")
 
-    bath = polarized_central_spin_bath(N_bath; J=J)
-    update_status("  building ACE PT: polarized, N=$N_bath")
+    cache_path = joinpath(cache_dir, "central_spin_ace_N$(N_bath).jls")
+    cache_params = (;
+        N_bath,
+        J,
+        dt,
+        final_time,
+        nsteps,
+        ace_cutoff,
+        ace_maxdim,
+        ace_compression,
+    )
+    payload, build_time = load_or_build_ace_cache(
+        cache_path,
+        cache_params,
+        CENTRAL_CACHE_KEYS,
+        CENTRAL_CACHE_FORMAT,
+        () -> begin
+            bath = polarized_central_spin_bath(N_bath; J=J)
+            update_status("  building ACE PT: polarized, N=$N_bath")
+            process_tensor = build_process_tensor(
+                system;
+                method=ACE(
+                    cutoff=ace_cutoff,
+                    maxdim=ace_maxdim,
+                    compression=ace_compression,
+                ),
+                environment=bath,
+                dt=dt,
+                nsteps=nsteps,
+                sys_alg=Trotter{2}(),
+                combine_alg=Trotter{2}(),
+            )
+            slim = slim_process_tensor(process_tensor)
+            return (;
+                process_tensor=slim,
+                system_sites,
+                metadata=(;
+                    format=CENTRAL_CACHE_FORMAT,
+                    N_bath,
+                    J,
+                    dt,
+                    final_time,
+                    nsteps,
+                    ace_cutoff,
+                    ace_maxdim,
+                    ace_compression,
+                    maxlinkdim=maxlinkdim(slim),
+                ),
+            )
+        end;
+        label="polarized central-spin ACE process tensor (N=$N_bath)",
+    )
 
-    build_time = @elapsed begin
-        process_tensor = build_process_tensor(
-            system;
-            method=ACE(
-                cutoff=ace_cutoff,
-                maxdim=ace_maxdim,
-            ),
-            environment=bath,
-            dt=dt,
-            nsteps=nsteps,
-            sys_alg=Trotter{2}(),
-            combine_alg=Trotter{2}(),
-        )
-    end
+    process_tensor = payload.process_tensor
+    open_system_sites = payload.system_sites
+    open_initial_density = to_dm(MPS(open_system_sites, ["+"]))
+    open_Sx_matrix = ComplexF64.(
+        Array(
+            op("Sx", open_system_sites[1]),
+            prime(open_system_sites[1]),
+            open_system_sites[1],
+        ),
+    )
 
     finish_status(
-        @sprintf("  ACE PT built: polarized N=%4d in %.3f s", N_bath, build_time),
+        @sprintf("  ACE PT ready: polarized N=%4d", N_bath),
     )
 
     bond_dimensions = Int[d for d in linkdims(process_tensor) if d !== nothing]
@@ -264,14 +429,14 @@ for N_bath in N_bath_values
 
     update_status("  evolving polarized PT, N=$N_bath")
     evolution_time = @elapsed begin
-        trajectory = evolve(process_tensor, initial_density)
+        trajectory = evolve(process_tensor, open_initial_density)
     end
     finish_status(
         @sprintf("  trajectory evolved: polarized N=%4d in %.3f s", N_bath, evolution_time),
     )
 
     sx, trace_errors, hermiticity_errors, ed_errors, _ =
-        central_spin_diagnostics(trajectory, Sx_matrix)
+        central_spin_diagnostics(trajectory, open_Sx_matrix)
     max_trace_error = maximum(trace_errors)
     max_hermiticity_error = maximum(hermiticity_errors)
     max_spin_bound_excess = max(maximum(abs, sx) - 0.5, 0.0)
@@ -317,7 +482,7 @@ print_section("Plotting")
 
 # Extra width is for the right-hand legends so the stacked panels keep
 # the previous 1100 × 850 plot aspect.
-figure = Figure(size=(1300, 850))
+figure = Figure(size=(1300, 850), fontsize=18)
 times = results[last(N_bath_values)].times
 ed_sx = 0.5 .* cos.(times ./ 2)
 ed_idx = uniform_sample_indices(length(times); nmarkers=ed_nmarkers)
@@ -358,7 +523,7 @@ ylims!(dynamics_axis, -0.55, 0.55)
 Legend(
     figure[1, 2],
     dynamics_axis;
-    labelsize=11,
+    labelsize=16,
     nbanks=1,
     tellheight=false,
     valign=:center,
@@ -414,7 +579,7 @@ Legend(
         L"$|\mathrm{tr}\,\rho-1|$",
         L"$\Vert\rho-\rho^\dagger\Vert/\Vert\rho\Vert$",
     ];
-    labelsize=11,
+    labelsize=16,
     nbanks=1,
     tellheight=false,
     valign=:center,
@@ -424,7 +589,8 @@ Legend(
 linkxaxes!(dynamics_axis, error_axis)
 rowgap!(figure.layout, 12)
 colgap!(figure.layout, 12)
-rowsize!(figure.layout, 2, Relative(0.42))
+rowsize!(figure.layout, 1, Relative(0.5))
+rowsize!(figure.layout, 2, Relative(0.5))
 
 save(figure_path, figure)
 

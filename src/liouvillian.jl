@@ -219,6 +219,44 @@ function liouv_sites(physical_sites::AbstractVector{<:Index})
     return liouv
 end
 
+# Lift `ρ ↦ UρU†` from Hilbert indices onto caller-supplied Liouville indices.
+function _hilbert_itensor_to_liouville(
+    U::ITensor,
+    physical_sites::AbstractVector{<:Index},
+    liouville_sites::AbstractVector{<:Index},
+)
+    length(physical_sites) == length(liouville_sites) || throw(
+        ArgumentError("_hilbert_itensor_to_liouville: Hilbert/Liouville site count mismatch."),
+    )
+    ρL = to_liouville(MPO(physical_sites, "Id"); sites=liouville_sites)
+
+    U_ket = replaceinds(
+        U,
+        (prime(s) => prime(s, 2) for s in physical_sites)...,
+    )
+    U_bra = replaceinds(
+        conj(U),
+        (prime(s) => prime(s, 1) for s in physical_sites)...,
+    )
+    U_bra = replaceinds(
+        U_bra,
+        (s => prime(s, 3) for s in physical_sites)...,
+    )
+
+    U_L = U_ket * U_bra
+    for (s, L, C) in zip(physical_sites, liouville_sites, ρL.combiners)
+        C_out = replaceinds(
+            C,
+            prime(s) => prime(s, 3),
+            s => prime(s, 2),
+            L => prime(L),
+        )
+        U_L *= C
+        U_L *= C_out
+    end
+    return dag(U_L)
+end
+
 # Rebuild the temporary physical index used by `op`, e.g. `Liouv,ptype=Electron,n=4` gives `Electron,Site,n=4`.
 function _phys_site_from_liouv(s::Index)
     tokens = tag_tokens(s)
@@ -247,7 +285,7 @@ end
 # Physical Hilbert sites from a density matrix MPO (unprimed leg at each site).
 function _phys_sites_from_hilbert_mpo(mpo::AbstractMPO{Hilbert})
     return Index[
-        only(filter(i -> plev(i) == 0, inds(mpo.core[j])))
+        only(filter(i -> plev(i) == 0 && has_tag_token(i, "Site"), inds(mpo.core[j])))
         for j in eachindex(mpo.core)
     ]
 end

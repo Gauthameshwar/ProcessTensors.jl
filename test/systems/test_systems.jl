@@ -18,31 +18,42 @@ using Test
     @test :spin_system ∈ names(ProcessTensors)
     @test :BosonSystem ∈ names(ProcessTensors)
     @test :boson_system ∈ names(ProcessTensors)
+    @test :QubitSystem ∈ names(ProcessTensors)
+    @test :qubit_system ∈ names(ProcessTensors)
     @test nameof(SpinSystem) == :SpinSystem
 
     s_spin = siteinds("S=1/2", 2)
     s_boson = siteinds("Boson", 2; dim=3)
+    s_qubit = siteinds("Qubit", 2)
     H_spin = OpSum() + (0.4, "Sz", 1)
     H_boson = OpSum() + (0.2, "N", 1)
+    H_qubit = OpSum() + (0.4, "Z", 1)
     jump_ops_spin = [OpSum() + (0.1, "S-", 1)]
     jump_ops_boson = [OpSum() + (0.1, "A", 1)]
+    jump_ops_qubit = [OpSum() + (0.1, "S-", 1)]
 
     spin_sys = spin_system(s_spin, H_spin; jump_ops=jump_ops_spin)
     boson_sys = boson_system(s_boson, H_boson; jump_ops=jump_ops_boson)
+    qubit_sys = qubit_system(s_qubit, H_qubit; jump_ops=jump_ops_qubit)
 
     @test nameof(typeof(spin_sys)) == :SpinSystem
     @test nameof(typeof(boson_sys)) == :BosonSystem
+    @test nameof(typeof(qubit_system(s_qubit))) == :QubitSystem
     @test spin_sys.H == H_spin
     @test spin_sys.jump_ops == jump_ops_spin
     @test boson_sys.H == H_boson
     @test boson_sys.jump_ops == jump_ops_boson
+    @test qubit_sys.H == H_qubit
+    @test qubit_sys.jump_ops == jump_ops_qubit
     @test length(spin_sys.sites) == length(s_spin)
     @test length(boson_sys.sites) == length(s_boson)
+    @test length(qubit_sys.sites) == length(s_qubit)
 end
 
 @testset "systems.jl: type and field definitions" begin
     @test SpinSystem <: AbstractSystem
     @test BosonSystem <: AbstractSystem
+    @test QubitSystem <: AbstractSystem
 
     @test hasfield(SpinSystem, :H)
     @test hasfield(SpinSystem, :jump_ops)
@@ -57,6 +68,32 @@ end
     @test fieldtype(BosonSystem, :H) == OpSum
     @test fieldtype(BosonSystem, :jump_ops) == Vector{OpSum}
     @test fieldtype(BosonSystem, :sites) == Vector{Index}
+
+    @test hasfield(QubitSystem, :H)
+    @test hasfield(QubitSystem, :jump_ops)
+    @test hasfield(QubitSystem, :sites)
+    @test fieldtype(QubitSystem, :H) == OpSum
+    @test fieldtype(QubitSystem, :jump_ops) == Vector{OpSum}
+    @test fieldtype(QubitSystem, :sites) == Vector{Index}
+end
+
+@testset "systems.jl: qubit construction and defaults" begin
+    qubit_sites = siteinds("Qubit", 2)
+    H = OpSum() + (0.4, "Z", 1) + (0.2, "X", 2)
+    L = OpSum() + (0.1, "S-", 1)
+
+    sys_default = @test_nowarn qubit_system(qubit_sites)
+    sys_driven = qubit_system(qubit_sites, H; jump_ops=[L])
+    sys_liouv = qubit_system(liouv_sites(qubit_sites), H)
+
+    @test sys_default isa QubitSystem
+    @test isempty(ITensors.terms(sys_default.H))
+    @test isempty(sys_default.jump_ops)
+    @test sys_driven.H == H
+    @test sys_driven.jump_ops == [L]
+    @test all(has_tag_token(s, "Liouv") for s in sys_default.sites)
+    @test all(has_tag_token(s, "Liouv") for s in sys_liouv.sites)
+    @test eltype(sys_default.sites) == Index
 end
 
 @testset "systems.jl: single-site spin and boson construction" begin
@@ -125,12 +162,16 @@ end
     spin_mix = [spin_h[1], liouv_sites(spin_h)[2]]
     boson_h = siteinds("Boson", 2; dim=3)
     boson_mix = [boson_h[1], liouv_sites(boson_h)[2]]
+    qubit_h = siteinds("Qubit", 2)
+    qubit_mix = [qubit_h[1], liouv_sites(qubit_h)[2]]
 
     H_spin = OpSum() + (0.2, "Sz", 1)
     H_boson = OpSum() + (0.2, "N", 1)
+    H_qubit = OpSum() + (0.2, "Z", 1)
 
     @test_throws ArgumentError spin_system(spin_mix, H_spin)
     @test_throws ArgumentError boson_system(boson_mix, H_boson)
+    @test_throws ArgumentError qubit_system(qubit_mix, H_qubit)
 end
 
 @testset "systems.jl: wrong site family rejects" begin
@@ -142,6 +183,8 @@ end
 
     @test_throws ArgumentError spin_system(boson_sites, H_spin)
     @test_throws ArgumentError boson_system(spin_sites, H_boson)
+    @test_throws ArgumentError qubit_system(spin_sites)
+    @test_throws ArgumentError qubit_system(boson_sites)
 end
 
 @testset "systems.jl: empty Hamiltonian warning path" begin
@@ -174,21 +217,33 @@ end
 @testset "systems.jl: pretty printing" begin
     spin_sites = siteinds("S=1/2", 2)
     boson_sites = siteinds("Boson", 2; dim=3)
+    qubit_sites = siteinds("Qubit", 2)
     H_spin = OpSum() + (0.3, "Sz", 1)
     H_boson = OpSum() + (0.4, "N", 1)
+    H_qubit = OpSum() + (0.4, "Z", 1)
     J_spin = OpSum() + (0.1, "S-", 1)
+    J_qubit = OpSum() + (0.1, "S-", 1)
 
     sys_spin = spin_system(spin_sites, H_spin)
     sys_boson = boson_system(boson_sites, H_boson)
+    sys_qubit = qubit_system(qubit_sites, H_qubit)
     sys_diss = spin_system(spin_sites, H_spin; jump_ops=[J_spin])
+    sys_qubit_diss = qubit_system(qubit_sites, H_qubit; jump_ops=[J_qubit])
 
     out_spin = sprint(show, sys_spin)
     out_boson = sprint(show, sys_boson)
+    out_qubit = sprint(show, sys_qubit)
     out_diss = sprint(show, sys_diss)
+    out_qubit_diss = sprint(show, sys_qubit_diss)
     @test out_spin == sprint(show, MIME"text/plain"(), sys_spin)
     @test out_boson == sprint(show, MIME"text/plain"(), sys_boson)
+    @test out_qubit == sprint(show, MIME"text/plain"(), sys_qubit)
 
-    for (out, name, nsites) in ((out_spin, "SpinSystem", 2), (out_boson, "BosonSystem", 2))
+    for (out, name, nsites) in (
+        (out_spin, "SpinSystem", 2),
+        (out_boson, "BosonSystem", 2),
+        (out_qubit, "QubitSystem", 2),
+    )
         @test occursin("ProcessTensors.$name", out)
         @test occursin("sites: $nsites", out)
         @test occursin("space: Liouville", out)
@@ -196,5 +251,7 @@ end
         @test occursin("dissipative: false", out)
     end
     @test occursin("dissipative: true", out_diss)
+    @test occursin("dissipative: true", out_qubit_diss)
     @test length(sys_diss.jump_ops) == 1
+    @test length(sys_qubit_diss.jump_ops) == 1
 end

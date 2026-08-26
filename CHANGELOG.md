@@ -9,15 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **Testers and noisy quantum qubits example:** A Literate walkthrough and
+  companion ACE script demonstrate store–wait–retrieve control, tester-only
+  phase operations, joint trajectories, and system–tester mutual information.
+  `scripts/noisy_quantum_circuit_tester.jl` caches the ACE process tensor and
+  reuses a matching cache on later runs.
+* **Memory-bearing tester architecture.** `Tester` stores an ancillary quantum
+  state, while `TesterSeq` schedules tester-only and joint system-tester
+  Hamiltonian or unitary actions. `evaluate_process` optionally contracts these
+  controls with persistent tester memory and traces the tester at the end.
+  `evolve` returns reduced system and tester trajectories, with joint
+  system-tester trajectories available on request.
+* **`QubitSystem` / `qubit_system`.** Circuit-style ITensor `"Qubit"` sites can
+  now define process-tensor systems. An omitted Hamiltonian selects identity
+  free-system evolution without introducing a separate qubit bath type.
 * **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:canonzip` joins each mode fully, then truncates right-to-left; `:zipup` truncates during the forward join.
 * ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
   process-tensor legs with `to_liouville` combiners.
 * **Central-spin ACE example** reproducing the fully polarized Cygorek
   benchmark, with a modest Literate walkthrough and a companion
-  ``N = 5, 10, 100, 1000`` scaling script.
+  ``N = 5, 10, 100, 1000`` scaling script. The companion script uses ACE
+  ``:zipup`` compression on the 2001-step chain, caches each process tensor,
+  and reuses a matching cache on later runs.
 * **Thermal spin-boson ACE example** sampling an Ohmic bath into independent
   oscillators, with a modest Literate walkthrough and a companion ``60``-mode
-  figure comparing two bath temperatures.
+  figure comparing two bath temperatures. The companion script caches both
+  ACE process tensors and reuses a matching cache on later runs.
 
 ### Changed
 

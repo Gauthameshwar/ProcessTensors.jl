@@ -57,20 +57,7 @@ function _hilbert_unitary_liouville_propagator(
 
     H = foldl(*, CoreMPO(os, phys))
     U = ITensors.exp(-im * float(dt) * H)
-    ρL = to_liouville(MPO(phys, "Id"); sites=Index[liouv_sites...])
-    Cs = ρL.combiners
-
-    U_ket = replaceinds(U, (prime(s) => prime(s, 2) for s in phys)...)
-    U_bra = replaceinds(conj(U), (prime(s) => prime(s, 1) for s in phys)...)
-    U_bra = replaceinds(U_bra, (s => prime(s, 3) for s in phys)...)
-
-    U_L = U_ket * U_bra
-    for (s, L, C) in zip(phys, liouv_sites, Cs)
-        Cout = replaceinds(C, prime(s) => prime(s, 3), s => prime(s, 2), L => prime(L))
-        U_L *= C
-        U_L *= Cout
-    end
-    return dag(U_L)
+    return _hilbert_itensor_to_liouville(U, phys, liouv_sites)
 end
 
 # One-step free-system Liouville map on PT legs `(in_k, out_k)` (always Exact ED).

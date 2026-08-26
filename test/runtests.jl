@@ -68,12 +68,15 @@ end
 # Systems test sets
 include(joinpath(@__DIR__, "systems", "test_systems.jl"))
 include(joinpath(@__DIR__, "systems", "test_instruments.jl"))
+include(joinpath(@__DIR__, "systems", "test_testers.jl"))
 
 # Process tensor test sets
 include(joinpath(@__DIR__, "process_tensor", "test_structure.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_api.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_evaluate_process.jl"))
+include(joinpath(@__DIR__, "process_tensor", "test_evaluate_testers.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_evolve_contractions.jl"))
+include(joinpath(@__DIR__, "process_tensor", "test_evolve_testers.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_causality.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ed_tfi_vs_dense.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ed_multimode_spin.jl"))
