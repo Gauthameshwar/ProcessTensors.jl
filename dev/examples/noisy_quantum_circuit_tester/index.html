@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Testers and noisy quantum qubits · ProcessTensors.jl</title><meta name="title" content="Testers and noisy quantum qubits · ProcessTensors.jl"/><meta property="og:title" content="Testers and noisy quantum qubits · ProcessTensors.jl"/><meta property="twitter:title" content="Testers and noisy quantum qubits · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/noisy_quantum_circuit_tester/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/noisy_quantum_circuit_tester/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/noisy_quantum_circuit_tester/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Single-Mode Process Tensor</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Time evolution algorithms</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tebd_time_evolution/">TEBD time evolution</a></li><li><a class="tocitem" href="../tdvp_time_evolution/">TDVP time evolution</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Dissipative dynamics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../dissipative_spin/">Dissipative spin chain</a></li><li><a class="tocitem" href="../boundary_driven_spin_chain/">Boundary-driven spin chain</a></li><li><a class="tocitem" href="../driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Driven systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox" checked/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li><li><a class="tocitem" href="../central_spin_ace/">Central-spin dynamics using ACE</a></li><li><a class="tocitem" href="../thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE</a></li><li class="is-active"><a class="tocitem" href>Testers and noisy quantum qubits</a><ul class="internal"><li><a class="tocitem" href="#The-three-observables-to-measure-during-the-experiment"><span>The three observables to measure during the experiment</span></a></li><li><a class="tocitem" href="#Turn-a-microscopic-bath-into-a-noisy-circuit-process"><span>Turn a microscopic bath into a noisy circuit process</span></a></li><li><a class="tocitem" href="#Compress-the-bath-memory-with-ACE"><span>Compress the bath memory with ACE</span></a></li><li><a class="tocitem" href="#When-does-an-ancilla-become-a-tester?"><span>When does an ancilla become a tester?</span></a></li><li><a class="tocitem" href="#Program-the-memory-assisted-circuit"><span>Program the memory-assisted circuit</span></a></li><li><a class="tocitem" href="#Follow-the-information,-not-just-the-qubits"><span>Follow the information, not just the qubits</span></a></li><li><a class="tocitem" href="#Reading-the-result"><span>Reading the result</span></a></li><li><a class="tocitem" href="#Why-the-process-tensor-split-matters"><span>Why the process-tensor split matters</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../instrument_sequences/">Instrument sequences</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Process tensors</a></li><li class="is-active"><a href>Testers and noisy quantum qubits</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Testers and noisy quantum qubits</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/noisy_quantum_circuit_tester.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Noisy-quantum-circuits-with-a-memory-bearing-tester"><a class="docs-heading-anchor" href="#Noisy-quantum-circuits-with-a-memory-bearing-tester">Noisy quantum circuits with a memory-bearing tester</a><a id="Noisy-quantum-circuits-with-a-memory-bearing-tester-1"></a><a class="docs-heading-anchor-permalink" href="#Noisy-quantum-circuits-with-a-memory-bearing-tester" title="Permalink"></a></h1><p>Noise in a quantum circuit does not have to forget what happened one gate ago. A coherent defect can keep ringing, a neighbouring degree of freedom can remain correlated with the computational qubit, leakage can survive between control pulses, and a structured environment can carry information from one circuit time to the next. In all of these cases the error at the next gate is allowed to depend on the <strong>history of earlier interventions</strong>.</p><p>That is exactly the regime where process tensors become useful. Rather than assigning an independent noise channel to every circuit layer, a process tensor stores the multi-time response of the noisy hardware. This connection is already important in quantum-computing theory: Figueroa-Romero <em>et al.</em> formulate randomized benchmarking in the presence of temporally correlated noise using the process-tensor framework (<a href="https://doi.org/10.1103/PRXQuantum.2.040351">PRX Quantum 2, 040351 (2021)</a>). Gandhari and Gullans make the connection even more concrete by studying qubit gates interspersed with interactions with a <strong>multimode bosonic bath</strong> (<a href="https://doi.org/10.1103/z8zh-n1hl">Phys. Rev. Research 8, 023075 (2026)</a>).</p><p>We use that idea as a motivation to demonstrate a toy model for a noisy circuit wire. Characterising the non-Markovianity of noise in a quantum hardware is already an open problem. So, in this example, we take a simple case where we assume the noise comes from a thermal bosonic environment. We compress that environment into a reusable process tensor with ACE and use it to study the performance of our noisy circuit.</p><p>Now suppose we probe the noisy processor qubit <span>$Q$</span> repeatedly using the <strong>same ancillary qubit</strong> <span>$A$</span>. The ancilla survives between interventions, so information acquired at one time can influence what happens later. The probing sequence is therefore no longer a product of independent time-local instruments: it is a memory-bearing multi-time instrument, or <strong>tester</strong>. Memory-assisted quantum testers have an operational role in the theory of channels with memory; see Chiribella, D&#39;Ariano and Perinotti (<a href="https://doi.org/10.1103/PhysRevLett.101.180501">Phys. Rev. Lett. 101, 180501 (2008)</a>).</p><p>Our circuit is deliberately tiny:</p><pre><code class="language-text hljs">               noisy process on Q
+             ┌────┐          ┌────┐                    ┌────┐
+Q : |+&gt; ─────┤ PT ├── ... ───┤SWAP├── PT ── PT ── ... ┤SWAP├── PT ── ...
+             └────┘          └─┬──┘                    └─┬──┘
+                               │                          │
+A : |0&gt; ───────────────────────┴────── Z ────────────────┴────────────
+                               store     phase-tag       retrieve</code></pre><p>Only <span>$Q$</span> sees the bosonic environment. The first SWAP parks the logical qubit state in <span>$A$</span>. A <span>$Z$</span> gate phase-tags the stored state while it is outside the noisy wire. The second SWAP returns it to <span>$Q$</span>. The main question we want to answer is:</p><blockquote><p>Can a coherent ancilla store, manipulate, and return quantum information while the physical processor qubit remains embedded in a noisy process with memory?</p></blockquote><div class="admonition is-category-related" id="Related-material-ba770470c018a166"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-ba770470c018a166" title="Permalink"></a></header><div class="admonition-body"><ul><li><a href="../thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE</a></li><li>Tutorial: <a href="../../tutorials/process_tensor_singlemode/#Single-Mode-Process-Tensor">Single-Mode Process Tensor</a></li><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li></ul></div></div><div class="admonition is-category-script" id="Companion-calculation-275d0311300422aa"><header class="admonition-header">Companion calculation<a class="admonition-anchor" href="#Companion-calculation-275d0311300422aa" title="Permalink"></a></header><div class="admonition-body"><p>The executable documentation uses a deliberately small bath. A larger ACE calculation, an idle-time sweep, and the staged figure are generated by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/noisy_quantum_circuit_tester.jl"><code>scripts/noisy_quantum_circuit_tester.jl</code></a>.</p></div></div><h2 id="The-three-observables-to-measure-during-the-experiment"><a class="docs-heading-anchor" href="#The-three-observables-to-measure-during-the-experiment">The three observables to measure during the experiment</a><a id="The-three-observables-to-measure-during-the-experiment-1"></a><a class="docs-heading-anchor-permalink" href="#The-three-observables-to-measure-during-the-experiment" title="Permalink"></a></h2><p>Before building anything, it helps to know what we actually want to measure.</p><p><strong>1. Where is the phase information?</strong>  We prepare <span>$Q$</span> in <span>$|+\rangle$</span>, so initially <span>$\langle X_Q\rangle=1$</span>. A SWAP should move this signal from <span>$Q$</span> to <span>$A$</span> and later bring it back. We therefore follow both <span>$\langle X_Q\rangle$</span> and <span>$\langle X_A\rangle$</span>.</p><p><strong>2. How much coherence survives?</strong>  <span>$\langle X\rangle$</span> alone is not a fair measure after the <span>$Z$</span> gate: a perfectly coherent qubit can rotate from <span>$|+\rangle$</span> to <span>$|-\rangle$</span> and merely flip the sign of <span>$\langle X\rangle$</span>. We therefore use</p><p class="math-container">\[C_{xy}=\sqrt{\langle X\rangle^2+\langle Y\rangle^2}.\]</p><p>A coherent phase operation can rotate the Bloch vector without reducing <span>$C_{xy}$</span>; genuine dephasing shrinks it.</p><p><strong>3. Are <span>$Q$</span> and <span>$A$</span> actually correlated?</strong>  Local observables cannot answer this. For the joint trajectory we use the quantum mutual information</p><p class="math-container">\[I(Q{:}A)=S(\rho_Q)+S(\rho_A)-S(\rho_{QA}),\]</p><p>with <span>$S(\rho)=-\mathrm{Tr}[\rho\log_2\rho]$</span>. Mutual information counts all correlations, classical and quantum.</p><pre><code class="language-julia hljs">using LinearAlgebra
+using Logging
+using Printf
+using ITensors
+using ITensors.Ops: Trotter
+using ProcessTensors
+
+function density_matrix(state)
+    pairs = siteinds(state)
+    physical_sites = Index[
+        only(filter(index -&gt; plev(index) == 0, pair))
+        for pair in pairs
+    ]
+    tensor = foldl(*, state)
+    dimension = prod(dim.(physical_sites))
+    return reshape(
+        ComplexF64.(Array(
+            tensor,
+            prime.(physical_sites)...,
+            physical_sites...,
+        )),
+        dimension,
+        dimension,
+    )
+end
+
+function operator_matrix(name::AbstractString, site::Index)
+    return ComplexF64.(Array(op(name, site), prime(site), site))
+end
+
+expectation(rho, operator) = real(tr(operator * rho) / tr(rho))
+
+function entropy_bits(rho)
+    normalized = (rho + rho&#39;) / (2real(tr(rho)))
+    probabilities = clamp.(real.(eigvals(Hermitian(normalized))), 0, Inf)
+    probabilities ./= sum(probabilities)
+    return -sum(p * log2(p) for p in probabilities if p &gt; eps(Float64))
+end
+
+mutual_information(rho_Q, rho_A, rho_QA) =
+    entropy_bits(rho_Q) + entropy_bits(rho_A) - entropy_bits(rho_QA)</code></pre><pre><code class="nohighlight hljs">mutual_information (generic function with 1 method)</code></pre><h2 id="Turn-a-microscopic-bath-into-a-noisy-circuit-process"><a class="docs-heading-anchor" href="#Turn-a-microscopic-bath-into-a-noisy-circuit-process">Turn a microscopic bath into a noisy circuit process</a><a id="Turn-a-microscopic-bath-into-a-noisy-circuit-process-1"></a><a class="docs-heading-anchor-permalink" href="#Turn-a-microscopic-bath-into-a-noisy-circuit-process" title="Permalink"></a></h2><p>We choose the pure-dephasing spin-boson model</p><p class="math-container">\[H_B=\sum_k\omega_k b_k^\dagger b_k,
+\qquad
+H_{QB}=Z_Q\sum_k g_k(b_k+b_k^\dagger).\]</p><p>There is no free Hamiltonian on <span>$Q$</span>. Without the bath, <span>$|+\rangle_Q$</span> would therefore sit still forever. Any decay or revival of its transverse coherence is generated by the environment.</p><p>The oscillator couplings are summarized by the Ohmic spectral density</p><p class="math-container">\[J(\omega)=2\alpha\,\omega\,e^{-\omega/\omega_c}.\]</p><p><span>$\alpha$</span> sets the overall coupling, while <span>$\omega_c$</span> suppresses modes far above the characteristic bath frequency scale. At low frequency the Ohmic spectrum grows linearly with <span>$\omega$</span>.</p><p>A finite simulation replaces the continuum by frequency bins. For midpoint frequencies <span>$\omega_k$</span> and bin width <span>$\Delta\omega$</span>, we choose</p><p class="math-container">\[g_k^2\simeq J(\omega_k)\Delta\omega.\]</p><p>The coupling constants below are therefore discretized samples of one smooth environment rather than four unrelated fitting parameters.</p><pre><code class="language-julia hljs">const N_bath = 4
+const local_dim = 3
+const alpha = 0.008
+const omega_cutoff = 4.0
+const omega_max = 20.0</code></pre><pre><code class="nohighlight hljs">20.0</code></pre><p>Temperature is quoted in the natural frequency unit k_B T / ħ. The companion script uses 2.5, which gives the lowest-frequency mode on this coarse grid a visible thermal occupation while the higher modes become progressively colder.</p><pre><code class="language-julia hljs">const thermal_frequency = 2.5
+
+const dt = 0.15
+const nsteps = 14
+const ace_cutoff = 1e-5
+const ace_maxdim = 64
+
+frequency_spacing = omega_max / N_bath
+frequencies = [(k - 0.5) * frequency_spacing for k in 1:N_bath]
+spectral_weights = 2alpha .* frequencies .* exp.(-frequencies ./ omega_cutoff)
+couplings = sqrt.(spectral_weights .* frequency_spacing)</code></pre><pre><code class="nohighlight hljs">4-element Vector{Float64}:
+ 0.3271884559451908
+ 0.3033364140800723
+ 0.20961138715109784
+ 0.13275315114680933</code></pre><p>Four modes and three local Fock states are intentionally under-resolved. They are enough to produce a structured finite-memory process while keeping the documentation build quick. With this grid, the lowest mode has ω<em>1 = k</em>B T / ħ, so its thermal occupation is appreciable; the higher modes are much closer to their ground states. The companion script is the place for larger mode counts, boson cutoffs, and convergence checks.</p><pre><code class="language-julia hljs">processor_sites = siteinds(&quot;Qubit&quot;, 1)
+processor = qubit_system(processor_sites)
+rho_Q0 = to_dm(MPS(processor_sites, [&quot;+&quot;]))
+
+bath_sites = siteinds(&quot;Boson&quot;, N_bath; dim=local_dim)
+bath_liouville_sites = liouv_sites(bath_sites)</code></pre><pre><code class="nohighlight hljs">4-element Vector{ITensors.Index{Int64}}:
+ (dim=9|id=314|&quot;Liouv,Site,n=1,ptype=Boson&quot;)
+ (dim=9|id=689|&quot;Liouv,Site,n=2,ptype=Boson&quot;)
+ (dim=9|id=334|&quot;Liouv,Site,n=3,ptype=Boson&quot;)
+ (dim=9|id=199|&quot;Liouv,Site,n=4,ptype=Boson&quot;)</code></pre><p>Each <code>BosonicMode</code> supplies one microscopic piece of the environment: <code>H_mode</code> gives ω<em>k b†b, `rho</em>mode<code>gives the truncated Gibbs state, and</code>H<em>coupling` gives g</em>k(b+b†)Z_Q. In the local <code>OpSum</code>, site 1 is the oscillator and site 2 is the processor qubit.</p><pre><code class="language-julia hljs">modes = [
+    let
+        omega = frequencies[k]
+        coupling = couplings[k]
+
+        occupations = 0:(local_dim - 1)
+        thermal_weights = exp.(-omega .* occupations ./ thermal_frequency)
+        thermal_weights ./= sum(thermal_weights)
+
+        number_states = [
+            MPS([bath_sites[k]], [string(n)])
+            for n in occupations
+        ]
+
+        rho_mode = to_liouville(
+            to_dm(number_states; coeffs=thermal_weights);
+            sites=[bath_liouville_sites[k]],
+        )
+
+        H_mode = OpSum() + (omega, &quot;N&quot;, 1)
+        H_coupling = OpSum()
+        H_coupling += coupling, &quot;A&quot;, 1, &quot;Z&quot;, 2
+        H_coupling += coupling, &quot;Adag&quot;, 1, &quot;Z&quot;, 2
+
+        bosonic_mode(
+            [bath_liouville_sites[k]],
+            H_mode,
+            rho_mode;
+            coupling=H_coupling,
+        )
+    end for k in 1:N_bath
+]
+
+bath = with_logger(NullLogger()) do
+    bosonic_bath(modes)
+end</code></pre><pre><code class="nohighlight hljs">ProcessTensors.BosonicBath
+  modes: 4
+  space: Liouville
+  site dims: 9, 9, 9, 9
+  bath Liouville dimension: 6561
+
+  mode summary:
+    [1] BosonicMode(dim=9, H_terms=1, coupling_terms=2, n_max=8)
+    [2] BosonicMode(dim=9, H_terms=1, coupling_terms=2, n_max=8)
+    [3] BosonicMode(dim=9, H_terms=1, coupling_terms=2, n_max=8)
+    [4] BosonicMode(dim=9, H_terms=1, coupling_terms=2, n_max=8)
+</code></pre><h2 id="Compress-the-bath-memory-with-ACE"><a class="docs-heading-anchor" href="#Compress-the-bath-memory-with-ACE">Compress the bath memory with ACE</a><a id="Compress-the-bath-memory-with-ACE-1"></a><a class="docs-heading-anchor-permalink" href="#Compress-the-bath-memory-with-ACE" title="Permalink"></a></h2><p>This is the one heavy-looking constructor block, so it is worth saying what it buys us. Direct propagation of <span>$Q$</span> together with all oscillators grows exponentially with the number of bath modes. ACE instead adds their influences one at a time and compresses the <strong>temporal memory bonds</strong> between process-tensor cores.</p><p>Everything above is microscopic input. The call below turns it into the object we actually want:</p><p class="math-container">\[\boxed{\text{thermal spin-boson noise}\longrightarrow
+       \text{reusable noisy circuit process}}.\]</p><p>The implementation follows the ACE construction of Cygorek and Gauger (<a href="https://doi.org/10.1063/5.0221182">J. Chem. Phys. 161, 074111 (2024)</a>). Once <code>process_tensor</code> exists, changing the tester circuit does not rebuild the bosonic bath.</p><pre><code class="language-julia hljs">build_seconds = @elapsed begin
+    process_tensor = build_process_tensor(
+        processor;
+        method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+        environment=bath,
+        dt,
+        nsteps,
+        sys_alg=Trotter{2}(),
+        combine_alg=Trotter{2}(),
+        progress=false,
+    )
+end
+
+println(process_tensor)
+@printf(
+    &quot;ACE build: %.3f s, maximum PT bond dimension: %d\n&quot;,
+    build_seconds,
+    maxlinkdim(process_tensor),
+)</code></pre><pre><code class="nohighlight hljs">14-step ProcessTensor{QubitSystem, BosonicBath} | dt=0.15 | t_final=2.1 | maxlinkdim=39
+
+  system:      QubitSystem(nsites=1, dissipative=false)
+  environment: BosonicBath(nmodes=4, D_bath=6561, coupling=true)
+  core:        MPO{Liouville}(length=14, linkdims=[4, 13, 21, …, 3])
+
+ACE build: 2.536 s, maximum PT bond dimension: 39
+</code></pre><p>First run the processor with no ancilla. This is the noisy reference circuit.</p><pre><code class="language-julia hljs">baseline = evolve(process_tensor, rho_Q0; progress=false)
+for (name, value) in pairs(baseline)
+    @printf(&quot;%s: %d snapshots of %s\n&quot;, name, length(value), eltype(value))
+end</code></pre><pre><code class="nohighlight hljs">times: 14 snapshots of Float64
+states_liouville: 14 snapshots of MPS{Liouville}
+states_hilbert: 14 snapshots of MPO{Hilbert}
+</code></pre><h2 id="When-does-an-ancilla-become-a-tester?"><a class="docs-heading-anchor" href="#When-does-an-ancilla-become-a-tester?">When does an ancilla become a tester?</a><a id="When-does-an-ancilla-become-a-tester?-1"></a><a class="docs-heading-anchor-permalink" href="#When-does-an-ancilla-become-a-tester?" title="Permalink"></a></h2><p>Physically, <span>$A$</span> is just another qubit. What makes it a <em>tester memory</em> is that the same quantum degree of freedom persists across several circuit times. <code>Tester</code> stores that ancillary state, while <code>TesterSeq</code> stores the operations performed on it and jointly on <span>$Q⊗A$</span>.</p><p>First attach <span>$A$</span> and do nothing. An identity tester must be a spectator: merely adding the memory wire cannot alter the noisy process.</p><pre><code class="language-julia hljs">ancilla_sites = siteinds(&quot;Qubit&quot;, 1)
+rho_A0 = to_dm(MPS(ancilla_sites, [&quot;0&quot;]))
+tester_memory = tester(ancilla_sites, rho_A0)
+
+spectator = evolve(
+    process_tensor,
+    rho_Q0;
+    tester=tester_memory,
+    progress=false,
+)
+for (name, value) in pairs(spectator)
+    @printf(&quot;%s: %d snapshots of %s\n&quot;, name, length(value), eltype(value))
+end
+
+X_Q = operator_matrix(&quot;X&quot;, only(processor_sites))
+Y_Q = operator_matrix(&quot;Y&quot;, only(processor_sites))
+X_A = operator_matrix(&quot;X&quot;, only(ancilla_sites))
+Y_A = operator_matrix(&quot;Y&quot;, only(ancilla_sites))
+
+x_baseline = [expectation(density_matrix(rho), X_Q) for rho in baseline.states_hilbert]
+x_spectator = [expectation(density_matrix(rho), X_Q) for rho in spectator.states_hilbert]
+
+spectator_error = maximum(abs.(x_spectator .- x_baseline))
+@printf(&quot;identity tester max |Δ&lt;X_Q&gt;|: %.3e\n&quot;, spectator_error)
+@assert spectator_error &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">times: 14 snapshots of Float64
+states_liouville: 14 snapshots of MPS{Liouville}
+states_hilbert: 14 snapshots of MPO{Hilbert}
+tester_states_liouville: 14 snapshots of MPS{Liouville}
+tester_states_hilbert: 14 snapshots of MPO{Hilbert}
+identity tester max |Δ&lt;X_Q&gt;|: 9.992e-16
+</code></pre><h2 id="Program-the-memory-assisted-circuit"><a class="docs-heading-anchor" href="#Program-the-memory-assisted-circuit">Program the memory-assisted circuit</a><a id="Program-the-memory-assisted-circuit-1"></a><a class="docs-heading-anchor-permalink" href="#Program-the-memory-assisted-circuit" title="Permalink"></a></h2><p>Now the tester gets a job:</p><ol><li>SWAP <span>$Q$</span> and <span>$A$</span> to store the logical state;</li><li>apply <span>$Z_A$</span> while the state is parked;</li><li>SWAP again to retrieve it.</li></ol><p>The <span>$Z$</span> gate gives us a useful diagnostic. <span>$\langle X_A\rangle$</span> should change sign while <span>$C_{xy,A}$</span> remains approximately unchanged. That is the difference between <strong>coherent phase manipulation</strong> and decoherence.</p><pre><code class="language-julia hljs">store_step = 4
+phase_step = 7
+retrieve_step = 10
+
+swap_gate = op(&quot;SWAP&quot;, only(processor_sites), only(ancilla_sites))
+phase_gate = op(&quot;Z&quot;, only(ancilla_sites))
+
+tester_seq = TesterSeq(nsteps=process_tensor.nsteps)
+
+add!(
+    tester_seq,
+    joint_unitary(swap_gate, processor_sites, ancilla_sites),
+    store_step,
+)
+add!(
+    tester_seq,
+    tester_unitary(phase_gate, ancilla_sites),
+    phase_step,
+)
+add!(
+    tester_seq,
+    joint_unitary(swap_gate, processor_sites, ancilla_sites),
+    retrieve_step,
+)</code></pre><pre><code class="nohighlight hljs">TesterSeq(default=TesterIdentity, nsteps=14, 3 explicit entries)
+  tstep=4 =&gt; JointUnitary
+  tstep=7 =&gt; TesterUnitary
+  tstep=10 =&gt; JointUnitary</code></pre><p>Joint controls are compiled symmetrically around their process-tensor slab, <span>$G^{1/2}P_kG^{1/2}$</span>, while tester-only gates act directly on the ancillary memory wire. The process tensor itself remains unchanged.</p><pre><code class="language-julia hljs">trajectory = evolve(
+    process_tensor,
+    rho_Q0;
+    tester=tester_memory,
+    tester_seq,
+    return_joint=true,
+    progress=false,
+)
+for (name, value) in pairs(trajectory)
+    @printf(&quot;%s: %d snapshots of %s\n&quot;, name, length(value), eltype(value))
+end</code></pre><pre><code class="nohighlight hljs">times: 14 snapshots of Float64
+states_liouville: 14 snapshots of MPS{Liouville}
+states_hilbert: 14 snapshots of MPO{Hilbert}
+tester_states_liouville: 14 snapshots of MPS{Liouville}
+tester_states_hilbert: 14 snapshots of MPO{Hilbert}
+joint_states_liouville: 14 snapshots of MPS{Liouville}
+joint_states_hilbert: 14 snapshots of MPO{Hilbert}
+</code></pre><h2 id="Follow-the-information,-not-just-the-qubits"><a class="docs-heading-anchor" href="#Follow-the-information,-not-just-the-qubits">Follow the information, not just the qubits</a><a id="Follow-the-information,-not-just-the-qubits-1"></a><a class="docs-heading-anchor-permalink" href="#Follow-the-information,-not-just-the-qubits" title="Permalink"></a></h2><p>The tester-aware trajectory gives <span>$ρ_Q(t)$</span>, <span>$ρ_A(t)$</span>, and, because we requested <code>return_joint=true</code>, <span>$ρ_QA(t)$</span>. We can now evaluate the three diagnostics introduced at the start.</p><pre><code class="language-julia hljs">rho_Q = density_matrix.(trajectory.states_hilbert)
+rho_A = density_matrix.(trajectory.tester_states_hilbert)
+rho_QA = density_matrix.(trajectory.joint_states_hilbert)
+
+x_Q = [expectation(rho, X_Q) for rho in rho_Q]
+y_Q = [expectation(rho, Y_Q) for rho in rho_Q]
+x_A = [expectation(rho, X_A) for rho in rho_A]
+y_A = [expectation(rho, Y_A) for rho in rho_A]
+
+coherence_Q = sqrt.(x_Q .^ 2 .+ y_Q .^ 2)
+coherence_A = sqrt.(x_A .^ 2 .+ y_A .^ 2)
+
+information = [
+    mutual_information(rho_Q[k], rho_A[k], rho_QA[k])
+    for k in eachindex(trajectory.times)
+]
+
+@printf(
+    &quot;after store:    &lt;X_Q&gt;=%+.4f, &lt;X_A&gt;=%+.4f, C_A=%.4f\n&quot;,
+    x_Q[store_step], x_A[store_step], coherence_A[store_step],
+)
+@printf(
+    &quot;after phase:    &lt;X_Q&gt;=%+.4f, &lt;X_A&gt;=%+.4f, C_A=%.4f\n&quot;,
+    x_Q[phase_step], x_A[phase_step], coherence_A[phase_step],
+)
+@printf(
+    &quot;after retrieve: &lt;X_Q&gt;=%+.4f, &lt;X_A&gt;=%+.4f, C_Q=%.4f\n&quot;,
+    x_Q[retrieve_step], x_A[retrieve_step], coherence_Q[retrieve_step],
+)
+@printf(&quot;maximum I(Q:A): %.4e bits\n&quot;, maximum(information))
+
+@assert all(isfinite, x_Q)
+@assert all(isfinite, x_A)
+@assert all(isfinite, coherence_Q)
+@assert all(isfinite, coherence_A)
+@assert all(isfinite, information)
+@assert minimum(information) &gt; -1e-8</code></pre><pre><code class="nohighlight hljs">after store:    &lt;X_Q&gt;=+0.0000, &lt;X_A&gt;=+0.9100, C_A=0.9100
+after phase:    &lt;X_Q&gt;=-0.0107, &lt;X_A&gt;=-0.9100, C_A=0.9100
+after retrieve: &lt;X_Q&gt;=-0.9306, &lt;X_A&gt;=+0.0010, C_Q=0.9307
+maximum I(Q:A): 2.4933e-02 bits
+</code></pre><h2 id="Reading-the-result"><a class="docs-heading-anchor" href="#Reading-the-result">Reading the result</a><a id="Reading-the-result-1"></a><a class="docs-heading-anchor-permalink" href="#Reading-the-result" title="Permalink"></a></h2><p>The companion calculation produces the figure below.</p><p><img src="../../assets/examples/noisy_quantum_circuit_tester.png" alt="Store, phase-tag, and retrieve a noisy qubit state with a memory-bearing tester"/></p><p>The three panels answer the three questions we posed before writing any code.</p><p><strong>Top — where is the phase information?</strong>  The dashed curve is <span>$Q$</span> left continuously in the noisy process, so <span>$\langle X_Q\rangle$</span> decays. In the controlled circuit, the first SWAP moves the transverse signal from <span>$Q$</span> to <span>$A$</span>. The <span>$Z_A$</span> gate then flips the sign of <span>$\langle X_A\rangle$</span> without destroying the state. The second SWAP returns that phase-tagged information to <span>$Q$</span>, after which the processor continues to decohere under the same bosonic process.</p><p><strong>Middle — did the tester remain an independent spectator?</strong>  No. The mutual information <span>$I(Q{:}A)$</span> becomes nonzero during the joint protocol. This does not by itself certify entanglement, but it shows that the tester-aware experiment cannot be reconstructed from <span>$ρ_Q$</span> and <span>$ρ_A$</span> as independent states. The same ancilla has participated in more than one circuit time and carries correlations generated by that history.</p><p><strong>Bottom — how much coherence do we recover?</strong>  The companion script repeats the experiment for several idle durations. After retrieval it waits the same fixed readout delay and evaluates</p><p class="math-container">\[C_{xy,Q}=\sqrt{\langle X_Q\rangle^2+\langle Y_Q\rangle^2}.\]</p><p>The bare reference spends the whole idle interval on the noisy processor qubit, so its coherence falls strongly with idle time. In the tester-assisted circuit the logical state spends most of that interval in the isolated ancilla, so considerably more coherence survives. The remaining idle-time dependence is what keeps this from being a noiseless SWAP cartoon: the bosonic process continues evolving while the logical state is parked elsewhere.</p><p>We do <strong>not</strong> interpret this curve as a universal non-Markovianity measure. It is a control observable generated by one memory-assisted probing protocol.</p><h2 id="Why-the-process-tensor-split-matters"><a class="docs-heading-anchor" href="#Why-the-process-tensor-split-matters">Why the process-tensor split matters</a><a id="Why-the-process-tensor-split-matters-1"></a><a class="docs-heading-anchor-permalink" href="#Why-the-process-tensor-split-matters" title="Permalink"></a></h2><p>There are two kinds of memory in this example:</p><pre><code class="language-text hljs">bath memory      E : compressed once into the process tensor
+control memory   A : carried explicitly by the tester</code></pre><p>They should not be rebuilt together whenever the circuit changes. The expensive ACE process tensor is reused unchanged while the SWAP times, ancillary gates, and idle duration are varied only through <code>TesterSeq</code>.</p><p>That separation is the point of the example: <code>ProcessTensors.jl</code> constructs a microscopic non-Markovian noise model once and then lets genuinely memory-bearing quantum circuits interrogate it.</p><div class="admonition is-info" id="Numerical-scope-417aae9f1246e304"><header class="admonition-header">Numerical scope<a class="admonition-anchor" href="#Numerical-scope-417aae9f1246e304" title="Permalink"></a></header><div class="admonition-body"><p>The four-mode, three-level bath is intentionally a documentation-scale toy model. Quantitative conclusions require convergence in timestep, oscillator discretization, local boson cutoff, ACE threshold, and ACE bond dimension. The companion script performs a larger calculation, but it should still be treated as a demonstration rather than a hardware calibration.</p></div></div><div class="admonition is-category-summary" id="Example-takeaways-5603e098609d262f"><header class="admonition-header">Example takeaways<a class="admonition-anchor" href="#Example-takeaways-5603e098609d262f" title="Permalink"></a></header><div class="admonition-body"><ul><li>Temporally correlated circuit noise is naturally a multi-time problem, so a process tensor is a better object than unrelated noise channels.</li><li>A thermal spin-boson bath gives a simple microscopic noisy-qubit model; ACE compresses it into one reusable temporal process.</li><li>The same persistent ancilla participates in several interventions, so the SWAP–Z–SWAP sequence is a memory-bearing tester.</li><li><span>$\langle X\rangle$</span> follows where phase information lives, <span>$C_{xy}$</span> separates phase rotation from decoherence, and <span>$I(Q{:}A)$</span> exposes correlations invisible in reduced trajectories.</li><li>Bath memory belongs to the process tensor; controllable circuit memory belongs to the tester. Many control experiments can therefore reuse the same expensive noisy process.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../thermal_spinboson_ace/">« Thermal spin-boson dynamics using ACE</a><a class="docs-footer-nextpage" href="../instrument_sequences/">Instrument sequences »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 26 August 2026 10:24">Wednesday 26 August 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
