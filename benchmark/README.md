@@ -1,10 +1,11 @@
 # Benchmarks
 
-Scripts and figures live in two folders:
+Scripts and figures live in three folders:
 
 ```text
 benchmark/ace_compressors/     ACE zip-up vs canonzip construction
 benchmark/evolve_contractors/  :evaluate vs :closures evolve
+benchmark/scipost_fig1/         ED, Dense PT, and ACE accuracy figure
 ```
 
 Shared local environments stay at `benchmark/.bench_env/` (BenchmarkTools) and
@@ -14,7 +15,29 @@ Shared local environments stay at `benchmark/.bench_env/` (BenchmarkTools) and
 ```text
 benchmark/ace_compressors/results/
 benchmark/evolve_contractors/results/
+benchmark/scipost_fig1/results/
 ```
+
+## SciPost Figure 1
+
+Generates the four-panel correctness and time-discretisation figure for the
+four-mode Sz⊗Sz spin bath used in `scripts/pt_tfim_multimode.jl`. Direct
+full-system Hilbert-space ED is the discretisation-free reference. `Dense()`
+is the exact (uncompressed) PT constructor, while ACE uses sequential mode
+joining and temporal compression. The plotted observable is Pauli
+\(\langle\sigma_y\rangle\).
+
+The two run scripts save their data independently. A single plotter reads both
+CSV files and assembles the complete 2×2 figure:
+
+```bash
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_left.jl
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_right.jl
+julia --project=. benchmark/scipost_fig1/plot_fig1.jl
+```
+
+See [`scipost_fig1/README.md`](scipost_fig1/README.md) for the Hamiltonian,
+parameter table, output files, and smoke-run overrides.
 
 ## ACE compressors
 
