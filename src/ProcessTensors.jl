@@ -56,7 +56,7 @@ using .Environments: BosonicMode, SpinMode
 using .Environments: BosonicBath, SpinBath
 using .Environments: bosonic_mode, spin_mode
 using .Environments: bosonic_bath, spin_bath
-using .Environments: mode_initial_states
+using .Environments: mode_initial_states, thermal_mode
 
 # Instruments
 
@@ -144,7 +144,7 @@ export BosonicBath, SpinBath
 export bosonic_mode, spin_mode
 export bosonic_bath, spin_bath
 export AbstractSpectralDensity
-export mode_initial_states
+export mode_initial_states, thermal_mode
 
 # Instruments
 export AbstractInstrument, SingleLegInstrument, TwoLegInstrument
