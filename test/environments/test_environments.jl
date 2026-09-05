@@ -12,6 +12,7 @@
 using ProcessTensors
 using ProcessTensors.Spectrals: ohmic_sd
 using ITensors
+using LinearAlgebra: I, Diagonal
 using Test
 
 @testset "API surface: bath names and fields" begin
@@ -26,6 +27,7 @@ using Test
     end
     @test nameof(BosonicMode) == :BosonicMode
     @test :mode_initial_states ∈ names(ProcessTensors)
+    @test :thermal_mode ∈ names(ProcessTensors)
 
     b_sites = liouv_sites(siteinds("Boson", 1; dim=4))
     s_sites = liouv_sites(siteinds("S=1/2", 1))
@@ -38,8 +40,13 @@ using Test
 
     mode_b = bosonic_mode(b_sites, H_b, rho_b; coupling=coupling_b)
     mode_s = spin_mode(s_sites, H_s, rho_s; coupling=coupling_s)
+    thermal_b = thermal_mode(b_sites, H_b, 1.0; coupling=coupling_b)
+    thermal_s = thermal_mode(s_sites, H_s, 1.0; coupling=coupling_s)
     @test nameof(typeof(mode_b)) == :BosonicMode
     @test nameof(typeof(mode_s)) == :SpinMode
+    @test nameof(typeof(thermal_b)) == :BosonicMode
+    @test nameof(typeof(thermal_s)) == :SpinMode
+    @test nameof(typeof(thermal_mode(mode_b, 1.0))) == :BosonicMode
     @test mode_b.sites == b_sites
     @test mode_b.H == H_b
     @test mode_b.coupling == coupling_b
@@ -281,4 +288,71 @@ end
         @test occursin("[1] $mode_name", out)
         @test occursin("[2] $mode_name", out)
     end
+end
+
+@testset "environments.jl: thermal_mode Gibbs and limits" begin
+    function dense_mode_density(mode)
+        ρh = to_hilbert(mode.rho0)
+        tensor = foldl(*, ρh)
+        phys = only(ProcessTensors._phys_sites_from_hilbert_mpo(ρh))
+        return ComplexF64.(Array(tensor, prime(phys), phys))
+    end
+
+    ω = 0.7
+    T = 1.3
+    n_phys = 4
+    b_sites = liouv_sites(siteinds("Boson", 1; dim=n_phys))
+    s_sites = liouv_sites(siteinds("S=1/2", 1))
+    H_b = OpSum() + (ω, "N", 1)
+    H_s = OpSum() + (ω, "Sz", 1)
+    coupling_b = OpSum() + (0.1, "N", 1, "Sz", 2)
+    coupling_s = OpSum() + (0.2, "Sz", 1, "Sz", 2)
+
+    bm = thermal_mode(b_sites, H_b, T; coupling=coupling_b)
+    sm = thermal_mode(s_sites, H_s, T; coupling=coupling_s)
+    @test bm isa BosonicMode
+    @test sm isa SpinMode
+    @test bm.H == H_b
+    @test bm.coupling == coupling_b
+    @test bm.sites == b_sites
+    @test bm.n_max == dim(only(b_sites)) - 1
+    @test sm.H == H_s
+    @test sm.coupling == coupling_s
+    @test sm.sites == s_sites
+
+    occupations = 0:(n_phys - 1)
+    boson_weights = exp.(-ω .* occupations ./ T)
+    boson_weights ./= sum(boson_weights)
+    ρb = dense_mode_density(bm)
+    @test ρb ≈ Diagonal(boson_weights) atol=1e-10
+
+    spin_energies = [ω / 2, -ω / 2]
+    spin_weights = exp.(-spin_energies ./ T)
+    spin_weights ./= sum(spin_weights)
+    ρs = dense_mode_density(sm)
+    @test ρs ≈ Diagonal(spin_weights) atol=1e-10
+
+    seed = bosonic_mode(b_sites, H_b, random_mps(b_sites); coupling=coupling_b)
+    replaced = thermal_mode(seed, T)
+    @test replaced.H == seed.H
+    @test replaced.coupling == seed.coupling
+    @test replaced.sites == seed.sites
+    @test replaced.n_max == seed.n_max
+    @test dense_mode_density(replaced) ≈ ρb atol=1e-10
+
+    ρ0 = dense_mode_density(thermal_mode(b_sites, H_b, 0.0; coupling=coupling_b))
+    vacuum = zeros(ComplexF64, n_phys, n_phys)
+    vacuum[1, 1] = 1
+    @test ρ0 ≈ vacuum atol=1e-10
+
+    ρ∞ = dense_mode_density(thermal_mode(b_sites, H_b, Inf; coupling=coupling_b))
+    @test ρ∞ ≈ Matrix{ComplexF64}(I, n_phys, n_phys) / n_phys atol=1e-12
+
+    ρ_empty = @test_warn r"BosonicMode:H is empty" dense_mode_density(
+        thermal_mode(b_sites, OpSum(), 0.0),
+    )
+    @test ρ_empty ≈ Matrix{ComplexF64}(I, n_phys, n_phys) / n_phys atol=1e-12
+
+    @test_throws DomainError thermal_mode(b_sites, H_b, -1.0)
+    @test_throws DomainError thermal_mode(bm, NaN)
 end
