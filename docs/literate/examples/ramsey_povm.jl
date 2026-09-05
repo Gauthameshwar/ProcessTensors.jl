@@ -183,8 +183,9 @@ system = qubit_system(system_sites);
 # e^{-n\omega_k/T}|n\rangle\langle n|,
 # ```
 #
-# where ``\hbar=k_B=1``. Its coupling `OpSum` uses local site `1` for the
-# oscillator and local site `2` for the processor qubit.
+# where ``\hbar=k_B=1``. [`thermal_mode`](@ref) builds that state from the
+# local oscillator Hamiltonian. Its coupling `OpSum` uses local site `1` for
+# the oscillator and local site `2` for the processor qubit.
 
 bath_sites = siteinds("Boson", N_BATH; dim=LOCAL_DIM)
 bath_liouville_sites = liouv_sites(bath_sites)
@@ -194,19 +195,6 @@ modes = [
         ωk = frequencies[k]
         gk = couplings[k]
 
-        occupations = 0:(LOCAL_DIM - 1)
-        weights = exp.(-ωk .* occupations ./ TEMPERATURE)
-        weights ./= sum(weights)
-
-        number_states = [
-            MPS([bath_sites[k]], [string(n)])
-            for n in occupations
-        ]
-        initial_mode_density = to_liouville(
-            to_dm(number_states; coeffs=weights);
-            sites=[bath_liouville_sites[k]],
-        )
-
         mode_hamiltonian = OpSum()
         mode_hamiltonian += ωk, "N", 1
 
@@ -214,10 +202,10 @@ modes = [
         coupling += gk, "A", 1, "Z", 2
         coupling += gk, "Adag", 1, "Z", 2
 
-        bosonic_mode(
+        thermal_mode(
             [bath_liouville_sites[k]],
             mode_hamiltonian,
-            initial_mode_density;
+            TEMPERATURE;
             coupling=coupling,
         )
     end for k in 1:N_BATH

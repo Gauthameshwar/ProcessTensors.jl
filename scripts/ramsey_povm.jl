@@ -119,24 +119,15 @@ function ramsey_bath(params)
         let
             omega = frequencies[k]
             coupling = couplings[k]
-            occupations = 0:(params.local_dim - 1)
-            weights = exp.(-omega .* occupations ./ params.thermal_frequency)
-            weights ./= sum(weights)
-            number_states = [MPS([bath_sites[k]], [string(n)]) for n in occupations]
-            rho_mode = to_liouville(
-                to_dm(number_states; coeffs=weights);
-                sites=[bath_liouville_sites[k]],
-            )
-
             H_mode = OpSum() + (omega, "N", 1)
             H_coupling = OpSum()
             H_coupling += coupling, "A", 1, "Z", 2
             H_coupling += coupling, "Adag", 1, "Z", 2
 
-            bosonic_mode(
+            thermal_mode(
                 [bath_liouville_sites[k]],
                 H_mode,
-                rho_mode;
+                params.thermal_frequency;
                 coupling=H_coupling,
             )
         end for k in 1:params.N_bath

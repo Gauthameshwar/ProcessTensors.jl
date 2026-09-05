@@ -211,38 +211,24 @@ bath_sites = siteinds("Boson", N_bath; dim=local_dim)
 bath_liouville_sites = liouv_sites(bath_sites)
 
 # Each `BosonicMode` supplies one microscopic piece of the environment:
-# `H_mode` gives ω_k b†b, `rho_mode` gives the truncated Gibbs state, and
-# `H_coupling` gives g_k(b+b†)Z_Q. In the local `OpSum`, site 1 is the
-# oscillator and site 2 is the processor qubit.
+# `H_mode` gives ω_k b†b, [`thermal_mode`](@ref) sets the truncated Gibbs
+# state, and `H_coupling` gives g_k(b+b†)Z_Q. In the local `OpSum`, site 1 is
+# the oscillator and site 2 is the processor qubit.
 
 modes = [
     let
         omega = frequencies[k]
         coupling = couplings[k]
 
-        occupations = 0:(local_dim - 1)
-        thermal_weights = exp.(-omega .* occupations ./ thermal_frequency)
-        thermal_weights ./= sum(thermal_weights)
-
-        number_states = [
-            MPS([bath_sites[k]], [string(n)])
-            for n in occupations
-        ]
-
-        rho_mode = to_liouville(
-            to_dm(number_states; coeffs=thermal_weights);
-            sites=[bath_liouville_sites[k]],
-        )
-
         H_mode = OpSum() + (omega, "N", 1)
         H_coupling = OpSum()
         H_coupling += coupling, "A", 1, "Z", 2
         H_coupling += coupling, "Adag", 1, "Z", 2
 
-        bosonic_mode(
+        thermal_mode(
             [bath_liouville_sites[k]],
             H_mode,
-            rho_mode;
+            thermal_frequency;
             coupling=H_coupling,
         )
     end for k in 1:N_bath

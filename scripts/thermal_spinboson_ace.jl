@@ -203,20 +203,12 @@ function thermal_spinboson_bath(frequencies, couplings, thermal_frequency)
         mode_coupling += gk, "Adag", 1, "ProjUp", 2
         mode_coupling += gk^2 / ωk, "ProjUp", 2
 
-        initial_mode_density = thermal_boson_density(
-            bath_sites[k],
-            bath_liouville_sites[k],
-            ωk,
-            thermal_frequency,
-            local_dim,
-        )
-
         push!(
             modes,
-            bosonic_mode(
+            thermal_mode(
                 [bath_liouville_sites[k]],
                 mode_hamiltonian,
-                initial_mode_density;
+                thermal_frequency;
                 coupling=mode_coupling,
             ),
         )
@@ -226,29 +218,6 @@ function thermal_spinboson_bath(frequencies, couplings, thermal_frequency)
     return with_logger(NullLogger()) do
         bosonic_bath(modes)
     end
-end
-
-function thermal_boson_density(
-    physical_site,
-    liouville_site,
-    ω,
-    thermal_frequency,
-    local_dim,
-)
-    occupations = 0:(local_dim - 1)
-    weights = exp.(-ω .* occupations ./ thermal_frequency)
-    weights ./= sum(weights)
-
-    number_states = [
-        MPS([physical_site], [string(n)])
-        for n in occupations
-    ]
-    density = to_dm(number_states; coeffs=weights)
-
-    return to_liouville(
-        density;
-        sites=[liouville_site],
-    )
 end
 
 function one_site_density_matrix(ρ)

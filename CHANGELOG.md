@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`
+  is the Gibbs state of the local mode Hamiltonian at temperature `T`, the
+  ground-state projector at `T = 0`, or the maximally mixed state at `T = Inf`.
+  Replacement methods keep Hamiltonian, sites, coupling, and `n_max`.
 * **Ramsey POVM example.** A Literate walkthrough and companion ACE script
   contract three unsharp ``X`` measure-and-reset instruments with a thermal
   dephasing process tensor, then compare the joint record to a product of
