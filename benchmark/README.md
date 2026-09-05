@@ -27,7 +27,7 @@ four-mode Sz⊗Sz spin bath used in `scripts/pt_tfim_multimode.jl`. Direct
 full-system Hilbert-space ED is the discretisation-free reference. `Dense()`
 is the exact (uncompressed) PT constructor, while ACE uses sequential mode
 joining and temporal compression. The plotted observable is Pauli
-\(\langle\sigma_y\rangle\).
+$\langle\sigma_y\rangle$.
 
 The two run scripts save their data independently. A single plotter reads both
 CSV files and assembles the complete 2×2 figure:
@@ -53,8 +53,8 @@ julia -t auto --project=. benchmark/scipost_fig2/run_fig2.jl
 julia --project=. benchmark/scipost_fig2/plot_fig2.jl
 ```
 
-Panel (a) shows the complete \(D_k\) profile at one reference timestep.
-Panel (b) shows \(D_{\max}\) across timestep and cutoff. Figure 2 leaves BLAS
+Panel (a) shows the complete $D_k$ profile at one reference timestep.
+Panel (b) shows $D_{\max}$ across timestep and cutoff. Figure 2 leaves BLAS
 unrestricted and records its actual thread count. See
 [`scipost_fig2/README.md`](scipost_fig2/README.md) for the model, controls,
 outputs, and reproducibility metadata.
@@ -70,7 +70,7 @@ ACE(; cutoff=1e-10, maxdim=typemax(Int), compression=:canonzip)
 - `:canonzip` (library default): join one complete mode without truncation, fuse temporal links, move the orthogonality center to the final time, then one right-to-left ACE relative-SVD sweep.
 - `:zipup`: truncate during the forward join, then sweep backward.
 
-Use the **same cutoff** for both strategies. Do not retune \(\varepsilon\) per algorithm.
+Use the **same cutoff** for both strategies. Do not retune $\varepsilon$ per algorithm.
 
 ```text
 ace_compressors/ace_compression_sanity.jl

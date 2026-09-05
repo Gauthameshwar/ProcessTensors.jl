@@ -7,27 +7,27 @@ structure of a process-tensor MPO. Data generation and plotting are separate:
 
 ## Unpolarised central-spin model
 
-We set \(\hbar=1\) and use ITensor operators
-\(S_\alpha=\sigma_\alpha/2\). The system and bath spins have no free
+We set $\hbar=1$ and use ITensor operators
+$S_\alpha=\sigma_\alpha/2$. The system and bath spins have no free
 Hamiltonians:
 
-\[
+$$
 H_S=H_{B_k}=0,\qquad
 H=\sum_{k=1}^{N}\frac{J}{N}\,
 \left(S_xs_k^x+S_ys_k^y+S_zs_k^z\right).
-\]
+$$
 
-The central spin starts along \(+x\), so
-\(\langle S_x(0)\rangle=1/2\). Each bath spin starts in an independently
+The central spin starts along $+x$, so
+$\langle S_x(0)\rangle=1/2$. Each bath spin starts in an independently
 drawn pure state,
 
-\[
+$$
 |\mathbf n_k\rangle=
 \cos(\theta_k/2)|\uparrow\rangle+
 e^{i\phi_k}\sin(\theta_k/2)|\downarrow\rangle,
-\]
+$$
 
-uniform on the Bloch sphere. This is the \(b=0\) unpolarised ensemble used in
+uniform on the Bloch sphere. This is the $b=0$ unpolarised ensemble used in
 the difficult central-spin case.
 
 The default realization uses `Random.Xoshiro(20260905)`. The generated
@@ -38,19 +38,19 @@ are recorded in `results/environment.txt`.
 
 ## Measured quantities
 
-For a process tensor with \(N_t\) temporal cores, \(D_k\) is the dimension of
-the internal link between cores \(Q^{[k]}\) and \(Q^{[k+1]}\). Its physical
-cut time is \(t_k=k\Delta t\). The profile CSV includes the unity boundary
-bonds at \(t=0\) and \(t=T\); \(D_{\max}\) is computed from internal links
+For a process tensor with $N_t$ temporal cores, $D_k$ is the dimension of
+the internal link between cores $Q^{[k]}$ and $Q^{[k+1]}$. Its physical
+cut time is $t_k=k\Delta t$. The profile CSV includes the unity boundary
+bonds at $t=0$ and $t=T$; $D_{\max}$ is computed from internal links
 only.
 
-- Figure 2(a): \(D_k(t_k)\) at \(\Delta t_{\rm ref}=0.10\).
-- Figure 2(b): \(D_{\max}\) across timestep and cutoff.
+- Figure 2(a): $D_k(t_k)$ at $\Delta t_{\rm ref}=0.10$.
+- Figure 2(b): $D_{\max}$ across timestep and cutoff.
 
-Defaults are \(N=50\), \(J=1\), \(T=21\) (the smallest \(T\ge 20\) that is
-an integer multiple of every timestep, including \(1.5\)),
-\(\Delta t\in\{1.5,0.50,0.20,0.10,0.05\}\), and
-\(\epsilon_{\rm SVD}\in\{10^{-6},10^{-8},10^{-10},10^{-12}\}\).
+Defaults are $N=50$, $J=1$, $T=21$ (the smallest $T\ge 20$ that is
+an integer multiple of every timestep, including $1.5$),
+$\Delta t\in\{1.5,0.50,0.20,0.10,0.05\}$, and
+$\epsilon_{\rm SVD}\in\{10^{-6},10^{-8},10^{-10},10^{-12}\}$.
 All builds use `compression=:canonzip`, `alg=Exact()`,
 `sys_alg=Trotter{2}()`, `combine_alg=Trotter{2}()`, and `maxdim=4096`.
 An open marker denotes a point that reached `maxdim`.
