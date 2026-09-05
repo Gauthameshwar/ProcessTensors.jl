@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **Ramsey POVM example.** A Literate walkthrough and companion ACE script
+  contract three unsharp ``X`` measure-and-reset instruments with a thermal
+  dephasing process tensor, then compare the joint record to a product of
+  single-round marginals. The companion script is `scripts/ramsey_povm.jl`
+  and writes separate protocol and record figures.
 * **Testers and noisy quantum qubits example:** A Literate walkthrough and
   companion ACE script demonstrate store–wait–retrieve control, tester-only
   phase operations, joint trajectories, and system–tester mutual information.

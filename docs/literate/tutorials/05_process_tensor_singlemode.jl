@@ -711,5 +711,7 @@ println(corr)
 # !!! related "Related examples"
 #     - [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) —
 #       single- and multimode process-tensor construction
+#     - [Ramsey readouts as a probe of bath memory](../examples/ramsey_povm.md) —
+#       unsharp POVM-and-reset records on a reusable process tensor
 #     - [Multi-time correlations](../examples/multitime_correlations.md) —
 #       sequential two-time correlators on a reusable process tensor
