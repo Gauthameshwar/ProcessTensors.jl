@@ -114,29 +114,6 @@ using ProcessTensors
 
 ohmic_spectral_density(ω) = 0.2 * ω * exp(-ω / 3)
 
-function thermal_boson_density(
-    physical_site,
-    liouville_site,
-    ω,
-    thermal_frequency,
-    local_dim,
-)
-    occupations = 0:(local_dim - 1)
-    weights = exp.(-ω .* occupations ./ thermal_frequency)
-    weights ./= sum(weights)
-
-    number_states = [
-        MPS([physical_site], [string(n)])
-        for n in occupations
-    ]
-    density = to_dm(number_states; coeffs=weights)
-
-    return to_liouville(
-        density;
-        sites=[liouville_site],
-    )
-end
-
 function one_site_density_matrix(ρ)
     tensor = foldl(*, ρ)
     site = only(
@@ -186,8 +163,8 @@ system = spin_system(system_sites, system_hamiltonian)
 initial_density = to_dm(MPS(system_sites, ["Dn"]));
 
 # Each oscillator is an independent [`BosonicMode`](@ref). Its local
-# Hamiltonian is ``ω_k b_k†b_k`` and its initial state is the truncated Gibbs
-# state
+# Hamiltonian is ``ω_k b_k†b_k``. [`thermal_mode`](@ref) sets the truncated
+# Gibbs state
 #
 # ```math
 # \rho_k^{\mathrm{th}}
@@ -218,18 +195,10 @@ modes = [
         mode_coupling += gk, "Adag", 1, "ProjUp", 2
         mode_coupling += gk^2 / ωk, "ProjUp", 2
 
-        initial_mode_density = thermal_boson_density(
-            bath_sites[k],
-            bath_liouville_sites[k],
-            ωk,
-            thermal_frequency,
-            local_dim,
-        )
-
-        bosonic_mode(
+        thermal_mode(
             [bath_liouville_sites[k]],
             mode_hamiltonian,
-            initial_mode_density;
+            thermal_frequency;
             coupling=mode_coupling,
         )
     end for k in 1:N_bath
@@ -384,9 +353,10 @@ println("Reduced-system diagnostics")
 # !!! summary "Example takeaways"
 #     - A thermal spin-boson bath is specified microscopically by sampling a
 #       spectral density into oscillator frequencies and couplings.
-#     - Each [`BosonicMode`](@ref) carries its own Hamiltonian, Gibbs state, and
-#       system-mode interaction; the modes remain independent before ACE
-#       combines their influences.
+#     - Each [`thermal_mode`](@ref) builds a [`BosonicMode`](@ref) Gibbs state
+#       from the local oscillator Hamiltonian, temperature, and system-mode
+#       interaction; the modes remain independent before ACE combines their
+#       influences.
 #     - ACE converts an exponentially large formal bosonic environment into a
 #       compressed temporal process tensor using the relative singular-value
 #       threshold ``σ_i > ε σ_1``.
