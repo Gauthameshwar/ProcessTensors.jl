@@ -85,6 +85,7 @@ const LITERATE_EXAMPLES = [
     ("central_spin_ace.jl", "central_spin_ace", "Central-spin dynamics using ACE"),
     ("thermal_spinboson_ace.jl", "thermal_spinboson_ace", "Thermal spin-boson dynamics using ACE"),
     ("noisy_quantum_circuit_tester.jl", "noisy_quantum_circuit_tester", "Noisy quantum circuit and testers"),
+    ("ramsey_povm.jl", "ramsey_povm", "Ramsey readouts as a probe of bath memory"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
 ]
 
@@ -109,6 +110,7 @@ const EXAMPLE_GROUPS = [
     ]),
     ("Instruments and correlations", [
         ("Instrument sequences", "instrument_sequences"),
+        ("Ramsey POVM measurements", "ramsey_povm"),
         ("Multi-time correlations", "multitime_correlations"),
     ]),
 ]
@@ -170,6 +172,8 @@ stage_example_figures([
     "central_spin_ace.png",
     "thermal_spinboson_ace.png",
     "noisy_quantum_circuit_tester.png",
+    "ramsey_povm_protocol.png",
+    "ramsey_povm_records.png",
     "pt_multitime_correlations.png",
 ])
 

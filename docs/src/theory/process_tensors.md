@@ -503,6 +503,7 @@ The theory is the same regardless of the implementation details: the process ten
     | Constructing and contracting a process tensor | [Single-Mode Process Tensor](@ref) |
     | Spin bath, single- and multimode PT | [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) |
     | Sequential two-time correlators | [Multi-time correlations](../examples/multitime_correlations.md) |
+    | Repeated Ramsey POVM readouts | [Ramsey readouts as a probe of bath memory](../examples/ramsey_povm.md) |
     | Markovian open dynamics (contrast) | [Dissipative Dynamics](@ref), [Dissipative spin chain](../examples/dissipative_spin.md) |
 
 ## Further reading
