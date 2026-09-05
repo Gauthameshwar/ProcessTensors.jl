@@ -1,11 +1,12 @@
 # Benchmarks
 
-Scripts and figures live in three folders:
+Scripts and figures live in four folders:
 
 ```text
 benchmark/ace_compressors/     ACE zip-up vs canonzip construction
 benchmark/evolve_contractors/  :evaluate vs :closures evolve
 benchmark/scipost_fig1/         ED, Dense PT, and ACE accuracy figure
+benchmark/scipost_fig2/         ACE cutoff, timestep, and temporal bonds
 ```
 
 Shared local environments stay at `benchmark/.bench_env/` (BenchmarkTools) and
@@ -16,6 +17,7 @@ Shared local environments stay at `benchmark/.bench_env/` (BenchmarkTools) and
 benchmark/ace_compressors/results/
 benchmark/evolve_contractors/results/
 benchmark/scipost_fig1/results/
+benchmark/scipost_fig2/results/
 ```
 
 ## SciPost Figure 1
@@ -38,6 +40,24 @@ julia --project=. benchmark/scipost_fig1/plot_fig1.jl
 
 See [`scipost_fig1/README.md`](scipost_fig1/README.md) for the Hamiltonian,
 parameter table, output files, and smoke-run overrides.
+
+## SciPost Figure 2
+
+Measures the temporal-memory bond profile of ACE process tensors for the
+unpolarised central-spin model. A fixed `Xoshiro` seed generates one archived
+set of random pure bath-spin orientations, and every timestep and cutoff uses
+that same realization.
+
+```bash
+julia -t auto --project=. benchmark/scipost_fig2/run_fig2.jl
+julia --project=. benchmark/scipost_fig2/plot_fig2.jl
+```
+
+Panel (a) shows the complete \(D_k\) profile at one reference timestep.
+Panel (b) shows \(D_{\max}\) across timestep and cutoff. Figure 2 leaves BLAS
+unrestricted and records its actual thread count. See
+[`scipost_fig2/README.md`](scipost_fig2/README.md) for the model, controls,
+outputs, and reproducibility metadata.
 
 ## ACE compressors
 
