@@ -252,7 +252,7 @@ end
         rho_env_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
         push!(modes, spin_mode(env_liouv, OpSum() + (0.25 + 0.1 * m, "Sx", 1), rho_env_l))
     end
-    bath = @test_warn r"SpinBath: no mode-system coupling" spin_bath(modes)
+    bath = @test_logs (:warn, r"SpinBath: no mode-system coupling") spin_bath(modes)
 
     pt_free = build_process_tensor(system, system.sites[1]; dt=dt, nsteps=nsteps)
     pt_ace = build_process_tensor(

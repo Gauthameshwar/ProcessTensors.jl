@@ -538,7 +538,7 @@ end
     # Given: empty Hamiltonian (constructor emits a warning by design).
     # When: UnitaryPropagation ITensor.
     # Then: delta map between in/out legs; warning is captured/asserted by @test_logs.
-    sys0 = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+    sys0 = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(s, OpSum())
     idprop = unitary_propagation(sys0)
     Tid = instrument_itensor(idprop, [in1], [out0], 1; dt=dt, alg=Trotter{1}())
     @test isapprox(norm(Tid - delta(in1, out0)), 0.0; atol=1e-12)

@@ -110,7 +110,7 @@ end
 
     @testset "coupling_times / coupling_sites resolve stable PT legs" begin
         s = siteinds("S=1/2", 1)
-        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+        system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(s, OpSum())
         pt = build_process_tensor(system, system.sites[1]; dt=0.2, nsteps=4)
         out1, in2 = coupling_times(pt, 2)
         @test length(in2) == 1
@@ -159,7 +159,7 @@ end
 
     @testset "build_process_tensor rejects oversized mixed bath with warning+error" begin
         s = siteinds("S=1/2", 1)
-        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+        system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(s, OpSum())
 
         b1 = siteinds("Boson", 1; dim=40)
         b2 = siteinds("Boson", 1; dim=40)
@@ -174,7 +174,7 @@ end
         cpl2 = OpSum() + (0.03, "N", 1, "Sz", 2)
         m1 = bosonic_mode(Lb1, H_b, dim(only(Lb1)) - 1, rho1; coupling=cpl1)
         m2 = bosonic_mode(Lb2, H_b, dim(only(Lb2)) - 1, rho2; coupling=cpl2)
-        bath = @test_warn r"BosonicBath has bath-only Liouville dimension" bosonic_bath([m1, m2])
+        bath = @test_logs (:warn, r"BosonicBath has bath-only Liouville dimension") bosonic_bath([m1, m2])
 
         @test_logs (:warn, r"build_process_tensor: joint Liouville vector dimension D=.*exceeds MAX_DENSE_LIOUVILLE_DIM") begin
             @test_throws ArgumentError build_process_tensor(system, system.sites[1]; environment=bath, dt=0.05, nsteps=2)
@@ -242,7 +242,7 @@ end
 
     @testset "Markovian identity propagation with empty H_sys" begin
         s = siteinds("S=1/2", 1)
-        system = @test_warn r"SpinSystem: H is empty" spin_system(s, OpSum())
+        system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(s, OpSum())
         pt = build_process_tensor(system; dt=0.05, nsteps=5)
         rho0_h = to_dm(MPS(s, ["+"]))
         rho0_dense = _one_site_hilbert_mpo_to_dense(rho0_h)
