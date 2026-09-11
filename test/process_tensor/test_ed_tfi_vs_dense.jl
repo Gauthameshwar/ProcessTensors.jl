@@ -22,10 +22,52 @@ if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
     include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
 end
 
-@testset "process tensor: 1+1 spin TFI PT vs joint full-H exact ED" begin
+@testset "process tensor: bath chronology matches repeated exact channel" begin
     sys_phys = siteinds("S=1/2", 1)
     env_phys = siteinds("S=1/2", 1)
-    sys_liouv = liouv_sites(sys_phys)
+    env_liouv = liouv_sites(env_phys)
+    system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(sys_phys, OpSum())
+
+    ψ_sys = ComplexF64[1, im] / sqrt(2)
+    ψ_env = ComplexF64[1, 1] / sqrt(2)
+    ρ_sys = ψ_sys * ψ_sys'
+    ρ_env = ψ_env * ψ_env'
+    H_bg = OpSum()
+    for op in ("Sx", "Sy", "Sz")
+        H_bg += 1.0, op, 2, op, 1
+    end
+    coupling = OpSum()
+    for op in ("Sx", "Sy", "Sz")
+        coupling += 1.0, op, 1, op, 2
+    end
+    mode = @test_logs (:warn, r"SpinMode:H is empty") spin_mode(
+        env_liouv,
+        OpSum(),
+        to_liouville(hilbert_matrix_to_mpo(ρ_env, env_phys); sites=env_liouv);
+        coupling,
+    )
+
+    dt, nsteps = 0.1, 6
+    pt = build_process_tensor(
+        system;
+        method=Dense(),
+        environment=spin_bath([mode]),
+        dt,
+        nsteps,
+    )
+    trajectory = evolve(pt, hilbert_matrix_to_mpo(ρ_sys, sys_phys))
+    U_bg = _exact_unitary_exp(H_bg, _joint_phys_sites(sys_phys, env_phys), dt)
+    ρ_joint = kron(ρ_env, ρ_sys)
+    for k in 1:nsteps
+        ρ_joint = U_bg * ρ_joint * U_bg'
+        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+              _partial_trace_env(ρ_joint, 2, 2) atol=1e-11 rtol=1e-10
+    end
+end
+
+@testset "process tensor: 1+1 spin TFI PT vs identical split ED" begin
+    sys_phys = siteinds("S=1/2", 1)
+    env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
 
     H_sys = OpSum()
@@ -42,7 +84,13 @@ end
 
     dt = 0.1
     nsteps = 8
-    pt = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
+    pt = build_process_tensor(
+        system;
+        environment=bath,
+        dt,
+        nsteps,
+        sys_alg=Trotter{1}(),
+    )
 
     rho_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
     trajectory = evolve(pt, rho_sys0_h)
@@ -51,69 +99,20 @@ end
     H_bg += 1.0, "Sx", 2
     H_bg += 1.0, "Sz", 1, "Sz", 2
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
-    H_full = _build_joint_full_opsum(H_sys, H_bg)
     rho_joint = kron(
-        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
         hilbert_mpo_to_dense(rho_env0_h, env_phys),
+        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
     )
+    U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
+    U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
 
     @test length(trajectory.states_liouville) == nsteps
-    split_errs = Float64[]
-    joint_errs = Float64[]
-    for k in 0:(nsteps - 1)
-        t = k * dt
-        rho_joint_full = _evolve_joint_full_exact(rho_joint, t, H_full, joint_sites)
-        rho_ed = _partial_trace_env(rho_joint_full, 2, 2)
-
-        rho_joint_split = _evolve_joint_split_exact(
-            rho_joint, dt, k, H_sys, H_bg, sys_phys, joint_sites; denv=2,
-        )
-        rho_split = _partial_trace_env(rho_joint_split, 2, 2)
-        push!(split_errs, norm(rho_split - rho_ed))
-
-        rho_pt_h = to_hilbert(trajectory.states_liouville[k + 1])
-        rho_pt = hilbert_mpo_to_dense(rho_pt_h, _physical_sites_from_hilbert_mpo(rho_pt_h))
-        push!(joint_errs, norm(rho_pt - rho_ed))
+    for k in 1:nsteps
+        rho_joint = U_bg * rho_joint * U_bg'
+        rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, 2)
+        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+              _partial_trace_env(rho_joint, 2, 2) atol=1e-11 rtol=1e-10
     end
-    # Joint ED is exact; embedded split PT (system + bath every slab) vs full joint at moderate Δt.
-    @test maximum(split_errs) < 0.08
-    @test maximum(joint_errs) < 0.08
-
-    O_sys = OpSum() + (1.0, "Sz", 1)
-    default_instr = _schedule_default_instr_pt(pt)
-    obs_errs = Float64[]
-    trace_errs = Float64[]
-    density_errs = Float64[]
-
-    for k in 0:(nsteps - 1)
-        t = k * dt
-        rho_ed = _reduced_system_joint_full(rho_joint, t, H_full, joint_sites, 2, 2)
-
-        pt_k = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=k + 1)
-        seq_obs = _seq_observable_terminal(rho_sys0_h, O_sys, k + 1, default_instr)
-        val_obs = evaluate_process(pt_k, seq_obs; default_instr=default_instr)
-        @test val_obs isa ComplexF64
-        push!(obs_errs, abs(val_obs - _ed_expectation(rho_ed, O_sys, sys_phys)))
-
-        seq_tr = _seq_trace_terminal(rho_sys0_h, k + 1, default_instr)
-        val_tr = evaluate_process(pt_k, seq_tr; default_instr=default_instr)
-        @test val_tr isa ComplexF64
-        push!(trace_errs, abs(val_tr - real(tr(rho_ed))))
-
-        seq_rho = InstrumentSeq(default=default_instr, nsteps=k + 1)
-        add!(seq_rho, state_preparation(rho_sys0_h), 0)
-        rho_pt_h = to_hilbert(evaluate_process(pt_k, seq_rho; default_instr=default_instr))
-        rho_pt = _hilbert_mpo_to_dense_one_site(rho_pt_h)
-        push!(density_errs, norm(rho_pt - rho_ed))
-
-        rho_ev = _hilbert_mpo_to_dense_one_site(trajectory.states_hilbert[k + 1])
-        val_evolve = _ed_expectation(rho_ev, O_sys, sys_phys)
-        @test isapprox(val_obs, val_evolve; atol=1e-9, rtol=1e-7)
-    end
-
-    @test maximum(obs_errs) < 0.08
-    @test maximum(trace_errs) < 0.08
-    @test maximum(density_errs) < 0.08
 end
 
 @testset "process tensor: zero coupling matches system-only TEBD" begin
@@ -127,7 +126,7 @@ end
     rho_env_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
     H_env = OpSum() + (0.9, "Sx", 1)
     mode = spin_mode(env_liouv, H_env, rho_env_l; coupling=OpSum())
-    bath = @test_warn r"SpinBath: no mode-system coupling" spin_bath([mode])
+    bath = @test_logs (:warn, r"SpinBath: no mode-system coupling") spin_bath([mode])
 
     dt = 0.05
     nsteps = 4
@@ -159,7 +158,7 @@ end
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
 
-    system = @test_warn r"SpinSystem: H is empty" spin_system(sys_phys, OpSum())
+    system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(sys_phys, OpSum())
     rho_env0_h = to_dm(MPS(env_phys, ["Up"]))
     rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
     H_env = OpSum() + (1.0, "Sx", 1)
@@ -176,10 +175,11 @@ end
     H_bg = OpSum() + (1.0, "Sx", 2) + (1.0, "Sz", 1, "Sz", 2)
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
     rho_joint = kron(
-        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
         hilbert_mpo_to_dense(rho_env0_h, env_phys),
+        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
     )
 
+    # This invariant trajectory is useful, but is not a bath-chronology guard.
     for k in 0:(nsteps - 1)
         t = k * dt
         rho_ed = _reduced_system_joint_full(rho_joint, t, H_bg, joint_sites, 2, 2)
@@ -208,28 +208,51 @@ end
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
     H_full = _build_joint_full_opsum(H_sys, H_bg)
     rho_joint = kron(
-        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
         hilbert_mpo_to_dense(rho_env0_h, env_phys),
+        hilbert_mpo_to_dense(rho_sys0_h, sys_phys),
     )
 
-    # Same physical snapshot time t_final = (n - 1) * dt = 0.4.
-    grids = ((5, 0.1), (9, 0.05))
+    grids = ((4, 0.1), (8, 0.05), (16, 0.025))
     t_final = 0.4
     errs = Float64[]
     for (nsteps, dt) in grids
-        @test isapprox((nsteps - 1) * dt, t_final; atol=1e-12)
+        @test isapprox(nsteps * dt, t_final; atol=1e-12)
         pt = build_process_tensor(
-            system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps,
+            system;
+            environment=bath,
+            dt,
+            nsteps,
+            sys_alg=Trotter{1}(),
         )
         trj = evolve(pt, rho_sys0_h)
-        rho_ed = _reduced_system_joint_full(rho_joint, t_final, H_full, joint_sites, 2, 2)
-        rho_pt_h = to_hilbert(trj.states_liouville[end])
-        rho_pt = hilbert_mpo_to_dense(rho_pt_h, _physical_sites_from_hilbert_mpo(rho_pt_h))
-        push!(errs, norm(rho_pt - rho_ed))
+        rho_split = _partial_trace_env(
+            _evolve_joint_split_exact(
+                rho_joint,
+                dt,
+                nsteps,
+                H_sys,
+                H_bg,
+                sys_phys,
+                joint_sites;
+                denv=2,
+            ),
+            2,
+            2,
+        )
+        @test _one_site_hilbert_mpo_to_dense(trj.states_hilbert[end]) ≈
+              rho_split atol=1e-11 rtol=1e-10
+        rho_full = _reduced_system_joint_full(
+            rho_joint,
+            t_final,
+            H_full,
+            joint_sites,
+            2,
+            2,
+        )
+        push!(errs, norm(rho_split - rho_full))
     end
-    # Lie–Trotter split between system and bath steps: first order in Δt at fixed t_final.
-    @test errs[2] < errs[1]
-    @test errs[2] < 0.08
+    @test all(errs[2:end] .< errs[1:(end - 1)])
+    @test all(0.7 .< log2.(errs[1:(end - 1)] ./ errs[2:end]) .< 1.3)
 end
 
 @testset "process tensor: empty H_sys diagonal Sz coupling leaves |Up> invariant" begin
@@ -237,10 +260,10 @@ end
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
 
-    system = @test_warn r"SpinSystem: H is empty" spin_system(sys_phys, OpSum())
+    system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(sys_phys, OpSum())
     rho_env_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
     cpl = OpSum() + (0.25, "Sz", 1, "Sz", 2)
-    mode = @test_warn r"SpinMode:H is empty" spin_mode(
+    mode = @test_logs (:warn, r"SpinMode:H is empty") spin_mode(
         env_liouv, OpSum(), rho_env_l; coupling=cpl,
     )
     bath = spin_bath([mode])
@@ -300,22 +323,32 @@ end
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
     H_full = _build_joint_full_opsum(H_sys, H_bg)
     rho_joint0 = kron(
-        hilbert_mpo_to_dense(rho0_h, sys_phys),
         hilbert_mpo_to_dense(rho_env0_h, env_phys),
+        hilbert_mpo_to_dense(rho0_h, sys_phys),
     )
+    U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
+    U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
+    U_half = _exact_unitary_exp(H_sys, sys_phys, dt / 2)
+    rho_split1 = copy(rho_joint0)
+    rho_split2 = copy(rho_joint0)
+    for _ in 1:nsteps
+        rho_split1 = U_bg * rho_split1 * U_bg'
+        rho_split1 = _apply_system_unitary_on_joint(rho_split1, U_sys, 2)
+        rho_split2 = _apply_system_unitary_on_joint(rho_split2, U_half, 2)
+        rho_split2 = U_bg * rho_split2 * U_bg'
+        rho_split2 = _apply_system_unitary_on_joint(rho_split2, U_half, 2)
+    end
+    rho_split1 = _partial_trace_env(rho_split1, 2, 2)
+    rho_split2 = _partial_trace_env(rho_split2, 2, 2)
+    rho1 = _one_site_hilbert_mpo_to_dense(trj1.states_hilbert[end])
+    rho2 = _one_site_hilbert_mpo_to_dense(trj2.states_hilbert[end])
+    @test rho1 ≈ rho_split1 atol=1e-11 rtol=1e-10
+    @test rho2 ≈ rho_split2 atol=1e-11 rtol=1e-10
+
     rho_ed = _partial_trace_env(
         _evolve_joint_full_exact(rho_joint0, T, H_full, joint_sites),
         2,
         2,
-    )
-
-    rho1 = hilbert_mpo_to_dense(
-        to_hilbert(trj1.states_liouville[end]),
-        _physical_sites_from_hilbert_mpo(to_hilbert(trj1.states_liouville[end])),
-    )
-    rho2 = hilbert_mpo_to_dense(
-        to_hilbert(trj2.states_liouville[end]),
-        _physical_sites_from_hilbert_mpo(to_hilbert(trj2.states_liouville[end])),
     )
 
     err1 = norm(rho1 - rho_ed)

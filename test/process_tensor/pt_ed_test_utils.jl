@@ -34,8 +34,8 @@ if !isdefined(Main, :_joint_phys_sites)
     """
     Physical sites `[system, bath_1, …, bath_M]` for a joint `OpSum` / `MPO`.
 
-    ITensor site order is system-first. Split-schedule dense states use
-    `kron(ρ_bath, ρ_sys)` (environment left), matching [`_apply_system_unitary_on_joint`](@ref).
+    ITensor lists the system site first, hence it is the fastest dense index:
+    split states are `kron(ρ_bath, ρ_sys)`.
     """
     _joint_phys_sites(sys_phys, env_phys) = Index[sys_phys[1], env_phys...]
 end
@@ -84,7 +84,6 @@ if !isdefined(Main, :_apply_system_unitary_on_joint)
         U_sys::AbstractMatrix{<:Number},
         denv::Int,
     )
-        # Split-schedule joint states use `kron(ρ_env, ρ_sys)`; system is the second factor.
         U_joint = kron(Matrix{ComplexF64}(I, denv, denv), ComplexF64.(U_sys))
         return U_joint * rho_joint * U_joint'
     end
@@ -148,37 +147,30 @@ if !isdefined(Main, :_build_multimode_bath_opsum)
     end
 end
 
-if !isdefined(Main, :_PT_SPLIT_CORR_ATOL)
-    # Residual PT (Liouville ITensor cores) vs dense split ED at moderate Δt.
-    const _PT_SPLIT_CORR_ATOL = 2e-3
-    const _PT_SPLIT_CORR_RTOL = 1e-2
-end
-
 if !isdefined(Main, :_evolve_joint_split_exact)
     """
-    Exact dense reference for `evolve` split schedule at PT snapshot `k` (`t = k*dt`).
+    Exact dense reference after `nslabs` process-tensor updates.
 
-    Matches `states_liouville[k+1]`: each PT slab includes the system
-    Liouvillian propagation.
-    then a bath core (`exp(-im*dt*H)` recomputed every sub-step).
+    Each slab applies the bath map followed by the system map, matching
+    `sys_alg=Trotter{1}()`.
     """
     function _evolve_joint_split_exact(
         rho0::AbstractMatrix{<:Number},
         dt::Real,
-        k::Int,
+        nslabs::Int,
         H_sys::OpSum,
         H_bg::OpSum,
         sys_phys,
         joint_sites::AbstractVector{<:Index};
         denv::Int,
     )
-        k >= 0 || throw(ArgumentError("_evolve_joint_split_exact: k must be non-negative; got $k."))
+        nslabs >= 0 || throw(ArgumentError("_evolve_joint_split_exact: nslabs must be non-negative; got $nslabs."))
         rho = ComplexF64.(rho0)
-        for _ in 0:k
-            U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
-            rho = _apply_system_unitary_on_joint(rho, U_sys, denv)
+        for _ in 1:nslabs
             U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
             rho = U_bg * rho * U_bg'
+            U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
+            rho = _apply_system_unitary_on_joint(rho, U_sys, denv)
         end
         return rho
     end
@@ -186,12 +178,13 @@ end
 
 if !isdefined(Main, :_joint_initial_density)
     function _joint_initial_density(sys_phys, env_phys)
-        rho_joint = hilbert_mpo_to_dense(to_dm(MPS(sys_phys, ["Up"])), sys_phys)
-        for m in 1:length(env_phys)
-            rho_env = hilbert_mpo_to_dense(to_dm(MPS([env_phys[m]], ["Up"])), [env_phys[m]])
-            rho_joint = kron(rho_joint, rho_env)
+        rho_env = ComplexF64[1]
+        for m in reverse(eachindex(env_phys))
+            state = hilbert_mpo_to_dense(to_dm(MPS([env_phys[m]], ["Up"])), [env_phys[m]])
+            rho_env = kron(rho_env, state)
         end
-        return rho_joint
+        rho_sys = hilbert_mpo_to_dense(to_dm(MPS(sys_phys, ["Up"])), sys_phys)
+        return kron(rho_env, rho_sys)
     end
 end
 
@@ -303,7 +296,7 @@ end
 
 if !isdefined(Main, :_apply_sys_op_joint)
     """
-    Apply a system `OpSum` on the joint density `kron(ρ_env, ρ_sys)` (system is the second factor).
+    Apply a system `OpSum` on the joint density `kron(ρ_env, ρ_sys)`.
 
     - `side = :left`: ``\\mathcal{L}_O[\\rho] = O\\rho`` (joint map `I_env ⊗ O`).
     - `side = :right`: ``\\mathcal{R}_O[\\rho] = \\rho O`` (joint map `I_env ⊗ O` on the right).
@@ -337,10 +330,10 @@ if !isdefined(Main, :_evolve_joint_split_continue)
         n_steps >= 0 || throw(ArgumentError("_evolve_joint_split_continue: n_steps must be ≥ 0."))
         ρ = ComplexF64.(rho_joint)
         for _ in 1:n_steps
-            U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
-            ρ = _apply_system_unitary_on_joint(ρ, U_sys, denv)
             U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
             ρ = U_bg * ρ * U_bg'
+            U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
+            ρ = _apply_system_unitary_on_joint(ρ, U_sys, denv)
         end
         return ρ
     end
@@ -380,7 +373,7 @@ if !isdefined(Main, :_ed_corr_two_time)
             ρ_joint = _evolve_joint_split_exact(
                 ρ_joint,
                 dt,
-                n_late,
+                n_late + 1,
                 H_sys,
                 H_bg,
                 sys_phys,
@@ -411,7 +404,7 @@ if !isdefined(Main, :_ed_corr_two_time)
             ρ_joint = _evolve_joint_split_exact(
                 ρ_joint,
                 dt,
-                n_late,
+                n_late + 1,
                 H_sys,
                 H_bg,
                 sys_phys,
@@ -423,7 +416,7 @@ if !isdefined(Main, :_ed_corr_two_time)
             ρ_joint = _evolve_joint_split_exact(
                 ρ_joint,
                 dt,
-                n_early,
+                n_early + 1,
                 H_sys,
                 H_bg,
                 sys_phys,

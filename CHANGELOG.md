@@ -48,7 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backward sweep, using the relative criterion ``σᵢ > ε σ₁`` and per-bond
   ``σ₁`` rescaling. This replaces generic discarded-weight truncation and
   prevents long-chain gauge overflow and excessive rank loss.
-
+* **Bath chronology in dense / ACE process tensors.** Temporal MPO cores now
+  attach the Liouvillian bath input (`prime(env)`) to the left bond and the
+  bath output (`env`) to the right, matching `liouvillian_propagator_itensor`.
+  Process-tensor ED tests now compare $\rho_{\mathrm{PT}}$ to the same
+  discrete split schedule at $\sim 10^{-11}$, and report Trotter error
+  against $e^{-itH}$ separately.
+  
 ## v0.2.0 - 2026-08-01
 
 ### Breaking

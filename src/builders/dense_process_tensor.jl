@@ -196,8 +196,9 @@ function _build_bathmode_cores_no_sys(
             left = bath_links[k + 1]
             right = bath_links[k + 2]
 
-            core_k = replaceind(U_ref, prime(env_liouv), right)
-            core_k = replaceind(core_k, env_liouv, left)
+            # Chronological temporal MPO: bath input on the left, bath output on the right.
+            core_k = replaceind(U_ref, prime(env_liouv), left)
+            core_k = replaceind(core_k, env_liouv, right)
             core_k = replaceind(core_k, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
             push!(cores, core_k)

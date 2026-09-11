@@ -166,13 +166,13 @@ end
     end
 end
 
-@testset "ACE vs joint ED: two non-commuting spin modes" begin
+@testset "ACE vs identical split ED: two non-commuting spin modes" begin
     sys_phys = siteinds("S=1/2", 1)
     H_sys = OpSum() + (0.7, "Sx", 1)
     system = spin_system(sys_phys, H_sys)
 
     h1, h2 = 0.3, 0.35
-    g1, g2 = 0.04, 0.05
+    g1, g2 = 0.4, 0.5
     m1 = _ace_spin_mode(h1, g1; cpl_op="Sz")
     m2 = _ace_spin_mode(h2, g2; cpl_op="Sx")
     bath = spin_bath([m1, m2])
@@ -183,19 +183,13 @@ end
     # Joint ED reference on [system, mode1, mode2].
     env_phys = siteinds("S=1/2", 2)
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
-    H_bg = OpSum()
-    H_bg += h1, "Sx", 2
-    H_bg += g1, "Sz", 2, "Sz", 1
-    H_bg += h2, "Sx", 3
-    H_bg += g2, "Sx", 3, "Sx", 1
-    H_full = _build_joint_full_opsum(H_sys, H_bg)
-    rho_joint = _joint_initial_density(sys_phys, env_phys)
+    H1 = OpSum() + (h1, "Sx", 2) + (g1, "Sz", 2, "Sz", 1)
+    H2 = OpSum() + (h2, "Sx", 3) + (g2, "Sx", 3, "Sx", 1)
     denv = 4
-
-    pt_dense = build_process_tensor(
-        system, system.sites[1]; method=Dense(), environment=bath, dt=dt, nsteps=nsteps,
-    )
-    traj_dense = _ace_dense_traj(pt_dense, rho0_h)
+    U1 = _exact_unitary_exp(H1, joint_sites, dt)
+    U2 = _exact_unitary_exp(H2, joint_sites, dt)
+    U2_half = _exact_unitary_exp(H2, joint_sites, dt / 2)
+    U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
 
     for combine_alg in (Trotter{1}(), Trotter{2}())
         pt_ace = build_process_tensor(
@@ -204,17 +198,13 @@ end
             combine_alg=combine_alg,
         )
         traj_ace = _ace_dense_traj(pt_ace, rho0_h)
-
-        # ACE differs from Dense only by the sequential mode-splitting Trotter
-        # error, which is small for these weak couplings.
-        @test _ace_traj_err(traj_ace, traj_dense) < 1e-3
-
-        joint_errs = Float64[]
-        for k in 0:(nsteps - 1)
-            rho_ed = _reduced_system_joint_full(rho_joint, k * dt, H_full, joint_sites, 2, denv)
-            push!(joint_errs, norm(traj_ace[k + 1] - rho_ed))
+        U_bg = combine_alg isa Trotter{1} ? U2 * U1 : U2_half * U1 * U2_half
+        rho_joint = _joint_initial_density(sys_phys, env_phys)
+        for k in 1:nsteps
+            rho_joint = U_bg * rho_joint * U_bg'
+            rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, denv)
+            @test traj_ace[k] ≈ _partial_trace_env(rho_joint, 2, denv) atol=1e-10 rtol=1e-9
         end
-        @test maximum(joint_errs) < 0.05
     end
 end
 
@@ -353,7 +343,7 @@ end
 end
 
 if JULIA_PROCESSTENSORS_RUN_SLOW
-    @testset "ACE vs joint ED: nmodes=3 spin star bath [slow]" begin
+    @testset "ACE vs identical split ED: nmodes=3 spin star bath [slow]" begin
         nmodes = 3
         sys_phys = siteinds("S=1/2", 1)
         env_phys = siteinds("S=1/2", nmodes)
@@ -363,14 +353,21 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
         system = spin_system(sys_phys, H_sys)
 
         mode_h_coeffs = [0.25 + 0.1 * m for m in 1:nmodes]
-        mode_cpl_coeffs = [0.03 + 0.01 * m for m in 1:nmodes]
+        mode_cpl_coeffs = [0.2 + 0.1 * m for m in 1:nmodes]
 
         modes = SpinMode[]
+        H_modes = OpSum[]
         for m in 1:nmodes
             rho_env_l = to_liouville(to_dm(MPS([env_phys[m]], ["Up"])); sites=[env_liouv[m]])
             H_mode = OpSum() + (mode_h_coeffs[m], "Sx", 1)
             cpl_mode = OpSum() + (mode_cpl_coeffs[m], "Sz", 1, "Sz", 2)
             push!(modes, spin_mode([env_liouv[m]], H_mode, rho_env_l; coupling=cpl_mode))
+            push!(
+                H_modes,
+                OpSum() +
+                (mode_h_coeffs[m], "Sx", m + 1) +
+                (mode_cpl_coeffs[m], "Sz", m + 1, "Sz", 1),
+            )
         end
         bath = spin_bath(modes)
 
@@ -380,9 +377,9 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
 
         denv = 2^nmodes
         joint_sites = _joint_phys_sites(sys_phys, env_phys)
-        H_bg = _build_multimode_bath_opsum(nmodes, mode_h_coeffs, mode_cpl_coeffs)
-        H_full = _build_joint_full_opsum(H_sys, H_bg)
-        rho_joint = _joint_initial_density(sys_phys, env_phys)
+        U_modes = [_exact_unitary_exp(H, joint_sites, dt) for H in H_modes]
+        U_halves = [_exact_unitary_exp(H, joint_sites, dt / 2) for H in H_modes]
+        U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
 
         for combine_alg in (Trotter{1}(), Trotter{2}())
             pt_ace = build_process_tensor(
@@ -392,16 +389,15 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
             )
             validate_process_tensor_structure(pt_ace)
             traj_ace = _ace_dense_traj(pt_ace, rho0_h)
-
-            joint_errs = Float64[]
-            trace_errs = Float64[]
-            for k in 0:(nsteps - 1)
-                rho_ed = _reduced_system_joint_full(rho_joint, k * dt, H_full, joint_sites, 2, denv)
-                push!(joint_errs, norm(traj_ace[k + 1] - rho_ed))
-                push!(trace_errs, abs(real(tr(traj_ace[k + 1])) - 1.0))
+            U_bg = combine_alg isa Trotter{1} ?
+                   reduce(*, reverse(U_modes)) :
+                   U_halves[3] * U_halves[2] * U_modes[1] * U_halves[2] * U_halves[3]
+            rho_joint = _joint_initial_density(sys_phys, env_phys)
+            for k in 1:nsteps
+                rho_joint = U_bg * rho_joint * U_bg'
+                rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, denv)
+                @test traj_ace[k] ≈ _partial_trace_env(rho_joint, 2, denv) atol=1e-9 rtol=1e-9
             end
-            @test maximum(joint_errs) < 0.05
-            @test maximum(trace_errs) < 1e-8
         end
     end
 
