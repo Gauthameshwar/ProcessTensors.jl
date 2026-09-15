@@ -14,6 +14,7 @@ using ITensors
 using ITensors.Ops: Exact, Trotter
 using Test
 using LinearAlgebra
+using Random
 
 if !isdefined(Main, :liouville_state_to_dense)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
@@ -23,37 +24,20 @@ if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
 end
 
 @testset "process tensor: bath chronology matches repeated exact channel" begin
+    rng = Random.Xoshiro(20260915)
     sys_phys = siteinds("S=1/2", 1)
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
     system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(sys_phys, OpSum())
-
-    ψ_sys = ComplexF64[1, im] / sqrt(2)
-    ψ_env = ComplexF64[1, 1] / sqrt(2)
-    ρ_sys = ψ_sys * ψ_sys'
-    ρ_env = ψ_env * ψ_env'
-    H_bg = OpSum()
-    for op in ("Sx", "Sy", "Sz")
-        H_bg += 1.0, op, 2, op, 1
-    end
-    coupling = OpSum()
-    for op in ("Sx", "Sy", "Sz")
-        coupling += 1.0, op, 1, op, 2
-    end
-    mode = @test_logs (:warn, r"SpinMode:H is empty") spin_mode(
-        env_liouv,
-        OpSum(),
-        to_liouville(hilbert_matrix_to_mpo(ρ_env, env_phys); sites=env_liouv);
-        coupling,
+    ρ_sys = (ComplexF64[1, im] * ComplexF64[1, -im]') / 2
+    ρ_env = fill(0.5 + 0.0im, 2, 2)
+    H4 = _random_hermitian(rng, 4)
+    mode, H_bg = _spin_mode_from_joint_hermitian(
+        H4, env_liouv, to_liouville(hilbert_matrix_to_mpo(ρ_env, env_phys); sites=env_liouv),
     )
-
     dt, nsteps = 0.1, 6
     pt = build_process_tensor(
-        system;
-        method=Dense(),
-        environment=spin_bath([mode]),
-        dt,
-        nsteps,
+        system; method=Dense(), environment=spin_bath([mode]), dt, nsteps,
     )
     trajectory = evolve(pt, hilbert_matrix_to_mpo(ρ_sys, sys_phys))
     U_bg = _exact_unitary_exp(H_bg, _joint_phys_sites(sys_phys, env_phys), dt)
@@ -65,39 +49,24 @@ end
     end
 end
 
-@testset "process tensor: 1+1 spin TFI PT vs identical split ED" begin
+@testset "process tensor: 1+1 random Hermitian PT vs identical split ED" begin
+    rng = Random.Xoshiro(20260915)
     sys_phys = siteinds("S=1/2", 1)
     env_phys = siteinds("S=1/2", 1)
     env_liouv = liouv_sites(env_phys)
-
-    H_sys = OpSum()
-    H_sys += 1.0, "Sx", 1
+    H_sys = _spin_opsum(_random_hermitian(rng, 2))
     system = spin_system(sys_phys, H_sys)
-
+    H4 = _random_hermitian(rng, 4)
     rho_env0_h = to_dm(MPS(env_phys, ["Up"]))
-    rho_env0_l = to_liouville(rho_env0_h; sites=env_liouv)
-    H_env = OpSum()
-    H_env += 1.0, "Sx", 1
-    cpl = OpSum() + (1.0, "Sz", 1, "Sz", 2)
-    mode = spin_mode(env_liouv, H_env, rho_env0_l; coupling=cpl)
-    bath = spin_bath([mode])
-
-    dt = 0.1
-    nsteps = 8
-    pt = build_process_tensor(
-        system;
-        environment=bath,
-        dt,
-        nsteps,
-        sys_alg=Trotter{1}(),
+    mode, H_bg = _spin_mode_from_joint_hermitian(
+        H4, env_liouv, to_liouville(rho_env0_h; sites=env_liouv),
     )
-
+    dt, nsteps = 0.1, 8
+    pt = build_process_tensor(
+        system; environment=spin_bath([mode]), dt, nsteps, sys_alg=Trotter{1}(),
+    )
     rho_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
     trajectory = evolve(pt, rho_sys0_h)
-
-    H_bg = OpSum()
-    H_bg += 1.0, "Sx", 2
-    H_bg += 1.0, "Sz", 1, "Sz", 2
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
     rho_joint = kron(
         hilbert_mpo_to_dense(rho_env0_h, env_phys),
@@ -105,7 +74,6 @@ end
     )
     U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
     U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
-
     @test length(trajectory.states_liouville) == nsteps
     for k in 1:nsteps
         rho_joint = U_bg * rho_joint * U_bg'

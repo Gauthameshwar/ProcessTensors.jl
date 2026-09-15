@@ -12,6 +12,7 @@
 using ProcessTensors
 using ITensors
 using LinearAlgebra
+using Random
 
 if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
     function _physical_sites_from_hilbert_mpo(rho::AbstractMPO{Hilbert})
@@ -75,6 +76,52 @@ if !isdefined(Main, :_exact_unitary_exp)
     function _exact_unitary_exp(H::OpSum, sites::AbstractVector{<:Index}, dt::Real)
         H_dense = dense_hamiltonian_matrix(H, sites)
         return exp(-1im * float(dt) * ComplexF64.(Hermitian(H_dense)))
+    end
+end
+
+if !isdefined(Main, :_random_hermitian)
+    _random_hermitian(rng::AbstractRNG, n::Integer) =
+        ((A = randn(rng, n, n)); (A + A') / 2)
+
+    const _S12 = (
+        "Sx" => ComplexF64[0 0.5; 0.5 0],
+        "Sy" => ComplexF64[0 -0.5im; 0.5im 0],
+        "Sz" => ComplexF64[0.5 0; 0 -0.5],
+    )
+    _fcoeff(B, H) = (den = real(dot(B, B)); den < 1e-18 ? 0.0 : real(dot(B, H)) / den)
+
+    function _spin_opsum(H::AbstractMatrix)
+        size(H) == (2, 2) || throw(ArgumentError("_spin_opsum: expected a 2×2 matrix, got $(size(H))."))
+        os = OpSum()
+        for (name, S) in _S12
+            c = _fcoeff(S, H)
+            if abs(c) > 1e-12
+                os += c, name, 1
+            end
+        end
+        return os
+    end
+
+    # 4×4 H on kron(env, sys) (sys fastest). Bath one-body + two-body only; H_S stays on the system.
+    function _spin_mode_from_joint_hermitian(H4::AbstractMatrix, env_liouv, rho_env_l; sys_site=1, env_site=2)
+        size(H4) == (4, 4) || throw(ArgumentError("_spin_mode_from_joint_hermitian: expected 4×4, got $(size(H4))."))
+        I2 = Matrix{ComplexF64}(I, 2, 2)
+        H_bg, H_mode, coupling = OpSum(), OpSum(), OpSum()
+        for (name, S) in _S12
+            c = _fcoeff(kron(S, I2), H4)
+            if abs(c) > 1e-12
+                H_bg += c, name, env_site
+                H_mode += c, name, 1
+            end
+        end
+        for (na, A) in _S12, (nb, B) in _S12
+            c = _fcoeff(kron(B, A), H4)
+            if abs(c) > 1e-12
+                H_bg += c, na, sys_site, nb, env_site
+                coupling += c, nb, 1, na, 2
+            end
+        end
+        return spin_mode(env_liouv, H_mode, rho_env_l; coupling), H_bg
     end
 end
 
