@@ -164,19 +164,32 @@ function _ace_svd_bond!(
     bond = _ace_fuse_bond!(cores, left)
     source_unique = uniqueinds(cores[source], cores[destination])
 
-    _, _, _, spectrum = svd(cores[source], source_unique; cutoff=0.0)
-    singular_values = sqrt.(max.(spectrum.eigs, zero(eltype(spectrum.eigs))))
-    nkeep = _ace_relative_keep(singular_values; epsilon=epsilon, maxdim=maxdim)
-
     U, S, V = svd(
         cores[source],
         source_unique;
         cutoff=0.0,
-        maxdim=nkeep,
         lefttags=tags(bond),
     )
+    u = commonind(U, S)
+    v = commonind(S, V)
+    singular_values = [real(S[n, n]) for n in 1:dim(u)]
+    nkeep = _ace_relative_keep(singular_values; epsilon=epsilon, maxdim=maxdim)
     σ1 = first(singular_values)
     σ1 > 0 || throw(ArgumentError("ACE compression encountered a zero tensor at core $source."))
+    if nkeep < dim(u)
+        ut = Index(nkeep; tags=tags(u), plev=plev(u))
+        vt = Index(nkeep; tags=tags(v), plev=plev(v))
+        T = eltype(S)
+        Ru = ITensor(T, dag(u), ut)
+        Rv = ITensor(T, dag(v), vt)
+        for n in 1:nkeep
+            Ru[n, n] = one(T)
+            Rv[n, n] = one(T)
+        end
+        U = U * Ru
+        S = (S * Ru) * Rv
+        V = V * Rv
+    end
     cores[source] = σ1 * U
     remainder = (S / σ1) * V
     cores[destination] = source < destination ?
@@ -207,9 +220,107 @@ end
 # Sequential ACE construction
 # --------------------------------------------------------------------------
 
-# Absorb one independent environment mode with local zip-up compression:
-# join timestep n+1 before truncating bond n, then sweep right-to-left.
-function _ace_join_and_sweep!(
+_ace_next_mode_core(::Trotter{1}, n::Int) = n + 1
+_ace_next_mode_core(::Trotter{2}, n::Int) = 2n + 1
+
+function _ace_relative_keep_cpp(
+    singular_values::AbstractVector{<:Real};
+    epsilon::Real,
+    maxdim::Integer,
+)
+    isempty(singular_values) && return 0
+    σ1 = first(singular_values)
+    σ1 > 0 || return 1
+    nkeep = count(σ -> σ >= epsilon * σ1, singular_values)
+    return clamp(nkeep, 1, min(length(singular_values), maxdim))
+end
+
+function _ace_cpp_split(
+    source::ITensor,
+    left_inds;
+    epsilon::Real,
+    maxdim::Integer,
+    lefttags,
+)
+    U, S, V = svd(
+        source, left_inds; cutoff=0.0, lefttags,
+    )
+    u = commonind(U, S)
+    v = commonind(S, V)
+    singular_values = [real(S[n, n]) for n in 1:dim(u)]
+    nkeep = _ace_relative_keep_cpp(
+        singular_values; epsilon=epsilon, maxdim=maxdim,
+    )
+    σ1 = first(singular_values)
+    σ1 > 0 || throw(ArgumentError("ACE compression encountered a zero tensor."))
+    if nkeep < dim(u)
+        ut = Index(nkeep; tags=tags(u), plev=plev(u))
+        vt = Index(nkeep; tags=tags(v), plev=plev(v))
+        T = eltype(S)
+        Ru = ITensor(T, dag(u), ut)
+        Rv = ITensor(T, dag(v), vt)
+        for n in 1:nkeep
+            Ru[n, n] = one(T)
+            Rv[n, n] = one(T)
+        end
+        U = U * Ru
+        S = (S * Ru) * Rv
+        V = V * Rv
+    end
+    if abs(σ1 - 1) > 1e-6
+        return σ1 * U, (S / σ1) * V
+    end
+    return U, S * V
+end
+
+function _ace_cpp_forward_svd!(
+    cores::Vector{ITensor},
+    source::Int,
+    old_destination::ITensor,
+    mode_destination::ITensor;
+    epsilon::Real,
+    maxdim::Integer,
+)
+    right_inds = unique(vcat(
+        collect(commoninds(cores[source], old_destination)),
+        collect(commoninds(cores[source], mode_destination)),
+    ))
+    isempty(right_inds) && throw(
+        ArgumentError("ACE C++ zip-up compression found no outgoing memory index at core $source."),
+    )
+    left_inds = [i for i in inds(cores[source]) if i ∉ right_inds]
+    cores[source], pass_on = _ace_cpp_split(
+        cores[source],
+        left_inds;
+        epsilon,
+        maxdim,
+        lefttags="PT,Link,tstep=$source",
+    )
+    return pass_on
+end
+
+function _ace_cpp_backward_sweep!(
+    cores::Vector{ITensor};
+    epsilon::Real,
+    maxdim::Integer,
+)
+    for source in length(cores):-1:2
+        destination = source - 1
+        bond = _ace_fuse_bond!(cores, destination)
+        source_unique = uniqueinds(cores[source], cores[destination])
+        cores[source], pass_on = _ace_cpp_split(
+            cores[source],
+            source_unique;
+            epsilon,
+            maxdim,
+            lefttags=tags(bond),
+        )
+        cores[destination] *= pass_on
+    end
+    return cores
+end
+
+function _ace_join_and_sweep_cpp!(
     combine_alg::Union{Trotter{1},Trotter{2}},
     cores::Vector{ITensor},
     inputs::Vector{Index},
@@ -226,24 +337,31 @@ function _ace_join_and_sweep!(
         combine_alg, coupling_site, mode, dt, nsteps, alg,
     )
 
-    _ace_join_core!(
-        combine_alg, cores, inputs, outputs,
-        mode_cores, mode_inputs, mode_outputs, 1,
-    )
-    for n in 1:(nsteps - 1)
-        # Join one site ahead so both memory factors cross bond n before its SVD.
+    pass_on = nothing
+    for n in 1:nsteps
         _ace_join_core!(
             combine_alg, cores, inputs, outputs,
-            mode_cores, mode_inputs, mode_outputs, n + 1,
+            mode_cores, mode_inputs, mode_outputs, n,
         )
-        _ace_svd_bond!(cores, n, n + 1; epsilon=epsilon, maxdim=maxdim)
+        if pass_on !== nothing
+            cores[n] *= pass_on
+        end
+        if n < nsteps
+            pass_on = _ace_cpp_forward_svd!(
+                cores,
+                n,
+                cores[n + 1],
+                mode_cores[_ace_next_mode_core(combine_alg, n)];
+                epsilon=epsilon,
+                maxdim=maxdim,
+            )
+        end
     end
-    return _ace_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim)
+    return _ace_cpp_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim)
 end
 
 # Absorb one mode by joining the full time chain without truncation, moving the
-# orthogonality center to the last time (ITensorMPS.orthogonalize! does not
-# apply a cutoff), then applying one ACE relative-SVD sweep right-to-left.
+# OC to the last time, then applying one ACE relative-SVD sweep right-to-left.
 function _ace_join_then_canonzip!(
     combine_alg::Union{Trotter{1},Trotter{2}},
     cores::Vector{ITensor},
@@ -287,7 +405,7 @@ end
 Construct the Liouville-space process-tensor MPO using sequential ACE compression.
 
 The builder starts from the identity process tensor and absorbs each independent
-bath mode with either canonzip or zip-up compression. Once the complete
+bath mode with either zipup_cpp or canonzip compression. Once the complete
 environmental influence has been assembled, the free-system propagator is
 embedded on each process-tensor timestep.
 
@@ -339,9 +457,11 @@ function _build_ace_pt_cores(
         push!(cores, delta(in_k, out_k))
     end
 
-    absorb_mode! = method.compression === :zipup ?
-        _ace_join_and_sweep! :
+    absorb_mode! = if method.compression === :zipup_cpp
+        _ace_join_and_sweep_cpp!
+    else
         _ace_join_then_canonzip!
+    end
     @progress_bar run "Joining and compressing bath modes" nmodes begin
         for (k, mode) in enumerate(bath.modes)
             absorb_mode!(

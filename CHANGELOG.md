@@ -23,13 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **`QubitSystem` / `qubit_system`.** Circuit-style ITensor `"Qubit"` sites can
   now define process-tensor systems. An omitted Hamiltonian selects identity
   free-system evolution without introducing a separate qubit bath type.
-* **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:canonzip` joins each mode fully, then truncates right-to-left; `:zipup` truncates during the forward join.
+* **`ACE(; cutoff, maxdim, compression)` process-tensor builder.** Sequential automated compression of environments for baths of independent modes with SVD bond compression. Adapted from Moritz Cygorek's ACE toolkit. Default `compression=:zipup_cpp` follows the C++ truncate-then-join schedule with the ITensors default SVD (`gesdd`); `:canonzip` joins each mode fully, then truncates right-to-left.
 * ACE mode maps are Hilbert-space unitaries ``U=e^{-iHΔt}`` fused onto Liouville
   process-tensor legs with `to_liouville` combiners.
 * **Central-spin ACE example** reproducing the fully polarized Cygorek
   benchmark, with a modest Literate walkthrough and a companion
   ``N = 5, 10, 100, 1000`` scaling script. The companion script uses ACE
-  ``:zipup`` compression on the 2001-step chain, caches each process tensor,
+  ``:zipup_cpp`` compression on the 2001-step chain, caches each process tensor,
   and reuses a matching cache on later runs.
 * **Thermal spin-boson ACE example** sampling an Ohmic bath into independent
   oscillators, with a modest Literate walkthrough and a companion ``60``-mode
@@ -39,8 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * **`evolve`** takes each intermediate reduced state via a separate `evaluate_process` schedule so SVD-compressed ACE memory bonds stay correctly contracted.
-* **ACE `compression`** is `:canonzip` (default) or `:zipup`. The experimental
-  `:zipper` path is removed.
+* **ACE `compression`** is `:zipup_cpp` (default) or `:canonzip`. Join-ahead
+  `:zipup` is removed. `:zipup_cpp` uses the C++ truncate-then-join schedule
+  with the ITensors default SVD (`gesdd`). The experimental `:zipper` path
+  remains removed.
 
 ### Fixed
 

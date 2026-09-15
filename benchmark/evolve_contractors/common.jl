@@ -16,12 +16,17 @@ const _ORIG_PROJECT = Base.active_project()
 mkpath(_BENCH_ENV)
 Pkg.activate(_BENCH_ENV)
 if !isfile(joinpath(_BENCH_ENV, "Manifest.toml"))
-    Pkg.add("BenchmarkTools")
+    Pkg.add(["BenchmarkTools", "Parsers"])
 else
     Pkg.instantiate()
+    deps = Pkg.project().dependencies
+    haskey(deps, "Parsers") || Pkg.add("Parsers")
+end
+Pkg.activate(_ORIG_PROJECT)
+if !(_BENCH_ENV in LOAD_PATH)
+    pushfirst!(LOAD_PATH, _BENCH_ENV)
 end
 using BenchmarkTools
-Pkg.activate(_ORIG_PROJECT)
 
 using LinearAlgebra
 using Printf

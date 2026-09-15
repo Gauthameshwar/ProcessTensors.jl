@@ -49,13 +49,14 @@ end
 @testset "ACE builder: constructor and build guards" begin
     @test ACE().cutoff == 1e-10
     @test ACE().maxdim == typemax(Int)
-    @test ACE().compression === :canonzip
+    @test ACE().compression === :zipup_cpp
     @test ACE(; cutoff=1e-8, maxdim=32).cutoff == 1e-8
     @test ACE(; cutoff=1e-8, maxdim=32).maxdim == 32
-    @test ACE(; compression=:zipup).compression === :zipup
+    @test ACE(; compression=:zipup_cpp).compression === :zipup_cpp
     @test ACE(; compression=:canonzip).compression === :canonzip
     @test_throws ArgumentError ACE(; cutoff=-1e-3)
     @test_throws ArgumentError ACE(; maxdim=0)
+    @test_throws ArgumentError ACE(; compression=:zipup)
     @test_throws ArgumentError ACE(; compression=:zipper)
     @test_throws ArgumentError ACE(; compression=:dictionary)
 
@@ -225,7 +226,7 @@ end
     traj_dense = _ace_dense_traj(pt_dense, rho0_h)
 
     trajs = Dict{Symbol,Any}()
-    for compression in (:zipup, :canonzip)
+    for compression in (:zipup_cpp, :canonzip)
         pt = build_process_tensor(
             system, system.sites[1];
             method=ACE(cutoff=0.0, compression=compression),
@@ -235,7 +236,7 @@ end
         trajs[compression] = _ace_dense_traj(pt, rho0_h)
         @test _ace_traj_err(trajs[compression], traj_dense) < 1e-3
     end
-    @test _ace_traj_err(trajs[:zipup], trajs[:canonzip]) < 1e-10
+    @test _ace_traj_err(trajs[:zipup_cpp], trajs[:canonzip]) < 1e-10
 end
 
 @testset "ACE: uncoupled modes reproduce the free-system trajectory" begin

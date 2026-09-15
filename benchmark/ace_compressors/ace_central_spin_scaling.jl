@@ -4,13 +4,12 @@
 # File: benchmark/ace_compressors/ace_central_spin_scaling.jl
 # Contributor: Gauthameshwar S.
 #
-# Scaling comparison of zip-up and canonzip ACE on the polarized central-spin
-# model. Finite-N deviation from (1/2) cos(t/2) is physics, not the
-# compression-error metric.
+# Scaling comparison of zip-up, C++-schedule zip-up, and canonzip ACE on
+# Cygorek's unpolarised (b = 0) central-spin model. One archived Bloch
+# realization is nested so that each N uses the first N bath spins.
 #
 # Run with:
 #   julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
-#   ACE_RUN_LARGE=true julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 
@@ -19,15 +18,21 @@ const DT = 0.05
 const T_FINAL = 4.0
 const NSTEPS = round(Int, T_FINAL / DT) + 1
 const CUTOFF = 1e-10
-const N_DEFAULT = [10, 25, 50, 100]
-const N_LARGE = [10, 50, 100, 300, 1000]
+const N_VALUES = [1, 5, 10, 20, 30, 40, 50, 70]
 
 function main()
-    n_values = get(ENV, "ACE_RUN_LARGE", "false") == "true" ? N_LARGE : N_DEFAULT
-    println("ACE central-spin scaling")
-    println("------------------------")
+    n_values = N_VALUES
+    n_max = maximum(n_values)
+    orientations = sample_bath_orientations(n_max, ORIENTATION_SEED)
+    write_orientations(ORIENTATIONS_PATH, orientations)
+
+    println("ACE unpolarised central-spin scaling")
+    println("------------------------------------")
     @printf("  dt = %.3f  t_final = %.1f  nsteps = %d  ε = %.1e\n", DT, T_FINAL, NSTEPS, CUTOFF)
     println("  N = $(join(n_values, ", "))")
+    println("  seed = $ORIENTATION_SEED  orientations = $ORIENTATIONS_PATH")
+    println("  Julia threads = $(Threads.nthreads())")
+    println("  BLAS threads  = $(BLAS.get_num_threads())")
 
     system, sites = empty_spin_system()
     rho0 = to_dm(MPS(sites, ["+"]))
@@ -35,37 +40,34 @@ function main()
     header = (
         "strategy", "N", "cutoff", "t_build", "t_median_s", "t_mean_s",
         "allocated_bytes", "allocated_mib", "allocs", "nsamples",
-        "chi_max", "eps_analytic", "eps_TP", "eps_H", "eps_pos",
+        "chi_max", "eps_trace", "eps_H", "eps_pos",
     )
     rows = []
 
-    for N_bath in n_values
+    for (case_index, N_bath) in enumerate(n_values)
         println()
         println("N = $N_bath")
-        bath = polarized_central_spin_bath(N_bath; J=J)
-        for strategy in STRATEGIES
+        bath = unpolarized_central_spin_bath(orientations[1:N_bath]; J=J)
+        strategy_order = rotated_strategies(case_index)
+        println("strategy order = $strategy_order")
+        for strategy in strategy_order
             pt, st = measure_ace_build(
                 system, bath;
                 cutoff=CUTOFF, compression=strategy, dt=DT, nsteps=NSTEPS,
             )
             traj = trajectory_matrices(pt, rho0)
-            times = range(0.0, step=DT, length=NSTEPS)
-            Sx = ComplexF64[0.0 0.5; 0.5 0.0]
-            sx = [real(tr(Sx * ρ)) for ρ in traj]
-            analytic = [0.5 * cos(t / 2) for t in times]
             dash = worst_diagnostics(traj)
-            eps_analytic = maximum(abs.(sx .- analytic))
             χ = maxlinkdim(pt.core)
             @printf(
-                "  %-10s  t_min=%.3f s  t_med=%.3f s  MiB=%.2f  n=%d  χ=%d  |Sx-cos|_max=%.3e\n",
-                strategy, st.t_min_s, st.t_median_s, st.memory_bytes / 2^20, st.nsamples, χ, eps_analytic,
+                "  %-10s  t_min=%.3f s  t_med=%.3f s  MiB=%.2f  n=%d  χ=%d\n",
+                strategy, st.t_min_s, st.t_median_s, st.memory_bytes / 2^20, st.nsamples, χ,
             )
             push!(
                 rows,
                 (
                     strategy, N_bath, CUTOFF, st.t_min_s, st.t_median_s, st.t_mean_s,
                     st.memory_bytes, st.memory_bytes / 2^20, st.allocs, st.nsamples,
-                    χ, eps_analytic, dash.trace, dash.hermiticity, dash.positivity,
+                    χ, dash.trace, dash.hermiticity, dash.positivity,
                 ),
             )
         end
