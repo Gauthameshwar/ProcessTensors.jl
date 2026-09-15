@@ -1,0 +1,24 @@
+# Small fully polarized central-spin ED comparison.
+# Uses the published Table S.3.1 discretisation (dt=0.01, eps=1e-10)
+# at N=3 so the 16-dimensional Hilbert space is exactly diagonalizable.
+# C++ ACE takes J_k in meV and dt in ps, with ħ = 0.6582119569 meV ps.
+# J_k = ħ/N so the dimensionless coupling matches Julia J = 1, J_k = 1/N.
+
+ta                     0
+dt                     0.01
+te                     1.0
+
+threshold              1e-10
+use_symmetric_Trotter  true
+print_timesteps        false
+set_precision          17
+dont_propagate         false
+
+initial  { 0.5 * ( Id_2 + |0><1|_2 + |1><0|_2 ) }
+
+RandomSpin_N_modes         3
+RandomSpin_J_max           0.219403985633333333
+RandomSpin_J_min           0.219403985633333333
+RandomSpin_set_initial_dir 0 0 1
+
+outfile                ACE.out

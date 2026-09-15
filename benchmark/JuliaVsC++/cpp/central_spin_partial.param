@@ -1,0 +1,28 @@
+# Partially polarised central-spin PT construction.
+# Same protocol as ACE/examples/NatPhys2022/03_spins/02_b20_*.param:
+# each bath spin is a random pure state, accepted with a Boltzmann factor
+# against B_init = (0, 0, 20) at T = 1/k_B (k_B T = 1 meV in ACE units).
+
+ta                     0
+dt                     0.1
+te                    20
+
+threshold              1e-10
+use_symmetric_Trotter  true
+dont_propagate         true
+print_timesteps        false
+
+initial  { 0.5 * ( Id_2 + |0><1|_2 + |1><0|_2 ) }
+
+RandomSpin_N_modes         10
+RandomSpin_J_max            0.1
+RandomSpin_J_min            0.1
+RandomSpin_seed             1
+RandomSpin_B_init           0 0 20
+RandomSpin_T                11.604522
+
+add_Output  {0.5*  ( |0><1|_2 + |1><0|_2 ) }
+add_Output  {0.5*i*( |1><0|_2 - |0><1|_2 ) }
+add_Output  {0.5*  ( |1><1|_2 - |0><0|_2 ) }
+
+outfile            /dev/null

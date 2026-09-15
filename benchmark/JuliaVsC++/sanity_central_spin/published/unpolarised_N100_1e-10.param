@@ -1,0 +1,18 @@
+# Table S.3.1 unpolarised N=100, eps=1e-10, dt=0.01, te=20.
+
+ta                     0
+dt                     1e-2
+te                    20
+threshold              1e-10
+use_symmetric_Trotter  true
+dont_propagate         true
+print_timesteps        false
+
+initial  { 0.5 * ( Id_2 + |0><1|_2 + |1><0|_2 ) }
+
+RandomSpin_N_modes         100
+RandomSpin_J_max            0.01
+RandomSpin_J_min            0.01
+RandomSpin_seed             1
+
+outfile            /dev/null

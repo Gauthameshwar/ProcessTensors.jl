@@ -1,0 +1,13 @@
+model=2-mode Lorentzian independent boson
+compression=zipup
+N_modes=2
+local_dim=5
+C=0.1
+kBT=0.5
+dt=0.1
+final_time=2.0
+cutoff=1.0e-7
+julia_maxdim=7
+max_relative_frobenius_julia_vs_ed=2.091857169101162e-5
+max_relative_frobenius_cpp_vs_ed=2.0918571742867272e-5
+max_relative_frobenius_julia_vs_cpp=6.457838125424485e-7

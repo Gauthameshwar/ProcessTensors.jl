@@ -1,0 +1,5 @@
+run_id,model,elapsed_sec,maxdim,published_s,published_display,published_over_local,timing_scope,pinned_cpu,logfile
+cs_polarised_N10_1e-10,central_spin,81.01,13,70,1 min 10 s,0.864091,construction_only,0,/home/gautham/ProcessTensors.jl/benchmark/JuliaVsC++/sanity_central_spin/results/cs_polarised_N10_1e-10.log
+cs_polarised_N100_1e-10,central_spin,215.88,6,249,4 min 09 s,1.153419,construction_only,0,/home/gautham/ProcessTensors.jl/benchmark/JuliaVsC++/sanity_central_spin/results/cs_polarised_N100_1e-10.log
+cs_unpolarised_N100_1e-10,central_spin,894.28,8,507,8 min 27 s,0.566937,construction_only,0,/home/gautham/ProcessTensors.jl/benchmark/JuliaVsC++/sanity_central_spin/results/cs_unpolarised_N100_1e-10.log
+cs_unpolarised_N100_1e-13,central_spin,3972.24,16,2452,40 min 52 s,0.617284,construction_only,0,/home/gautham/ProcessTensors.jl/benchmark/JuliaVsC++/sanity_central_spin/results/cs_unpolarised_N100_1e-13.log

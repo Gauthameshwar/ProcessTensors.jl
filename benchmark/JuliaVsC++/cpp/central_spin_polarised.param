@@ -1,0 +1,24 @@
+# Fully polarised central-spin PT construction (Cygorek et al., Nat. Phys. 2022).
+# Units: J = hbar = 1. Overrides on the command line set N and J_k = J/N.
+
+ta                     0
+dt                     0.1
+te                    20
+
+threshold              1e-10
+use_symmetric_Trotter  true
+dont_propagate         true
+print_timesteps        false
+
+initial  { 0.5 * ( Id_2 + |0><1|_2 + |1><0|_2 ) }
+
+RandomSpin_N_modes         10
+RandomSpin_J_max            0.1
+RandomSpin_J_min            0.1
+RandomSpin_set_initial_dir  0 0 1
+
+add_Output  {0.5*  ( |0><1|_2 + |1><0|_2 ) }
+add_Output  {0.5*i*( |1><0|_2 - |0><1|_2 ) }
+add_Output  {0.5*  ( |1><1|_2 - |0><0|_2 ) }
+
+outfile            /dev/null
