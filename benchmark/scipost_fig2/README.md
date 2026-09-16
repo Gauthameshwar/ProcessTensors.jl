@@ -2,8 +2,9 @@
 
 This folder measures how ACE `cutoff` and timestep reshape the temporal bond
 structure of a process-tensor MPO. Data generation and plotting are separate:
-`run_fig2.jl` builds process tensors and writes CSV files, while
-`plot_fig2.jl` only reads saved data.
+- [`run_fig2.jl`](run_fig2.jl) builds process tensors and writes CSV files, while
+- [`plot_fig2.jl`](plot_fig2.jl) only reads saved data. Shared helpers live in
+- [`common.jl`](common.jl).
 
 ## Unpolarised central-spin model
 
@@ -31,10 +32,11 @@ uniform on the Bloch sphere. This is the $b=0$ unpolarised ensemble used in
 the difficult central-spin case.
 
 The default realization uses `Random.Xoshiro(20260905)`. The generated
-angles and Bloch vectors are archived in `results/bath_orientations.csv` and
+angles and Bloch vectors are archived in
+[`results/bath_orientations.csv`](results/bath_orientations.csv) and
 then read back to construct the bath. Every timestep and cutoff therefore
 uses precisely the same realization. The seed and orientation-file SHA-256
-are recorded in `results/environment.txt`.
+are recorded in [`results/environment.txt`](results/environment.txt).
 
 ## Measured quantities
 
@@ -67,7 +69,7 @@ julia --project=benchmark benchmark/scipost_fig2/plot_fig2.jl
 BLAS is not restricted by the benchmark command. Its actual thread count and
 configuration are recorded as provenance.
 
-Outputs:
+Outputs under [`results/`](results/):
 
 ```text
 results/bath_orientations.csv

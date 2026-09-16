@@ -9,5 +9,14 @@ bash benchmark/JuliaVsC++/run_sanity_cpp_vs_published.sh
 bash benchmark/JuliaVsC++/run_sanity_cpp_julia_ed.sh
 ```
 
-`published/` holds the construction-only ACE input. `published_runtimes.csv`
-is Table S.3.1 for the independent-boson / Morse family.
+- [`../run_sanity_cpp_vs_published.sh`](../run_sanity_cpp_vs_published.sh)
+- [`../run_sanity_cpp_julia_ed.sh`](../run_sanity_cpp_julia_ed.sh)
+- [`run_spinboson_sanity.jl`](run_spinboson_sanity.jl)
+- [`spinboson_sanity.param`](spinboson_sanity.param)
+- [`published/`](published/) holds the construction-only ACE input
+- [`published_runtimes.csv`](published_runtimes.csv) is Table S.3.1 for the
+  independent-boson / Morse family
+
+Last ED check ([`results/summary.txt`](results/summary.txt)): $N\_E=2$,
+$M=5$, max rel. Frobenius vs ED $\approx 2.1\times 10^{-5}$,
+Julia vs C++ $\approx 6.5\times 10^{-7}$.

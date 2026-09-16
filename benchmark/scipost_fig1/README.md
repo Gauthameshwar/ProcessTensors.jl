@@ -7,7 +7,7 @@ tensor builder, and ACE.
 The physical model is the four-mode Sz⊗Sz spin bath from
 [`scripts/pt_tfim_multimode.jl`](../../scripts/pt_tfim_multimode.jl). Data
 generation and plotting are separate: the run scripts write CSV files under
-`results/`; the single plotter never rebuilds a process tensor.
+[`results/`](results/); the single plotter never rebuilds a process tensor.
 
 ## Four-mode Sz⊗Sz model
 
@@ -36,6 +36,13 @@ $t=0$ is the unevolved product state, and process-tensor snapshot $k$ is
 compared with ED at $t=k\Delta t$. The process tensor therefore has
 $n\_{\mathrm{steps}}=T/\Delta t$ slabs.
 
+## Scripts
+
+- [`run_fig1_left.jl`](run_fig1_left.jl) — timestep sweep for panels (a,b)
+- [`run_fig1_right.jl`](run_fig1_right.jl) — propagation-order sweep for panels (c,d)
+- [`plot_fig1.jl`](plot_fig1.jl) — assembles the 2×2 figure from saved CSVs
+- [`common.jl`](common.jl) — shared model and I/O helpers
+
 ## Generate data and figure
 
 From the repository root:
@@ -46,7 +53,7 @@ OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/
 julia --project=benchmark benchmark/scipost_fig1/plot_fig1.jl
 ```
 
-Outputs:
+Outputs under [`results/`](results/):
 
 ```text
 results/fig1_left.csv   timestep sweep for panels (a,b)
