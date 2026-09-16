@@ -4,7 +4,7 @@
 # Generate ACE temporal-bond data for SciPost Figure 2.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/scipost_fig2/run_fig2.jl
+#   julia -t auto --project=benchmark benchmark/scipost_fig2/run_fig2.jl
 
 include(joinpath(@__DIR__, "common.jl"))
 

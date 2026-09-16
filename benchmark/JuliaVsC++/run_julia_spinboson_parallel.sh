@@ -73,7 +73,7 @@ merge_fragment() {
 
 echo "Instantiating the shared Julia benchmark environment and upgrading CSV columns"
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  julia -t 1 --project="$ROOT" -e '
+  julia -t 1 --project="$ROOT/benchmark" -e '
     include(joinpath(ARGS[1], "common.jl"))
     pin_compute_threads!()
     print_julia_provenance()
@@ -119,14 +119,14 @@ queue_launch() {
     OPENBLAS_NUM_THREADS=1 \
     MKL_DYNAMIC=FALSE \
     OMP_DYNAMIC=FALSE \
-    JULIA_VS_CPP_SKIP_INSTANTIATE=1 \
+    SKIP_INSTANTIATE=1 \
     JULIA_VS_CPP_PRINT_PROVENANCE=0 \
     JULIA_VS_CPP_PIN_CPU="$cpu" \
     JULIA_VS_CPP_COMPRESSION="$COMPRESSION" \
     JULIA_VS_CPP_TEMPS="$temperature" \
     JULIA_VS_CPP_NS="$n_modes" \
     JULIA_VS_CPP_OUTPUT=".spinboson_cases/${stem}.csv" \
-    julia -t 1 --project="$ROOT" "$HERE/run_julia_spinboson.jl" \
+    julia -t 1 --project="$ROOT/benchmark" "$HERE/run_julia_spinboson.jl" \
     > "$q_log" 2>&1 &
   q_pid=$!
 }

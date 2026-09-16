@@ -11,15 +11,15 @@ generation and plotting are separate: the run scripts write CSV files under
 
 ## Four-mode Sz⊗Sz model
 
-We set $\hbar=1$. ITensor spin operators are $S_\alpha=\sigma_\alpha/2$;
-the plotted observable is $\langle\sigma_y(t)\rangle$.
+We set $\hbar=1$. ITensor spin operators are $S\_\alpha=\sigma\_\alpha/2$;
+the plotted observable is $\langle\sigma\_y(t)\rangle$.
 
 $$
-H=S_x^{(S)}+\sum_{m=1}^{4}
-\left[\omega_m S_x^{(B_m)}+g_m S_z^{(B_m)}S_z^{(S)}\right],
+H=S\_x^{(S)}+\sum\_{m=1}^{4}
+\left[\omega\_m S\_x^{(B\_m)}+g\_m S\_z^{(B\_m)}S\_z^{(S)}\right],
 $$
 
-with $\omega_m=0.5+0.1m$ and $g_m=0.2+0.3m$. Every spin starts in `Up`.
+with $\omega\_m=0.5+0.1m$ and $g\_m=0.2+0.3m$. Every spin starts in `Up`.
 The joint Hilbert-space dimension is $2^5=32$.
 
 The default final time is $T=6$.
@@ -34,16 +34,16 @@ Terminology:
 Time alignment matches the example script, not `evolve`'s labelled times:
 $t=0$ is the unevolved product state, and process-tensor snapshot $k$ is
 compared with ED at $t=k\Delta t$. The process tensor therefore has
-$n_{\mathrm{steps}}=T/\Delta t$ slabs.
+$n\_{\mathrm{steps}}=T/\Delta t$ slabs.
 
 ## Generate data and figure
 
 From the repository root:
 
 ```bash
-OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_left.jl
-OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_right.jl
-julia --project=. benchmark/scipost_fig1/plot_fig1.jl
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_left.jl
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_right.jl
+julia --project=benchmark benchmark/scipost_fig1/plot_fig1.jl
 ```
 
 Outputs:
@@ -61,7 +61,7 @@ $\Delta t=0.10$. Smoke run:
 
 ```bash
 SCIPOST_FIG1_T=1.2 SCIPOST_FIG1_DTS=0.2,0.1 \
-  OPENBLAS_NUM_THREADS=1 julia -t auto --project=. \
+  OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark \
   benchmark/scipost_fig1/run_fig1_left.jl
 ```
 

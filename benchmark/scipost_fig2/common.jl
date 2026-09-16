@@ -4,6 +4,8 @@
 # Shared model, reproducibility, bond-profile, and CSV helpers for SciPost
 # Figure 2.
 
+include(joinpath(@__DIR__, "..", "env.jl"))
+
 using Dates
 using ITensors
 using ITensors.Ops: Exact, Trotter

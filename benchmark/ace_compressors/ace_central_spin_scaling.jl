@@ -9,7 +9,7 @@
 # realization is nested so that each N uses the first N bath spins.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
+#   julia -t auto --project=benchmark benchmark/ace_compressors/ace_central_spin_scaling.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 

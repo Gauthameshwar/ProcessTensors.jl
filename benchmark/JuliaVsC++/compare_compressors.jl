@@ -5,7 +5,7 @@
 # process tensors, then sit them next to the C++ constructor.
 #
 #   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-#     julia -t 1 --project=. benchmark/JuliaVsC++/compare_compressors.jl
+#     julia -t 1 --project=benchmark benchmark/JuliaVsC++/compare_compressors.jl
 #
 # Optional:
 #   JULIA_VS_CPP_CASES="polarised:5,polarised:10" ACE_BENCH_SAMPLES=1

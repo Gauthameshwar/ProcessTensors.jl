@@ -8,16 +8,19 @@
 # launcher varies OpenBLAS/MKL threads. Julia stays at `-t 1`.
 #
 #   ACE_BLAS_THREADS=1 ACE_BENCH_SAMPLES=1 \
-#     julia -t 1 --project=. benchmark/ace_compressors/ace_thread_scaling.jl
+#     julia -t 1 --project=benchmark benchmark/ace_compressors/ace_thread_scaling.jl
 #
 # Smoke (tiny nsteps, zipup_cpp only):
 #
-#   ACE_THREAD_SMOKE=1 ACE_BLAS_THREADS=1 julia -t 1 --project=. \
+#   ACE_THREAD_SMOKE=1 ACE_BLAS_THREADS=1 julia -t 1 --project=benchmark \
 #     benchmark/ace_compressors/ace_thread_scaling.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 
-const CSV_PATH = results_path("ace_thread_scaling.csv")
+const CSV_PATH = results_path(
+    get(ENV, "ACE_THREAD_SMOKE", "0") == "1" ? "ace_thread_scaling_smoke.csv" :
+    "ace_thread_scaling.csv",
+)
 const CSV_HEADER = (
     "case",
     "model",

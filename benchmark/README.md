@@ -10,9 +10,10 @@ benchmark/scipost_fig2/         ACE cutoff, timestep, and temporal bonds
 benchmark/JuliaVsC++/          ProcessTensors.jl vs Cygorek C++ ACE
 ```
 
-Shared local environments stay at `benchmark/.bench_env/` (BenchmarkTools) and
-`benchmark/.plot_env/` (CairoMakie). They are not added to the package
-`Project.toml`. CSV and figure output is written next to the owning scripts:
+All of these scripts use the environment defined in `benchmark/Project.toml`. Run them as
+`julia --project=benchmark …` from the repository root. The first load
+instantiates from `benchmark/Manifest.toml`; parallel workers should set
+`SKIP_INSTANTIATE=1`. CSV and figure output is written next to the owning scripts:
 
 ```text
 benchmark/ace_compressors/results/
@@ -28,15 +29,15 @@ four-mode Sz⊗Sz spin bath used in `scripts/pt_tfim_multimode.jl`. Direct
 full-system Hilbert-space ED is the discretisation-free reference. `Dense()`
 is the exact (uncompressed) PT constructor, while ACE uses sequential mode
 joining and temporal compression. The plotted observable is Pauli
-$\langle\sigma_y\rangle$.
+$\langle\sigma\_y\rangle$.
 
 The two run scripts save their data independently. A single plotter reads both
 CSV files and assembles the complete 2×2 figure:
 
 ```bash
-OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_left.jl
-OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_right.jl
-julia --project=. benchmark/scipost_fig1/plot_fig1.jl
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_left.jl
+OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_right.jl
+julia --project=benchmark benchmark/scipost_fig1/plot_fig1.jl
 ```
 
 See [`scipost_fig1/README.md`](scipost_fig1/README.md) for the Hamiltonian,
@@ -50,12 +51,12 @@ set of random pure bath-spin orientations, and every timestep and cutoff uses
 that same realization.
 
 ```bash
-julia -t auto --project=. benchmark/scipost_fig2/run_fig2.jl
-julia --project=. benchmark/scipost_fig2/plot_fig2.jl
+julia -t auto --project=benchmark benchmark/scipost_fig2/run_fig2.jl
+julia --project=benchmark benchmark/scipost_fig2/plot_fig2.jl
 ```
 
-Panel (a) shows the complete $D_k$ profile at one reference timestep.
-Panel (b) shows $D_{\max}$ across timestep and cutoff. Figure 2 leaves BLAS
+Panel (a) shows the complete $D\_k$ profile at one reference timestep.
+Panel (b) shows $D\_{\max}$ across timestep and cutoff. Figure 2 leaves BLAS
 unrestricted and records its actual thread count. See
 [`scipost_fig2/README.md`](scipost_fig2/README.md) for the model, controls,
 outputs, and reproducibility metadata.
@@ -84,7 +85,7 @@ ace_compressors/plot_ace_compression.jl
 `ace_compression_benchmark.jl` compares zipup_cpp and canonzip across
 several SVD cutoffs using an eight-spin environment. The plotted accuracy
 is the evolved trajectory error
-$\max_k\|\rho_k-\rho_k^{\mathrm{ref}}\|_F$
+$\max\_k\|\rho\_k-\rho\_k^{\mathrm{ref}}\|\_F$
 against a canonzip reference at $\varepsilon=10^{-13}$. zipup_cpp is also
 run once at that same cutoff. Timing uses the median BenchmarkTools
 sample; the memory axis is total allocated memory, not peak RSS. Trace,
@@ -96,17 +97,17 @@ Defaults are $N\in\{1,5,10,20,30,40,50,70\}$, $T=4$, $\Delta t=0.05$,
 and $\varepsilon=10^{-10}$. See `ace_compressors/README.md`.
 `plot_ace_compression.jl` writes one $2\times 3$ figure
 `ace_compressors/results/ace_compression.{png,pdf}`:
-(a–c) median time, allocated memory, and $\chi_{\max}$ versus $N$;
+(a–c) median time, allocated memory, and $\chi\_{\max}$ versus $N$;
 (d–e) trajectory error versus time and memory on the eight-spin cutoff sweep;
 (f) log build time versus BLAS threads for one easy polarised central-spin
 PT (solid) and one hard spin-boson PT (dashed).
 Do not `taskset` the thread sweep to a single core.
 
 ```bash
-julia -t auto --project=. benchmark/ace_compressors/ace_compression_benchmark.jl
-julia -t auto --project=. benchmark/ace_compressors/ace_central_spin_scaling.jl
+julia -t auto --project=benchmark benchmark/ace_compressors/ace_compression_benchmark.jl
+julia -t auto --project=benchmark benchmark/ace_compressors/ace_central_spin_scaling.jl
 bash benchmark/ace_compressors/run_ace_thread_scaling.sh
-julia --project=. benchmark/ace_compressors/plot_ace_compression.jl
+julia --project=benchmark benchmark/ace_compressors/plot_ace_compression.jl
 ```
 
 ## Evolve contractors
@@ -115,8 +116,8 @@ Times `:evaluate` vs `:closures` on synthetic random process tensors
 with prescribed `nsteps` and χ (no ACE construction).
 
 ```bash
-julia -t auto --project=. benchmark/evolve_contractors/evolve_contraction.jl
-julia --project=. benchmark/evolve_contractors/plot_evolve_contraction.jl
+julia -t auto --project=benchmark benchmark/evolve_contractors/evolve_contraction.jl
+julia --project=benchmark benchmark/evolve_contractors/plot_evolve_contraction.jl
 ```
 
 Runtime and memory use BenchmarkTools (`@benchmarkable` + `run`; `evals=1`).
@@ -137,8 +138,8 @@ second-order Trotter, $N\in\{5,10,25,50,100\}$, fully / partially / unpolarised
 baths.
 
 Lorentzian spin-boson (Nat. Phys. 2022 SI Sec. S.4.D grid, production
-$C/\Omega^2=0.2$): $N_E=100$, $M=5$, $\Omega T=8$, $\Omega\Delta t=0.1$,
-$\varepsilon=10^{-8}$, $k_B T/\Omega\in\{0,0.5,1.0,3.0\}$.
+$C/\Omega^2=0.2$): $N\_E=100$, $M=5$, $\Omega T=8$, $\Omega\Delta t=0.1$,
+$\varepsilon=10^{-8}$, $k\_B T/\Omega\in\{0,0.5,1.0,3.0\}$.
 
 ```bash
 sudo apt install libeigen3-dev
@@ -148,9 +149,9 @@ bash benchmark/JuliaVsC++/run_cpp_central_spin.sh
 bash benchmark/JuliaVsC++/run_cpp_spinboson.sh
 JULIA_VS_CPP_SMOKE=1 \
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 bash benchmark/JuliaVsC++/run_julia_spinboson_parallel.sh
 ```
 

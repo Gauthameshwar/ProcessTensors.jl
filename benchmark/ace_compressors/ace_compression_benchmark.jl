@@ -11,7 +11,7 @@
 # Memory is total allocated bytes from BenchmarkTools, not peak RSS.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/ace_compressors/ace_compression_benchmark.jl
+#   julia -t auto --project=benchmark benchmark/ace_compressors/ace_compression_benchmark.jl
 
 include(joinpath(@__DIR__, "ace_compression_common.jl"))
 

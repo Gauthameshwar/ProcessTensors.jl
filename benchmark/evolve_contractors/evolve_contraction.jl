@@ -10,7 +10,7 @@
 # contraction cost matter.
 #
 # Run with:
-#   julia -t auto --project=. benchmark/evolve_contractors/evolve_contraction.jl
+#   julia -t auto --project=benchmark benchmark/evolve_contractors/evolve_contraction.jl
 
 include(joinpath(@__DIR__, "common.jl"))
 

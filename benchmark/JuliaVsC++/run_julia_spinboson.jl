@@ -9,7 +9,7 @@
 #
 # Serial:
 #   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-#     julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_spinboson.jl
+#     julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_spinboson.jl
 
 include(joinpath(@__DIR__, "common.jl"))
 

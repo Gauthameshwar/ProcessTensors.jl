@@ -4,33 +4,12 @@
 # Read Figure 2 CSV data and render the two-panel paper figure.
 #
 # Run with:
-#   julia --project=. benchmark/scipost_fig2/plot_fig2.jl
+#   julia --project=benchmark benchmark/scipost_fig2/plot_fig2.jl
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
 const FIGURE_DIR = @__DIR__
 const RESULTS_DIR = joinpath(FIGURE_DIR, "results")
-const PLOT_ENV = joinpath(dirname(FIGURE_DIR), ".plot_env")
-
-function activate_plot_environment!()
-    mkpath(PLOT_ENV)
-    Pkg.activate(PLOT_ENV)
-    manifest = joinpath(PLOT_ENV, "Manifest.toml")
-    if !isfile(manifest)
-        Pkg.add([
-            Pkg.PackageSpec(name="CairoMakie"),
-            Pkg.PackageSpec(name="LaTeXStrings"),
-        ])
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-        dependencies = Pkg.project().dependencies
-        haskey(dependencies, "LaTeXStrings") || Pkg.add("LaTeXStrings")
-    end
-    return nothing
-end
-
-activate_plot_environment!()
 
 using CairoMakie
 using DelimitedFiles

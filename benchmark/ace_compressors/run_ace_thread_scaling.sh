@@ -20,5 +20,5 @@ for n in $THREADS; do
     OMP_DYNAMIC=FALSE \
     ACE_BLAS_THREADS="$n" \
     ACE_BENCH_SAMPLES="$SAMPLES" \
-    julia -t 1 --project=. benchmark/ace_compressors/ace_thread_scaling.jl
+    julia -t 1 --project=benchmark benchmark/ace_compressors/ace_thread_scaling.jl
 done

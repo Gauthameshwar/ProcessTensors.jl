@@ -2,26 +2,10 @@
 # SPDX-License-Identifier: MIT
 #
 # Shared model helpers for the Julia vs C++ ACE construction benchmark.
-# BenchmarkTools lives in benchmark/.bench_env and is not a package dependency.
 
-import Pkg
+# Load the benchmark env.
+include(joinpath(@__DIR__, "..", "env.jl"))
 
-const _BENCH_ROOT = dirname(@__DIR__)
-const _BENCH_ENV = joinpath(_BENCH_ROOT, ".bench_env")
-const _ORIG_PROJECT = Base.active_project()
-mkpath(_BENCH_ENV)
-Pkg.activate(_BENCH_ENV)
-if !isfile(joinpath(_BENCH_ENV, "Manifest.toml"))
-    Pkg.add(["BenchmarkTools", "Parsers"])
-elseif get(ENV, "JULIA_VS_CPP_SKIP_INSTANTIATE", "0") != "1"
-    Pkg.instantiate()
-    deps = Pkg.project().dependencies
-    haskey(deps, "Parsers") || Pkg.add("Parsers")
-end
-Pkg.activate(_ORIG_PROJECT)
-if !(_BENCH_ENV in LOAD_PATH)
-    pushfirst!(LOAD_PATH, _BENCH_ENV)
-end
 using BenchmarkTools
 
 using Dates

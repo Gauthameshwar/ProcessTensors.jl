@@ -8,24 +8,8 @@
 # under benchmark/ace_compressors/results/. Runtime and memory come from
 # BenchmarkTools after warmup, not a single compiling @elapsed.
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
-const _BENCH_ROOT = dirname(@__DIR__)
-const _BENCH_ENV = joinpath(_BENCH_ROOT, ".bench_env")
-const _ORIG_PROJECT = Base.active_project()
-mkpath(_BENCH_ENV)
-Pkg.activate(_BENCH_ENV)
-if !isfile(joinpath(_BENCH_ENV, "Manifest.toml"))
-    Pkg.add(["BenchmarkTools", "Parsers"])
-else
-    Pkg.instantiate()
-    deps = Pkg.project().dependencies
-    haskey(deps, "Parsers") || Pkg.add("Parsers")
-end
-Pkg.activate(_ORIG_PROJECT)
-if !(_BENCH_ENV in LOAD_PATH)
-    pushfirst!(LOAD_PATH, _BENCH_ENV)
-end
 using BenchmarkTools
 
 using LinearAlgebra

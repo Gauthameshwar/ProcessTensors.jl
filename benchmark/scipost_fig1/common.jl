@@ -8,6 +8,8 @@
 # observable is Pauli ⟨σy⟩. Snapshot k from evolve is compared with ED at
 # t = k Δt; t = 0 is the unevolved product initial state.
 
+include(joinpath(@__DIR__, "..", "env.jl"))
+
 using Dates
 using ITensors
 using ITensors.Ops: Exact, Trotter

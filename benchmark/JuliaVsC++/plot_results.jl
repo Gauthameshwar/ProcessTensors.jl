@@ -4,28 +4,12 @@
 # Plot Julia and C++ ACE construction runtime against maximum PT bond dimension.
 #
 # Run with:
-#   julia --project=. benchmark/JuliaVsC++/plot_results.jl
+#   julia --project=benchmark benchmark/JuliaVsC++/plot_results.jl
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
 const BENCH_DIR = @__DIR__
-const PLOT_ENV = joinpath(dirname(BENCH_DIR), ".plot_env")
 const RESULTS_DIR = joinpath(BENCH_DIR, "results")
-
-function activate_plot_env!()
-    mkpath(PLOT_ENV)
-    Pkg.activate(PLOT_ENV)
-    manifest = joinpath(PLOT_ENV, "Manifest.toml")
-    if !isfile(manifest)
-        Pkg.add(Pkg.PackageSpec(name="CairoMakie"))
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-    end
-    return nothing
-end
-
-activate_plot_env!()
 
 using CairoMakie
 using Printf

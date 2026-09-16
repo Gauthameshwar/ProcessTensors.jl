@@ -1,7 +1,7 @@
 # Julia vs C++ ACE construction
 
 Head-to-head process-tensor **construction** timings and maximum temporal bond
-dimensions $D_{\max}$ for ProcessTensors.jl against Moritz Cygorek's C++ ACE
+dimensions $D\_{\max}$ for ProcessTensors.jl against Moritz Cygorek's C++ ACE
 toolkit (`ACE/`, [mcygorek/ACE](https://github.com/mcygorek/ACE)).
 
 This folder records every command used on this machine, from installing Eigen
@@ -20,7 +20,7 @@ separate clone, not part of ProcessTensors.jl.
 ## 0. Models
 
 ProcessTensors.jl uses $\hbar=1$, and its spin operators are
-$S_\alpha=\sigma_\alpha/2$. C++ ACE interprets Hamiltonians in meV and time
+$S\_\alpha=\sigma\_\alpha/2$. C++ ACE interprets Hamiltonians in meV and time
 in ps, with `hbar_in_meV_ps = 0.6582119569`. Consequently, a C++ input
 $J=1$ evolves at the dimensionless rate $J/\hbar=1.5192674479961275$.
 For equal dimensionless dynamics, either set the C++ coupling to
@@ -32,10 +32,10 @@ Hamiltonian, matching Cygorek et al., Nat. Phys. 18, 662 (2022) and
 `ACE/examples/NatPhys2022/03_spins/`:
 
 $$
-H_S=0,\qquad
-H_{B_k}=0,\qquad
-H=\sum_{k=1}^{N}\frac{J}{N}
-\bigl(S_x s_k^x+S_y s_k^y+S_z s_k^z\bigr).
+H\_S=0,\qquad
+H\_{B\_k}=0,\qquad
+H=\sum\_{k=1}^{N}\frac{J}{N}
+\bigl(S\_x s\_k^x+S\_y s\_k^y+S\_z s\_k^z\bigr).
 $$
 
 Fixed production parameters:
@@ -57,8 +57,8 @@ Fixed production parameters:
 System initial state (all three polarisations):
 
 $$
-\rho_S(0)=\lvert+\rangle_x\langle+\rvert
-=\tfrac12\bigl(I+\sigma_x\bigr).
+\rho\_S(0)=\lvert+\rangle\_x\langle+\rvert
+=\tfrac12\bigl(I+\sigma\_x\bigr).
 $$
 
 In C++ that is
@@ -71,16 +71,16 @@ Bath initial conditions, one case per polarisation:
 
 | Polarisation | Bath state | C++ knobs |
 | ---: | :--- | :--- |
-| fully polarised | every spin $\lvert\uparrow\rangle_z$ | `RandomSpin_set_initial_dir 0 0 1` |
-| partially polarised | random pure states, Boltzmann-filtered against $\mathbf B=(0,0,20)$ at $T=1/k_B$ | `RandomSpin_B_init 0 0 20` and `RandomSpin_T 11.604522`, same as `ACE/examples/NatPhys2022/03_spins/02_b20_*.param` |
+| fully polarised | every spin $\lvert\uparrow\rangle\_z$ | `RandomSpin_set_initial_dir 0 0 1` |
+| partially polarised | random pure states, Boltzmann-filtered against $\mathbf B=(0,0,20)$ at $T=1/k\_B$ | `RandomSpin_B_init 0 0 20` and `RandomSpin_T 11.604522`, same as `ACE/examples/NatPhys2022/03_spins/02_b20_*.param` |
 | unpolarised | independent random pure states | omit both; `RandomSpin_seed 1` |
 
 Partial polarisation is still a product of **pure** states, not a mixed Gibbs
 state per spin. That is Cygorek's ACE protocol, not a thermal density matrix.
 
-Couplings are $J_k=J/N$:
+Couplings are $J\_k=J/N$:
 
-| $N$ | $J_k$ |
+| $N$ | $J\_k$ |
 | ---: | ---: |
 | 5 | 0.2 |
 | 10 | 0.1 |
@@ -98,30 +98,30 @@ $$
 J(\omega)
 =
 \frac{C}{\pi}
-\frac{\gamma}{(\omega-\omega_c)^2+\gamma^2},
+\frac{\gamma}{(\omega-\omega\_c)^2+\gamma^2},
 \qquad
-\omega_c=\Omega,\quad
+\omega\_c=\Omega,\quad
 \gamma=0.1\,\Omega.
 $$
 
-Modes are the midpoints of $N_E$ equal intervals on
+Modes are the midpoints of $N\_E$ equal intervals on
 $0\le\omega/\Omega\le 7.5$, and
 
 $$
-g_k=\sqrt{J(\omega_k)\,\Delta\omega},\qquad
-\Delta\omega=7.5\,\Omega/N_E.
+g\_k=\sqrt{J(\omega\_k)\,\Delta\omega},\qquad
+\Delta\omega=7.5\,\Omega/N\_E.
 $$
 
 Each oscillator is truncated to $M=5$ Fock levels
 ($\lvert 0\rangle,\ldots,\lvert 4\rangle$). The SI reference run used
-$C=0.1\,\Omega^2$ and $k_B T=0.5\,\Omega$. This sweep keeps that grid and
+$C=0.1\,\Omega^2$ and $k\_B T=0.5\,\Omega$. This sweep keeps that grid and
 $M$, and uses the requested production coupling and temperatures:
 
 | Quantity | SI Sec. S.4.D | This sweep |
 | ---: | ---: | ---: |
 | $C/\Omega^2$ | $0.1$ | $0.2$ |
-| $k_B T/\Omega$ | $0.5$ | $0,0.5,1.0,3.0$ |
-| $N_E$ | 100 | $5,10,25,50,100$ |
+| $k\_B T/\Omega$ | $0.5$ | $0,0.5,1.0,3.0$ |
+| $N\_E$ | 100 | $5,10,25,50,100$ |
 | $M$ | 5 | 5 (fixed for every $T$) |
 | $\omega/\Omega$ | $[0,7.5]$ | $[0,7.5]$ |
 | $\Omega T$ | (Fig. 5 window) | $8.0$ |
@@ -131,7 +131,7 @@ $M$, and uses the requested production coupling and temperatures:
 System Hamiltonian as in SI S.4.D:
 
 $$
-H_S=\frac{\Omega}{2}\sigma_x
+H\_S=\frac{\Omega}{2}\sigma\_x
 =\frac{\Omega}{2}\bigl(\lvert e\rangle\langle g\rvert+\lvert g\rangle\langle e\rvert\bigr).
 $$
 
@@ -150,10 +150,10 @@ H += 1.0, "Sx", 1    # Ω = 1
 Initial states:
 
 $$
-\rho_S(0)=\lvert g\rangle\langle g\rvert=\lvert 0\rangle\langle 0\rvert,
+\rho\_S(0)=\lvert g\rangle\langle g\rvert=\lvert 0\rangle\langle 0\rvert,
 \qquad
-\rho_k(0)=\frac{e^{-\hbar\omega_k n/k_B T}}{Z_k}
-\Big\lvert_{n=0}^{M-1}.
+\rho\_k(0)=\frac{e^{-\hbar\omega\_k n/k\_B T}}{Z\_k}
+\Big\lvert\_{n=0}^{M-1}.
 $$
 
 At $T=0$ every mode is the vacuum. $M$ does **not** change with
@@ -161,15 +161,15 @@ temperature; a hotter bath only changes the Gibbs weights on the same five
 levels.
 
 Mode Hamiltonian and independent-boson coupling (including the default ACE
-polaron shift $g_k^2/\omega_k\lvert e\rangle\langle e\rvert$):
+polaron shift $g\_k^2/\omega\_k\lvert e\rangle\langle e\rvert$):
 
 $$
-H_{B_k}=\omega_k a_k^\dagger a_k,
+H\_{B\_k}=\omega\_k a\_k^\dagger a\_k,
 \qquad
-H_{\mathrm{int},k}
+H\_{\mathrm{int},k}
 =
-g_k(a_k+a_k^\dagger)\lvert e\rangle\langle e\rvert
-+\frac{g_k^2}{\omega_k}\lvert e\rangle\langle e\rvert.
+g\_k(a\_k+a\_k^\dagger)\lvert e\rangle\langle e\rvert
++\frac{g\_k^2}{\omega\_k}\lvert e\rangle\langle e\rvert.
 $$
 
 ## 1. Install the C++ build dependencies
@@ -248,8 +248,8 @@ Boson_J_shift   1.0
 ```
 
 ACE builds a unit Lorentzian of width `Boson_J_gamma` centred at the origin,
-then applies $J_{\mathrm{used}}(\omega)=C\,J_{\mathrm{unit}}(\omega-\omega_c)$
-(`Boson_J_scale` $=C/\Omega^2$, `Boson_J_shift` $=\omega_c/\Omega$). The mode
+then applies $J\_{\mathrm{used}}(\omega)=C\,J\_{\mathrm{unit}}(\omega-\omega\_c)$
+(`Boson_J_scale` $=C/\Omega^2$, `Boson_J_shift` $=\omega\_c/\Omega$). The mode
 grid is still `Boson_N_modes`, `Boson_omega_min`, and `Boson_omega_max`.
 `spinboson.param` already contains these lines.
 
@@ -269,7 +269,7 @@ benchmark/JuliaVsC++/cpp/central_spin_unpolarised.param
 
 Each file already has $J\Delta t=0.1$, $JT=20$, $\varepsilon=10^{-10}$,
 `use_symmetric_Trotter true`, and `dont_propagate true`. The sweep overrides
-$N$ and $J_k=1/N$ on the command line.
+$N$ and $J\_k=1/N$ on the command line.
 
 The wrapper writes wall time (`/usr/bin/time`), ACE's `Maxdim` lines, an
 optional `PTB_analyze` check, provenance, and CSV rows. Each case is pinned to
@@ -336,7 +336,7 @@ Unpolarised, example $N=50$:
 ```
 
 Repeat for $N\in\{5,10,25,50,100\}$ and all three polarisations (fifteen
-runs). After each run, read $D_{\max}$ from the log or from the written PT:
+runs). After each run, read $D\_{\max}$ from the log or from the written PT:
 
 ```bash
 grep 'Maxdim' benchmark/JuliaVsC++/results/cpp/central_polarised_N10.log
@@ -345,7 +345,7 @@ PTB_analyze -read_PT benchmark/JuliaVsC++/results/cpp/central_polarised_N10.pt
 
 `PTB_analyze` prints `Maxdim <D> at <site>`. ACE construction also prints
 `Maxdim at n=...: ... -> D` after each mode join; the last outgoing `D` is
-the final $D_{\max}$.
+the final $D\_{\max}$.
 
 `/usr/bin/time` writes the elapsed seconds (one number) to the `.time` file.
 That is the PT-construction wall time, because `dont_propagate` skips
@@ -357,17 +357,17 @@ propagation is enabled.
 ```bash
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   JULIA_VS_CPP_CPUS="8 9 10 11" \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 ```
 
 `JULIA_VS_CPP_CPUS` (or `JULIA_SPINBOSON_CPUS`) is the Julia analogue of `ACE_CPUS`. Cases rotate over that list. If a listed core already has a running (`R`) task, the case is moved to the next free core and a line is printed. Omit the variable to leave affinity unset.
 
-Smoke (polarised $N=5$ only):
+Smoke (polarised $N=5$ only; writes a throwaway CSV, not the production file):
 
 ```bash
-JULIA_VS_CPP_SMOKE=1 \
+JULIA_VS_CPP_SMOKE=1 JULIA_VS_CPP_OUTPUT=central_spin_smoke.csv \
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 ```
 
 The C++-schedule and existing-C++-data comparison can be reproduced without
@@ -379,7 +379,7 @@ JULIA_VS_CPP_SMOKE=1 \
   JULIA_VS_CPP_J=1.5192674479961275 \
   JULIA_VS_CPP_OUTPUT=central_spin_zipup_cpp_smoke.csv \
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 ```
 
 The scripts force one OpenBLAS/MKL/OpenMP thread (`JULIA_VS_CPP_BLAS_THREADS`,
@@ -416,9 +416,9 @@ bash benchmark/JuliaVsC++/run_cpp_spinboson.sh
 ```
 
 The runner sweeps every missing pair in
-$k_B T/\Omega\in\{0,0.5,1,3\}$ and $N_E\in\{5,10,20,50,100\}$, matching
+$k\_B T/\Omega\in\{0,0.5,1,3\}$ and $N\_E\in\{5,10,20,50,100\}$, matching
 the Julia grid. It appends to the existing CSV and skips completed
-$(T,N_E)$ keys. Each missing case is pinned to a CPU from `ACE_CPUS`.
+$(T,N\_E)$ keys. Each missing case is pinned to a CPU from `ACE_CPUS`.
 Extra cases wait until a core in that list is free. Override either sweep:
 
 ```bash
@@ -437,17 +437,17 @@ Manual equivalent for one case:
     -write_PT benchmark/JuliaVsC++/results/cpp/spinboson_T0.5_N50.pt
 ```
 
-`temperature_unitless` is $k_B T/\hbar$ in the same units as `Boson_omega_*`.
-With $\Omega=1$ this is exactly $k_B T/\Omega$. `Boson_M 5` is fixed.
+`temperature_unitless` is $k\_B T/\hbar$ in the same units as `Boson_omega_*`.
+With $\Omega=1$ this is exactly $k\_B T/\Omega$. `Boson_M 5` is fixed.
 
-Read $D_{\max}$:
+Read $D\_{\max}$:
 
 ```bash
 grep 'Maxdim' benchmark/JuliaVsC++/results/cpp/spinboson_T0.5.log
 PTB_analyze -read_PT benchmark/JuliaVsC++/results/cpp/spinboson_T0.5.pt
 ```
 
-Optional: dump the actual $\{E_k,g_k\}$ ACE used
+Optional: dump the actual $\{E\_k,g\_k\}$ ACE used
 
 ```bash
 ACE benchmark/JuliaVsC++/cpp/spinboson.param \
@@ -457,9 +457,9 @@ ACE benchmark/JuliaVsC++/cpp/spinboson.param \
 
 ## 7. Thermal spin-boson: ProcessTensors.jl
 
-Run all missing $(T,N_E)$ cases concurrently, one Julia process and one
-BLAS/OpenMP thread per exclusive CPU. $N_E\in\{5,10,20,50,100\}$. A CSV
-row is skipped only if $N_E$, $\varepsilon$, `:zipup_cpp`, and thread
+Run all missing $(T,N\_E)$ cases concurrently, one Julia process and one
+BLAS/OpenMP thread per exclusive CPU. $N\_E\in\{5,10,20,50,100\}$. A CSV
+row is skipped only if $N\_E$, $\varepsilon$, `:zipup_cpp`, and thread
 count all match; blank thread fields are rerun.
 
 ```bash
@@ -480,14 +480,14 @@ The serial resumable runner remains available:
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   JULIA_VS_CPP_CPUS="8 9 10 11" \
   JULIA_VS_CPP_TEMPS="0,0.5" JULIA_VS_CPP_NS="5,10" \
-  julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_spinboson.jl
+  julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_spinboson.jl
 ```
 
 Both runners preserve only rows that match compressor and threads. The
 parallel wrapper writes one isolated fragment per case and merges
 fragments only after workers finish, so concurrent workers never append
-to the same file. Same $N_E$, $M$, $C$, $\omega$ window, $\Delta t$,
-$T_{\mathrm{final}}$, $\varepsilon$, and `Trotter{2}()` / `:zipup_cpp`
+to the same file. Same $N\_E$, $M$, $C$, $\omega$ window, $\Delta t$,
+$T\_{\mathrm{final}}$, $\varepsilon$, and `Trotter{2}()` / `:zipup_cpp`
 settings are used on both implementations. Output:
 
 ```text
@@ -500,12 +500,12 @@ After any subset of the benchmark runs has completed, generate the two-panel
 runtime versus maximum-bond-dimension comparison with:
 
 ```bash
-julia --project=. benchmark/JuliaVsC++/plot_results.jl
+julia --project=benchmark benchmark/JuliaVsC++/plot_results.jl
 ```
 
 Julia results use filled markers and dashed lines; C++ results use matching
 hollow markers and dotted lines. The script skips missing or incomplete CSV
-rows. Spin-boson series are grouped by temperature and annotated by $N_E$, so
+rows. Spin-boson series are grouped by temperature and annotated by $N\_E$, so
 partially completed sweeps can be plotted. Output:
 
 ```text
@@ -525,7 +525,7 @@ benchmark/JuliaVsC++/results/julia/spinboson.csv
 ```
 
 Each result CSV row is one PT construction. Keep the original runtime and
-$D_{\max}$ columns for plotting, and use the extra columns for provenance:
+$D\_{\max}$ columns for plotting, and use the extra columns for provenance:
 
 | Column | Meaning |
 | ---: | :--- |
@@ -552,15 +552,15 @@ for every published row: those times are **not** pure PT-construction
 times.
 
 Published central-spin examples use $\Delta t=0.01\,\hbar/J$,
-$t_{\mathrm{final}}=20\,\hbar/J$ (2000 steps). This production sweep keeps
+$t\_{\mathrm{final}}=20\,\hbar/J$ (2000 steps). This production sweep keeps
 $\Delta t=0.1$, $n=200$, and `dont_propagate true`.
 
 Published independent-boson / Morse examples use the recovered input
 `01_independent_boson_T0.5_M5_Jscale0.1.param`: $N=101$, $C/\Omega^2=0.1$,
-$k_BT=0.5\Omega$, $\Delta t=0.1$, $t_{\mathrm{final}}=10$, $\varepsilon=10^{-7}$.
+$k\_BT=0.5\Omega$, $\Delta t=0.1$, $t\_{\mathrm{final}}=10$, $\varepsilon=10^{-7}$.
 Do not borrow $\Delta t$ or $\varepsilon$ from another SI figure. This
-production sweep uses $C/\Omega^2=0.2$, $N_E\in\{5,10,25,50,100\}$,
-$t_{\mathrm{final}}=8$, $\varepsilon=10^{-8}$, so it is also not an exact
+production sweep uses $C/\Omega^2=0.2$, $N\_E\in\{5,10,25,50,100\}$,
+$t\_{\mathrm{final}}=8$, $\varepsilon=10^{-8}$, so it is also not an exact
 Table S.3.1 reproduction.
 
 The $\varepsilon=10^{-16}$ central-spin times exceeded the laptop's 16 GB and
@@ -589,10 +589,10 @@ Julia versus C++ on this server under matched single-core limits.
   system–environment splitting. `combine_alg=Trotter{2}()` is Julia's
   symmetric half-step mode join. C++ mode propagators are exact for each
   single mode and then joined sequentially.
-- Julia embeds $H_S$ into the PT cores after the bath sweep. That does not
-  change $D_{\max}$ and is cheap compared with the joins. C++
+- Julia embeds $H\_S$ into the PT cores after the bath sweep. That does not
+  change $D\_{\max}$ and is cheap compared with the joins. C++
   `dont_propagate` builds the environment PT only.
-- $M=5$ at $k_B T/\Omega=3$ is a controlled truncation, not a converged
+- $M=5$ at $k\_B T/\Omega=3$ is a controlled truncation, not a converged
   Hilbert-space cutoff. Keep $M$ fixed so the temperature sweep is fair.
 - Table S.3.1 must not be labelled as a build-only time except where the
   archived example itself separated construction from contraction.

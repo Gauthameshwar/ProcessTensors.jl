@@ -7,35 +7,12 @@
 # Reads ACE compression CSVs and writes one 2×3 paper figure.
 #
 # Run with:
-#   julia --project=. benchmark/ace_compressors/plot_ace_compression.jl
+#   julia --project=benchmark benchmark/ace_compressors/plot_ace_compression.jl
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
 const PACK_DIR = @__DIR__
-const PLOT_ENV = joinpath(dirname(PACK_DIR), ".plot_env")
 const RESULTS_DIR = joinpath(PACK_DIR, "results")
-
-function activate_plot_env!()
-    mkpath(PLOT_ENV)
-    Pkg.activate(PLOT_ENV)
-    manifest = joinpath(PLOT_ENV, "Manifest.toml")
-    if !isfile(manifest)
-        Pkg.add([
-            Pkg.PackageSpec(name="CairoMakie"),
-            Pkg.PackageSpec(name="LaTeXStrings"),
-            Pkg.PackageSpec(name="Parsers"),
-        ])
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-        deps = Pkg.project().dependencies
-        haskey(deps, "LaTeXStrings") || Pkg.add("LaTeXStrings")
-        haskey(deps, "Parsers") || Pkg.add("Parsers")
-    end
-    return nothing
-end
-
-activate_plot_env!()
 
 using CairoMakie
 using DelimitedFiles

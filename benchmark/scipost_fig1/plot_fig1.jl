@@ -4,33 +4,12 @@
 # Read both Figure 1 data files and render the complete 2×2 paper figure.
 #
 # Run with:
-#   julia --project=. benchmark/scipost_fig1/plot_fig1.jl
+#   julia --project=benchmark benchmark/scipost_fig1/plot_fig1.jl
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
 const FIGURE_DIR = @__DIR__
 const RESULTS_DIR = joinpath(FIGURE_DIR, "results")
-const PLOT_ENV = joinpath(dirname(FIGURE_DIR), ".plot_env")
-
-function activate_plot_environment!()
-    mkpath(PLOT_ENV)
-    Pkg.activate(PLOT_ENV)
-    manifest = joinpath(PLOT_ENV, "Manifest.toml")
-    if !isfile(manifest)
-        Pkg.add([
-            Pkg.PackageSpec(name="CairoMakie"),
-            Pkg.PackageSpec(name="LaTeXStrings"),
-        ])
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-        deps = Pkg.project().dependencies
-        haskey(deps, "LaTeXStrings") || Pkg.add("LaTeXStrings")
-    end
-    return nothing
-end
-
-activate_plot_environment!()
 
 using CairoMakie
 using DelimitedFiles

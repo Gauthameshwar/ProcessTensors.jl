@@ -36,6 +36,9 @@ SANITY: C++ vs Julia vs ED
 
 EOF
 
+echo "Instantiating the shared Julia benchmark environment"
+julia -t 1 --project="$ROOT/benchmark" -e 'using Pkg; Pkg.instantiate()'
+
 echo "Pinning Julia and ACE to CPU $SANITY_CPU with OMP/MKL/OpenBLAS=1"
 echo
 
@@ -46,9 +49,9 @@ run_one() {
     env OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
         MKL_DYNAMIC=FALSE OMP_DYNAMIC=FALSE \
         ACE_BIN="$ACE_BIN" \
-        JULIA_VS_CPP_SKIP_INSTANTIATE=1 \
+        SKIP_INSTANTIATE=1 \
         JULIA_VS_CPP_BLAS_THREADS=1 \
-    julia -t 1 --project="$ROOT" "$script"
+    julia -t 1 --project="$ROOT/benchmark" "$script"
   echo
 }
 

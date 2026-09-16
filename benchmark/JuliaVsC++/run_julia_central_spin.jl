@@ -12,14 +12,14 @@
 #
 #   JULIA_VS_CPP_CPUS="8 9 10 11" \
 #     OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-#     julia -t 1 --project=. benchmark/JuliaVsC++/run_julia_central_spin.jl
+#     julia -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
 #
-# Smoke (polarised N=5 only):
+# Smoke (polarised N=5 only; writes central_spin_smoke.csv unless OUTPUT is set):
 #
-#   JULIA_VS_CPP_SMOKE=1 julia -t 1 --project=. \
+#   JULIA_VS_CPP_SMOKE=1 julia -t 1 --project=benchmark \
 #     benchmark/JuliaVsC++/run_julia_central_spin.jl
 #
-# Writes only `results/julia/central_spin.csv`. C++ artefacts are read, never
+# Production writes `results/julia/central_spin.csv`. C++ artefacts are read, never
 # overwritten. Physics parameters are unchanged.
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -45,7 +45,12 @@ function main()
     pin_compute_threads!()
     csv = joinpath(
         RESULTS_DIR,
-        get(ENV, "JULIA_VS_CPP_OUTPUT", "central_spin.csv"),
+        get(
+            ENV,
+            "JULIA_VS_CPP_OUTPUT",
+            get(ENV, "JULIA_VS_CPP_SMOKE", "0") == "1" ? "central_spin_smoke.csv" :
+            "central_spin.csv",
+        ),
     )
     nsteps = nsteps_for(CS_FINAL_TIME, CS_DT)
     system = empty_central_spin_system()

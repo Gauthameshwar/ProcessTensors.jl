@@ -4,7 +4,7 @@
 # Generate timestep-convergence data for SciPost Figure 1(a,b).
 #
 # Run with:
-#   OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_left.jl
+#   OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_left.jl
 
 include(joinpath(@__DIR__, "common.jl"))
 

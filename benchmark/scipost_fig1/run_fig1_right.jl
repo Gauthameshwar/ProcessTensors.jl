@@ -4,7 +4,7 @@
 # Generate ACE propagation-order data for SciPost Figure 1(c,d).
 #
 # Run with:
-#   OPENBLAS_NUM_THREADS=1 julia -t auto --project=. benchmark/scipost_fig1/run_fig1_right.jl
+#   OPENBLAS_NUM_THREADS=1 julia -t auto --project=benchmark benchmark/scipost_fig1/run_fig1_right.jl
 
 include(joinpath(@__DIR__, "common.jl"))
 
