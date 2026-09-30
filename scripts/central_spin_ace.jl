@@ -7,18 +7,6 @@
 # Reproduces the fully polarized central-spin model of Cygorek et al.,
 # Nature Physics 18, 662–668 (2022), Fig. 4a, with ProcessTensors.jl.
 #
-#   H_S = 0
-#   H_E = sum_k J_k (Sx sx_k + Sy sy_k + Sz sz_k),  J_k = J / N
-#   J = ħ = 1
-#   dt = 0.01
-#   t_final = 20
-#   ACE threshold ε = 1e-10
-#   ACE compression = zip-up (forward truncation on the 2001-step chain)
-#   bath initial state: every spin along +z
-#
-# The paper reports d_max = 4 for N = 10, 100, and 1000, and the reduced
-# dynamics approach (1/2) cos(t/2) as N → ∞.
-#
 # Run with:
 #   julia --project=. scripts/central_spin_ace.jl
 #
@@ -265,7 +253,7 @@ const final_time = 20.0
 const nsteps = round(Int, final_time / dt) + 1
 const ace_cutoff = 1e-10
 const ace_maxdim = 1024
-const ace_compression = :zipup
+const ace_compression = :zipup_cpp
 const N_bath_values = [5, 10, 100, 1000]
 const published_polarized_rank = 4
 const trace_warning_tolerance = 1e-4

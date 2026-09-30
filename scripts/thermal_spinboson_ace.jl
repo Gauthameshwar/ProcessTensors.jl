@@ -5,20 +5,7 @@
 # Contributor: Gauthameshwar S.
 #
 # Reproduces the thermal spin-boson example of:
-# M. Cygorek and E. M. Gauger, J. Chem. Phys. 161, 074111 (2024), Fig. 3(c,f),
-# and compares the published bath temperature with a hotter Gibbs state on the
-# same oscillator grid.
-#
-# Published parameters reproduced here:
-#   dt = 0.05 ps
-#   t_final = 5 ps
-#   ACE threshold epsilon = 1e-5
-#   Omega = 3 ps^-1
-#   N_bath = 60
-#   local boson Hilbert dimension M = 5
-#   omega in [0, 30] ps^-1
-#   k_B T / hbar: thermal_frequency and hot_thermal_frequency (ps^-1)
-#   J(omega) = 0.2 omega exp[-omega/(3 ps^-1)]
+# M. Cygorek and E. M. Gauger, J. Chem. Phys. 161, 074111 (2024), Fig. 3(c,f).
 #
 # Run with:
 #   julia --project=. scripts/thermal_spinboson_ace.jl

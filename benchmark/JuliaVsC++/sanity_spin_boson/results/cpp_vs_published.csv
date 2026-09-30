@@ -1,0 +1,2 @@
+run_id,model,elapsed_sec,maxdim,published_s,published_display,published_over_local,timing_scope,pinned_cpu,logfile
+sb_harmonic_M5,spinboson,5152.06,22,1217,20 min 17 s,0.236216,construction_only,0,/home/gautham/ProcessTensors.jl/benchmark/JuliaVsC++/sanity_spin_boson/results/sb_harmonic_M5.log

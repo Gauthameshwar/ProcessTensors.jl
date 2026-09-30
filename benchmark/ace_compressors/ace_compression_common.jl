@@ -4,37 +4,34 @@
 # File: benchmark/ace_compressors/ace_compression_common.jl
 # Contributor: Gauthameshwar S.
 #
-# Shared helpers for ACE zip-up vs canonzip compression benchmarks. Writes CSV
-# output under benchmark/ace_compressors/results/. Runtime and memory come from
+# Shared helpers for ACE compression-schedule benchmarks. Writes CSV output
+# under benchmark/ace_compressors/results/. Runtime and memory come from
 # BenchmarkTools after warmup, not a single compiling @elapsed.
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
-const _BENCH_ROOT = dirname(@__DIR__)
-const _BENCH_ENV = joinpath(_BENCH_ROOT, ".bench_env")
-const _ORIG_PROJECT = Base.active_project()
-mkpath(_BENCH_ENV)
-Pkg.activate(_BENCH_ENV)
-if !isfile(joinpath(_BENCH_ENV, "Manifest.toml"))
-    Pkg.add("BenchmarkTools")
-else
-    Pkg.instantiate()
-end
 using BenchmarkTools
-Pkg.activate(_ORIG_PROJECT)
 
 using LinearAlgebra
 using Printf
+using Random
 using Statistics
 using ProcessTensors
 using ITensors
 using ITensors.Ops: Trotter
 using Logging
 
-const STRATEGIES = (:zipup, :canonzip)
+const STRATEGIES = (:zipup_cpp, :canonzip)
 const RESULTS_DIR = joinpath(@__DIR__, "results")
+const ORIENTATION_SEED = 20260905
+const ORIENTATIONS_PATH = joinpath(RESULTS_DIR, "bath_orientations.csv")
 const BENCH_SAMPLES = parse(Int, get(ENV, "ACE_BENCH_SAMPLES", "5"))
 const BENCH_SECONDS = parse(Float64, get(ENV, "ACE_BENCH_SECONDS", "1800"))
+
+function rotated_strategies(case_index::Integer)
+    shift = mod(case_index - 1, length(STRATEGIES))
+    return circshift(STRATEGIES, -shift)
+end
 
 function results_path(name::AbstractString)
     mkpath(RESULTS_DIR)
@@ -73,7 +70,11 @@ function trajectory_matrices(pt, rho0)
     return [one_site_density_matrix(ρ) for ρ in trajectory.states_hilbert]
 end
 
+"""Maximum Frobenius distance between two evolved trajectories."""
 function max_traj_error(traj_a, traj_b)
+    length(traj_a) == length(traj_b) || throw(
+        ArgumentError("Trajectories have different lengths: $(length(traj_a)) vs $(length(traj_b))."),
+    )
     return maximum(norm(a - b) for (a, b) in zip(traj_a, traj_b))
 end
 
@@ -166,15 +167,6 @@ function spin_mode_on_axis(h, g, axis::AbstractString, init::AbstractString)
     end
 end
 
-function two_mode_noncommuting_bath()
-    return with_logger(NullLogger()) do
-        spin_bath([
-            spin_mode_on_axis(0.3, 0.04, "Sz", "Up"),
-            spin_mode_on_axis(0.35, 0.05, "Sx", "Up"),
-        ])
-    end
-end
-
 function heterogeneous_eight_spin_bath()
     specs = (
         (0.40, 0.12, "Sz", "Up"),
@@ -192,20 +184,60 @@ function heterogeneous_eight_spin_bath()
     end
 end
 
-function polarized_spin_density(physical_site, liouville_site)
-    return to_liouville(
-        to_dm(MPS([physical_site], ["Up"]));
-        sites=[liouville_site],
-    )
+"""Draw `n_bath` pure-spin orientations uniformly on the Bloch sphere."""
+function sample_bath_orientations(n_bath::Int, seed::Integer=ORIENTATION_SEED)
+    n_bath >= 1 || throw(ArgumentError("n_bath must be positive; got $n_bath."))
+    rng = Xoshiro(seed)
+    return map(1:n_bath) do k
+        u = rand(rng)
+        v = rand(rng)
+        nz = 1 - 2u
+        θ = acos(clamp(nz, -1, 1))
+        ϕ = 2π * v
+        sinθ = sin(θ)
+        (; k, theta=θ, phi=ϕ, nx=sinθ * cos(ϕ), ny=sinθ * sin(ϕ), nz)
+    end
 end
 
-function polarized_central_spin_bath(N_bath::Int; J::Real=1.0)
-    Jk = J / N_bath
-    bath_sites = siteinds("S=1/2", N_bath)
+function write_orientations(path::AbstractString, orientations)
+    mkpath(dirname(path))
+    open(path, "w") do io
+        println(io, "k,theta,phi,nx,ny,nz")
+        for orientation in orientations
+            @printf(
+                io,
+                "%d,%.17g,%.17g,%.17g,%.17g,%.17g\n",
+                orientation.k,
+                orientation.theta,
+                orientation.phi,
+                orientation.nx,
+                orientation.ny,
+                orientation.nz,
+            )
+        end
+    end
+    println("Wrote $path")
+    return path
+end
+
+function bloch_spin_density(physical_site, liouville_site, orientation)
+    θ = orientation.theta
+    ϕ = orientation.phi
+    amplitudes = ComplexF64[cos(θ / 2), cis(ϕ) * sin(θ / 2)]
+    ket = MPS(ITensor(amplitudes, physical_site), [physical_site])
+    return to_liouville(to_dm(ket); sites=[liouville_site])
+end
+
+"""Cygorek b=0 unpolarised central-spin bath for one archived realization."""
+function unpolarized_central_spin_bath(orientations; J::Real=1.0)
+    n_bath = length(orientations)
+    n_bath >= 1 || throw(ArgumentError("Need at least one bath orientation."))
+    bath_sites = siteinds("S=1/2", n_bath)
     bath_liouville_sites = liouv_sites(bath_sites)
+    Jk = J / n_bath
     modes = SpinMode[]
     with_logger(NullLogger()) do
-        for k in 1:N_bath
+        for k in 1:n_bath
             coupling = OpSum()
             coupling += Jk, "Sx", 1, "Sx", 2
             coupling += Jk, "Sy", 1, "Sy", 2
@@ -215,7 +247,11 @@ function polarized_central_spin_bath(N_bath::Int; J::Real=1.0)
                 spin_mode(
                     [bath_liouville_sites[k]],
                     OpSum(),
-                    polarized_spin_density(bath_sites[k], bath_liouville_sites[k]);
+                    bloch_spin_density(
+                        bath_sites[k],
+                        bath_liouville_sites[k],
+                        orientations[k],
+                    );
                     coupling=coupling,
                 ),
             )

@@ -16,11 +16,18 @@ get!(ENV, "CI", "true")
 using ProcessTensors
 using Test
 using Aqua
+using Logging
 
 # Fast vs full test runs: set `JULIA_PROCESSTENSORS_RUN_SLOW=false` to skip slow ED / QO suites.
 const JULIA_PROCESSTENSORS_RUN_SLOW = get(ENV, "JULIA_PROCESSTENSORS_RUN_SLOW", "true") == "true"
 
+# Progress tests assert `@info` / `@warn` content, so they keep the real logger.
 include(joinpath(@__DIR__, "terminal", "test_progress.jl"))
+
+# Silence package Info/Warning chatter for the rest of the suite. Use
+# `@test_logs` (not `@test_warn`) to assert warnings: Julia 1.12's
+# `@test_warn` inspects stderr, which NullLogger does not write.
+with_logger(NullLogger()) do
 
 @testset "Aqua.jl: Code quality checks" begin
     Aqua.test_all(ProcessTensors; piracies=false)
@@ -87,3 +94,5 @@ include(joinpath(@__DIR__, "process_tensor", "test_multitime_correlation.jl"))
 # Environments test sets
 include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))
 include(joinpath(@__DIR__, "environments", "test_environments.jl"))
+
+end

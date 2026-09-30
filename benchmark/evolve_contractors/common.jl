@@ -8,20 +8,9 @@
 # benchmark/evolve_contractors/results/. Runtime and memory come from
 # BenchmarkTools after warmup, not a single compiling @elapsed.
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
-const _BENCH_ROOT = dirname(@__DIR__)
-const _BENCH_ENV = joinpath(_BENCH_ROOT, ".bench_env")
-const _ORIG_PROJECT = Base.active_project()
-mkpath(_BENCH_ENV)
-Pkg.activate(_BENCH_ENV)
-if !isfile(joinpath(_BENCH_ENV, "Manifest.toml"))
-    Pkg.add("BenchmarkTools")
-else
-    Pkg.instantiate()
-end
 using BenchmarkTools
-Pkg.activate(_ORIG_PROJECT)
 
 using LinearAlgebra
 using Printf

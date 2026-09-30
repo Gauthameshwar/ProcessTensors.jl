@@ -1,0 +1,26 @@
+# Table S.3.1 independent-boson / harmonic spin-boson example.
+# Archived keys: N=101, M=5, C=0.1, kBT=0.5, dt=0.1, te=10, threshold=1e-7.
+# Construction-only: dont_propagate and symmetric Trotter as in the production sweep.
+
+dt                     0.1
+te                    10
+threshold              1e-7
+use_symmetric_Trotter  true
+dont_propagate         true
+print_timesteps        false
+
+initial                {|0><0|_2}
+add_Hamiltonian        {hbar/2.* 1. *(|0><1|_2+|1><0|_2)}
+
+Boson_N_modes          101
+Boson_M                5
+Boson_J_type           lorentzian
+Boson_J_gamma          0.1
+Boson_J_scale          0.1
+Boson_J_shift          1.0
+Boson_omega_min        0
+Boson_omega_max        7.5
+Boson_sample_range_ends false
+temperature_unitless   0.5
+
+outfile                /dev/null

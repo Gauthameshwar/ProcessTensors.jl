@@ -16,6 +16,7 @@ using ITensors
 using ITensors.Ops: Exact, Trotter
 using Test
 using LinearAlgebra
+using Random
 
 if !isdefined(Main, :liouville_state_to_dense)
     include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
@@ -36,6 +37,16 @@ end
 
 _ace_traj_err(traj_a, traj_b) = maximum(norm(a - b) for (a, b) in zip(traj_a, traj_b))
 
+"""Hilbert split ED: each slab is `U_bg` then free `U_sys`, matching `sys_alg=Trotter{1}()`."""
+function _split_ed_traj(ρ0, U_bg, U_sys, nsteps, denv)
+    ρ = copy(ρ0)
+    return map(1:nsteps) do _
+        ρ = U_bg * ρ * U_bg'
+        ρ = _apply_system_unitary_on_joint(ρ, U_sys, denv)
+        _partial_trace_env(ρ, 2, denv)
+    end
+end
+
 """Fresh spin mode on its own Liouville site, coupled to system site 2 by `cpl_op`."""
 function _ace_spin_mode(h_coeff::Real, cpl_coeff::Real; cpl_op::AbstractString="Sz")
     env_phys = siteinds("S=1/2", 1)
@@ -49,13 +60,14 @@ end
 @testset "ACE builder: constructor and build guards" begin
     @test ACE().cutoff == 1e-10
     @test ACE().maxdim == typemax(Int)
-    @test ACE().compression === :canonzip
+    @test ACE().compression === :zipup_cpp
     @test ACE(; cutoff=1e-8, maxdim=32).cutoff == 1e-8
     @test ACE(; cutoff=1e-8, maxdim=32).maxdim == 32
-    @test ACE(; compression=:zipup).compression === :zipup
+    @test ACE(; compression=:zipup_cpp).compression === :zipup_cpp
     @test ACE(; compression=:canonzip).compression === :canonzip
     @test_throws ArgumentError ACE(; cutoff=-1e-3)
     @test_throws ArgumentError ACE(; maxdim=0)
+    @test_throws ArgumentError ACE(; compression=:zipup)
     @test_throws ArgumentError ACE(; compression=:zipper)
     @test_throws ArgumentError ACE(; compression=:dictionary)
 
@@ -166,55 +178,49 @@ end
     end
 end
 
-@testset "ACE vs joint ED: two non-commuting spin modes" begin
+@testset "Random Hermitian bath: Dense/ACE match their ED schedules" begin
+    rng = Random.Xoshiro(20260915)
     sys_phys = siteinds("S=1/2", 1)
-    H_sys = OpSum() + (0.7, "Sx", 1)
+    H_sys = _spin_opsum(_random_hermitian(rng, 2))
     system = spin_system(sys_phys, H_sys)
 
-    h1, h2 = 0.3, 0.35
-    g1, g2 = 0.04, 0.05
-    m1 = _ace_spin_mode(h1, g1; cpl_op="Sz")
-    m2 = _ace_spin_mode(h2, g2; cpl_op="Sx")
-    bath = spin_bath([m1, m2])
-    rho0_h = to_dm(MPS(sys_phys, ["Up"]))
-    dt = 0.1
-    nsteps = 6
-
-    # Joint ED reference on [system, mode1, mode2].
     env_phys = siteinds("S=1/2", 2)
-    joint_sites = _joint_phys_sites(sys_phys, env_phys)
-    H_bg = OpSum()
-    H_bg += h1, "Sx", 2
-    H_bg += g1, "Sz", 2, "Sz", 1
-    H_bg += h2, "Sx", 3
-    H_bg += g2, "Sx", 3, "Sx", 1
-    H_full = _build_joint_full_opsum(H_sys, H_bg)
-    rho_joint = _joint_initial_density(sys_phys, env_phys)
-    denv = 4
-
-    pt_dense = build_process_tensor(
-        system, system.sites[1]; method=Dense(), environment=bath, dt=dt, nsteps=nsteps,
-    )
-    traj_dense = _ace_dense_traj(pt_dense, rho0_h)
-
-    for combine_alg in (Trotter{1}(), Trotter{2}())
-        pt_ace = build_process_tensor(
-            system, system.sites[1];
-            method=ACE(cutoff=0.0), environment=bath, dt=dt, nsteps=nsteps,
-            combine_alg=combine_alg,
+    env_liouv = liouv_sites(env_phys)
+    modes = SpinMode[]
+    Hm = OpSum[]
+    for m in 1:2
+        ρE = to_liouville(to_dm(MPS([env_phys[m]], ["Up"])); sites=[env_liouv[m]])
+        mode, H = _spin_mode_from_joint_hermitian(
+            _random_hermitian(rng, 4), [env_liouv[m]], ρE; env_site=m + 1,
         )
-        traj_ace = _ace_dense_traj(pt_ace, rho0_h)
-
-        # ACE differs from Dense only by the sequential mode-splitting Trotter
-        # error, which is small for these weak couplings.
-        @test _ace_traj_err(traj_ace, traj_dense) < 1e-3
-
-        joint_errs = Float64[]
-        for k in 0:(nsteps - 1)
-            rho_ed = _reduced_system_joint_full(rho_joint, k * dt, H_full, joint_sites, 2, denv)
-            push!(joint_errs, norm(traj_ace[k + 1] - rho_ed))
-        end
-        @test maximum(joint_errs) < 0.05
+        push!(modes, mode)
+        push!(Hm, H)
+    end
+    bath = spin_bath(modes)
+    dt, nsteps, denv = 0.1, 4, 4
+    joint = _joint_phys_sites(sys_phys, env_phys)
+    fused = _exact_unitary_exp(Hm[1] + Hm[2], joint, dt)
+    lie = _exact_unitary_exp(Hm[2], joint, dt) * _exact_unitary_exp(Hm[1], joint, dt)
+    strang = _exact_unitary_exp(Hm[2], joint, dt / 2) *
+             _exact_unitary_exp(Hm[1], joint, dt) *
+             _exact_unitary_exp(Hm[2], joint, dt / 2)
+    U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
+    ρ0 = to_dm(MPS(sys_phys, ["Up"]))
+    ρJ = _joint_initial_density(sys_phys, env_phys)
+    # Dense: exact fused H₁+H₂. ACE: Trotter join of the two modes.
+    schedule = (
+        (Dense(), Trotter{1}(), fused),
+        (ACE(cutoff=0.0, compression=:zipup_cpp), Trotter{1}(), lie),
+        (ACE(cutoff=0.0, compression=:zipup_cpp), Trotter{2}(), strang),
+        (ACE(cutoff=0.0, compression=:canonzip), Trotter{1}(), lie),
+        (ACE(cutoff=0.0, compression=:canonzip), Trotter{2}(), strang),
+    )
+    for (method, combine_alg, U_bg) in schedule
+        pt = build_process_tensor(
+            system, system.sites[1]; method, environment=bath, dt, nsteps, combine_alg,
+        )
+        ed = _split_ed_traj(ρJ, U_bg, U_sys, nsteps, denv)
+        @test _ace_traj_err(_ace_dense_traj(pt, ρ0), ed) < 1e-10
     end
 end
 
@@ -235,7 +241,7 @@ end
     traj_dense = _ace_dense_traj(pt_dense, rho0_h)
 
     trajs = Dict{Symbol,Any}()
-    for compression in (:zipup, :canonzip)
+    for compression in (:zipup_cpp, :canonzip)
         pt = build_process_tensor(
             system, system.sites[1];
             method=ACE(cutoff=0.0, compression=compression),
@@ -245,7 +251,7 @@ end
         trajs[compression] = _ace_dense_traj(pt, rho0_h)
         @test _ace_traj_err(trajs[compression], traj_dense) < 1e-3
     end
-    @test _ace_traj_err(trajs[:zipup], trajs[:canonzip]) < 1e-10
+    @test _ace_traj_err(trajs[:zipup_cpp], trajs[:canonzip]) < 1e-10
 end
 
 @testset "ACE: uncoupled modes reproduce the free-system trajectory" begin
@@ -262,7 +268,7 @@ end
         rho_env_l = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
         push!(modes, spin_mode(env_liouv, OpSum() + (0.25 + 0.1 * m, "Sx", 1), rho_env_l))
     end
-    bath = @test_warn r"SpinBath: no mode-system coupling" spin_bath(modes)
+    bath = @test_logs (:warn, r"SpinBath: no mode-system coupling") spin_bath(modes)
 
     pt_free = build_process_tensor(system, system.sites[1]; dt=dt, nsteps=nsteps)
     pt_ace = build_process_tensor(
@@ -353,58 +359,6 @@ end
 end
 
 if JULIA_PROCESSTENSORS_RUN_SLOW
-    @testset "ACE vs joint ED: nmodes=3 spin star bath [slow]" begin
-        nmodes = 3
-        sys_phys = siteinds("S=1/2", 1)
-        env_phys = siteinds("S=1/2", nmodes)
-        env_liouv = liouv_sites(env_phys)
-
-        H_sys = OpSum() + (0.7, "Sx", 1)
-        system = spin_system(sys_phys, H_sys)
-
-        mode_h_coeffs = [0.25 + 0.1 * m for m in 1:nmodes]
-        mode_cpl_coeffs = [0.03 + 0.01 * m for m in 1:nmodes]
-
-        modes = SpinMode[]
-        for m in 1:nmodes
-            rho_env_l = to_liouville(to_dm(MPS([env_phys[m]], ["Up"])); sites=[env_liouv[m]])
-            H_mode = OpSum() + (mode_h_coeffs[m], "Sx", 1)
-            cpl_mode = OpSum() + (mode_cpl_coeffs[m], "Sz", 1, "Sz", 2)
-            push!(modes, spin_mode([env_liouv[m]], H_mode, rho_env_l; coupling=cpl_mode))
-        end
-        bath = spin_bath(modes)
-
-        dt = 0.1
-        nsteps = 6
-        rho0_h = to_dm(MPS(sys_phys, ["Up"]))
-
-        denv = 2^nmodes
-        joint_sites = _joint_phys_sites(sys_phys, env_phys)
-        H_bg = _build_multimode_bath_opsum(nmodes, mode_h_coeffs, mode_cpl_coeffs)
-        H_full = _build_joint_full_opsum(H_sys, H_bg)
-        rho_joint = _joint_initial_density(sys_phys, env_phys)
-
-        for combine_alg in (Trotter{1}(), Trotter{2}())
-            pt_ace = build_process_tensor(
-                system, system.sites[1];
-                method=ACE(cutoff=1e-12), environment=bath, dt=dt, nsteps=nsteps,
-                combine_alg=combine_alg,
-            )
-            validate_process_tensor_structure(pt_ace)
-            traj_ace = _ace_dense_traj(pt_ace, rho0_h)
-
-            joint_errs = Float64[]
-            trace_errs = Float64[]
-            for k in 0:(nsteps - 1)
-                rho_ed = _reduced_system_joint_full(rho_joint, k * dt, H_full, joint_sites, 2, denv)
-                push!(joint_errs, norm(traj_ace[k + 1] - rho_ed))
-                push!(trace_errs, abs(real(tr(traj_ace[k + 1])) - 1.0))
-            end
-            @test maximum(joint_errs) < 0.05
-            @test maximum(trace_errs) < 1e-8
-        end
-    end
-
     @testset "ACE ≡ Dense: tiny bosonic baths [slow]" begin
         sys_phys = siteinds("S=1/2", 1)
         system = spin_system(sys_phys, OpSum() + (0.5, "Sz", 1) + (0.2, "Sx", 1))

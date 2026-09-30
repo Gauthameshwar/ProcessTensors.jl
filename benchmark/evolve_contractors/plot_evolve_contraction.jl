@@ -8,30 +8,14 @@
 # writes a multi-panel comparison of `:evaluate` vs `:closures`.
 #
 # Run with:
-#   julia --project=. benchmark/evolve_contractors/plot_evolve_contraction.jl
+#   julia --project=benchmark benchmark/evolve_contractors/plot_evolve_contraction.jl
 
-import Pkg
+include(joinpath(@__DIR__, "..", "env.jl"))
 
 const PACK_DIR = @__DIR__
-const PLOT_ENV = joinpath(dirname(PACK_DIR), ".plot_env")
 const RESULTS_DIR = joinpath(PACK_DIR, "results")
 const CSV_NAME = "evolve_contraction.csv"
 const FIG_NAME = "evolve_contraction.png"
-
-function activate_plot_env!()
-    mkpath(PLOT_ENV)
-    Pkg.activate(PLOT_ENV)
-    manifest = joinpath(PLOT_ENV, "Manifest.toml")
-    if !isfile(manifest)
-        Pkg.add(Pkg.PackageSpec(name="CairoMakie"))
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-    end
-    return nothing
-end
-
-activate_plot_env!()
 
 using CairoMakie
 using DelimitedFiles

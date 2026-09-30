@@ -196,8 +196,9 @@ function _build_bathmode_cores_no_sys(
             left = bath_links[k + 1]
             right = bath_links[k + 2]
 
-            core_k = replaceind(U_ref, prime(env_liouv), right)
-            core_k = replaceind(core_k, env_liouv, left)
+            # Chronological temporal MPO: bath input on the left, bath output on the right.
+            core_k = replaceind(U_ref, prime(env_liouv), left)
+            core_k = replaceind(core_k, env_liouv, right)
             core_k = replaceind(core_k, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
             push!(cores, core_k)
@@ -333,10 +334,12 @@ function _build_multimode_pt_cores(
             left = bath_links[k + 1]
             right = bath_links[k + 2]
 
+            # Chronological temporal MPO: bath input on the left, bath output on the right
+            # (same convention as `_build_bathmode_cores_no_sys`).
             core_k = replaceind(U_ref, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
-            core_k = replaceind(core_k, fused_left, left)
-            core_k = replaceind(core_k, fused_right, right)
+            core_k = replaceind(core_k, fused_right, left)
+            core_k = replaceind(core_k, fused_left, right)
             cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
             push!(cores, cores_k)
             step = k + 1
@@ -349,17 +352,15 @@ function _build_multimode_pt_cores(
     for mode in modes
         site = only(mode.sites)
         prep = Instruments.instrument_itensor(state_preparation(mode.rho0), Index[prime(site)], 0)
-        noprime!(prep)
-        hasind(prep, site) || throw(ArgumentError("_build_multimode_pt_cores: prepared mode state is missing mode site index."))
         bath_state *= prep
     end
-    initial_bath_state = replaceind(bath_state * comb_unprimed, combinedind(comb_unprimed), bath_links[1])
+    initial_bath_state = replaceind(bath_state * comb_primed, combinedind(comb_primed), bath_links[1])
 
     bath_trace = ITensor(1.0)
-    for site in bath_sites_prime
+    for site in bath_sites
         bath_trace *= Instruments._vectorized_identity_itensor(Index[site])
     end
-    trace_out = replaceind(bath_trace * comb_primed, combinedind(comb_primed), bath_links[end])
+    trace_out = replaceind(bath_trace * comb_unprimed, combinedind(comb_unprimed), bath_links[end])
 
     cores[1] *= initial_bath_state
     cores[end] *= trace_out

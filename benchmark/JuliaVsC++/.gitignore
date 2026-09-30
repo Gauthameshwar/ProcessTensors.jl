@@ -1,0 +1,16 @@
+results/**/*.pt
+results/**/*.out
+results/**/*.log
+results/**/*.time
+results/**/*_orientations.txt
+results/julia/.spinboson_cases/
+results/cpp/.central_spin_cases/
+results/cpp/.spinboson_cases/
+sanity_central_spin/results/**/*.pt
+sanity_central_spin/results/**/*.out
+sanity_central_spin/results/**/*.log
+sanity_central_spin/results/**/*.time
+sanity_spin_boson/results/**/*.pt
+sanity_spin_boson/results/**/*.out
+sanity_spin_boson/results/**/*.log
+sanity_spin_boson/results/**/*.time

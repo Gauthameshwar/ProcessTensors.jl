@@ -83,6 +83,36 @@ end
     @test all(>=(4), ranks)
 end
 
+@testset "ACE canonzip truncates a temporal bond" begin
+    system_phys = siteinds("S=1/2", 1)
+    system = spin_system(system_phys, OpSum())
+    bath = spin_bath([_polarized_central_spin_mode(0.5) for _ in 1:2])
+    initial_state = to_dm(MPS(system_phys, ["+"]))
+    build_kwargs = (;
+        environment=bath,
+        dt=0.1,
+        nsteps=4,
+        combine_alg=Trotter{2}(),
+        progress=false,
+    )
+    full = build_process_tensor(
+        system;
+        method=ACE(cutoff=0.0, compression=:canonzip),
+        build_kwargs...,
+    )
+    truncated = build_process_tensor(
+        system;
+        method=ACE(cutoff=0.0, maxdim=2, compression=:canonzip),
+        build_kwargs...,
+    )
+
+    full_rank = maxlinkdim(full.core)
+    truncated_rank = maxlinkdim(truncated.core)
+    @test full_rank > 2
+    @test truncated_rank <= 2
+    @test truncated_rank < full_rank
+end
+
 @testset "ACE Hilbert unitary channel matches Liouville exp" begin
     phys = siteinds("S=1/2", 2)
     liouv = liouv_sites(phys)

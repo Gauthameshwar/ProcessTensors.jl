@@ -36,3 +36,9 @@ scripts/.cache/
 
 # AI Rules and prompts
 .cursor
+
+# Throwaway smoke CSVs from local environment checks
+benchmark/**/*smoke*.csv
+
+# Benchmarking with OG ACE (not part of our package)
+ACE/*

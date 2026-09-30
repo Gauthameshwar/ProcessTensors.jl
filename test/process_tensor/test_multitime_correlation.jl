@@ -25,7 +25,7 @@ end
 
 function _assert_corr_matches(val_pt, val_ed)
     @test val_pt isa ComplexF64
-    @test isapprox(val_pt, val_ed; atol=_PT_SPLIT_CORR_ATOL, rtol=_PT_SPLIT_CORR_RTOL)
+    @test isapprox(val_pt, val_ed; atol=1e-9, rtol=1e-9)
 end
 
 @testset "process tensor: two_time_correlation_seq vs joint ED" begin

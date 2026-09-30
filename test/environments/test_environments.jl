@@ -159,8 +159,8 @@ end
     @test_throws ArgumentError BosonicMode(b_sites, OpSum(), 2, rho_b)
     @test_throws ArgumentError SpinMode(s_sites, OpSum(), rho_b)
 
-    @test_warn r"BosonicMode:H is empty" BosonicMode(b_sites, OpSum(), n_max_b, rho_b)
-    @test_warn r"SpinMode:H is empty" SpinMode(s_sites, OpSum(), rho_s)
+    @test_logs (:warn, r"BosonicMode:H is empty") BosonicMode(b_sites, OpSum(), n_max_b, rho_b)
+    @test_logs (:warn, r"SpinMode:H is empty") SpinMode(s_sites, OpSum(), rho_s)
 end
 
 @testset "environments.jl: bath constructors and user-facing constructors" begin
@@ -224,8 +224,8 @@ end
     @test_throws ArgumentError bosonic_bath(; modes=Any[sm], spectral_density=sd, coupling=OpSum())
     @test_throws ArgumentError spin_bath(; modes=Any[bm], spectral_density=sd, coupling=OpSum())
 
-    @test_warn r"no mode-system coupling" bosonic_bath([bm]; spectral_density=sd, coupling=OpSum())
-    @test_warn r"no mode-system coupling" spin_bath([sm]; spectral_density=sd, coupling=OpSum())
+    @test_logs (:warn, r"no mode-system coupling") bosonic_bath([bm]; spectral_density=sd, coupling=OpSum())
+    @test_logs (:warn, r"no mode-system coupling") spin_bath([sm]; spectral_density=sd, coupling=OpSum())
 end
 
 @testset "environments.jl: pretty printing" begin

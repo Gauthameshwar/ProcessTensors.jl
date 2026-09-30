@@ -191,8 +191,8 @@ end
     spin_sites = siteinds("S=1/2", 1)
     boson_sites = siteinds("Boson", 1; dim=3)
 
-    @test_warn r"SpinSystem: H is empty" spin_system(spin_sites, OpSum())
-    @test_warn r"BosonSystem: H is empty" boson_system(boson_sites, OpSum())
+    @test_logs (:warn, r"SpinSystem: H is empty") spin_system(spin_sites, OpSum())
+    @test_logs (:warn, r"BosonSystem: H is empty") boson_system(boson_sites, OpSum())
 end
 
 @testset "systems.jl: functional constructor defaults and explicit jump_ops" begin
