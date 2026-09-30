@@ -212,4 +212,5 @@ makedocs(;
 deploydocs(;
     repo="github.com/Gauthameshwar/ProcessTensors.jl",
     devbranch="main",
+    push_preview=true,
 )
