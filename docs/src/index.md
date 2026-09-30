@@ -24,19 +24,14 @@ Alongside the code, the documentation is written to teach the basics
 of Liouville-space and process-tensor formalism, paired with runnable 
 examples that mirror the underlying equations closely.
 
-Today, `ProcessTensors.jl` covers the essentials: single-mode and small
-multimode process tensors, spin and bosonic baths, reduced dynamics, and
-multi-time correlations. The next concrete milestone is extending this to
-large, realistic non-Markovian environments via the ACE algorithm — a
-near-term, committed goal rather than a distant aspiration.
+Today, `ProcessTensors.jl` constructs process tensors with two methods.
+`Dense()` builds an exact tensor for a small environment. `ACE()` incorporates
+independent bath modes one at a time and compresses the temporal memory they
+leave behind. The same tensor is then reused for reduced dynamics and
+multi-time correlations, with spin or bosonic baths.
 
-Beyond that, the longer-term vision is for this package to grow from a
-clean, accessible implementation into a genuine research platform: a place
-where process-tensor and open-system tensor-network algorithms —
-TEMPO, PT-TEMPO, TEDOPA, and other influence-functional-based methods — can
-be implemented side by side, benchmarked against each other, taught to
-newcomers, and reused by researchers who'd rather build on solid
-infrastructure than rebuild it from scratch.
+TEMPO, PT-TEMPO, and chain-mapping methods such as TEDOPA remain on the
+roadmap.
 
 ---
 
@@ -131,8 +126,8 @@ obs = OpSum()
 obs += 1.0, "Sz", 1
 
 seq = default_schedule(pt)
-add!(seq, 0, state_preparation(ρsys0))
-add!(seq, nsteps, observable_measurement(obs))
+seq += state_preparation(ρsys0), 0
+seq += observable_measurement(obs), nsteps
 
 expectation = evaluate_process(pt, seq)
 ```

@@ -590,9 +590,11 @@ Here $H_L$ means “left multiplication by $H$” and $H_R$ means “right multi
 
 !!! info "In the package"
     ```julia
-    L_mpo = liouvillian_mpo(H, sites_L)
-    ρL = tdvp(ρL, L_mpo, -1im * dt; alg=TDVP(), maxdim=32)
+    L = liouvillian_mpo(H, sites_L)
+    ρL = tdvp(L, T, ρL; time_step=dt, maxdim=32)
     ```
+
+    The factor $-i$ is already inside `L`, so the time argument is `T`, not `-im * T`. TDVP takes this Liouville MPO. TEBD, below, takes the Hamiltonian `OpSum` and the jump operators instead.
 
     See [Liouville-Space Basics](@ref) for the commutator generator and [Hilbert versus Liouville evolution](@ref hilbert-liouville-tdvp) in [Unitary Dynamics](@ref).
 
@@ -668,9 +670,8 @@ In package language, these correspond to the `_Jump`, `_LdagL_L`, and `_LdagL_R`
 !!! info "In the package"
     ```julia
     using ITensors.Ops: Trotter
-    jumps = [(γ, "Sm", 1)]                  # jump rate, operator, site
-    L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jumps)
-    ρL = tebd(ρL, L_mpo, dt, T; alg=Trotter{2}(), maxdim=32)
+    jumps = [(γ, "S-", 1)]                  # jump rate, operator, site
+    ρL = tebd(ρL, H, dt, T; jump_ops=jumps, alg=Trotter{2}(), maxdim=32)
     ```
 
     See [Dissipative Dynamics](@ref) for a full Lindblad walkthrough and [dissipative Lindblad model](@ref dissipative-lindblad-mpo) for the `liouvillian_mpo` construction.

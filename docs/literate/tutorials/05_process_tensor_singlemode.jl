@@ -133,7 +133,7 @@ bath_sites_L = liouv_sites(bath_sites)
 ωB = 1.1
 
 H_B = OpSum()
-H_B += (ωB / 2), "Sz", 1
+H_B += ωB, "Sz", 1
 
 ψB0 = MPS(bath_sites, ["Dn"])
 ρB0 = to_dm(ψB0)
@@ -296,11 +296,10 @@ println(coupling_times(pt, 1))
 @assert plev(only(input_sites(pt, 0))) == 1
 @assert plev(only(output_sites(pt, 0))) == 0
 
-# The `coupling_times` returns an output index of `tstep=0` and an input index of `tstep=1`.
-# This is because while propagating the initial state in a process tensor, we contract the 
-# input leg of `tstep=0` with the output leg of `tstep=1` of the previous time step. If there is 
-# no intervention at this timestep, and we let the system do its unitary evolution, we embed an 
-# `IdentityOperation` at this timestep.
+# Intervention slot `step` connects the output leg at `step - 1` to the input leg at `step`.
+# For `step = 1`, `coupling_times(pt, 1)` therefore returns the output at `tstep=0` and the
+# input at `tstep=1`. If there is no intervention at that slot, the default schedule embeds an
+# identity operation and the system evolves under its own propagator.
 # 
 # !!! warning "Reuse Liouville indices"
 #     Process-tensor contractions depend on exact ITensor index identity. Use
