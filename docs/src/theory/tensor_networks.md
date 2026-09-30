@@ -1,84 +1,94 @@
 # Tensor Networks in Physics
 
-Tensor networks are a way of representing very large quantum states and operators by breaking them into smaller tensors connected by shared indices. Instead of storing one exponentially large array, we store a structured network of local tensors. This is especially useful in one-dimensional many-body physics, where physically relevant states often contain much less information than the full Hilbert space allows.
+A tensor network represents a large array as a collection of smaller tensors connected by shared indices. Its usefulness comes from the structure of the object being represented: when that structure admits modest internal dimensions, we can store and manipulate the network without constructing the full array.
 
-This page gives only the minimum tensor-network background needed to understand the rest of the `ProcessTensors.jl` documentation. It is not meant to replace a full course or review article on tensor networks. For deeper study, use the references and online resources at the end of this page.
+In `ProcessTensors.jl`, tensor networks provide the language for representing quantum states, operators, and processes. For a many-body state, the network often runs along a chain of physical sites. For a process tensor, it runs through time: the network retains the information needed to predict how a system responds to different interventions.
 
-## Why tensor networks appear in many-body physics
+This page introduces the notation needed to read these networks, explains what their bond dimensions control, and connects familiar state and operator representations to process tensors. For hands-on examples, see [ITensor Basics](@ref) and [MPS and MPO Basics](@ref).
 
-A chain of $N$ spin-$1/2$ particles has a Hilbert space of dimension $2^N$. A general state is
+## Tensors, indices, and contractions
+
+A tensor is a multidimensional array whose components are labelled by indices (or legs). A vector has one index, a matrix has two, and a general tensor can have any number. Here, the **order** of a tensor means its number of indices; it should not be confused with the rank of a matrix.
+
+In a tensor diagram, a node represents a tensor and each leg represents an index. The dimension of an index is the number of values it can take. Connecting two legs means summing over their shared index, an operation called a **contraction**. For example,
 
 ```math
-|\psi\rangle =
-\sum_{s_1,\ldots,s_N}
-c_{s_1\cdots s_N}
-|s_1,\ldots,s_N\rangle,
+C_{ik} = \sum_j A_{ij} B_{jk}
 ```
 
-where each $s_j \in \{\uparrow,\downarrow\}$. The coefficient tensor $c_{s_1\cdots s_N}$ has $2^N$ entries. For a local dimension $d$, this becomes $d^N$ entries.
+is both a tensor contraction and ordinary matrix multiplication. The uncontracted indices, here $i$ and $k$, are the **open legs** of the resulting network. A network with no open legs evaluates to a scalar.
 
-Tensor networks ask a practical question:
+Two other useful operations are a tensor product, which introduces no shared index,
 
-> Can this large coefficient tensor be written as a contraction of smaller tensors?
+```math
+(A \otimes B)_{ijkl} = A_{ij} B_{kl},
+```
 
-For many physically relevant one-dimensional states, especially low-entanglement states, the answer is yes. The large tensor $c_{s_1\cdots s_N}$ is not stored directly. Instead, it is decomposed into local tensors connected by internal indices.
+and a trace, which sums over a pair of compatible indices,
 
-!!! note "The main idea"
-    Tensor networks do not remove the exponential size of the full Hilbert space. They give an efficient representation for special but physically important parts of it.
+```math
+\operatorname{Tr}(A) = \sum_i A_{ii}.
+```
+
+The order in which contractions are performed can strongly affect their computational cost, even though the exact result is unchanged.
+
+`ITensors.jl` makes these connections explicit through `Index` objects. Multiplication contracts matching indices rather than relying on their position in an array:
+
+```julia
+using ITensors
+
+i = Index(2, "i")
+j = Index(3, "j")
+k = Index(2, "k")
+
+A = random_itensor(i, j)
+B = random_itensor(j, k)
+C = A * B  # Contracts j; C has open indices i and k.
+```
+
+Two independently created indices do not match merely because they have the same dimension and tags. A prime level also distinguishes an index from its unprimed counterpart. Priming changes index labels; it does not, by itself, transpose or complex-conjugate a tensor. When interpreting a quantum tensor, identify which legs represent inputs, outputs, kets, or bras from the stated convention.
 
 ## Matrix product states
 
-The most common tensor network in this package is the **matrix product state**, or MPS. An MPS writes the coefficient tensor of a many-body state as
+Consider a chain of $N$ sites with local basis states $|s_j\rangle$ and local dimension $d$. A general pure state is
+
+```math
+|\psi\rangle = \sum_{s_1,\ldots,s_N}
+ c_{s_1\cdots s_N}|s_1\cdots s_N\rangle.
+```
+
+Storing its coefficients directly requires $d^N$ complex numbers. A **matrix product state** (MPS) factors these coefficients into a chain of local tensors:
 
 ```math
 c_{s_1\cdots s_N}
 =
 \sum_{\alpha_1,\ldots,\alpha_{N-1}}
-A^{s_1}_{\alpha_1}
-A^{s_2}_{\alpha_1\alpha_2}
-A^{s_3}_{\alpha_2\alpha_3}
-\cdots
-A^{s_N}_{\alpha_{N-1}}.
+ A^{[1]s_1}_{\alpha_0\alpha_1}
+ A^{[2]s_2}_{\alpha_1\alpha_2}
+ \cdots
+ A^{[N]s_N}_{\alpha_{N-1}\alpha_N}.
 ```
 
-Equivalently,
+For open boundaries, $\alpha_0$ and $\alpha_N$ each take a single value. Every local tensor has a physical index $s_j$ and up to two nontrivial internal indices. These internal indices are called **bond indices**, with dimensions $\chi_j$.
+
+If all bond dimensions are bounded by $\chi$, the representation stores at most $O(Nd\chi^2)$ entries. This is useful when $\chi$ remains manageable; an arbitrary state can still require bond dimensions that grow exponentially with system size. In a simulation, that bond dimension is one of the main quantities to monitor. If it grows quickly across a cut, storage and contraction become expensive, and a truncated bond is an approximation to the state.
+
+The connection to entanglement follows from a Schmidt decomposition across a cut between sites $j$ and $j+1$:
 
 ```math
-|\psi\rangle =
-\sum_{s_1,\ldots,s_N}
-\sum_{\alpha_1,\ldots,\alpha_{N-1}}
-A^{s_1}_{\alpha_1}
-A^{s_2}_{\alpha_1\alpha_2}
-\cdots
-A^{s_N}_{\alpha_{N-1}}
-|s_1,\ldots,s_N\rangle.
+|\psi\rangle = \sum_{a=1}^{r_j}
+ \lambda_a |L_a\rangle |R_a\rangle,
+\qquad \sum_a \lambda_a^2 = 1.
 ```
 
-Each site has a physical index $s_j$, and neighbouring sites are connected by internal indices $\alpha_j$. These internal indices are often called **bond indices**, **link indices**, or **virtual indices**.
-
-```text
-physical legs:     s₁     s₂     s₃           sₙ
-                   |      |      |            |
-MPS:              [A] -- [A] -- [A] -- ... -- [A]
-                    α₁     α₂             αₙ₋₁
-```
-
-The maximum size of the internal indices is called the **bond dimension**, often denoted by $\chi$.
-
-A product state has bond dimension $\chi=1$. More entangled states require larger $\chi$. In an exact MPS representation, $\chi$ may still grow exponentially with system size. The useful regime is when the state can be accurately represented with moderate $\chi$.
-
-Across a bipartition of the chain, a pure state can be written in Schmidt form as
+The smallest exact MPS bond dimension at that cut is the Schmidt rank $r_j$. A stored representation may use a larger bond. For a normalized pure state, the bipartite entanglement entropy satisfies
 
 ```math
-|\psi\rangle
-=
-\sum_{\alpha=1}^{r}
-\lambda_\alpha
-|\alpha_L\rangle
-|\alpha_R\rangle.
+S_j = -\sum_a \lambda_a^2 \log(\lambda_a^2)
+\leq \log r_j \leq \log\chi_j.
 ```
 
-The Schmidt rank $r$ tells us how many independent left-right components are needed across that cut. The MPS bond dimension across that cut must be large enough to store these components. This is why bond dimension is closely tied to entanglement.
+This explains why states with limited entanglement are natural candidates for efficient MPS representations.
 
 !!! info "In the package"
     ```julia
@@ -88,262 +98,146 @@ The Schmidt rank $r$ tells us how many independent left-right components are nee
 
     See [ITensor Basics](@ref) for index conventions and [MPS and MPO Basics](@ref) for `siteinds` and MPS construction.
 
-!!! tip "Practical takeaway"
-    In MPS simulations, the bond dimension is one of the main quantities to monitor. If the required bond dimension grows too quickly, the simulation becomes expensive or inaccurate.
+An overlap $\langle\phi|\psi\rangle$ is obtained by contracting the physical legs of the two states and all internal bonds. The virtual bonds connect tensors within each state's own chain; they need not have matching dimensions or index identities between the two states. In an ITensor calculation, index labels must distinguish those separate virtual chains so that only the intended contractions occur.
 
 ## Matrix product operators
 
-A **matrix product operator**, or MPO, is the operator analogue of an MPS. Instead of representing a many-body state, it represents a many-body operator such as a Hamiltonian, a time-evolution operator, a density matrix, or a Liouvillian superoperator.
-
-A many-body operator has matrix elements
+An operator has both an input and an output index at each site:
 
 ```math
-O_{s_1'\cdots s_N', s_1\cdots s_N}.
+\hat O = \sum_{\boldsymbol r,\boldsymbol s}
+ O_{\boldsymbol r,\boldsymbol s}
+ |r_1\cdots r_N\rangle\langle s_1\cdots s_N|.
 ```
 
-For a chain with local dimension $d$, the full operator contains $d^{2N}$ matrix elements. This is already much larger than the $d^N$ coefficients needed for a pure state vector.
-
-An MPO decomposes these operator coefficients into local tensors connected by bond indices:
+A **matrix product operator** (MPO) factors its components as
 
 ```math
-O
+O_{\boldsymbol r,\boldsymbol s}
 =
-\sum_{s_1,\ldots,s_N,s_1',\ldots,s_N'}
 \sum_{\beta_1,\ldots,\beta_{N-1}}
-W^{s_1's_1}_{\beta_1}
-W^{s_2's_2}_{\beta_1\beta_2}
-\cdots
-W^{s_N's_N}_{\beta_{N-1}}
-|s_1'\cdots s_N'\rangle
-\langle s_1\cdots s_N|.
+ W^{[1]r_1s_1}_{\beta_0\beta_1}
+ W^{[2]r_2s_2}_{\beta_1\beta_2}
+ \cdots
+ W^{[N]r_Ns_N}_{\beta_{N-1}\beta_N},
 ```
 
-```text
-output legs:       s₁'    s₂'    s₃'          sₙ'
-                   |      |      |            |
-MPO:              [W] -- [W] -- [W] -- ... -- [W]
-                   |      |      |            |
-input legs:        s₁     s₂     s₃           sₙ
-```
+again with boundary bond dimensions equal to one. Each local tensor has an output leg $r_j$, an input leg $s_j$, and its bond legs. For equal input and output dimensions $d$ and bond dimensions bounded by $\chi$, storage scales as $O(Nd^2\chi^2)$.
 
-In tensor-network language, an MPO has two physical legs per site: one input leg and one output leg.
-
-In `ProcessTensors.jl`, MPOs appear in several places:
-
-* Hamiltonians are represented as MPOs.
-* Density matrices can be represented as operator-like tensor networks in Hilbert space.
-* Liouvillian superoperators are represented as MPOs in Liouville space.
-* Process tensors are stored as tensor networks with physical input/output legs at each timestep, and memory links.
+Hamiltonians, density operators, and other observables can all be represented as MPOs. Their interpretation differs, but the network operations follow the same index rules. For example, evaluating $\langle\psi|\hat O|\psi\rangle$ contracts the operator's input legs with the ket and its output legs with the bra.
 
 !!! note "MPS versus MPO"
-    An MPS represents a vector-like object. An MPO represents a map-like object. Density matrices sit between these viewpoints: in Hilbert space they are operators, while in Liouville space they can be treated as vectorised states.
+    An MPS represents a vector-like object. An MPO represents a map-like object. A density operator sits between these viewpoints: in Hilbert space it is an operator, while in Liouville space the same object can be treated as a vectorised state.
 
 !!! info "In the package"
     ```julia
     H_mpo = MPO(H, sites)
-    ```
-
-    See [MPS and MPO Basics](@ref) for `OpSum` Hamiltonians and MPO assembly.
-
-## Contractions
-
-A tensor network becomes a number, state, operator, or reduced object by **contracting** shared indices. Contracting an index means summing over all values of that index.
-
-For two tensors $A$ and $B$ sharing an index $\alpha$,
-
-```math
-C_{ij}
-=
-\sum_{\alpha}
-A_{i\alpha}B_{\alpha j}.
-```
-
-This is just matrix multiplication written as an index contraction. Tensor networks generalise this idea to many indices and many tensors.
-
-The inner product $\langle\phi|\psi\rangle$ is obtained by contracting every physical and bond index between the bra MPS and ket MPS.
-
-```text
-bra:              [B†] -- [B†] -- [B†] -- ... -- [B†]
-                   |      |      |             |
-ket:              [A]  -- [A]  -- [A]  -- ... -- [A]
-```
-
-In equations,
-
-```math
-\langle\phi|\psi\rangle
-=
-\sum_{s_1,\ldots,s_N}
-\overline{\phi}_{s_1\cdots s_N}
-\psi_{s_1\cdots s_N}.
-```
-
-Expectation values are contractions too:
-
-```math
-\langle O\rangle
-=
-\langle \psi|O|\psi\rangle.
-```
-
-In diagrammatic language, this means placing the MPO between the bra and ket MPS and contracting all matching legs.
-
-```text
-bra:              [A†] -- [A†] -- [A†]
-                   |      |      |
-operator:         [W] -- [W] -- [W]
-                   |      |      |
-ket:              [A]  -- [A]  -- [A]
-```
-
-This contraction viewpoint is important because `ProcessTensors.jl` uses the same idea for process tensors: a process tensor is evaluated by contracting it with a sequence of instruments.
-
-!!! info "In the package"
-    ```julia
     expect_O = real(inner(ψ', O_mpo, ψ))
     ```
 
-    See [MPS and MPO Basics](@ref) for expectation values and energy calculations.
+    `inner(ψ', O_mpo, ψ)` is the bra–operator–ket contraction. See [MPS and MPO Basics](@ref) for `OpSum` Hamiltonians, MPO assembly, and expectation values.
 
-## Truncation and approximation
-
-Tensor-network simulations are powerful because they can compress information. This compression usually happens through singular-value decompositions.
-
-Suppose a tensor is reshaped into a matrix $M$ across some chosen bipartition. Its singular-value decomposition is
-
-```math
-M = U S V^\dagger,
-```
-
-where $S$ contains non-negative singular values. If many singular values are very small, one can approximate $M$ by keeping only the largest ones:
-
-```math
-M
-\approx
-U_{\mathrm{kept}}
-S_{\mathrm{kept}}
-V_{\mathrm{kept}}^\dagger.
-```
-
-For an MPS, this operation is closely related to truncating the Schmidt decomposition
-
-```math
-|\psi\rangle =
-\sum_{\alpha}
-\lambda_\alpha
-|\alpha_L\rangle |\alpha_R\rangle.
-```
-
-Keeping only the largest $\lambda_\alpha$ gives an approximate state with smaller bond dimension.
-
-This is the basic compression step behind many tensor-network algorithms. In practice, simulations usually control truncation using parameters such as a maximum bond dimension and a singular-value cutoff.
+A density-operator MPO can also be viewed as an MPS in **Liouville space** by grouping each local ket–bra pair into one index of dimension $d^2$. This local reshaping leaves the existing bond dimensions unchanged. Any subsequent compression is a separate operation. A superoperator acting on such a representation has a Liouville-space input and output, each of local dimension $d^2$.
 
 !!! info "In the package"
     ```julia
-    using ITensors.Ops: Trotter
+    ρ = to_dm(ψ)                         # Hilbert density MPO
+    sites_L = liouv_sites(sites)
+    ρL = to_liouville(ρ; sites=sites_L)  # Liouville MPS
+    ```
+
+    See [MPS and MPO Basics](@ref) for density-matrix MPOs and [Liouville-Space Basics](@ref) for the vectorisation. The index convention is set out on the [Liouville Space](liouville_space.md) theory page.
+
+The singular values across a cut of a vectorized density operator describe its operator-space structure. They should not be interpreted as the pure-state entanglement spectrum of the physical mixed state. The ordering and meaning of the fused indices are covered in [Liouville Space](liouville_space.md).
+
+## Bond dimensions and compression
+
+Factorization alone does not guarantee a smaller representation. Compression becomes possible when some directions across a bond contribute little to the tensor being represented.
+
+The basic tool is the singular value decomposition (SVD). After grouping a tensor's indices into a left set and a right set, we reshape it into a matrix and write
+
+```math
+M = U\Sigma V^\dagger,
+\qquad \sigma_1 \geq \sigma_2 \geq \cdots \geq 0.
+```
+
+Keeping the largest $r$ singular values gives a best rank-$r$ approximation in the Frobenius norm,
+
+```math
+M_r = U_{[:,1:r]}\Sigma_{1:r,1:r}V^\dagger_{[1:r,:]},
+\qquad
+\|M-M_r\|_F^2 = \sum_{a>r}\sigma_a^2.
+```
+
+In a tensor network, the retained singular-value index becomes a bond. Its dimension sets how much information passes across that partition. The [ITensors.jl documentation](https://docs.itensor.org/ITensors/stable/) shows this decomposition on named indices: how a tensor is split, where the singular values appear, and how the factors contract back to the original object.
+
+An MPS has gauge freedom: an invertible matrix can be inserted on one side of a bond and its inverse on the other without changing the represented state. **Canonical forms** use this freedom to make the tensors on either side of a chosen bond orthonormal. In that setting, the singular values at the bond give the Schmidt coefficients of the full state, rather than just the singular values of an arbitrarily chosen local tensor.
+
+Two common compression controls are a singular-value cutoff and a maximum bond dimension. Their precise meaning depends on the algorithm. In particular, a cutoff based on discarded weight is different from a threshold relative to the largest singular value. The ACE construction described in the accompanying paper uses the relative criterion
+
+```math
+\sigma_a > \epsilon\sigma_1.
+```
+
+A maximum bond dimension can impose an additional restriction. Check the relevant constructor or contraction routine before interpreting its tolerance numerically.
+
+The discarded singular values quantify the error of an individual SVD truncation in the norm above. They do not, by themselves, bound the final error of every observable after many truncations and contractions. For a simulation, assess convergence by tightening the compression settings and comparing the quantities you intend to use. Generic SVD compression also does not automatically preserve positivity or all physical constraints of a density operator or process tensor.
+
+!!! info "In the package"
+    ```julia
     ψ = tebd(ψ, H, dt, T; alg=Trotter{2}(), maxdim=32, cutoff=1e-10)
     ```
 
-    See [Unitary Dynamics](@ref) for TEBD evolution and how `maxdim` / `cutoff` control truncation error.
+    For this evolution routine, `maxdim` caps the bond and `cutoff` is a discarded-weight tolerance. That is a different control from the relative singular-value threshold $\sigma_a > \epsilon\sigma_1$ used by ACE. See [Unitary Dynamics](@ref) for how these arguments enter a TEBD step.
 
-!!! tip "Learn the SVD machinery of ITensors"
-    The official [ITensors](https://docs.itensor.org/ITensors/stable/) documentation has examples of performing SVDs on matrices and higher-order tensors using named indices. This is a good place to learn how tensors are split, how singular values appear, and how contractions rebuild the original object.
+## From spatial networks to temporal processes
 
-## Tensor networks in `ProcessTensors.jl`
+For a many-body MPS or MPO, the chain usually follows physical sites. For a process tensor, the chain follows successive time intervals. This change of interpretation is central to `ProcessTensors.jl`.
 
-This package builds on the `ITensors.jl` and `ITensorMPS.jl` ecosystem. If you already know how to use `siteinds`, `MPS`, `MPO`, `OpSum`, `apply`, `expect`, or `tdvp`, then much of the syntax will feel familiar.
+A process tensor describes a system's response to a sequence of interventions for a specified underlying process. Its temporal network exposes system legs at which those interventions can be attached, while internal bonds carry the information needed to connect different times.
+
+| Network element | Meaning in a temporal process network |
+|:--|:--|
+| Local core | A tensor associated with a time interval |
+| Open system legs | Interfaces for the system input and output in Liouville space |
+| Internal bond | Information retained between successive temporal cores |
+| Intervention tensor | A system operation connected at an available intervention time |
+
+An intervention connects the relevant system output to the next system input. Contracting the process with a chosen sequence of operations, together with the appropriate boundary tensors, gives the corresponding output state or measurement statistics. A measurement outcome can produce an unnormalized conditional state; its trace gives the probability of that outcome sequence.
+
+The main practical benefit is **reuse**. Once a process tensor has been constructed, we can change operations at its exposed intervention slots without rebuilding the environmental evolution that it already represents. Reuse assumes that the underlying process, time grid, and boundary assumptions encoded in the tensor remain applicable. Changing the environment or an interaction already included in the construction generally requires a new process tensor.
+
+Temporal bond dimensions determine the cost of storing and contracting this representation. They reflect how much information the chosen factorization retains across temporal cuts, but a stored bond dimension alone is not a representation-independent measure or certificate of physical memory.
+
+The [Process Tensors](process_tensors.md) theory page develops the operational definition and its connection to these temporal networks.
 
 !!! info "In the package"
     ```julia
-    ρ = to_dm(ψ)                            # Hilbert density MPO
-    sites_L = liouv_sites(sites)
-    ρL = to_liouville(ρ; sites=sites_L)     # Liouville MPS
+    pt = build_process_tensor(
+        system;
+        environment=environment,
+        dt=dt,
+        nsteps=nsteps,
+        method=Dense(),
+    )
     ```
 
-    See [MPS and MPO Basics](@ref) for density-matrix MPOs and [Liouville-Space Basics](@ref) for Liouville vectorisation.
+The returned object is a temporal network for one fixed process. Later experiments change the instruments attached to it. See [Construct your first process tensor](@ref) for the spin–boson construction, including the ACE alternative, and [Explore a process with instruments](@ref) for the contractions.
 
-The package adds a layer of open-system structure on top of that familiar tensor-network language.
+## Related material and further reading
 
-In particular, later pages will explain how `ProcessTensors.jl` uses tensor networks for:
+!!! related "Continue learning"
+    | Goal | Page |
+    |:--|:--|
+    | Work with named indices and contractions | [ITensor Basics](@ref) |
+    | Build and manipulate spatial networks | [MPS and MPO Basics](@ref) |
+    | Understand vectorization conventions | [Liouville-Space Basics](@ref) |
+    | Understand the operational process description | [Process Tensors](process_tensors.md) |
+    | Construct and reuse a temporal network | [Construct your first process tensor](@ref) and [Explore a process with instruments](@ref) |
 
-* Hilbert-space dynamics,
-* density matrices,
-* Liouville-space vectorisation,
-* Liouvillian MPOs,
-* process tensor construction,
-* instruments and interventions,
-* reduced dynamics,
-* multi-time observables.
+For broader introductions and implementation details:
 
-!!! note "Why borrow tensor networks for open quantum simulation?"
-    Open quantum systems are usually described by density matrices rather than pure wavefunctions. For a chain with local dimension $d$, a pure state has $d^N$ amplitudes, while a density matrix has $d^{2N}$ coefficients. This squared scaling makes exact density-matrix simulation much harder than closed-system wavefunction simulation.
-
-    Tensor networks provide a compression strategy. Instead of storing the full density matrix or Liouvillian, one can represent them as matrix product density operators, Liouville-space MPS/MPOs, or related tensor-network objects. This does not make every open-system problem easy, but it gives a controlled language for approximating mixed states, dissipative evolution, and memory effects using bond dimensions and truncation cutoffs.
-
-    In `ProcessTensors.jl`, this idea appears in two ways: density matrices can be lifted into Liouville space and evolved with Liouvillian MPOs, and process tensors can store system-bath memory in tensor-network bonds.
-
-    For more background, see the [Mixed states, MPDOs, and open-system tensor networks](#mixed-states-mpdos-and-open-system-tensor-networks), as well as the [Liouville-space theory page](liouville_space.md) in this documentation.
-
-The goal is not to replace `ITensorMPS.jl`, but to extend its style of computation toward open quantum systems and non-Markovian processes.
-
-!!! related "Related tutorials and examples"
-    | Topic | Page |
-    | ----- | ---- |
-    | Named indices and contractions | [ITensor Basics](@ref) |
-    | Hilbert-space MPS / MPO | [MPS and MPO Basics](@ref) |
-    | Density matrices in Liouville space | [Liouville-Space Basics](@ref), [Quantum States and Liouville Space](liouville_space.md) |
-    | Closed TEBD / TDVP | [Unitary Dynamics](@ref), [TEBD time evolution](../examples/tebd_time_evolution.md), [TDVP time evolution](../examples/tdvp_time_evolution.md) |
-
-## Further reading
-
-This page only provides the vocabulary needed for the rest of the documentation. For a more detailed read, check out the resources below.
-
-### Package documentation and visual guides
-
-1. [ITensors.jl documentation](https://docs.itensor.org/ITensors/stable/)
-   
-   Best for named tensor indices, contractions, tensor SVDs, and the basic `ITensor` object.
-
-2. [ITensorMPS.jl documentation](https://docs.itensor.org/ITensorMPS/stable/)
-   
-   Best for practical Julia usage of `MPS`, `MPO`, `OpSum`, DMRG, and MPS time evolution.
-
-3. [TensorNetwork.org](https://tensornetwork.org/)
-   
-   A broad community resource with introductory and review-style material on tensor networks, algorithms, and software.
-
-4. [Tensors.net](https://www.tensors.net/)
-   
-   Useful for visual tensor-network tutorials, especially if you want to understand diagrams, contractions, decompositions, and algorithmic building blocks.
-
-### Introductory papers and reviews
-
-1. [Roman Orús, “A Practical Introduction to Tensor Networks: Matrix Product States and Projected Entangled Pair States”](https://arxiv.org/abs/1306.2164)
-   
-    A beginner-friendly conceptual introduction to tensor networks, MPS, and PEPS.
-
-2. [Jacob C. Bridgeman and Christopher T. Chubb, “Hand-waving and Interpretive Dance: An Introductory Course on Tensor Networks”](https://arxiv.org/abs/1603.03039)
-   
-   A readable introduction emphasizing graphical tensor-network reasoning.
-
-3. [Jacob Biamonte and Ville Bergholm, “Tensor Networks in a Nutshell”](https://arxiv.org/abs/1708.00006)
-   
-   A compact overview of tensor-network ideas and notation.
-
-4. [Ulrich Schollwöck, “The density-matrix renormalization group in the age of matrix product states”](https://arxiv.org/abs/1008.3477)
-   
-   A deeper review of MPS, canonical forms, DMRG, and one-dimensional quantum systems.
-
-### Mixed states, MPDOs, and open-system tensor networks
-
-1. [F. Verstraete, J. J. García-Ripoll, and J. I. Cirac, “Matrix Product Density Operators: Simulation of finite-T and dissipative systems.”](https://arxiv.org/abs/cond-mat/0406426)  
-   
-   A foundational reference introducing matrix product density operators as tensor-network representations of mixed states. 
-
-2. [D. Jaschke, S. Montangero, and L. D. Carr, “One-dimensional many-body entangled open quantum systems with tensor network methods.”](https://arxiv.org/abs/1804.09796)  
-   
-   A broad and accessible entry point for open-system tensor-network simulations.
-
-3. [J. G. Jarkovsky, A. Molnar, N. Schuch, and J. I. Cirac, “Efficient description of many-body systems with Matrix Product Density Operators.”](https://arxiv.org/abs/2003.12418)  
-   
-   A more theoretical reference about MPDO representation and when mixed quantum states admit efficient MPDO descriptions.
+- R. Orús, [A Practical Introduction to Tensor Networks: Matrix Product States and Projected Entangled Pair States](https://arxiv.org/abs/1306.2164).
+- J. C. Bridgeman and C. T. Chubb, [Hand-waving and Interpretive Dance: An Introductory Course on Tensor Networks](https://arxiv.org/abs/1603.03039).
+- U. Schollwöck, [The Density-Matrix Renormalization Group in the Age of Matrix Product States](https://arxiv.org/abs/1008.3477).
+- [ITensors.jl documentation](https://docs.itensor.org/ITensors/stable/) and [ITensorMPS.jl documentation](https://docs.itensor.org/ITensorMPS/stable/).
