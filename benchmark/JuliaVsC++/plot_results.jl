@@ -150,6 +150,14 @@ end
 to_uv(x, y, lims) = ((log10(x) - lims.logxmin) / lims.dlogx, (y - lims.ymin) / lims.dy)
 from_uv(u, v, lims) = (10^(lims.logxmin + u * lims.dlogx), lims.ymin + v * lims.dy)
 
+function decade_ticks(values)
+    lo = floor(Int, log10(minimum(values)))
+    hi = ceil(Int, log10(maximum(values)))
+    ticks = [exp10(e) for e in lo:hi]
+    labels = [rich("10", superscript(string(e))) for e in lo:hi]
+    return (ticks, labels)
+end
+
 function aabb_overlap(a, b)
     return a.u0 < b.u1 && b.u0 < a.u1 && a.v0 < b.v1 && b.v0 < a.v1
 end
@@ -176,7 +184,7 @@ function seg_hits_aabb(u0, v0, u1, v1, box)
     return false
 end
 
-function label_box(u, v, θ, d; w=0.07, h=0.034)
+function label_box(u, v, θ, d; w=0.085, h=0.042)
     cu, cv = u + d * cos(θ), v + d * sin(θ)
     return (u0=cu - w/2, u1=cu + w/2, v0=cv - h/2, v1=cv + h/2, cu=cu, cv=cv)
 end
@@ -205,7 +213,7 @@ function label_override(point)
 end
 
 """Place N=… labels on a ring of radius d around each marker, choosing θ to avoid other markers, polylines, and labels."""
-function annotation_poses(points; w=0.07, h=0.034)
+function annotation_poses(points; w=0.085, h=0.042)
     isempty(points) && return NamedTuple[]
     lims = panel_uv_limits(points)
     uv = [to_uv(p.runtime, p.maxdim, lims) for p in points]
@@ -302,7 +310,7 @@ function annotate_N!(axis, points, color_of)
             ann.y;
             text=ann.text,
             color=color_of(ann.point),
-            fontsize=11,
+            fontsize=14,
             align=(:center, :center),
         )
     end
@@ -326,7 +334,7 @@ function physical_legend!(position, cases, labels)
         orientation=:horizontal,
         nbanks=1,
         tellwidth=false,
-        labelsize=13,
+        labelsize=22,
         framevisible=false,
     )
 end
@@ -358,7 +366,7 @@ function implementation_legend!(position)
         orientation=:horizontal,
         nbanks=1,
         tellwidth=false,
-        labelsize=13,
+        labelsize=22,
         framevisible=false,
     )
 end
@@ -413,15 +421,23 @@ function main()
         by=value -> parse(Float64, value),
     )
 
-    figure = Figure(size=(1500, 720), fontsize=18)
+    figure = Figure(size=(1500, 720), fontsize=26)
     axis_options = (
         xlabel="runtime (s)",
-        ylabel="maximum bond dimension Dₘₐₓ",
+        ylabel="Dₘₐₓ",
         xscale=log10,
         xgridvisible=true,
         ygridvisible=true,
         xgridcolor=(:gray, 0.3),
         ygridcolor=(:gray, 0.3),
+        xticklabelsize=24,
+        yticklabelsize=24,
+        xlabelsize=28,
+        ylabelsize=28,
+        xticksize=8,
+        yticksize=8,
+        titlesize=28,
+        titlefont=:bold,
     )
     central_axis = Axis(
         figure[1, 1];
@@ -433,12 +449,14 @@ function main()
         title="Spin-boson process tensor",
         axis_options...,
     )
+    isempty(central_points) || (central_axis.xticks = decade_ticks(getproperty.(central_points, :runtime)))
+    isempty(spinboson_points) || (spinboson_axis.xticks = decade_ticks(getproperty.(spinboson_points, :runtime)))
 
     Label(
         figure[1, 1, TopLeft()],
         "(a)";
         font=:bold,
-        fontsize=20,
+        fontsize=28,
         padding=(0, 30, 8, 0),
         halign=:right,
     )
@@ -446,7 +464,7 @@ function main()
         figure[1, 2, TopLeft()],
         "(b)";
         font=:bold,
-        fontsize=20,
+        fontsize=28,
         padding=(0, 30, 8, 0),
         halign=:right,
     )

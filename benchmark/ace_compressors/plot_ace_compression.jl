@@ -28,20 +28,6 @@ function load_table(name)
     return raw, cols
 end
 
-function panel_letter!(figure, row, col, letter)
-    return Label(
-        figure[row, col, Left()],
-        letter;
-        font=:bold,
-        fontsize=22,
-        tellheight=false,
-        tellwidth=false,
-        halign=:center,
-        valign=:top,
-        padding=(0, 52, 0, 0),
-    )
-end
-
 function main()
     mkpath(RESULTS_DIR)
     colors = Dict(
@@ -66,34 +52,44 @@ function main()
     bench, bench_cols = load_table("ace_compression_benchmark.csv")
     threads, thread_cols = load_table("ace_thread_scaling.csv")
 
-    figure = Figure(size=(1600, 900), fontsize=20)
+    figure = Figure(size=(1600, 760), fontsize=26)
     axis_kwargs = (
         xgridvisible=true,
         ygridvisible=true,
         xgridcolor=(:gray, 0.35),
         ygridcolor=(:gray, 0.35),
-        xticklabelsize=16,
-        yticklabelsize=16,
-        xlabelsize=20,
-        ylabelsize=20,
+        xticklabelsize=24,
+        yticklabelsize=24,
+        xlabelsize=28,
+        ylabelsize=28,
+        xticksize=8,
+        yticksize=8,
+        ylabelpadding=8,
+        titlefont=:bold,
+        titlesize=28,
+        titlealign=:left,
+        titlegap=4,
     )
     n_ticks = [1, 5, 10, 20, 30, 40, 50, 70]
     axis_a = Axis(
         figure[1, 1];
+        title="(a)",
         xlabel=L"N",
-        ylabel="median build time (s)",
+        ylabel="build time (s)",
         xticks=n_ticks,
         axis_kwargs...,
     )
     axis_b = Axis(
         figure[1, 2];
+        title="(b)",
         xlabel=L"N",
-        ylabel="total allocated memory (MiB)",
+        ylabel="memory (MiB)",
         xticks=n_ticks,
         axis_kwargs...,
     )
     axis_c = Axis(
         figure[1, 3];
+        title="(c)",
         xlabel=L"N",
         ylabel=L"\chi_{\max}",
         xticks=n_ticks,
@@ -101,33 +97,30 @@ function main()
     )
     axis_d = Axis(
         figure[2, 1];
-        xlabel="median build time (s)",
+        title="(d)",
+        xlabel="build time (s)",
         ylabel=L"\max_k\|\rho_k-\rho_k^{\mathrm{ref}}\|_F",
         yscale=log10,
         axis_kwargs...,
     )
     axis_e = Axis(
         figure[2, 2];
-        xlabel="total allocated memory (MiB)",
+        title="(e)",
+        xlabel="memory (MiB)",
         ylabel=L"\max_k\|\rho_k-\rho_k^{\mathrm{ref}}\|_F",
         yscale=log10,
         axis_kwargs...,
     )
     axis_f = Axis(
         figure[2, 3];
+        title="(f)",
         xlabel="BLAS threads",
-        ylabel="median build time (s)",
+        ylabel="build time (s)",
         xscale=log10,
         yscale=log10,
         xticks=[1, 2, 4, 8, 16, 32],
         axis_kwargs...,
     )
-    for (row, col, letter) in (
-        (1, 1, "(a)"), (1, 2, "(b)"), (1, 3, "(c)"),
-        (2, 1, "(d)"), (2, 2, "(e)"), (2, 3, "(f)"),
-    )
-        panel_letter!(figure, row, col, letter)
-    end
 
     for strategy in strategies
         mask = scaling[:, scaling_cols["strategy"]] .== strategy
@@ -199,12 +192,12 @@ function main()
         end
     end
 
-    axislegend(axis_a; position=:lt, labelsize=16)
+    axislegend(axis_a; position=:lt, labelsize=22, margin=(8, 8, 8, 8), framevisible=true)
     cutoff_legend = [MarkerElement(; color=:gray, marker=cutoff_markers[ε], markersize=14)
                      for ε in comparison_cutoffs]
     cutoff_texts = [cutoff_labels[ε] for ε in comparison_cutoffs]
     for axis in (axis_d, axis_e)
-        axislegend(axis, cutoff_legend, cutoff_texts; position=:rt, labelsize=15)
+        axislegend(axis, cutoff_legend, cutoff_texts; position=:rt, labelsize=22)
     end
     physics_legend = [
         LineElement(color=:gray35, linestyle=:solid, linewidth=2),
@@ -214,14 +207,16 @@ function main()
         axis_f,
         physics_legend,
         ["spin (easy)", "boson (hard)"];
-        position=:rt,
-        labelsize=15,
+        position=(0.02, 0.36),
+        labelsize=22,
+        margin=(8, 8, 8, 8),
+        framevisible=true,
     )
     if !isempty(chi_labels)
         println("Panel (f) χ labels: ", join(chi_labels, "; "))
     end
     colgap!(figure.layout, 22)
-    rowgap!(figure.layout, 28)
+    rowgap!(figure.layout, 16)
 
     pdf_path = joinpath(RESULTS_DIR, "ace_compression.pdf")
     png_path = joinpath(RESULTS_DIR, "ace_compression.png")
