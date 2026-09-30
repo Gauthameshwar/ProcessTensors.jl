@@ -35,8 +35,8 @@ Follow [Installation](installation.md) to set up the package, then choose your l
 
 | Your starting point | Suggested route |
 | --- | --- |
-| **Ready to use process tensors** | [Installation](installation.md), then [your first process tensor](tutorials/process_tensor_singlemode.md). Consult the [API reference](api.md) as needed. |
-| **Learning the physical framework** | Start with [Process Tensors](theory/process_tensors.md), then work through the [process-tensor tutorial](tutorials/process_tensor_singlemode.md). |
+| **Ready to use process tensors** | [Installation](installation.md), then [Construct your first process tensor](tutorials/process_tensor_singlemode.md) and [Explore a process with instruments](tutorials/process_tensor_instruments.md). Consult the [API reference](api.md) as needed. |
+| **Learning the physical framework** | Start with [Process Tensors](theory/process_tensors.md), then [Construct your first process tensor](tutorials/process_tensor_singlemode.md). |
 | **New to ITensor or Liouville representations** | Use [ITensor Basics](tutorials/itensor_basics.md), [MPS and MPO Basics](tutorials/mps_mpo_basics.md), and [Liouville-Space Basics](tutorials/liouville_basics.md) for the supporting conventions. |
 
 The foundations explain named ITensor indices, density matrices, and vectorisation.
@@ -70,7 +70,8 @@ Gaussian PT-TEMPO and chain-mapped constructions remain development directions.
 
 | Goal | Walkthrough |
 | --- | --- |
-| Construct and contract your first process | [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md) |
+| Construct your first process tensor | [Construct your first process tensor](tutorials/process_tensor_singlemode.md) |
+| Probe that process with instruments | [Explore a process with instruments](tutorials/process_tensor_instruments.md) |
 | Extend to several bath modes | [Spin-bath process tensor](examples/spin_bath_process_tensor.md) |
 | Compress an independent spin environment | [Central-spin dynamics using ACE](examples/central_spin_ace.md) |
 | Construct a thermal bosonic environment | [Thermal spin-boson dynamics using ACE](examples/thermal_spinboson_ace.md) |

@@ -4,98 +4,49 @@
 # File: docs/literate/tutorials/05_process_tensor_singlemode.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
-# Literate tutorial source: building and using a single-mode process tensor. #src
+# Constructs a one-mode spin–boson process tensor and inspects its time legs. #src
 
-# # Single-Mode Process Tensor
+# # Construct your first process tensor
 #
-# The previous tutorials described density matrices, Liouville-space dynamics,
-# unitary evolution, and dissipative Lindblad evolution.
+# A process tensor stores how an open system responds to a sequence of
+# operations. This page builds that object for one spin coupled to one
+# truncated boson. The spin is the system we will probe. The boson is the bath.
 #
-# Those descriptions are still time-local. At each time step, we apply a fixed
-# map to the current density matrix:
-#
-# ```math
-# |\rho(t+\Delta t)\rangle\rangle
-# =
-# \mathcal{E}_{\Delta t}
-# |\rho(t)\rangle\rangle.
-# ```
-#
-# A process tensor is more general. It stores how a system responds to a whole
-# sequence of interventions over time.
-#
-# Instead of asking only for a state trajectory, we can ask:
-#
-# - What happens if I prepare this state at the beginning?
-# - What if I insert an observable at an intermediate time?
-# - What if I leave one output open and inspect the reduced state?
-# - What if I postselect on an outcome?
-# - What if I use the same environment influence with different instruments?
-#
-# In `ProcessTensors.jl`, a process tensor is represented as a Liouville-space
-# MPO over time legs.
-#
-# ```text
-# time 0        time 1        time 2
-#
-#  input        input         input
-#    |            |             |
-#  [ PT ] —— memory —— [ PT ] —— memory —— [ PT ]
-#    |            |             |
-# output       output        output
-# ```
-#
-# The memory links carry the influence of the environment from one time step to
-# the next. Instruments are then contracted onto the input/output legs.
+# The next tutorial keeps this process tensor fixed and changes the experiment.
+# Vectorisation is assumed only where a bath state is stored; see
+# [Liouville-Space Basics](@ref) for that conversion.
 
 # ## Setup
-#
+
 using ITensors
-import LinearAlgebra
 using ProcessTensors
 using ITensors.Ops: Exact, Trotter
 
-roundreal(x; digits=8) = round(real(x); digits=digits)
+# ## Spin–boson ingredients
+#
+# The model is a spin–boson Hamiltonian with one truncated oscillator:
+#
+# ```math
+# H_S = h S^x,
+# \qquad
+# H_B = \omega a^\dagger a,
+# \qquad
+# H_{SB} = g S^z (a + a^\dagger).
+# ```
+#
+# The boson starts in the vacuum ``|0\rangle``. The displacement coupling
+# ``a + a^\dagger`` acts on that state. A number coupling ``a^\dagger a`` would
+# not: the vacuum is its ground state, so the interaction would be zero.
+#
+# The system preparation is not part of the process tensor. It is supplied later,
+# when the process is evaluated.
 
-# ## Ingredients to build a process tensor
-#
-# A process tensor needs four physical ingredients:
-#
-# - a system,
-# - an environment,
-# - a system-environment coupling,
-# - a time grid.
-#
-# In this tutorial, the system is one spin:
-#
-# ```math
-# H_S = h S^x_S.
-# ```
-#
-# The environment is one spin bath mode:
-#
-# ```math
-# H_B = \omega_B S^z_B.
-# ```
-#
-# The system and bath interact through
-#
-# ```math
-# H_{SB} = g S^z_B S^z_S.
-# ```
-#
-# This is the smallest nontrivial setting where the process tensor has a memory
-# link. The environment is finite, so it can carry information from one time to
-# another.
-
-# ### System
-#
-# We build the system from ordinary Hilbert-space spin sites. The constructor
-# `spin_system` converts them internally to canonical Liouville sites.
+h = 0.6
+ω = 1.1
+g = 2.0
+n_max = 2
 
 system_sites = siteinds("S=1/2", 1)
-
-h = 0.7
 
 H_S = OpSum()
 H_S += h, "Sx", 1
@@ -107,182 +58,87 @@ println(system)
 
 @assert system isa SpinSystem
 @assert length(system.sites) == 1
-@assert dim(only(system.sites)) == 4
 
-# The initial system state is
-#
-# ```math
-# |+\rangle =
-# \frac{|\uparrow\rangle + |\downarrow\rangle}{\sqrt{2}}.
-# ```
+#-
 
-ψS0 = MPS(ComplexF64[1 / sqrt(2), 1 / sqrt(2)], system_sites)
-ρS0 = to_dm(ψS0)
-
-@assert ρS0 isa MPO{Hilbert}
-@assert abs(tr(ρS0) - 1) < 1e-12
-
-# ### Bath mode
-#
-# The bath mode is also a spin. Bath modes are stored in Liouville space because
-# the process tensor is built from density matrices and superoperators.
-
-bath_sites = siteinds("S=1/2", 1)
-bath_sites_L = liouv_sites(bath_sites)
-
-ωB = 1.1
+boson_sites = siteinds("Boson", 1; dim=n_max + 1)
+boson_sites_L = liouv_sites(boson_sites)
 
 H_B = OpSum()
-H_B += ωB, "Sz", 1
+H_B += ω, "N", 1
 
-ψB0 = MPS(bath_sites, ["Dn"])
+ψB0 = MPS(boson_sites, ["0"])
 ρB0 = to_dm(ψB0)
-ρB0_L = to_liouville(ρB0; sites=bath_sites_L)
-
-@assert ρB0_L isa MPS{Liouville}
-
-# The coupling OpSum is written in a local two-site convention:
-#
-# - site `1` is the bath mode,
-# - site `2` is the system coupling site.
-#
-# This local convention lets the same coupling be inserted into the joint
-# bath-system Liouville propagator.
-
-g = 0.35
+ρB0_L = to_liouville(ρB0; sites=boson_sites_L)
 
 H_SB = OpSum()
-H_SB += g, "Sz", 1, "Sz", 2
+H_SB += g, "A", 1, "Sz", 2
+H_SB += g, "Adag", 1, "Sz", 2
 
-mode = spin_mode(
-    bath_sites_L,
-    H_B,
-    ρB0_L;
-    coupling=H_SB,
-)
-
-environment = spin_bath([mode])
+mode = bosonic_mode(boson_sites_L, H_B, ρB0_L; coupling=H_SB)
+environment = bosonic_bath([mode])
 
 println("Environment:")
 println(environment)
 
-@assert mode isa SpinMode
-@assert environment isa SpinBath
+@assert mode isa BosonicMode
+@assert environment isa BosonicBath
+@assert dim(only(boson_sites)) == n_max + 1
 
-# !!! tip "Nearby variation: use a bosonic mode"
-#     The spin bath can be changed into a bosonic bath by changing only the mode
-#     constructor and the site family.
-#
-#     ```julia
-#     boson_sites = siteinds("Boson", 1; dim=4)
-#     boson_sites_L = liouv_sites(boson_sites)
-#
-#     H_boson = OpSum()
-#     H_boson += Ω, "N", 1
-#
-#     ψb0 = MPS(boson_sites, ["0"])
-#     ρb0_L = to_liouville(to_dm(ψb0); sites=boson_sites_L)
-#
-#     coupling_boson = OpSum()
-#     coupling_boson += g, "N", 1, "Sz", 2
-#
-#     mode_b = bosonic_mode(
-#         boson_sites_L,
-#         H_boson,
-#         ρb0_L;
-#         n_max=3,
-#         coupling=coupling_boson,
-#     )
-#
-#     environment_b = bosonic_bath([mode_b])
-#     ```
-#
-#     The process-tensor construction call is unchanged. Only the bath model has
-#     changed.
+# The coupling `OpSum` uses a local two-site convention: site `1` is the boson
+# and site `2` is the spin. `bosonic_mode` stores the boson in Liouville space
+# because the process tensor is built from density matrices. The Hilbert boson
+# is truncated at occupations ``n = 0, 1, 2``. The `n_max` field printed with
+# the mode is one less than the Liouville dimension of that site, not this
+# occupation cutoff.
 
-# ## [Building the process tensor](@id building-the-process-tensor)
+# ## [Time grid and Dense construction](@id building-the-process-tensor)
 #
-# The time grid is set by `dt` and `nsteps`.
-#
-# The call
+# `dt` is the propagation interval between intervention slots. `nsteps` is the
+# number of those intervals. Slot `step` is where an operation can act between
+# the output of time `step - 1` and the input of time `step`.
 #
 # ```julia
-# pt = build_process_tensor(system; environment, dt, nsteps)
+# pt = build_process_tensor(system; environment, dt, nsteps, method=Dense())
 # ```
 #
-# builds one process-tensor core per time step.
-#
-# By default, the system's own one-step Liouville propagation is embedded into
-# the cores. This means the default instrument between time steps is the identity
-# operation, not an extra system propagator.
-#
-# `sys_alg` chooses the *timestep sandwich order* of those Exact free-system maps
-# around the bath(+coupling) core:
-#
-# - `Trotter{1}()` (default): asymmetric ``Q · M(Δt)``
-# - `Trotter{2}()`: symmetric ``M(Δt/2) · Q · M(Δt/2)`` (usually smaller
-#   time-discretization error at fixed coarse ``Δt``)
-#
-# This is not a TEBD gate decomposition of the system Liouvillian; single-site
-# system maps are always Exact ED. 
+# `method=Dense()` keeps the joint system–bath Liouville space. For this single
+# truncated boson that space is small enough to exponentiate exactly.
+# `alg=Exact()` builds that joint step directly, and `sys_alg=Trotter{2}()`
+# places the free spin map symmetrically around it. The free spin map is already
+# stored in the process tensor, so the default instrument between slots is an
+# identity.
 
-dt = 0.05
-nsteps = 5
+dt = 0.1
+nsteps = 8
 
 pt = build_process_tensor(
     system;
     environment=environment,
     dt=dt,
     nsteps=nsteps,
+    method=Dense(),
     alg=Exact(),
     sys_alg=Trotter{2}(),
+    progress=false,
+    verbose=false,
 )
 
-println("Process tensor with one spin bath mode:")
+println("Spin–boson process tensor:")
 println(pt)
 
 @assert pt isa ProcessTensor
 @assert pt.nsteps == nsteps
 @assert pt.dt == dt
-@assert pt.environment isa SpinBath
+@assert pt.environment isa BosonicBath
 
-# It is useful to compare this with the no-environment baseline.
+# ## What the object stores
 #
-# With `environment=nothing`, the object stores the time-local system
-# propagation without an explicit bath memory link.
-
-pt_markov = build_process_tensor(
-    system;
-    dt=dt,
-    nsteps=nsteps,
-)
-
-println("No-environment baseline:")
-println(pt_markov)
-
-println("maxlinkdim(pt_markov) = ", maxlinkdim(pt_markov))
-println("maxlinkdim(pt)        = ", maxlinkdim(pt))
-
-@assert maxlinkdim(pt) >= maxlinkdim(pt_markov)
-
-# In the Markovian limit, the process tensor decomposes to a product MPO-like object in time. 
-# Since there is no memory link between interventions, the process becomes a product of the 
-# same system unitary at each time step. 
-# 
-# ### Time legs
+# Each time label has an input leg and an output leg. Input legs have prime
+# level `1`. Output legs have prime level `0`. Both carry a `tstep` tag.
 #
-# At every process-tensor time label `k`, there is an input leg and an output
-# leg.
-#
-# In this package:
-#
-# - input legs have prime level `1`,
-# - output legs have prime level `0`,
-# - both carry a `tstep=k` tag.
-# - both have the same `tags`, `ID`, and liouville `dim`. 
-#
-# These helpers let us inspect the legs without manually searching through
-# ITensor indices.
+# Intervention slot `step` connects the output leg at `step - 1` to the input
+# leg at `step`. For `step = 1` that is output `tstep=0` and input `tstep=1`.
 
 println("Input leg at time 0:")
 println(input_sites(pt, 0))
@@ -290,427 +146,110 @@ println(input_sites(pt, 0))
 println("Output leg at time 0:")
 println(output_sites(pt, 0))
 
-println("Legs connected by the evolve slot at step 1:")
-println(coupling_times(pt, 1))
+out_prev, in_curr = coupling_times(pt, 1)
+
+println("Legs connected by slot 1:")
+println(out_prev)
+println(in_curr)
 
 @assert plev(only(input_sites(pt, 0))) == 1
 @assert plev(only(output_sites(pt, 0))) == 0
+@assert only(out_prev) == only(output_sites(pt, 0))
+@assert only(in_curr) == only(input_sites(pt, 1))
 
-# Intervention slot `step` connects the output leg at `step - 1` to the input leg at `step`.
-# For `step = 1`, `coupling_times(pt, 1)` therefore returns the output at `tstep=0` and the
-# input at `tstep=1`. If there is no intervention at that slot, the default schedule embeds an
-# identity operation and the system evolves under its own propagator.
-# 
+# The bonds between cores carry the boson from one slot to the next.
+# `Dense()` keeps that space uncompressed, so the bond dimension is the stored
+# bath Liouville space. It is not a witness that the dynamics are non-Markovian.
+
+println("Temporal bond dimension = ", maxlinkdim(pt.core))
+
+@assert maxlinkdim(pt.core) > 1
+
 # !!! warning "Reuse Liouville indices"
 #     Process-tensor contractions depend on exact ITensor index identity. Use
-#     the sites stored by the system, bath modes, and process tensor instead of
-#     recreating visually similar indices.
+#     the sites stored by the system, the boson, and the process tensor. Do not
+#     build a fresh index that only looks similar.
 
-# ## [Evolving reduced states](@id evolving-reduced-states)
+# ## Dense and ACE constructors
 #
-# The simplest way to use a process tensor is to ask for the reduced system
-# states generated from an initial density matrix.
+# `build_process_tensor` takes the same system, environment, and time grid for
+# every builder. `method` selects the builder.
 #
-# The high-level call is:
+# `Dense()`, used above, is the right choice when the joint bath space still fits
+# in one exact step, as it does for this one oscillator.
 #
-# ```julia
-# trajectory = evolve(pt, ρS0)
-# ```
+# `ACE()` is the other constructor. It joins independent bath modes one at a time
+# and compresses the temporal bonds. `cutoff` is the relative singular-value
+# threshold ``\sigma_i > \varepsilon \sigma_1``. It is a convergence parameter, not
+# a guaranteed error on an observable. The default compression schedule is
+# `:canonzip`; `:zipup` truncates each bond during the forward join.
 #
-# It returns:
-#
-# - `trajectory.times`,
-# - `trajectory.states_liouville`,
-# - `trajectory.states_hilbert`.
-#
-# The Hilbert states are density-matrix MPOs reconstructed from the
-# Liouville-space outputs.
+# The same spin–boson model can be built with ACE. One mode is not compressed
+# much, but the call and the printed object are the same ones used for a large
+# bath.
 
-trajectory = evolve(pt, ρS0)
-
-println("Sample times:")
-println(trajectory.times)
-
-println("Number of returned states:")
-println(length(trajectory.states_hilbert))
-
-@assert length(trajectory.times) == nsteps
-@assert length(trajectory.states_hilbert) == nsteps
-@assert all(ρ -> abs(tr(ρ) - 1) < 1e-8, trajectory.states_hilbert)
-
-# Let us measure one simple observable along the trajectory:
-#
-# ```math
-# \langle S^z(t)\rangle =
-# \operatorname{Tr}[S^z\rho(t)]
-# = \langle\langle S^z | \rho(t) \rangle\rangle.
-# ```
-#
-# We vectorize both $\rho(t)$ and $S^z$ on the **same** Liouville sites, then use
-# the two-argument overlap `inner(Sz_L, ρL)` from [Liouville-Space Basics](@ref).
-
-Sz = OpSum()
-Sz += 1.0, "Sz", 1
-
-Sz_mpo = MPO(Sz, system_sites)
-system_sites_L = liouv_sites(system_sites)
-Sz_L = to_liouville(Sz_mpo; sites=system_sites_L)
-
-mz = [
-    begin
-        ρL = to_liouville(ρ; sites=system_sites_L)
-        real(inner(Sz_L, ρL))
-    end
-    for ρ in trajectory.states_hilbert
-]
-
-println("⟨Sz⟩ along the process-tensor trajectory:")
-println(roundreal.(mz))
-
-@assert all(isfinite, mz)
-
-# Now compare with the no-environment baseline. The code is identical; only the
-# process tensor changes.
-
-trajectory_markov = evolve(pt_markov, ρS0)
-
-mz_markov = [
-    begin
-        ρL = to_liouville(ρ; sites=system_sites_L)
-        real(inner(Sz_L, ρL))
-    end
-    for ρ in trajectory_markov.states_hilbert
-]
-
-println("Final ⟨Sz⟩ without explicit bath = ", roundreal(last(mz_markov)))
-println("Final ⟨Sz⟩ with spin bath        = ", roundreal(last(mz)))
-
-# The two results need not agree. The whole point of the process tensor is that
-# the bath can carry memory between time steps.
-
-@assert isfinite(last(mz_markov))
-@assert isfinite(last(mz))
-
-# ## [Instrument schedules](@id instrument-schedules)
-#
-# A process tensor becomes useful when we contract it with instruments.
-#
-# An instrument says what we do at a given time leg:
-#
-# - prepare a state,
-# - insert an observable,
-# - connect one time to the next,
-# - trace out a leg,
-# - measure an outcome, or
-# - leave an output open.
-#
-# The default schedule uses `identity_operation()` between time steps: no extra
-# intervention is inserted beyond the propagation already stored in the process
-# tensor.
-
-seq = default_schedule(pt)
-
-println("Default schedule:")
-println(seq)
-
-@assert seq isa InstrumentSeq
-
-# ### Normalization as a fully closed process
-#
-# If every leg is closed, `evaluate_process` returns a scalar.
-#
-# The schedule below prepares `ρS0` at the beginning and traces the final output.
-# Physically, this asks for the total probability of the process.
-
-seq_norm = default_schedule(pt)
-add!(seq_norm, state_preparation(ρS0), 0)
-add!(seq_norm, trace_out(), pt.nsteps)
-
-norm_val = evaluate_process(pt, seq_norm)
-
-println("Closed process value:")
-println(norm_val)
-
-@assert norm_val isa ComplexF64
-@assert abs(norm_val - 1) < 1e-8
-
-# ### Leaving an output open
-#
-# Leaving the final output leg open returns the final reduced system state.
-# `open_output()` is bookkeeping only: it materializes as `ITensor(1.0)` and does
-# not insert a physical map, so the declared output index stays uncontracted.
-
-seq_open = default_schedule(pt)
-add!(seq_open, state_preparation(ρS0), 0)
-add!(seq_open, open_output(), pt.nsteps)
-
-open_result = evaluate_process(pt, seq_open)
-
-println("Open-output result type:")
-println(typeof(open_result))
-
-@assert open_result isa MPS{Liouville}
-
-# ### Final expectation value
-#
-# To compute a final observable, replace the final trace with an observable
-# insertion.
-#
-# This gives
-#
-# ```math
-# \operatorname{Tr}[S^z\rho(t_{\mathrm{final}})]
-# = \langle\langle \rho(t_{\mathrm{final}}) | S^z \rangle\rangle.
-# ```
-
-seq_final_sz = default_schedule(pt)
-add!(seq_final_sz, state_preparation(ρS0), 0)
-add!(seq_final_sz, observable_measurement(Sz), pt.nsteps)
-
-final_sz_from_schedule = evaluate_process(pt, seq_final_sz)
-
-println("Final ⟨Sz⟩ from schedule:")
-println(final_sz_from_schedule)
-
-println("Final ⟨Sz⟩ from evolve:")
-println(last(mz))
-
-@assert abs(real(final_sz_from_schedule) - last(mz)) < 1e-8
-
-# For ordinary state trajectories, prefer `evolve(pt, ρ0)`. `OpenOutput` is the
-# lower-level schedule ingredient that makes such state extraction possible.
-
-# ### Lazy instruments and dense instruments
-#
-# Every schedule above used instruments **lazily**: `add!` stores what we want
-# to do, and the package materializes the corresponding ITensor only when the
-# process tensor is contracted — much like an `OpSum` before `MPO(...)`.
-#
-# Sometimes we want to inspect or define the dense map ourselves. The package
-# supports both paths:
-#
-# - **lazy path:** high-level instruments such as `ObservableMeasurement`,
-#   `IdentityOperation`, `OpenOutput`, and `left_right_operator`,
-# - **dense path:** materialize with `instrument_itensor`, or wrap a custom map
-#   in `CustomTwoLegInstrument`.
-#
-# The same trace-reducing postselection illustrates both paths.
-#
-# A spin-up projector is
-#
-# ```math
-# P_\uparrow =
-# |\uparrow\rangle\langle\uparrow|
-# =
-# \frac{1}{2}I + S^z,
-# ```
-#
-# and the corresponding map is $\rho \mapsto P_\uparrow \rho P_\uparrow$. This
-# map is not trace preserving; the closed scalar from `evaluate_process` is the
-# probability that postselection succeeds.
-
-Pup = OpSum()
-Pup += 0.5, "Id", 1
-Pup += 1.0, "Sz", 1
-
-Pup_mpo = MPO(Pup, system_sites)
-
-lazy_filter = left_right_operator(Pup_mpo, Pup_mpo)
-
-seq_filter_lazy = default_schedule(pt)
-add!(seq_filter_lazy, state_preparation(ρS0), 0)
-add!(seq_filter_lazy, lazy_filter, 2)
-add!(seq_filter_lazy, trace_out(), pt.nsteps)
-
-prob_filter_lazy = evaluate_process(pt, seq_filter_lazy)
-
-println("Postselected trace from lazy instrument:")
-println(prob_filter_lazy)
-
-@assert 0 <= real(prob_filter_lazy) <= 1 + 1e-10
-
-# Materialize the same instrument on the concrete process-tensor legs.
-# `coupling_times(pt, step)` returns `(out_prev, in_curr)`: the output leg at
-# `step - 1` and the input leg at `step`.
-
-out_prev, in_curr = coupling_times(pt, 2)
-
-dense_filter_tensor = ProcessTensors.Instruments.instrument_itensor(
-    lazy_filter,
-    in_curr,
-    out_prev,
-    2,
+pt_ace = build_process_tensor(
+    system;
+    environment=environment,
+    dt=dt,
+    nsteps=nsteps,
+    method=ACE(cutoff=1e-8),
+    sys_alg=Trotter{2}(),
+    progress=false,
+    verbose=false,
 )
 
-println("Dense filter instrument:")
-println(dense_filter_tensor)
+println("ACE process tensor:")
+println(pt_ace)
 
-dense_filter = custom_twoleg_instrument(
-    dense_filter_tensor,
-    in_curr,
-    out_prev,
-)
+@assert pt_ace isa ProcessTensor
+@assert pt_ace.nsteps == nsteps
+@assert pt_ace.dt == dt
 
-seq_filter_dense = default_schedule(pt)
-add!(seq_filter_dense, state_preparation(ρS0), 0)
-add!(seq_filter_dense, dense_filter, 2)
-add!(seq_filter_dense, trace_out(), pt.nsteps)
+# !!! tip "Progress and verbose output"
+#     Building the process tensor is often the expensive step of the workflow.
+#     `progress=true` shows a transient bar while that build runs, and
+#     `verbose=true` keeps a short log of the major stages after it finishes.
+#     The defaults are `progress=:auto` and `verbose=false`. The calls on this
+#     page use `progress=false` so the rendered output stays a plain printout.
+#     See [Advanced Usage](../advanced_usage.md) for the combinations to use
+#     locally, in a notebook, or on a cluster.
 
-prob_filter_dense = evaluate_process(pt, seq_filter_dense)
+# ## Save the process tensor and reuse it
+#
+# The expensive object is the temporal MPO. ITensorMPS writes that MPO to HDF5.
+# The `ProcessTensor` wrapper itself is not an HDF5 type, so the file stores
+# `pt.core`. Reading it back and passing the same system, bath, and time grid
+# restores a process tensor whose site indices still match the original ones.
 
-println("Postselected trace from dense custom instrument:")
-println(prob_filter_dense)
+using HDF5
+using ITensorMPS: MPO as ITensorMPO
 
-@assert abs(prob_filter_dense - prob_filter_lazy) < 1e-10
+pt_file = joinpath(tempdir(), "spin_boson_process_tensor.h5")
 
-# We can also contract the materialized tensors by hand. Most users should prefer
-# `evaluate_process`; the loop below shows what the high-level call is doing.
-
-prob_filter_manual = let
-    dense_instruments = ProcessTensors.Instruments.create_instruments(pt, seq_filter_dense)
-    manual_result = pt.core[1] * dense_instruments[1]
-    for step in 1:(pt.nsteps - 1)
-        manual_result *= dense_instruments[step + 1]
-        manual_result *= pt.core[step + 1]
-    end
-    final_instr = ProcessTensors.Instruments.resolve_instrument(
-        seq_filter_dense,
-        pt.nsteps,
-        seq_filter_dense.default,
-    )
-    final_out, _ = coupling_times(pt, pt.nsteps)
-    manual_result *= ProcessTensors.Instruments.instrument_itensor(
-        final_instr,
-        final_out,
-        pt.nsteps - 1,
-    )
-    ComplexF64(scalar(manual_result))
+h5open(pt_file, "w") do file
+    write(file, "process_tensor", pt.core)
 end
 
-println("Postselected trace from manual dense contraction:")
-println(prob_filter_manual)
+pt_core = h5open(pt_file, "r") do file
+    read(file, "process_tensor", ITensorMPO)
+end
 
-@assert abs(prob_filter_manual - prob_filter_lazy) < 1e-10
+pt_loaded = ProcessTensor(pt_core, system, environment, dt, nsteps)
 
-# !!! note "Lazy versus dense instruments"
-#     The lazy path is the recommended interface:
+println("Loaded process tensor:")
+println(pt_loaded)
+println("Saved file: ", pt_file)
+
+
+# What stays fixed is this object: the spin, the boson, the coupling, the time
+# grid, and the loaded tensor. What changes in the next tutorial is only the
+# operations applied to the spin.
 #
-#     ```julia
-#     add!(seq, left_right_operator(Pup_mpo, Pup_mpo), 2)
-#     ```
-#
-#     The dense path is useful when you want to inspect the ITensor, define a
-#     custom operation, or debug a contraction:
-#
-#     ```julia
-#     dense = ProcessTensors.Instruments.instrument_itensor(instr, in_curr, out_prev, step)
-#     custom = custom_twoleg_instrument(dense, in_curr, out_prev)
-#     ```
-#
-#     Both paths describe the same physical intervention when the dense tensor is
-#     materialized from the same lazy instrument.
+# [Explore a process with instruments](@ref) prepares that spin, reads out
+# trajectories and probabilities, and compares experiments on this same process.
 
-# ### Collapse and reprepare at one time step
-#
-# A causal intervention can filter the state leaving time step `k-1` and set the
-# state entering time step `k`. For a spin-up measurement followed by repreparing
-# $|\!\uparrow\rangle$, use a [`ProductInstrument`](@ref):
-#
-# - [`observable_measurement`](@ref) on the **output** leg (`plev=0`),
-# - [`state_preparation`](@ref) on the **input** leg (`plev=1`, the default).
-#
-# The product order does not matter as long as the two factors sit on opposite
-# legs.
-#
-# This is a completely positive map. It is **not** trace preserving when the
-# measurement is probabilistic: the closed scalar from `evaluate_process` is the
-# probability of the outcome, not `1`.
-#
-# This post-selection step says we measure the system in the spin-up state, 
-# and then prepare the system in the spin-up state after realising that outcome.
-
-Pup = OpSum()
-Pup += 0.5, "Id", 1
-Pup += 1.0, "Sz", 1
-
-ρ_up = to_dm(MPS(system_sites, ["Up"]))
-
-seq_filter = default_schedule(pt)
-add!(seq_filter, state_preparation(ρS0), 0)
-add!(seq_filter, observable_measurement(Pup) * state_preparation(ρ_up), 2)
-add!(seq_filter, trace_out(), pt.nsteps)
-
-prob_filter = evaluate_process(pt, seq_filter)
-
-println("Probability of spin-up and reprepare at t=2:")
-println(prob_filter)
-
-@assert 0 <= real(prob_filter) <= 1 + 1e-10
-
-# !!! note "ProductInstrument rules"
-#     Multiply any two single-leg instruments with `*` when one targets the
-#     output leg (`plev=0`) and one the input leg (`plev=1`). Indices can be
-#     bound lazily at `add!` or supplied explicitly on each factor. Prepare the
-#     initial state at time zero separately with `StatePreparation`, as above.
-
-# ### [Two-time correlation preview](@id two-time-correlation-preview)
-#
-# Two-time correlations are built from instrument schedules too.
-# The function `two_time_correlation_seq` constructs the instrument schedule for
-#
-# ```math
-# \langle A(t_A)B(t_B)\rangle.
-# ```
-#
-# Here we only show the usage pattern. A full discussion of multi-time
-# correlations belongs in the examples section.
-
-seq_corr = two_time_correlation_seq(
-    pt,
-    (Sz, 1),
-    (Sz, 3);
-    rho0=ρS0,
-)
-
-corr = evaluate_process(pt, seq_corr)
-
-println("Two-time correlation preview:")
-println(corr)
-
-@assert corr isa ComplexF64
-@assert isfinite(real(corr))
-
-# !!! info "Monitoring long runs"
-#     Larger baths and longer schedules benefit from live progress feedback.
-#     For a dynamic spinner animation and progress bars during CPU-heavy steps, use
-#     at least two threads in your julia command: `julia --project=. -t 2` when 
-#     launching Julia. See [Advanced Usage](@ref) for execution modes, verbose logging, 
-#     threading, and recommended setups.
-
-# ### Summary
-#
-# In this tutorial, we learned that:
-#
-# - a process tensor stores a multi-time open-system process,
-# - `build_process_tensor` needs a system, an optional environment, `dt`, and
-#   `nsteps`,
-# - a bath mode stores its initial state, Hamiltonian, Liouville sites, and
-#   system-mode coupling,
-# - input/output time legs are exposed by `input_sites` and `output_sites`,
-# - `evolve(pt, ρ0)` returns reduced density states over time,
-# - `evaluate_process(pt, seq)` contracts a process tensor with an instrument
-#   schedule,
-# - fully closed schedules return scalars,
-# - open-output schedules return state-like Liouville objects,
-# - observables, collapse maps, and two-time correlations are all expressed
-#   as instrument schedules,
-# - lazy instruments defer materialization until contraction; use
-#   `instrument_itensor` and `CustomTwoLegInstrument` for dense control,
-#
-# !!! related "Related examples"
-#     - [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) —
-#       single- and multimode process-tensor construction
-#     - [Ramsey readouts as a probe of bath memory](../examples/ramsey_povm.md) —
-#       unsharp POVM-and-reset records on a reusable process tensor
-#     - [Multi-time correlations](../examples/multitime_correlations.md) —
-#       sequential two-time correlators on a reusable process tensor
+# !!! related "Related material"
+#     - Theory: [Process Tensors](../theory/process_tensors.md)
+#     - [Liouville-Space Basics](@ref) — vectorisation of the bath state
+#     - [Explore a process with instruments](@ref) — experiments on this process tensor

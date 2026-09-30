@@ -17,8 +17,6 @@ notes/*
 
 # Literate-generated example pages (source: docs/literate/examples/*.jl)
 /docs/src/examples/*.md
-# Keep the hand-written instrument-sequences stub until it is Literate-migrated.
-!/docs/src/examples/instrument_sequences.md
 
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/

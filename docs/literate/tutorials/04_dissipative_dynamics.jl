@@ -507,7 +507,7 @@ println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
 #     - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md)
 #       — midpoint Liouville TDVP with a time-dependent pump and local loss
 #
-# The next tutorial, [Single-Mode Process Tensor](@ref), moves beyond fixed
-# Markovian Liouvillian generators. Process tensors describe reduced dynamics
-# with memory, where the environment cannot be compressed into a time-local list
-# of jump operators.
+# [Construct your first process tensor](@ref) moves beyond fixed Markovian
+# Liouvillian generators. Process tensors describe reduced dynamics with memory,
+# where the environment cannot be compressed into a time-local list of jump
+# operators.

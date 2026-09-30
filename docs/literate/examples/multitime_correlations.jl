@@ -25,7 +25,7 @@
 # for a system spin coupled to one bath spin.
 #
 # !!! related "Related material"
-#     - Tutorial: [Single-Mode Process Tensor](@ref) (instruments / `evaluate_process`)
+#     - Tutorial: [Explore a process with instruments](@ref)
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion script"
