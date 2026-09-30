@@ -294,7 +294,7 @@ The memory bond dimensions determine how much temporal correlation is stored. A 
     pt = build_process_tensor(system; environment, dt, nsteps)
     ```
 
-    See [Building the process tensor](@ref building-the-process-tensor) in [Single-Mode Process Tensor](@ref),
+    See [Time grid and Dense construction](@ref building-the-process-tensor) in [Construct your first process tensor](@ref),
     and the [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) example for single-
     and multimode constructions with companion plotting scripts.
 
@@ -339,7 +339,7 @@ The process tensor itself stores the environment-mediated multi-time structure. 
     add!(seq, identity_operation(), 1)
     ```
 
-    See [Instrument schedules](@ref instrument-schedules) in [Single-Mode Process Tensor](@ref).
+    See [Closed experiments](@ref instrument-schedules) in [Explore a process with instruments](@ref).
 
 ### Evaluating a process tensor
 
@@ -392,7 +392,7 @@ In package language, this is the difference between the general and convenience 
     evolve(pt, ρ0)
     ```
 
-    See [Instrument schedules](@ref instrument-schedules) and [Evolving reduced states](@ref evolving-reduced-states) in [Single-Mode Process Tensor](@ref).
+    See [Closed experiments](@ref instrument-schedules) and [Reduced trajectory](@ref evolving-reduced-states) in [Explore a process with instruments](@ref).
 
 The second is not a different physical theory. It is a frequently used contraction of the same process tensor.
 
@@ -415,7 +415,7 @@ The precise instrument depends on what correlation is desired. A projective meas
     seq = two_time_correlation_seq(pt, (O, t2), (O, t1); rho0=ρ0)
     ```
 
-    See the [Multi-time correlations](../examples/multitime_correlations.md) example and [Two-time correlation preview](@ref two-time-correlation-preview) in [Single-Mode Process Tensor](@ref).
+    See the [Multi-time correlations](../examples/multitime_correlations.md) example.
 
 !!! warning "Sequential measurements versus operator correlations"
     A sequential measurement correlation is built from actual measured joint probabilities and includes measurement backaction. An operator correlation such as $\langle A(t_2)B(t_1)\rangle$ is an operator-insertion object. These two quantities agree only under specific assumptions.
@@ -500,7 +500,8 @@ The theory is the same regardless of the implementation details: the process ten
     | Topic | Page |
     | ----- | ---- |
     | Liouville conventions | [Quantum States and Liouville Space](liouville_space.md) |
-    | Constructing and contracting a process tensor | [Single-Mode Process Tensor](@ref) |
+    | Constructing a process tensor | [Construct your first process tensor](@ref) |
+    | Experiments on a fixed process tensor | [Explore a process with instruments](@ref) |
     | Spin bath, single- and multimode PT | [Spin-bath process tensor](../examples/spin_bath_process_tensor.md) |
     | Sequential two-time correlators | [Multi-time correlations](../examples/multitime_correlations.md) |
     | Repeated Ramsey POVM readouts | [Ramsey readouts as a probe of bath memory](../examples/ramsey_povm.md) |

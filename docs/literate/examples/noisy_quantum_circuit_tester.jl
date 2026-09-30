@@ -59,7 +59,7 @@
 #
 # !!! related "Related material"
 #     - [Thermal spin-boson dynamics using ACE](thermal_spinboson_ace.md)
-#     - Tutorial: [Single-Mode Process Tensor](@ref)
+#     - Tutorial: [Construct your first process tensor](@ref)
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion calculation"

@@ -18,7 +18,7 @@
 # general instruments.
 #
 # !!! related "Related material"
-#     - Tutorial: [Single-Mode Process Tensor](@ref)
+#     - Tutorial: [Construct your first process tensor](@ref)
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion scripts"

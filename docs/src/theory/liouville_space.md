@@ -722,7 +722,7 @@ The following table summarises the main translations used throughout this docume
     | Bulk dissipative TFIM | [Dissipative spin chain](../examples/dissipative_spin.md) |
     | Boundary-driven XXZ transport | [Boundary-driven spin chain](../examples/boundary_driven_spin_chain.md) |
     | Driven bosons with loss | [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md) |
-    | Non-Markovian reduced dynamics | [Process Tensors](process_tensors.md), [Single-Mode Process Tensor](@ref) |
+    | Non-Markovian reduced dynamics | [Process Tensors](process_tensors.md), [Construct your first process tensor](@ref) |
 
 ## Further reading
 

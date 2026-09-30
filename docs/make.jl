@@ -32,17 +32,18 @@ const EXAMPLE_ASSETS = joinpath(DOCS_ROOT, "src", "assets", "examples")
 const SCRIPT_FIGURES = normpath(joinpath(DOCS_ROOT, "..", "scripts", "figures"))
 
 const TUTORIAL_GROUPS = [
-    ("Foundations", [
+    ("Tensor-network foundations", [
         ("00_itensor_basics.jl", "itensor_basics", "ITensor Basics"),
         ("01_mps_mpo_basics.jl", "mps_mpo_basics", "MPS and MPO Basics"),
         ("02_liouville_basics.jl", "liouville_basics", "Liouville-Space Basics"),
     ]),
-    ("Dynamics", [
+    ("Process tensors", [
+        ("05_process_tensor_singlemode.jl", "process_tensor_singlemode", "Construct your first process tensor"),
+        ("06_process_tensor_instruments.jl", "process_tensor_instruments", "Explore a process with instruments"),
+    ]),
+    ("Additional dynamics tools", [
         ("03_unitary_dynamics.jl", "unitary_dynamics", "Unitary Dynamics"),
         ("04_dissipative_dynamics.jl", "dissipative_dynamics", "Dissipative Dynamics"),
-    ]),
-    ("Process tensors", [
-        ("05_process_tensor_singlemode.jl", "process_tensor_singlemode", "Single-Mode Process Tensor"),
     ]),
 ]
 
@@ -106,10 +107,9 @@ const EXAMPLE_GROUPS = [
         ("Spin-bath process tensor", "spin_bath_process_tensor"),
         ("Central-spin dynamics using ACE", "central_spin_ace"),
         ("Thermal spin-boson dynamics using ACE", "thermal_spinboson_ace"),
-        ("Testers and noisy quantum qubits", "noisy_quantum_circuit_tester"),
     ]),
     ("Instruments and correlations", [
-        ("Instrument sequences", "instrument_sequences"),
+        ("Testers and noisy quantum qubits", "noisy_quantum_circuit_tester"),
         ("Ramsey POVM measurements", "ramsey_povm"),
         ("Multi-time correlations", "multitime_correlations"),
     ]),
