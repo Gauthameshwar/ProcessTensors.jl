@@ -254,8 +254,8 @@ A generator obeys $\langle\!\langle I|\mathcal L=0$, whereas its trace-preservin
     |:--|:--|
     | Practise vectorisation, overlaps, and maps | [Liouville-Space Basics](@ref) |
     | Understand the multi-time description | [Process Tensors](process_tensors.md) |
-    | Construct a reusable process | [Construct your first process tensor](@ref) |
-    | Apply interventions and measurements | [Explore a process with instruments](@ref) |
+    | Construct a reusable process | [Construct a process tensor](@ref) |
+    | Apply interventions and measurements | [Process tensor instruments](@ref) |
     | Use time-local evolution tools | [Unitary Dynamics](@ref) and [Dissipative Dynamics](@ref) |
 
 For more background:

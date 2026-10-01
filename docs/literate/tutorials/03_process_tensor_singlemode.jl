@@ -1,12 +1,12 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
 # SPDX-License-Identifier: MIT #src
 # #src
-# File: docs/literate/tutorials/05_process_tensor_singlemode.jl #src
+# File: docs/literate/tutorials/03_process_tensor_singlemode.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
 # Constructs a one-mode spin–boson process tensor and inspects its time legs. #src
 
-# # Construct your first process tensor
+# # Construct a process tensor
 #
 # A process tensor stores how an open system responds to a sequence of
 # operations. This page builds that object for one spin coupled to one
@@ -246,10 +246,10 @@ println("Saved file: ", pt_file)
 # grid, and the loaded tensor. What changes in the next tutorial is only the
 # operations applied to the spin.
 #
-# [Explore a process with instruments](@ref) prepares that spin, reads out
+# [Explore a process with instruments](@ref "Process tensor instruments") prepares that spin, reads out
 # trajectories and probabilities, and compares experiments on this same process.
 
 # !!! related "Related material"
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #     - [Liouville-Space Basics](@ref) — vectorisation of the bath state
-#     - [Explore a process with instruments](@ref) — experiments on this process tensor
+#     - [Explore a process with instruments](@ref "Process tensor instruments") — experiments on this process tensor

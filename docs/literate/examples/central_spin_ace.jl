@@ -21,7 +21,7 @@
 # combine those independent mode influences into a single process tensor.
 #
 # !!! related "Related material"
-#     - Tutorial: [Construct your first process tensor](@ref)
+#     - Tutorial: [Construct a process tensor](@ref)
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion script"

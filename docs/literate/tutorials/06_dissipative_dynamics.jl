@@ -1,7 +1,7 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
 # SPDX-License-Identifier: MIT #src
 # #src
-# File: docs/literate/tutorials/04_dissipative_dynamics.jl #src
+# File: docs/literate/tutorials/06_dissipative_dynamics.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
 # Literate tutorial source: dissipative open dynamics in Liouville space. #src
@@ -502,12 +502,10 @@ println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
 #     - Theory: [Quantum States and Liouville Space](../theory/liouville_space.md)
 #     - [Dissipative spin chain](../examples/dissipative_spin.md) — bulk amplitude
 #       damping with Liouville TEBD
-#     - [Boundary-driven spin chain](../examples/boundary_driven_spin_chain.md) —
-#       opposing edge reservoirs and spin current with Liouville TDVP
 #     - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md)
 #       — midpoint Liouville TDVP with a time-dependent pump and local loss
 #
-# [Construct your first process tensor](@ref) moves beyond fixed Markovian
+# [Construct a process tensor](@ref) moves beyond fixed Markovian
 # Liouvillian generators. Process tensors describe reduced dynamics with memory,
 # where the environment cannot be compressed into a time-local list of jump
 # operators.
