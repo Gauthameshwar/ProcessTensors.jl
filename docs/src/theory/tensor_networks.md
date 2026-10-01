@@ -222,7 +222,7 @@ The [Process Tensors](process_tensors.md) theory page develops the operational d
     )
     ```
 
-The returned object is a temporal network for one fixed process. Later experiments change the instruments attached to it. See [Construct your first process tensor](@ref) for the spin–boson construction, including the ACE alternative, and [Explore a process with instruments](@ref) for the contractions.
+The returned object is a temporal network for one fixed process. Later experiments change the instruments attached to it. See [Construct a process tensor](@ref) for the spin–boson construction, including the ACE alternative, and [Process tensor instruments](@ref) for the contractions.
 
 ## Related material and further reading
 
@@ -233,7 +233,7 @@ The returned object is a temporal network for one fixed process. Later experimen
     | Build and manipulate spatial networks | [MPS and MPO Basics](@ref) |
     | Understand vectorization conventions | [Liouville-Space Basics](@ref) |
     | Understand the operational process description | [Process Tensors](process_tensors.md) |
-    | Construct and reuse a temporal network | [Construct your first process tensor](@ref) and [Explore a process with instruments](@ref) |
+    | Construct and reuse a temporal network | [Construct a process tensor](@ref) and [Process tensor instruments](@ref) |
 
 For broader introductions and implementation details:
 

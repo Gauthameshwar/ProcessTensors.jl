@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Removed
+
+* **Boundary-driven XXZ example.** The Literate page, companion script, and
+  transport figure are no longer part of the documentation.
+* **Unitary TFIM TEBD and TDVP examples.** The closed-system comparison pages,
+  companion scripts, and figures are removed. A short treatment remains in the
+  unitary-dynamics tutorial.
+
 ### Added
 
 * **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`

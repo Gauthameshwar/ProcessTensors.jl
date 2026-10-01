@@ -1,18 +1,28 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
 # SPDX-License-Identifier: MIT #src
 # #src
-# File: docs/literate/tutorials/06_process_tensor_instruments.jl #src
+# File: docs/literate/tutorials/04_process_tensor_instruments.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
 # Probes one fixed spin–boson process tensor with preparations, controls, #src
 # measurements, and a causal break. #src
 
-# # Explore a process with instruments
+# # Process tensor instruments
 #
-# We now keep the process tensor fixed and change the operations applied to the
-# spin. The model is the same truncated spin–boson system built in
-# [Construct your first process tensor](@ref): one spin, one vacuum boson, and
-# the displacement coupling ``g S^z(a + a^\dagger)``.
+# In this tutorial, we fix a process tensor corresponding to the truncated spin–boson model, 
+# as constructed in [Construct a process tensor](@ref). The system consists of a spin-1/2 coupled to a single bosonic mode 
+# (initially in the vacuum state) via the displacement-type interaction ``g S^z(a + a^\dagger)``.
+#
+# We showcase how different quantum operations—such as state preparations, unitary controls, 
+# measurements, and causal breaks—can be interleaved at the discrete time steps to probe non-Markovian dynamics. 
+# The tutorial demonstrates the use of the ProcessTensors.jl interface for:
+# - Preparing the system in various quantum states at arbitrary steps,
+# - Applying arbitrary local unitaries and measurements between evolution steps,
+# - Implementing an explicit "causal break" to reset the system state,
+# - Inspecting the resulting quantum trajectories and process outputs.
+#
+# This page serves as a hands-on guide for exploring operations and instruments available in the process-tensor approach 
+# and for understanding how interventions at different points affect the system's evolution.
 
 # ## Setup
 #
@@ -321,5 +331,5 @@ println(sz_from_down)
 #     - [Noisy quantum circuits with a memory-bearing tester](../examples/noisy_quantum_circuit_tester.md)
 #
 # !!! related "Related material"
-#     - [Construct your first process tensor](@ref) — the spin–boson model used here
+#     - [Construct a process tensor](@ref) — the spin–boson model used here
 #     - Theory: [Process Tensors](../theory/process_tensors.md)

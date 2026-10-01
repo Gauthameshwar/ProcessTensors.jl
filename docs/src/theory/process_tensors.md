@@ -91,7 +91,7 @@ The package separates free-system propagation from environmental propagation int
     )
     ```
 
-    See [Construct your first process tensor](@ref) for the system, bath, and coupling definitions. Once constructed, the same `pt` can be evaluated with different preparations and intervention sequences.
+    See [Construct a process tensor](@ref) for the system, bath, and coupling definitions. Once constructed, the same `pt` can be evaluated with different preparations and intervention sequences.
 
 ## Anatomy of the temporal tensor network
 
@@ -122,7 +122,7 @@ In the package's PT-core convention, the input is primed and the output is unpri
     linkdims(pt)
     ```
 
-    These expose the temporal system legs and bond dimensions. See [Construct your first process tensor](@ref) for an inspection of the constructed network and its time labels.
+    These expose the temporal system legs and bond dimensions. See [Construct a process tensor](@ref) for an inspection of the constructed network and its time labels.
 
 ### Dense and ACE construction
 
@@ -161,7 +161,7 @@ An identity channel passes the system between intervals; it is not a trace-out o
     add!(seq, state_preparation(ρ0), 0)
     ```
 
-    This starts a schedule with a preparation and identity connections. Complete its terminal closure or open-output choice as shown in [Explore a process with instruments](@ref).
+    This starts a schedule with a preparation and identity connections. Complete its terminal closure or open-output choice as shown in [Process tensor instruments](@ref).
 
 ### What does a contraction return?
 
@@ -177,7 +177,7 @@ A fully contracted network is a scalar, but it is not automatically a probabilit
     trajectory = evolve(pt, ρ0)        # Reduced-trajectory convenience workflow
     ```
 
-    Both interrogate the same process. See [Explore a process with instruments](@ref) for complete schedules and the returned data.
+    Both interrogate the same process. See [Process tensor instruments](@ref) for complete schedules and the returned data.
 
 Obtaining a trajectory does not turn the cores into independent reduced-state propagators. The contraction retains the temporal bonds carrying environmental influence.
 
@@ -226,8 +226,8 @@ These properties follow from the microscopic physical construction. Generic nume
 !!! related "Continue learning"
     | Goal | Page |
     |:--|:--|
-    | Construct and inspect a process | [Construct your first process tensor](@ref) |
-    | Reuse it with different interventions | [Explore a process with instruments](@ref) |
+    | Construct and inspect a process | [Construct a process tensor](@ref) |
+    | Reuse it with different interventions | [Process tensor instruments](@ref) |
     | Revisit vectorisation and output contractions | [Quantum States and Liouville Space](liouville_space.md) |
     | Understand temporal compression | [Tensor Networks in Physics](tensor_networks.md) |
     | Explore operator correlations | [Multi-time correlations](../examples/multitime_correlations.md) |

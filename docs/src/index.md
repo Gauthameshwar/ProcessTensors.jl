@@ -89,7 +89,7 @@ be used independently for time-local dynamics.
 See [Unitary Dynamics](tutorials/unitary_dynamics.md) for closed-system
 evolution and [Dissipative Dynamics](tutorials/dissipative_dynamics.md) for
 Markovian open-system evolution. Larger models include a
-[boundary-driven spin chain](examples/boundary_driven_spin_chain.md) and
+[dissipative spin chain](examples/dissipative_spin.md) and
 [driven-dissipative Bose–Hubbard dynamics](examples/driven_dissipative_bose_hubbard.md).
 
 ## Citing and contributing

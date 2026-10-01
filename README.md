@@ -136,7 +136,7 @@ The documentation is written as a progression rather than an API dump.
 - **New to the tensor-network conventions?** Start with [ITensor Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/itensor_basics/) and [MPS and MPO Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/mps_mpo_basics/).
 - **Want open-system dynamics first?** Go to [Liouville-Space Basics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/liouville_basics/) and [Dissipative Dynamics](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/dissipative_dynamics/).
 - **Here for process tensors?** Start with [Construct your first process tensor](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/process_tensor_singlemode/), then [Explore a process with instruments](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/tutorials/process_tensor_instruments/).
-- **Already know the theory?** Jump straight to the [Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/tebd_time_evolution/) or the [API Reference](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/api/).
+- **Already know the theory?** Jump straight to the [Examples](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/examples/spin_bath_process_tensor/) or the [API Reference](https://Gauthameshwar.github.io/ProcessTensors.jl/stable/api/).
 
 ## Contributing
 

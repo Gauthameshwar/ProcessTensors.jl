@@ -26,7 +26,7 @@
 # > to leave distinguishable displacements in a thermal bosonic environment?
 #
 # !!! related "Related material"
-#     - Tutorial: [Construct your first process tensor](@ref)
+#     - Tutorial: [Construct a process tensor](@ref)
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion script"

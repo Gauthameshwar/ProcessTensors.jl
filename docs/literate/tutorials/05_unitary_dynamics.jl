@@ -1,7 +1,7 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
 # SPDX-License-Identifier: MIT #src
 # #src
-# File: docs/literate/tutorials/03_unitary_dynamics.jl #src
+# File: docs/literate/tutorials/05_unitary_dynamics.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
 # Literate tutorial source: unitary TEBD/TDVP in Hilbert and Liouville space. #src
@@ -507,7 +507,5 @@ compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_de
 # !!! related "Related examples"
 #     - [Laser-driven TDVP dynamics](../examples/laser_driven_tdvp.md) — time-dependent
 #       Hilbert-space midpoint TDVP
-#     - [TEBD time evolution](../examples/tebd_time_evolution.md) — Hilbert/Liouville TEBD comparison
-#     - [TDVP time evolution](../examples/tdvp_time_evolution.md) — Hilbert/Liouville TDVP comparison
 #
 # Next: [Dissipative Dynamics](@ref), where jump terms make Liouville space essential.
