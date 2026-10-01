@@ -4,76 +4,62 @@
 # File: docs/literate/tutorials/05_unitary_dynamics.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
-# Literate tutorial source: unitary TEBD/TDVP in Hilbert and Liouville space. #src
+# Literate tutorial source: a short introduction to unitary TEBD and TDVP. #src
 
 # # Unitary Dynamics
 #
-# This tutorial continues from [Liouville-Space Basics](@ref).
+# This tutorial introduces two ways to evolve a closed spin chain: time-evolving
+# block decimation (TEBD) and the time-dependent variational principle (TDVP).
+# We build one small model, evolve it with each method, and interpret a compact
+# set of diagnostics. A final comparison shows how the same physics appears in
+# Liouville space.
 #
-# So far we know how to build MPS/MPO objects and vectorize density matrices.
-# Now we **evolve** them in time for a closed spin chain.
-#
-# The central question is: If we evolve a pure state in Hilbert space, and evolve 
-# its density matrix in Liouville space, do we get the same observables?
-#
-# For unitary dynamics the answer should be yes. We will check this on a tiny
-# four-site chain where exact diagonalization (ED) is still possible.
+# These are additional time-evolution tools provided by `ProcessTensors.jl`.
+# For construction and reuse of a process tensor, start with
+# [Construct a process tensor](@ref).
 
 # ## Setup
+#
+# `ProcessTensors.jl` supplies the typed Hilbert/Liouville interface and the
+# `tebd` driver. Its `tdvp` methods forward to `ITensorMPS.jl`.
 
 using ITensors
 import ITensorMPS
-import LinearAlgebra
+import LinearAlgebra as LA
 using ProcessTensors
 using ITensors.Ops: Trotter
 
-#
-# `ITensorMPS.jl` already provides MPS/MPO objects, `OpSum`, gate application,
-# TEBD, and TDVP. Refer to the [ITensorMPS time evolution docs](https://docs.itensor.org/ITensorMPS/stable/tutorials/MPSTimeEvolution.html) for more details. 
-# `ProcessTensors.jl` builds on this rather than replacing it.
-#
-# The nontrivial extension here is that the same time-evolution language is made
-# available for:
-#
-# - Hilbert-space states, `MPS{Hilbert}`,
-# - Hilbert-space operators, `MPO{Hilbert}`,
-# - vectorized density matrices, `MPS{Liouville}`,
-# - Liouville-space generators, `MPO{Liouville}`.
-#
-# This tutorial first reviews Hilbert-space TEBD/TDVP, then shows how the same
-# physics can be evolved in Liouville space.
+# Two short helpers keep repeated diagnostics readable. Dense conversion is
+# used only for this four-spin check; its cost grows exponentially with size.
+# `unitary_checks` returns labelled values using Julia's built-in named tuples.
 
-# ## Model and exact diagonalization
+function dense_matrix(W, sites)
+    D = prod(dim.(sites))
+    return reshape(ComplexF64.(Array(foldl(*, W), prime.(sites)..., sites...)), D, D)
+end
+
+function unitary_checks(ψ, H_mpo, initial_energy)
+    norm2 = real(inner(ψ, ψ))
+    energy = real(inner(ψ', H_mpo, ψ)) / norm2
+    return (; norm_error=abs(norm2 - 1), energy_drift=abs(energy - initial_energy),
+            mean_sz=sum(expect(ψ, "Sz")) / length(ψ), bond=maxlinkdim(ψ))
+end;
+
+# ## A small Ising chain
 #
-# We use a transverse-field Ising chain on $N=4$ spins:
+# We use open boundaries and spin operators $S^\alpha=\sigma^\alpha/2$:
 #
 # ```math
-# H = H_X + H_{ZZ},
-# \qquad
-# H_{ZZ} = -J\sum_{j=1}^{N-1} S^z_j S^z_{j+1},
-# \qquad
-# H_X = -h\sum_{j=1}^{N} S^x_j.
+# H=-J\sum_{j=1}^{N-1}S^z_jS^z_{j+1}-h\sum_{j=1}^{N}S^x_j,
+# \qquad |\psi_0\rangle=|\uparrow\rangle^{\otimes N}.
 # ```
 #
-# The initial state is the product state $|\uparrow\rangle^{\otimes N}$.
-#
-# Because $2^4 = 16$, we can form the dense Hamiltonian matrix and compare
-# tensor-network evolution against the exact unitary
-#
-# ```math
-# |\psi(t)\rangle = e^{-iHt}|\psi(0)\rangle.
-# ```
+# The transverse field rotates the initially polarised spins; the interaction
+# can generate entanglement. The mean longitudinal magnetisation changes while
+# the energy of this time-independent Hamiltonian remains constant in exact
+# evolution. We use $\hbar=1$.
 
-N = 4
-J = 1.0
-h = 1.2
-dt = 0.05
-T = 1.0
-maxdim = 32
-cutoff = 1e-10
-sample_times = collect(range(0, T; length=5))
-
-function tfim_hamiltonian(N; J=1.0, h=1.2)
+function ising_hamiltonian(N, J, h)
     os = OpSum()
     for j in 1:(N - 1)
         os += -J, "Sz", j, "Sz", j + 1
@@ -84,428 +70,172 @@ function tfim_hamiltonian(N; J=1.0, h=1.2)
     return os
 end
 
+N = 4
+J, h = 1.0, 1.2
+dt, T = 0.05, 1.0
+maxdim, cutoff = 32, 1e-10
 sites = siteinds("S=1/2", N)
-H = tfim_hamiltonian(N; J, h)
-H_mpo = MPO(H, sites)
 ψ0 = MPS(sites, fill("Up", N))
+H = ising_hamiltonian(N, J, h)
+H_mpo = MPO(H, sites)
+E0 = real(inner(ψ0', H_mpo, ψ0));
 
-println("Hamiltonian OpSum:")
-println(H)
+#-
+println(unitary_checks(ψ0, H_mpo, E0))
+@assert isapprox(real(inner(ψ0, ψ0)), 1; atol=1e-12)
 
-@assert ψ0 isa MPS{Hilbert}
-@assert H_mpo isa MPO{Hilbert}
-
-# To perform the classical Exact Diagonalisation (ED) dynamics, we need to construct the dense matrices and vectors
-# from the MPO and MPS objects. Once we have them, we can use LAPACK's `exp` function to compute the unitary operator
-# and use it to predict the time dynamics. 
-# 
-# !!! note "Small dense helper functions"
-#     The next few functions contract MPOs to dense matrices for **validation
-#     only** on this tiny chain. They are not scalable
-#     to larger systems like tensor-networks.
-
-function dense_mpo_matrix(W, sites)
-    T = foldl(*, W)
-    D = prod(dim.(sites))
-    A = Array(T, prime.(sites)..., sites...)
-    return reshape(ComplexF64.(A), D, D)
-end
-
-function local_sz_matrices(sites, N)
-    mats = Vector{Matrix{ComplexF64}}(undef, N)
-    for j in 1:N
-        os = OpSum()
-        os += 1.0, "Sz", j
-        mats[j] = dense_mpo_matrix(MPO(os, sites), sites)
-    end
-    return mats
-end
-
-function mean_sz_from_density(ρ_dense, Sz_dense, N)
-    total = 0.0
-    for j in 1:N
-        total += real(LinearAlgebra.tr(Sz_dense[j] * ρ_dense))
-    end
-    return total / N
-end
-
-H_dense = dense_mpo_matrix(H_mpo, sites)
-Sz_dense = local_sz_matrices(sites, N)
-
-ψ0_dense = let
-    Tψ = foldl(*, ψ0)
-    vec(ComplexF64.(Array(Tψ, sites...)))
-end;
-
-# At time $t$ the exact energy and mean magnetization are
-# $E(t)=\operatorname{Tr}(H\rho(t))$ and
-# $\langle S^z\rangle = \frac{1}{N}\sum_j \operatorname{Tr}(S^z_j \rho(t))$,
-# computed fully in the dense ED reference below.
-
-function exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
-    ψt = iszero(t) ? ψ0_dense : LinearAlgebra.exp(-1im * t * H_dense) * ψ0_dense
-    ρ = ψt * ψt'
-    E = real(LinearAlgebra.tr(H_dense * ρ))
-    mz = mean_sz_from_density(ρ, Sz_dense, N)
-    return E, mz, ρ
-end
-
-E0, mz0, _ = exact_energy_and_mz(0.0, H_dense, ψ0_dense, Sz_dense, N)
-E1, mz1, _ = exact_energy_and_mz(1.0, H_dense, ψ0_dense, Sz_dense, N)
-println("Exact reference at t = 0:  E = ", E0, ",  mean ⟨Sz⟩ = ", mz0)
-println("Exact reference at t = 1:  E = ", E1, ",  mean ⟨Sz⟩ = ", mz1)
-
-# ## TEBD time evolution
+# ## TEBD: apply local gates
 #
-# **Time-evolving block decimation (TEBD)** approximates the short-time propagator
+# TEBD splits a short-time propagator into local gates, applies them to the
+# MPS, and truncates the resulting bonds. For two Hamiltonian pieces, a
+# second-order splitting has the schematic form
 #
 # ```math
-# U(\Delta t) = e^{-iH\Delta t}
+# e^{-i(H_A+H_B)\Delta t}
+# =e^{-iH_A\Delta t/2}e^{-iH_B\Delta t}e^{-iH_A\Delta t/2}
+# +\mathcal O(\Delta t^3).
 # ```
 #
-# by a product of **local gates**. The gates come from a Suzuki–Trotter
-# factorization of $H = H_X + H_{ZZ}$.
+# The package constructs gates from the terms of the Hamiltonian `OpSum`.
+# Pass real durations `dt` and `T`; for a Hilbert MPS, `tebd` supplies the
+# factor $-i$. Choose `T/dt` to be an integer.
+
+ψ_tebd = tebd(
+    ψ0, H, dt, T;
+    alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff, progress=false,
+);
+
+#-
+println(unitary_checks(ψ_tebd, H_mpo, E0))
+
+# !!! note "Two separate accuracy controls"
+#     Smaller `dt` reduces Trotter splitting error. Larger `maxdim` and a tighter
+#     `cutoff` reduce bond truncation. Second-order splitting has a global error
+#     of order $\Delta t^2$ at fixed duration before truncation dominates.
+#     Higher orders require more gates and do not remove truncation error.
+#     Check convergence in both the time step and the retained bond space.
+
+# ## TDVP: evolve within an MPS manifold
 #
-# For a second-order Trotter step (`Trotter{2}()`), schematically
+# TDVP projects $\partial_t|\psi\rangle=-iH|\psi\rangle$ onto the tangent
+# space of an MPS manifold and integrates the resulting equations. It works
+# with the Hamiltonian MPO, so it is also useful when the Hamiltonian is less
+# convenient to express as a short sequence of local gates.
 #
-# ```math
-# e^{-i(H_X + H_{ZZ})\Delta t} \approx
-# e^{-iH_X \Delta t/2}\,
-# e^{-iH_{ZZ}\Delta t}\,
-# e^{-iH_X \Delta t/2}
-# + \mathcal{O}(\Delta t^3).
-# ```
-#
-# `ProcessTensors.jl` builds these gates through `ProcessTensors.trotter_gates`
-# and applies them repeatedly in `tebd`.
-
-# ### Inspecting the Trotter gates
-#
-# `ProcessTensors.trotter_gates` expands one Trotter step into local ITensor
-# gates. Orders `1` and `2` use the `ITensors.Ops` factorization; even orders
-# `n >= 4` are built recursively with Yoshida's symmetric fractal composition in
-# ProcessTensors.jl.
-# For the specified Hamiltonian, we would have four on-site terms and three
-# two-site terms corresponding to each term in the Hamiltonian. So in the
-# first-order Trotter, we would expect a total of seven gates, and for the
-# second-order Trotter, we would expect twice that.
-
-println("Gates per Trotter step on this chain:")
-for order in (1, 2, 4)
-    alg = Trotter{order}()
-    step_gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=alg)
-    println("  Trotter{", order, "}: ", length(step_gates), " gates")
-end
-
-gates = ProcessTensors.trotter_gates(H, sites, -im * dt; alg=Trotter{2}())
-println("Indices of the first Trotter{2} gate: ", inds(gates[1]))
-
-# !!! note "Higher Trotter orders"
-#     `Trotter{4}()`, `Trotter{6}()`, and other even orders are supported via
-#     Yoshida fractal composition in this package. Odd orders `>= 3` are not implemented yet.
-
-# ### Evolving with `tebd`
-#
-# The call
-#
-# ```julia
-# tebd(ψ, H, dt, Δt; alg=Trotter{2}())
-# ```
-#
-# applies `round(Δt/dt)` Trotter steps to evolve from the current MPS for a
-# duration `Δt`. Truncation is controlled by `maxdim` and `cutoff`.
-#
-# The energy is $\langle H\rangle = \langle\psi|H|\psi\rangle$, computed as
-# `real(inner(ψ', H_mpo, ψ))`.
-
-ψ1 = tebd(ψ0, H, dt, dt; alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff)
-
-E1 = real(inner(ψ1', H_mpo, ψ1))
-mz1 = sum(expect(ψ1, "Sz")) / N
-
-println("After one TEBD step (Δt = ", dt, "):")
-println("  energy    = ", E1)
-println("  mean ⟨Sz⟩ = ", mz1)
-
-@assert ψ1 isa MPS{Hilbert}
-
-# ### Trotter order comparison
-#
-# Higher Trotter order usually reduces splitting error at fixed `dt`. Here is a
-# compact check at the final time $T$:
-
-_, _, ρ_exact_T = exact_energy_and_mz(T, H_dense, ψ0_dense, Sz_dense, N)
-
-println()
-println("TEBD density-matrix error at t = ", T, ":")
-for alg in (Trotter{1}(), Trotter{2}(), Trotter{4}())
-    ψ_alg = tebd(ψ0, H, dt, T; alg, maxdim=maxdim, cutoff=cutoff)
-    ρ_alg = dense_mpo_matrix(to_dm(ψ_alg), sites)
-    err = LinearAlgebra.norm(ρ_alg - ρ_exact_T) / max(LinearAlgebra.norm(ρ_exact_T), eps())
-    println("  ", typeof(alg), "  ρ_err = ", round(err, digits=4))
-end
-
-# We must note, however, that this accuracy comes at a cost of more gate operations 
-# while contracting them with the state. In principle, we could go to even higher-order 
-# Trotter, but the numerical cost would be significant. 
-# 
-# ### TEBD vs exact evolution
-#
-# Instead of looking only at the final time, let us sample the trajectory. This
-# shows whether the tensor-network evolution follows the exact curve, not just
-# whether it lands close at one point.
-
-function compare_tebd(sample_times, ψ0, H, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
-    ψ = ψ0
-    t_prev = 0.0
-    println()
-    println("TEBD vs exact (Trotter{2}):")
-    println("  t      E_exact    E_tebd     mz_exact   mz_tebd")
-    println("  " * "-"^52)
-    for t in sample_times
-        if t > 0.0
-            ψ = tebd(ψ, H, dt, t - t_prev; alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff)
-            t_prev = t
-        end
-        E_ex, mz_ex, ρ_ex = exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
-        E_tebd = real(inner(ψ', H_mpo, ψ))
-        mz_tebd = sum(expect(ψ, "Sz")) / N
-        ρ_tebd = dense_mpo_matrix(to_dm(ψ), sites)
-        ρ_err = LinearAlgebra.norm(ρ_tebd - ρ_ex) / max(LinearAlgebra.norm(ρ_ex), eps())
-        println("  $(lpad(round(t, digits=2), 5))  ",
-                lpad(round(E_ex, digits=4), 9), "  ",
-                lpad(round(E_tebd, digits=4), 9), "  ",
-                lpad(round(mz_ex, digits=4), 9), "  ",
-                lpad(round(mz_tebd, digits=4), 9),
-                "   ρ_err=", round(ρ_err, digits=4))
-    end
-end
-
-compare_tebd(sample_times, ψ0, H, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
-
-# !!! note "Energy conservation and numerical drift"
-#     In exact unitary dynamics with a time-independent Hamiltonian, energy is
-#     conserved. Any drift in the TEBD/TDVP energy is a numerical error from
-#     Trotter splitting, time-step error, or MPS truncation.
-
-# ## TDVP time evolution
-#
-# **Time-dependent variational principle (TDVP)** takes a different view. Instead
-# of applying a product of fixed gates, TDVP projects the Schrödinger equation
-#
-# ```math
-# \frac{d}{dt}|\psi\rangle = -iH|\psi\rangle
-# ```
-#
-# onto the tangent space of the MPS manifold at the current state. This results
-# in a more accurate time dynamics where conserved quantities remain conserved
-# during the dynamics. However, the TDVP algorithm is more computationally expensive
-# and also contains additional projection errors onto the subspace you restrain your 
-# wavefunction to. For more details on the TDVP algorithm, refer to 
-# [TensorNetwork.org](https://tensornetwork.org/mps/algorithms/timeevo/tdvp.html).
-#
-# `ITensorMPS.jl` implements the algorithm. `ProcessTensors.jl` forwards the
-# call on the wrapped `.core` object and returns `MPS{Hilbert}`.
-#
-# The Hamiltonian is passed as an `MPO{Hilbert}` and the evolution time enters
-# as a **complex** number:
-#
-# ```math
-# |\psi(t)\rangle \approx \mathrm{TDVP}\big(H,\,-it,\,|\psi(0)\rangle\big).
-# ```
-#
-# So the second argument is `-im * t`, and the integrator step is `-im * dt`.
-
-# ### Evolving with `tdvp`
+# Here `nsite=2` updates two neighbouring tensors at a time, allowing bond
+# growth followed by truncation. The MPO is $H$, so both the total evolution
+# parameter and the step include $-i$.
 
 ψ_tdvp = tdvp(
-    H_mpo,
-    -im * dt,
-    ψ0;
-    time_step=-im * dt,
-    nsite=2,
-    maxdim=maxdim,
-    cutoff=cutoff,
-    outputlevel=0,
+    H_mpo, -im * T, ψ0;
+    time_step=-im * dt, nsite=2, maxdim=maxdim, cutoff=cutoff,
+    normalize=false, outputlevel=0,
+);
+
+#-
+println(unitary_checks(ψ_tdvp, H_mpo, E0))
+
+# !!! info "One-site TDVP and global subspace expansion"
+#     One-site TDVP (`nsite=1`) keeps the existing bond dimensions. Starting from
+#     a product state, increasing `maxdim` alone does not supply the missing
+#     entangled directions. Global subspace expansion (GSE) enriches the bond
+#     basis with Krylov directions before one-site evolution. For this short
+#     tutorial, two-site TDVP provides bond growth directly.
+#
+# !!! note "Conservation is useful, but not an accuracy certificate"
+#     Ideal fixed-manifold Hilbert-space TDVP preserves norm and energy for a
+#     time-independent Hermitian Hamiltonian. Finite solver tolerances and
+#     two-site truncation can introduce drift. A restricted one-site trajectory
+#     can conserve energy while giving inaccurate observables. TDVP also has
+#     projection and integration errors; it is not automatically more accurate
+#     than TEBD.
+
+# ## A compact check against exact evolution
+#
+# Four spins give a dense Hamiltonian of size $16\times16$. We use its matrix
+# exponential once to check the final density operator. This comparison is
+# insensitive to an overall phase of the wavefunction and tests more than one
+# observable. It is a small-system reference, not a scalable evolution method.
+
+H_dense = dense_matrix(H_mpo, sites)
+ψ0_dense = vec(ComplexF64.(Array(foldl(*, ψ0), sites...)))
+ψ_exact = LA.exp(-im * T * H_dense) * ψ0_dense
+ρ_exact = ψ_exact * ψ_exact'
+ρ_tebd = dense_matrix(to_dm(ψ_tebd), sites)
+ρ_tdvp = dense_matrix(to_dm(ψ_tdvp), sites)
+
+errors = (
+    tebd=LA.norm(ρ_tebd - ρ_exact) / LA.norm(ρ_exact),
+    tdvp=LA.norm(ρ_tdvp - ρ_exact) / LA.norm(ρ_exact),
 )
+println(errors)
+@assert all(isfinite, values(errors))
+@assert maximum(values(errors)) < 1e-2
 
-E_tdvp = real(inner(ψ_tdvp', H_mpo, ψ_tdvp))
-mz_tdvp = sum(expect(ψ_tdvp, "Sz")) / N
-
-println("After one TDVP step (Δt = ", dt, "):")
-println("  energy    = ", E_tdvp)
-println("  mean ⟨Sz⟩ = ", mz_tdvp)
-
-@assert ψ_tdvp isa MPS{Hilbert}
-
-# ### TDVP vs exact evolution
-# 
-# Now we do a direct comparison of our time evolution with ED and print the energy and magnetization 
-# for each time step.
-
-function compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
-    ψ = ψ0
-    t_prev = 0.0
-    println()
-    println("TDVP vs exact:")
-    println("  t        E_exact      E_tdvp     mz_exact   mz_tdvp   ρ_err")
-    println("  " * "-"^52)
-    for t in sample_times
-        if t > 0.0
-            ψ = tdvp(
-                H_mpo,
-                -im * (t - t_prev),
-                ψ;
-                time_step=-im * dt,
-                nsite=2,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                outputlevel=0,
-            )
-            t_prev = t
-        end
-        E_ex, mz_ex, ρ_ex = exact_energy_and_mz(t, H_dense, ψ0_dense, Sz_dense, N)
-        E_tdvp = real(inner(ψ', H_mpo, ψ))
-        mz_tdvp = sum(expect(ψ, "Sz")) / N
-        ρ_tdvp = dense_mpo_matrix(to_dm(ψ), sites)
-        ρ_err = LinearAlgebra.norm(ρ_tdvp - ρ_ex) / max(LinearAlgebra.norm(ρ_ex), eps())
-        println("  $(lpad(round(t, digits=2), 5))  ",
-                lpad(round(E_ex, digits=4), 9), "  ",
-                lpad(round(E_tdvp, digits=4), 9), "  ",
-                lpad(round(mz_ex, digits=4), 9), "  ",
-                lpad(round(mz_tdvp, digits=4), 9),
-                "   ", round(ρ_err, digits=6))
-    end
-end
-
-compare_tdvp(sample_times, ψ0, H_mpo, sites, H_dense, ψ0_dense, Sz_dense)
+# The displayed values are relative Frobenius errors. The assertions are loose
+# regression checks for this small demonstration, not general accuracy targets.
+# The norm and energy diagnostics above provide complementary information.
+# For a convergence study, repeat with `dt/2` and then tighter bond controls;
+# agreeing with another approximate method alone is not a reference solution.
 
 # ## [Hilbert versus Liouville evolution](@id hilbert-liouville-tdvp)
 #
-# The same unitary physics can be written in Liouville space. A pure state
-# $\rho = |\psi\rangle\langle\psi|$ obeys
+# The same closed-system density operator obeys
 #
 # ```math
-# \frac{d\rho}{dt} = -i[H,\rho],
-# \qquad
-# |\rho(t)\rangle\rangle = e^{\mathcal{L}_H t}|\rho(0)\rangle\rangle,
+# \partial_t|\rho\rangle\rangle=\mathcal L_H|\rho\rangle\rangle,
+# \qquad \mathcal L_H\rho=-i[H,\rho].
 # ```
 #
-# with $\mathcal{L}_H = -iH_L + iH_R$. The Liouville generator is available as
-# `liouvillian_mpo(H, sites_L)`.
-#
-# For TDVP the time argument is **`T`**, not `-im * T`, because the factor
-# $-i$ is already inside the Liouville MPO.
+# Reuse the same Liouville indices for the initial density and generator.
+# Both TEBD and TDVP can evolve this representation.
 
-ρ0 = to_dm(ψ0)
 sites_L = liouv_sites(sites)
-ρL0 = to_liouville(ρ0; sites=sites_L)
-L_mpo = liouvillian_mpo(H, sites_L)
+ρL0 = to_liouville(to_dm(ψ0); sites=sites_L)
+L_mpo = liouvillian_mpo(H, sites_L);
 
-# ### Evolving with `tdvp` in Liouville space
-#
-# The Liouville analogue of the Hilbert TDVP call is
-#
-# ```julia
-# tdvp(L_mpo, Δt, ρL0; time_step=dt, nsite=2, maxdim, cutoff)
-# ```
-#
-# Here `ρL0` is an `MPS{Liouville}` and `L_mpo` is the Liouville generator from
-# `liouvillian_mpo`. The time argument is **`Δt`**, not `-im * Δt`.
+#-
+ρL_tebd = tebd(
+    ρL0, H, dt, T;
+    alg=Trotter{2}(), maxdim=maxdim, cutoff=cutoff, progress=false,
+);
+ρL_tdvp = tdvp(
+    L_mpo, T, ρL0;
+    time_step=dt, nsite=2, maxdim=maxdim, cutoff=cutoff,
+    normalize=false, updater_kwargs=(; ishermitian=false), outputlevel=0,
+);
 
-ρL1 = tdvp(
-    L_mpo,
-    dt,
-    ρL0;
-    time_step=dt,
-    nsite=2,
-    maxdim=maxdim,
-    cutoff=cutoff,
-    outputlevel=0,
+# !!! note "The generator determines the TDVP time argument"
+#     With `H_mpo`, pass `-im * T` and `time_step=-im * dt`.
+#     With `L_mpo`, pass `T` and `time_step=dt`: the generator already contains
+#     $-i$. A Liouvillian is generally non-Hermitian, so the local solver is
+#     told this explicitly. `normalize=false` avoids normalising the Liouville
+#     vector's Euclidean norm, which represents purity rather than trace.
+
+ρ_from_L_tebd = dense_matrix(to_hilbert(ρL_tebd), sites)
+ρ_from_L_tdvp = dense_matrix(to_hilbert(ρL_tdvp), sites)
+liouville_errors = (
+    tebd=LA.norm(ρ_from_L_tebd - ρ_exact) / LA.norm(ρ_exact),
+    tdvp=LA.norm(ρ_from_L_tdvp - ρ_exact) / LA.norm(ρ_exact),
 )
+println(liouville_errors)
+@assert all(isfinite, values(liouville_errors))
+@assert maximum(values(liouville_errors)) < 1e-2
 
-ρ1_liouville = dense_mpo_matrix(to_hilbert(ρL1), sites)
-E_l1 = real(LinearAlgebra.tr(H_dense * ρ1_liouville))
-mz_l1 = mean_sz_from_density(ρ1_liouville, Sz_dense, N)
-
-println("After one Liouville TDVP step (Δt = ", dt, "):")
-println("  energy    = ", E_l1)
-println("  mean ⟨Sz⟩ = ", mz_l1)
-println("  Tr(ρ)     = ", LinearAlgebra.tr(ρ1_liouville))
-
-@assert ρL1 isa MPS{Liouville}
-
-# ### Hilbert vs Liouville TDVP
+# !!! info "Different representations, different numerical constraints"
+#     An approximate pure-state MPS still defines a positive operator
+#     $|\psi\rangle\langle\psi|$, although its norm and observables can have
+#     errors. A general Liouville MPS does not enforce trace, Hermiticity, or
+#     positivity. Hilbert-space TDVP conservation arguments do not automatically
+#     protect the physical energy $\operatorname{Tr}(H\rho)$ in Liouville space.
+#     See [Checking physicality](@ref dynamics-physicality) for practical checks.
 #
-# Here we perform the time evolution of our initial state in a TFIM in both the 
-# Hilbert and Liouville spaces and see if they match.
-# The strongest check is whether the density matrices agree, not just individual
-# observables. We also print $\operatorname{Tr}(\rho)$ from the Liouville route.
-
-function compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_dense)
-    ψ = ψ0
-    ρL = ρL0
-    t_prev = 0.0
-    println()
-    println("Hilbert vs Liouville TDVP:")
-    println("  t      E_Hilbert  E_Liouv    mz_Hilbert mz_Liouv   Tr(ρ_L)   ρ_err")
-    println("  " * "-"^68)
-    for t in sample_times
-        if t > 0.0
-            Δt = t - t_prev
-            ψ = tdvp(
-                H_mpo,
-                -im * Δt,
-                ψ;
-                time_step=-im * dt,
-                nsite=2,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                outputlevel=0,
-            )
-            ρL = tdvp(
-                L_mpo,
-                Δt,
-                ρL;
-                time_step=dt,
-                nsite=2,
-                maxdim=maxdim,
-                cutoff=cutoff,
-                outputlevel=0,
-            )
-            t_prev = t
-        end
-        E_h = real(inner(ψ', H_mpo, ψ))
-        mz_h = sum(expect(ψ, "Sz")) / N
-        ρ_h = dense_mpo_matrix(to_dm(ψ), sites)
-        ρ_l = dense_mpo_matrix(to_hilbert(ρL), sites)
-        E_l = real(LinearAlgebra.tr(H_dense * ρ_l))
-        mz_l = mean_sz_from_density(ρ_l, Sz_dense, N)
-        tr_ρ_l = LinearAlgebra.tr(ρ_l)
-        ρ_hl_err = LinearAlgebra.norm(ρ_h - ρ_l) / max(LinearAlgebra.norm(ρ_h), eps())
-        println("  $(lpad(round(t, digits=2), 5))  ",
-                lpad(round(E_h, digits=4), 9), "  ",
-                lpad(round(E_l, digits=4), 9), "  ",
-                lpad(round(mz_h, digits=4), 9), "  ",
-                lpad(round(mz_l, digits=4), 9), "  ",
-                lpad(round(real(tr_ρ_l), digits=4), 7), "  ",
-                round(ρ_hl_err, digits=4))
-    end
-end
-
-compare_hilbert_liouville(sample_times, ψ0, H_mpo, L_mpo, sites, H_dense, Sz_dense)
-
-# ### Summary
+# Liouville evolution also has a larger local dimension. For a pure state with
+# Schmidt rank $\chi$, its density operator has operator-Schmidt rank $\chi^2$
+# across the same cut. The exact physics agrees, but the two numerical
+# representations can require different bond dimensions and show different errors.
 #
-# - `ITensorMPS.jl` provides TEBD/TDVP; `ProcessTensors.jl` extends them to typed
-#   Hilbert/Liouville MPS and MPO objects.
-# - TEBD approximates $e^{-iH\Delta t}$ by Trotter gates from `OpSum`.
-# - TDVP projects Schrödinger evolution onto the MPS manifold; pass `-im * t`.
-# - Liouville TDVP evolves `MPS{Liouville}` with `liouvillian_mpo`; pass `T`.
-# - Reuse `sites_L` across `to_liouville` and `liouvillian_mpo`.
-#
-# !!! related "Related examples"
-#     - [Laser-driven TDVP dynamics](../examples/laser_driven_tdvp.md) — time-dependent
-#       Hilbert-space midpoint TDVP
-#
-# Next: [Dissipative Dynamics](@ref), where jump terms make Liouville space essential.
+# !!! related "Continue learning"
+#     - [Dissipative Dynamics](@ref): add jump operators and check density-matrix physicality.
+#     - [Laser-driven TDVP dynamics](../examples/laser_driven_tdvp.md): time-dependent spin driving.
+#     - [Construct a process tensor](@ref): build a reusable multi-time process.

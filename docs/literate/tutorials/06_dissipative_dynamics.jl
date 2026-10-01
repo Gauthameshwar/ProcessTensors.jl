@@ -4,508 +4,216 @@
 # File: docs/literate/tutorials/06_dissipative_dynamics.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
-# Literate tutorial source: dissipative open dynamics in Liouville space. #src
+# Literate tutorial source: dissipative TEBD/TDVP and concise physicality checks. #src
 
 # # Dissipative Dynamics
 #
+# This tutorial evolves a small spin system with coherent interactions and local
+# amplitude damping. We construct its Liouville-space state, evolve it with TEBD
+# and TDVP, and check both the physical output and numerical accuracy.
+#
+# The model is a Markovian master equation with specified jump operators.
+# These time-evolution tools complement the process-tensor workflows introduced
+# in [Construct a process tensor](@ref). For the algorithm introductions,
+# see [Unitary Dynamics](@ref); for vectorisation, see [Liouville-Space Basics](@ref).
 
-# In the unitary-dynamics tutorial, Liouville space was a second route to the
-# same closed-system physics. For open systems, that picture becomes primary:
-# the state is generally a mixed **density matrix** `ρ`, not a pure wavefunction,
-# and the dynamics is usually written as a master equation rather than a
-# Schrödinger equation.
-#
-# After vectorisation,
-#
-# ```math
-# \rho \longmapsto |\rho\rangle\rangle,
-# ```
-#
-# a Liouvillian generator becomes an ordinary linear operator on the
-# vectorised density,
-#
-# ```math
-# |\rho\rangle\rangle \mapsto \mathcal{L}|\rho\rangle\rangle.
-# ```
-#
-# The familiar MPS/MPO workflow then carries over with different types and
-# indices. Here is a quick summary table of how the Hilbert and Liouville
-# space handles the same ideas in different ways.
-#
-# ```@raw html
-# <table>
-# <thead>
-# <tr><th>Concept</th><th>Hilbert space</th><th>Liouville space</th></tr>
-# </thead>
-# <tbody>
-# <tr><td>Physical object</td><td>pure or mixed ket $|\psi\rangle$ or density $\rho$</td><td>vectorised density $|\rho\rangle\rangle$</td></tr>
-# <tr><td>Operator / generator</td><td>Hamiltonian $H$</td><td>Liouvillian superoperator $\mathcal{L}$</td></tr>
-# <tr><td>Site indices</td><td>physical <code>sites</code></td><td><code>liouv_sites(sites)</code> (local dim $d^2$)</td></tr>
-# <tr><td>Closed-system dynamics</td><td>$\mathrm{i}\hbar\,\partial_t |\psi\rangle = H|\psi\rangle$</td><td>$\mathrm{i}\hbar\,\partial_t |\rho\rangle\rangle = [H,\cdot]|\rho\rangle\rangle$</td></tr>
-# <tr><td>Open-system dynamics</td><td>not possible with a single-state Schrödinger equation</td><td>local master equation for $\rho$, linear in $|\rho\rangle\rangle$</td></tr>
-# <tr><td>One-step propagator (TEBD)</td><td>$e^{-iH\Delta t}$</td><td>$e^{\mathcal{L}\Delta t}$</td></tr>
-# <tr><td>Package evolution calls</td><td><code>tebd(ψ, H, …)</code> / <code>tdvp(H_mpo, …)</code></td><td><code>tebd(ρL, H, …; jump_ops=…)</code> / <code>tdvp(L_mpo, …)</code></td></tr>
-# </tbody>
-# </table>
-# ```
-#
-# The tutorial below demonstrates the local Liouvillian action, 
-# and time evolves with Liouville TEBD and TDVP on a single-spin and two-spin model.
-#
 # ## Setup
-#
-# The helper functions below are for small dense checks in this tutorial.
 
 using ITensors
 import ITensorMPS
-import LinearAlgebra
+import LinearAlgebra as LA
 using ProcessTensors
 using ITensors.Ops: Trotter
 
-roundreal(x; digits=8) = round(real(x); digits=digits)
+# Two helpers are reused for both algorithms. Dense reconstruction is suitable
+# only for this two-spin demonstration. Diagnostics are returned as named tuples,
+# so Julia displays their labels without a custom printing routine.
 
-function dense_mpo_matrix(ρL::AbstractMPS{Liouville}, sites)
+function dense_density(ρL, sites)
     W = to_hilbert(ρL)
-    T = foldl(*, W)
-
-    A = Array(T, prime.(sites)..., sites...)
     D = prod(dim.(sites))
-
-    return reshape(ComplexF64.(A), D, D)
+    return reshape(ComplexF64.(Array(foldl(*, W), prime.(sites)..., sites...)), D, D)
 end
 
-function density_matrix_properties(ρ::AbstractMatrix)
-    ρc = ComplexF64.(ρ)
-    ρh = (ρc + ρc') / 2
+function density_checks(ρ)
+    scale = max(LA.norm(ρ), eps(Float64))
+    ρh = LA.Hermitian((ρ + ρ') / 2)
+    return (; trace_error=abs(LA.tr(ρ) - 1),
+            hermiticity_error=LA.norm(ρ - ρ') / scale,
+            min_eigenvalue=minimum(LA.eigvals(ρh)))
+end;
 
-    trace = LinearAlgebra.tr(ρc)
-    hermiticity = LinearAlgebra.norm(ρc - ρc') / max(LinearAlgebra.norm(ρc), eps(Float64))
-    min_eig = minimum(real.(LinearAlgebra.eigvals(LinearAlgebra.Hermitian(ρh))))
-
-    return (; trace, hermiticity, min_eig)
-end
-
-# ## [A single spin with amplitude damping](@id dissipative-lindblad-mpo)
+# ## [A spin pair with amplitude damping](@id dissipative-lindblad-mpo)
 #
-# We begin with one spin-1/2 system. The Hamiltonian is
+# We use spin operators $S^\alpha=\sigma^\alpha/2$ and set $\hbar=1$:
 #
 # ```math
-# H =
-# \frac{\omega}{2}S^z.
+# H=J S^z_1S^z_2+h(S^x_1+S^x_2),
+# \qquad
+# \dot\rho=-i[H,\rho]+\gamma\sum_{j=1}^2\mathcal D[S^-_j](\rho),
 # ```
 #
-# The dissipative jump is
+# where $\mathcal D[L](\rho)=L\rho L^\dagger-\{L^\dagger L,\rho\}/2$.
+# Damping transfers population from `Up` to `Dn`; the transverse field mixes
+# those states, and the interaction can generate correlations. We start with
+# both spins up, so the initial mean magnetisation is $1/2$.
 #
-# ```math
-# L = S^-.
-# ```
-#
-# This describes amplitude damping: population flows from the upper spin state
-# into the lower spin state.
-#
-# We choose the initial state
-#
-# ```math
-# |+\rangle =
-# \frac{1}{\sqrt{2}}
-# \left(
-# |\uparrow\rangle
-# +
-# |\downarrow\rangle
-# \right).
-# ```
-#
-# This state has both population and coherence, so damping has something visible
-# to act on.
-#
-# ### Dissipative jump operators
-#
-# The full Markovian generator has Hamiltonian and dissipative parts,
-#
-# ```math
-# \frac{d\rho}{dt}
-# =
-# -i[H,\rho]
-# +
-# \sum_\mu
-# \gamma_\mu
-# \left(
-# L_\mu \rho L_\mu^\dagger
-# -
-# \frac{1}{2}
-# \{L_\mu^\dagger L_\mu,\rho\}
-# \right).
-# ```
-#
-# In `ProcessTensors.jl`, local jumps are passed as tuples:
-#
-# ```julia
-# jump_ops = [(γ, "S-", 1)]
-# ```
-#
-# This means: add the dissipator $S^-$ with jump rate $\gamma$ at site 1
-# such that the local Liouvillian action of this jump is given by
-#
-# ```math
-# \mathcal{D}[S^-](\rho) =
-# S^-\rho S^+
-# -
-# \frac{1}{2}
-# \{S^+ S^-,\rho\}.
-# ```
-#
-# For this single-spin model the Liouville generator is
-#
-# ```math
-# \mathcal{L}
-# =
-# -i[H,\cdot]
-# +
-# \gamma\mathcal{D}[S^-](\cdot).
-# ```
+# A single two-spin model is enough to demonstrate both algorithms and retains
+# a small dense reference. All Liouville objects share the same `sites_L`.
 
-# !!! warning "Rate convention"
-#     The tuple `(γ, "S-", 1)` stores the jump rate `γ`. The package inserts
-#     `γ * D[S-](ρ)`. Do not pass `sqrt(γ)` in this tuple unless you deliberately
-#     want the operator coefficient itself to contain a square root.
-
-ω = 1.3
-γ = 0.4
-
-sites = siteinds("S=1/2", 1)
+J, h, γ = 1.0, 0.4, 0.15
+dt, T = 0.025, 0.5
+maxdim, cutoff = 16, 1e-12
+sites = siteinds("S=1/2", 2)
 sites_L = liouv_sites(sites)
-
-ψ0 = MPS(ComplexF64[1 / sqrt(2), 1 / sqrt(2)], sites)
-ρ0 = to_dm(ψ0)
-ρL0 = to_liouville(ρ0; sites=sites_L)
-
-println("Initial Liouville state:")
-println(ρL0)
-
-@assert ψ0 isa MPS{Hilbert}
-@assert ρ0 isa MPO{Hilbert}
-@assert ρL0 isa MPS{Liouville}
-
-# The Hamiltonian is still written as an ordinary Hilbert-space `OpSum`.
-# Dissipation enters through `jump_ops`, as introduced above.
-# To see how the `OpSum` terms construct a dissipative $\mathcal{L}$, see the
-# [Liouville superoperators and OpSums](@ref liouville-superoperators-and-opsums)
-# section of the Liouville space theory page.
+ψ0 = MPS(sites, ["Up", "Up"])
+ρL0 = to_liouville(to_dm(ψ0); sites=sites_L)
 
 H = OpSum()
-H += (ω / 2), "Sz", 1
+H += J, "Sz", 1, "Sz", 2
+H += h, "Sx", 1
+H += h, "Sx", 2
+jump_ops = [(γ, "S-", 1), (γ, "S-", 2)]
+L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jump_ops);
 
-jump_ops = [(γ, "S-", 1)]
+# !!! note "Jump rates and generator conventions"
+#     `(γ, "S-", j)` contributes `γ * D[S-]` at site `j`; the first entry is
+#     the rate, not its square root. `L_mpo` already includes the commutator's
+#     factor $-i$ and acts as $\partial_t|\rho\rangle\rangle=\mathcal L|\rho\rangle\rangle$.
+#     The propagator is $e^{T\mathcal L}$.
 
-# Build the Liouville-space generator MPO.
-
-L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jump_ops)
-
-println("Liouvillian MPO:")
-println(L_mpo)
-
-@assert L_mpo isa MPO{Liouville}
-
-# !!! tip "Primary package pattern"
-#     The key construction is:
+# ## [Liouville-space TEBD](@id dissipative-evolving-density-matrix)
 #
-#     ```julia
-#     L_mpo = liouvillian_mpo(H, sites_L; jump_ops=jump_ops)
-#     ```
-#
-#     This is the dissipative analogue of building a Hamiltonian MPO.
-
-# ### Checking the local Liouvillian action
-#
-# For one spin, the vectorised density matrix has four components:
-#
-# ```math
-# |\rho\rangle\rangle
-# =
-# \begin{pmatrix}
-# \rho_{00}\\
-# \rho_{10}\\
-# \rho_{01}\\
-# \rho_{11}
-# \end{pmatrix}.
-# ```
-#
-# For the model above, the analytical action is
-#
-# ```math
-# \mathcal{L}
-# \begin{pmatrix}
-# \rho_{00}\\
-# \rho_{10}\\
-# \rho_{01}\\
-# \rho_{11}
-# \end{pmatrix}
-# =
-# \begin{pmatrix}
-# -\gamma\rho_{00}\\
-# (i\omega/2-\gamma/2)\rho_{10}\\
-# (-i\omega/2-\gamma/2)\rho_{01}\\
-# \gamma\rho_{00}
-# \end{pmatrix}.
-# ```
-#
-# Let us check that the package MPO produces exactly this local action.
-
-sL = only(sites_L)
-
-ρvec0 = ComplexF64.(Array(ρL0[1], sL))
-ρ00, ρ10, ρ01, ρ11 = ρvec0
-
-dρ_expected = ComplexF64[
-    -γ * ρ00,
-    (1im * ω / 2 - γ / 2) * ρ10,
-    (-1im * ω / 2 - γ / 2) * ρ01,
-    γ * ρ00,
-]
-
-dρ_from_mpo = ComplexF64.(Array(L_mpo[1] * ρL0[1], prime(sL)))
-
-println("‖L|ρ⟩⟩ - analytical formula‖ = ",
-        LinearAlgebra.norm(dρ_from_mpo - dρ_expected))
-
-@assert LinearAlgebra.norm(dρ_from_mpo - dρ_expected) < 1e-10
-
-# !!! note "Why this check matters"
-#     `liouvillian_mpo` is not just wrapping a dense matrix. It builds the local
-#     superoperator structure from the Hamiltonian and the jump terms. The
-#     single-spin formula lets us see that structure explicitly.
-
-# ## [Evolving the density matrix](@id dissipative-evolving-density-matrix)
-#
-# We now time evolve the density matrix.
-#
-# In Hilbert space, unitary TEBD used gates for
-#
-# ```math
-# e^{-iH\Delta t}.
-# ```
-#
-# In Liouville space, dissipative TEBD uses gates for
-#
-# ```math
-# e^{\mathcal{L}\Delta t}.
-# ```
-#
-# The package call is deliberately simple:
-#
-# ```julia
-# ρL_t = tebd(ρL0, H, dt, T; jump_ops=jump_ops)
-# ```
-#
-# Notice that we pass the Hilbert-space Hamiltonian `H` and the dissipative jumps.
-# The Liouville generator is built internally.
-#
-# On this one-site validation example we use `Trotter{4}()` so the gate
-# approximation stays close to the dense `exp(TL)` reference below.
-
-dt = 0.02
-T = 0.2
+# TEBD approximates $e^{\mathcal L\Delta t}$ with local gates and truncates
+# the resulting MPS bonds. Supply the Hamiltonian `OpSum` and `jump_ops`;
+# the Liouville generator is assembled internally from the state's indices.
 
 ρL_tebd = tebd(
-    ρL0,
-    H,
-    dt,
-    T;
-    jump_ops=jump_ops,
-    alg=Trotter{4}(),
-    maxdim=16,
-    cutoff=1e-12,
+    ρL0, H, dt, T;
+    jump_ops=jump_ops, alg=Trotter{2}(),
+    maxdim=maxdim, cutoff=cutoff, progress=false,
+);
+
+# To read out the magnetisation, vectorise the observable on the same indices.
+# The overlap gives $\operatorname{Tr}(\bar S^z\rho)$, with
+# $\bar S^z=(S^z_1+S^z_2)/2$. We retain the complex result so any spurious
+# imaginary part remains visible.
+
+Sz_mean = OpSum()
+Sz_mean += 0.5, "Sz", 1
+Sz_mean += 0.5, "Sz", 2
+Sz_L = to_liouville(MPO(Sz_mean, sites); sites=sites_L);
+println((initial=inner(Sz_L, ρL0), tebd=inner(Sz_L, ρL_tebd)))
+
+# !!! note "Dissipative splitting and physicality"
+#     A Trotter approximation is CPTP if each factor is itself a forward-time
+#     CPTP map. Splitting a dissipator into individual algebraic terms does not
+#     automatically meet that condition. Higher-order compositions can also
+#     contain negative substeps. Use convergence and physicality checks rather
+#     than assuming that a higher Trotter order guarantees a physical result.
+#     Bond truncation adds a separate approximation.
+
+# ## Liouville-space TDVP
+#
+# TDVP evolves the vectorised density within an MPS manifold, using `L_mpo`
+# directly. We use two-site updates so the initial product density can develop
+# operator-space correlations. Its total time and step are real because the
+# generator already contains the Hamiltonian factor $-i$.
+
+ρL_tdvp = tdvp(
+    L_mpo, T, ρL0;
+    time_step=dt, nsite=2, maxdim=maxdim, cutoff=cutoff,
+    normalize=false, updater_kwargs=(; ishermitian=false), outputlevel=0,
+);
+
+#-
+println((tebd=inner(Sz_L, ρL_tebd), tdvp=inner(Sz_L, ρL_tdvp)))
+
+# !!! info "What changes from pure-state TDVP?"
+#     The Liouvillian is generally non-Hermitian, and the Euclidean norm of a
+#     Liouville vector measures purity, not trace. We therefore use a
+#     non-Hermitian local solver and keep `normalize=false`. Physical energy
+#     need not be conserved in this dissipative model. One-site TDVP still has
+#     fixed bond dimensions; GSE can enrich its basis but does not enforce
+#     trace or positivity. See [Unitary Dynamics](@ref) for that distinction.
+
+# ## [Checking physicality](@id dynamics-physicality)
+#
+# A physical deterministic output has unit trace, is Hermitian, and is positive
+# semidefinite. TEBD truncation and splitting, or TDVP projection and numerical
+# integration, do not generally impose all of these constraints on a Liouville
+# MPS. This applies even when the underlying evolution is unitary.
+#
+# Reconstruct the small density matrices and inspect three labelled numbers:
+
+ρ_tebd = dense_density(ρL_tebd, sites)
+ρ_tdvp = dense_density(ρL_tdvp, sites)
+tebd_checks = density_checks(ρ_tebd)
+tdvp_checks = density_checks(ρ_tdvp)
+println(tebd_checks)
+println(tdvp_checks)
+
+# | Diagnostic | Interpretation |
+# |:--|:--|
+# | `trace_error` | $\vert\operatorname{Tr}\rho-1\vert$, including any imaginary trace error |
+# | `hermiticity_error` | Relative Frobenius norm of $\rho-\rho^\dagger$ |
+# | `min_eigenvalue` | Smallest eigenvalue of $(\rho+\rho^\dagger)/2$ |
+#
+# Interpret the eigenvalue together with the Hermiticity error: a non-Hermitian
+# matrix is already unphysical. The Hermitian part is formed only to diagnose
+# the result; the evolved state is not replaced by it. Tiny negative values can
+# reflect numerical error and should shrink under suitable convergence checks.
+
+@assert tebd_checks.trace_error < 1e-3
+@assert tdvp_checks.trace_error < 1e-3
+@assert tebd_checks.hermiticity_error < 1e-3
+@assert tdvp_checks.hermiticity_error < 1e-3
+@assert tebd_checks.min_eigenvalue > -1e-3
+@assert tdvp_checks.min_eigenvalue > -1e-3
+
+# !!! warning "Normalisation does not repair positivity"
+#     Rescaling by the trace can restore unit trace, but it does not remove
+#     negative eigenvalues or projection errors. Euclidean normalisation is
+#     different again: it fixes $\operatorname{Tr}(\rho^\dagger\rho)$.
+#     For a large network, trace and observable checks remain accessible;
+#     positivity checks on small reduced states are useful but do not certify
+#     positivity of the complete many-body density operator.
+
+# ### Accuracy against a small dense reference
+#
+# Passing physicality checks does not establish accuracy. Here the Liouville
+# dimension is only $4^2=16$, so we can compare both final states with the dense
+# matrix exponential. Extract the generator and state using the same local
+# Liouville ordering; no global density-matrix reshuffling is needed.
+
+D_L = prod(dim.(sites_L))
+L_dense = reshape(
+    ComplexF64.(Array(foldl(*, L_mpo), prime.(sites_L)..., sites_L...)), D_L, D_L,
 )
+v0 = vec(ComplexF64.(Array(foldl(*, ρL0), sites_L...)))
+v_exact = LA.exp(T * L_dense) * v0
+v_tebd = vec(ComplexF64.(Array(foldl(*, ρL_tebd), sites_L...)))
+v_tdvp = vec(ComplexF64.(Array(foldl(*, ρL_tdvp), sites_L...)))
 
-ρ_tebd = dense_mpo_matrix(ρL_tebd, sites)
-
-println("Density matrix after Liouville TEBD:")
-println(roundreal.(ρ_tebd))
-
-metrics_tebd = density_matrix_properties(ρ_tebd)
-
-println("Trace after TEBD:       ", real(metrics_tebd.trace))
-println("Hermiticity defect:     ", metrics_tebd.hermiticity)
-println("Minimum eigenvalue:     ", metrics_tebd.min_eig)
-
-@assert ρL_tebd isa MPS{Liouville}
-@assert abs(real(metrics_tebd.trace) - 1) < 1e-6
-@assert metrics_tebd.hermiticity < 1e-6
-@assert metrics_tebd.min_eig > -1e-6
-
-# !!! info "Physical sanity checks"
-#     A density matrix should remain trace-one, Hermitian, and positive
-#     semidefinite. Small violations usually indicate numerical errors from
-#     truncation, time stepping, or an inconsistent Liouville-index convention.
-
-# ### Exact dense check for the tiny system
-#
-# Since this is only one spin, we can also build the dense Liouvillian matrix
-# and compare against
-#
-# ```math
-# |\rho(T)\rangle\rangle_{\mathrm{exact}}
-# =
-# e^{T\mathcal{L}}
-# |\rho(0)\rangle\rangle.
-# ```
-#
-# This is a validation check, not the scalable algorithm.
-
-L_dense = Matrix(Array(L_mpo[1], prime(sL), sL))
-
-ρvec_exact = LinearAlgebra.exp(T * L_dense) * ρvec0
-ρ_exact = reshape(ρvec_exact, 2, 2)
-
-err_tebd = LinearAlgebra.norm(ρ_tebd - ρ_exact) /
-           max(LinearAlgebra.norm(ρ_exact), eps(Float64))
-
-println("Relative TEBD error against dense exp(TL): ", err_tebd)
-
-@assert err_tebd < 1e-8
-
-# ## Scaling the dissipative dynamics
-#
-# The single-spin example was chosen because it has a clean analytical check.
-# The package interface, however, is already many-body.
-#
-# `ITensorMPS.tdvp` currently requires at least two sites, so we demonstrate
-# both TEBD and TDVP on a two-spin model:
-#
-# ```math
-# H =
-# J S^z_1S^z_2
-# +
-# h(S^x_1+S^x_2),
-# ```
-#
-# with local amplitude damping on both sites:
-#
-# ```math
-# L_1 = S^-_1,
-# \qquad
-# L_2 = S^-_2.
-# ```
-
-chain_sites = siteinds("S=1/2", 2)
-chain_sites_L = liouv_sites(chain_sites)
-
-ψ_chain0 = MPS(chain_sites, ["Up", "Dn"])
-ρ_chain0 = to_dm(ψ_chain0)
-ρL_chain0 = to_liouville(ρ_chain0; sites=chain_sites_L)
-
-H_chain = OpSum()
-H_chain += 1.0, "Sz", 1, "Sz", 2
-H_chain += 0.4, "Sx", 1
-H_chain += 0.4, "Sx", 2
-
-chain_jumps = [(0.15, "S-", 1), (0.15, "S-", 2)]
-
-L_chain = liouvillian_mpo(H_chain, chain_sites_L; jump_ops=chain_jumps)
-
-chain_dt = 0.025
-chain_T = 0.1
-
-ρL_chain_t = tebd(
-    ρL_chain0,
-    H_chain,
-    chain_dt,
-    chain_T;
-    jump_ops=chain_jumps,
-    alg=Trotter{2}(),
-    maxdim=32,
-    cutoff=1e-12,
+errors = (
+    tebd=LA.norm(v_tebd - v_exact) / LA.norm(v_exact),
+    tdvp=LA.norm(v_tdvp - v_exact) / LA.norm(v_exact),
 )
+println(errors)
+@assert all(isfinite, values(errors))
+@assert maximum(values(errors)) < 1e-3
 
-ρ_chain_t = dense_mpo_matrix(ρL_chain_t, chain_sites)
-chain_metrics = density_matrix_properties(ρ_chain_t)
-
-println("Two-spin dissipative TEBD:")
-println("  trace              = ", real(chain_metrics.trace))
-println("  hermiticity defect = ", chain_metrics.hermiticity)
-println("  min eigenvalue     = ", chain_metrics.min_eig)
-println("  max bond dimension = ", maxlinkdim(ρL_chain_t))
-
-@assert abs(real(chain_metrics.trace) - 1) < 1e-6
-@assert chain_metrics.hermiticity < 1e-6
-@assert chain_metrics.min_eig > -1e-6
-@assert maxlinkdim(ρL_chain_t) ≤ 32
-
-# ### TDVP uses the same Liouville MPO
+# These assertions are regression checks for this tiny model, not general
+# physicality or accuracy thresholds. Tighten `dt` and the bond controls to
+# establish convergence for the observables in a larger calculation. Monitor
+# intermediate times as well as the endpoint when studying a full trajectory.
 #
-# TEBD is not the only option. We can also evolve the same vectorised density
-# matrix with TDVP on the two-site chain:
+# The workflow is now complete: specify `H` and the jumps, construct the
+# Liouville state, evolve, then inspect observables and diagnostics. The examples
+# below apply this pattern to larger physical models.
 #
-# ```julia
-# ρL_tdvp = tdvp(L_chain, chain_T, ρL_chain0; time_step=chain_dt)
-# ```
-
-ρL_chain_tdvp = tdvp(
-    L_chain,
-    chain_T,
-    ρL_chain0;
-    time_step=chain_dt,
-    nsite=1,
-    maxdim=32,
-    cutoff=1e-12,
-    outputlevel=0,
-)
-
-ρ_chain_tdvp = dense_mpo_matrix(ρL_chain_tdvp, chain_sites)
-chain_tdvp_metrics = density_matrix_properties(ρ_chain_tdvp)
-
-println("Two-spin dissipative TDVP:")
-println("  trace              = ", real(chain_tdvp_metrics.trace))
-println("  hermiticity defect = ", chain_tdvp_metrics.hermiticity)
-println("  min eigenvalue     = ", chain_tdvp_metrics.min_eig)
-
-@assert ρL_chain_tdvp isa MPS{Liouville}
-@assert abs(real(chain_tdvp_metrics.trace) - 1) < 1e-6
-@assert chain_tdvp_metrics.hermiticity < 1e-6
-@assert chain_tdvp_metrics.min_eig > -1e-6
-
-# !!! note "TEBD and TDVP in this tutorial"
-#     TEBD exposes the gate-based picture of `exp(𝓛Δt)`.
-#     TDVP exposes the MPO-based picture of evolving inside an MPS manifold.
-#     Both are useful once the density matrix has been written as
-#     `MPS{Liouville}`.
-
-# !!! tip "The important scaling pattern"
-#     The single-spin and two-spin examples use the same command pattern:
-#
-#     ```julia
-#     sites_L = liouv_sites(sites)
-#     ρL0 = to_liouville(to_dm(ψ0); sites=sites_L)
-#     ρL_t = tebd(ρL0, H, dt, T; jump_ops=jump_ops)
-#     ```
-#
-#     The local Liouville dimension is larger, but the workflow remains
-#     MPS/MPO-like.
-
-# ### Summary
-#
-# In this tutorial, we learned that:
-#
-# - dissipative dynamics is naturally formulated for density matrices,
-# - density matrices become `MPS{Liouville}` after vectorisation,
-# - Liouvillian generators become `MPO{Liouville}`,
-# - local jumps are passed as tuples such as `(γ, "S-", site)`,
-# - `liouvillian_mpo(H, sites_L; jump_ops=jump_ops)` builds the generator,
-# - `tebd(ρL0, H, dt, T; jump_ops=jump_ops)` evolves the density matrix by
-#   Liouville-space TEBD,
-# - `tdvp(L_mpo, T, ρL0; time_step=dt)` evolves the same object using the
-#   Liouville MPO,
-# - trace, Hermiticity, and positivity are the basic sanity checks for
-#   dissipative density-matrix dynamics.
-#
-# !!! related "Related material"
-#     - Theory: [Quantum States and Liouville Space](../theory/liouville_space.md)
-#     - [Dissipative spin chain](../examples/dissipative_spin.md) — bulk amplitude
-#       damping with Liouville TEBD
-#     - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md)
-#       — midpoint Liouville TDVP with a time-dependent pump and local loss
-#
-# [Construct a process tensor](@ref) moves beyond fixed Markovian
-# Liouvillian generators. Process tensors describe reduced dynamics with memory,
-# where the environment cannot be compressed into a time-local list of jump
-# operators.
+# !!! related "Continue learning"
+#     - [Dissipative spin chain](../examples/dissipative_spin.md): interacting spins with local damping.
+#     - [Driven-dissipative Bose–Hubbard](../examples/driven_dissipative_bose_hubbard.md): driven bosons with loss.
+#     - [Quantum States and Liouville Space](../theory/liouville_space.md): vectorisation and map conventions.
+#     - [Construct a process tensor](@ref): retain environmental influence across multiple intervention times.
