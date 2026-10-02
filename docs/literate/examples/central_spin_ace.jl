@@ -160,9 +160,17 @@ println((max_error_vs_exact_finite_N=maximum(abs.(spin_x .- exact_sx)),
 #
 # In the companion figure, the $N=5$ and $N=10$ curves reach their
 # first minimum before the large-bath reference and do not reach $-1/2$.
-# The formula explains both features: the frequency is $J(N+1)/(2N)$ and the
-# minimum is $(1-N)/[2(N+1)]$. For $N=5$ this minimum is $-1/3$; for $N=10$
-# it is $-9/22$. The $N=100$ and $N=1000$ curves approach the limiting cosine.
+# The formula explains both features. The oscillation frequency and the value
+# of that minimum are
+#
+# ```math
+# \omega_N=\frac{J(N+1)}{2N},
+# \qquad
+# \min_t\langle S_x(t)\rangle_N=\frac{1-N}{2(N+1)}.
+# ```
+#
+# For $N=5$ this minimum is $-1/3$; for $N=10$ it is $-9/22$. The $N=100$
+# and $N=1000$ curves approach the limiting cosine.
 # Thus these offsets and phase shifts are expected finite-bath physics.
 #
 # The black crosses show the analytical large-bath limit. In the lower panel,
@@ -185,9 +193,9 @@ println((max_error_vs_exact_finite_N=maximum(abs.(spin_x .- exact_sx)),
 #     finite-$N$ formula comes from the timestep or from ACE truncation. A new
 #     central-spin preparation can reuse the stored process tensor. A new bath
 #     size, coupling, or `dt` is built into the cores and needs a new one.
-#     - Increase $N$ while keeping each coupling equal to $J/N$. The first
-#       minimum should sit near $t=2\pi N/[J(N+1)]$, with depth
-#       $(1-N)/[2(N+1)]$. Compare that prediction with $\langle S_x(t)\rangle$.
+#     - Increase $N$ while keeping each coupling equal to $J/N$. Compare the
+#       first minimum of $\langle S_x(t)\rangle$ with the time
+#       $t=2\pi/\omega_N$ and the depth given above.
 #     - Halve `dt` and set `nsteps = 2(nsteps - 1) + 1`, so the final time stays
 #       the same. If the second-order splitting dominates, the error against
 #       the finite-$N$ formula should fall by about a factor of four. A plateau
