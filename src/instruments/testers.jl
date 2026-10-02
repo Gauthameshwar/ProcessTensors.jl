@@ -486,6 +486,11 @@ function add!(seq::TesterSeq, action::AbstractTesterAction, tstep::Int)
     return seq
 end
 
+function Base.:+(seq::TesterSeq, entry::Tuple{AbstractTesterAction,Int})
+    add!(seq, entry[1], entry[2])
+    return seq
+end
+
 add!(::InstrumentSeq, ::Tester, ::Int) = throw(
     ArgumentError("add!: Tester objects belong in tester workflows, not InstrumentSeq."),
 )
