@@ -151,6 +151,7 @@ stage_example_figures([
     "central_spin_ace.png",
     "thermal_spinboson_ace.png",
     "noisy_quantum_circuit_tester.png",
+    "noisy_quantum_circuit_tester_protocol.png",
     "ramsey_povm_protocol.png",
     "ramsey_povm_records.png",
     "pt_multitime_correlations.png",

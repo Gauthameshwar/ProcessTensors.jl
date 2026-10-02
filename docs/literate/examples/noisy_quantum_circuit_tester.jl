@@ -14,7 +14,7 @@
 # A `Tester` carries the same ancilla through all three operations; `TesterSeq`
 # specifies the circuit. The bath process tensor is built only once.
 #
-# ![Processor, thermal bath, and the SWAP–Z–SWAP tester protocol](../assets/examples/noisy_quantum_circuit_tester_protocol.svg)
+# ![Processor, thermal bath, and the SWAP–Z–SWAP tester protocol](../assets/examples/noisy_quantum_circuit_tester_protocol.png)
 #
 # Time runs left to right. Only $Q$ couples directly to the bath; $A$ persists
 # between controls. This is the ideal protocol schematic; the finite-interval
@@ -129,7 +129,13 @@ spectator = evolve(process_tensor, rho_Q0; tester=memory, progress=false);
 #
 # `return_joint=true` supplies $\rho_{QA}$ as well as both reduced states.
 # We track $\langle X_Q\rangle$, $\langle X_A\rangle$, and
-# $I(Q{:}A)=S(\rho_Q)+S(\rho_A)-S(\rho_{QA})$, with entropy in bits.
+#
+# ```math
+# I(Q{:}A)=S(\rho_Q)+S(\rho_A)-S(\rho_{QA}),
+# ```
+#
+# with entropy in bits. The lower panel of the companion figure is this mutual
+# information.
 # The two small helpers convert these one- and two-qubit outputs and check
 # their suitability for entropy evaluation.
 
@@ -177,8 +183,13 @@ println((identity_tester_error=spectator_error, max_trace_error=maximum(c.trace_
 all(c -> c.valid, checks) || @warn "Invalid entropy inputs: mutual information is NaN at affected snapshots; check convergence."
 
 # A local Z gate reverses X without destroying coherence. At the three selected
-# snapshots, also report $C_A=2|\rho_{A,01}|/\mathrm{Tr}\rho_A$ to distinguish
-# this phase change from a loss of transverse coherence.
+# snapshots, also report
+#
+# ```math
+# C_A=2|\rho_{A,01}|/\operatorname{Tr}\rho_A
+# ```
+#
+# to distinguish this phase change from a loss of transverse coherence.
 
 for (event, k) in zip((:store, :phase, :retrieve), (store_step, phase_step, retrieve_step))
     println((event=event, time=trajectory.times[k], x_Q=x_Q[k], x_A=x_A[k],
