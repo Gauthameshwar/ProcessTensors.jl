@@ -12,7 +12,7 @@
 # system? We sample an Ohmic spectral density into oscillator modes, prepare
 # their thermal states, and use ACE to construct the process seen by the spin.
 # The observable is the excited-state population $P_e(t)$, compared with the
-# isolated result $\sin^2(\Omega t/2)$.
+# isolated result.
 #
 # !!! related "Related material"
 #     - Tutorial: [Construct a process tensor](@ref)
@@ -27,32 +27,57 @@
 # ## Model and spectral density
 #
 # We set $\hbar=1$, express frequencies in $\mathrm{ps}^{-1}$, and work in the
-# rotating frame of a resonant drive. With $A=|e\rangle\langle e|$, the model is
+# rotating frame of a resonant drive. The model is
 #
 # ```math
 # H=\Omega S_x+\sum_k\left[
 # \omega_k b_k^\dagger b_k+g_k(b_k+b_k^\dagger)A
-# +\frac{g_k^2}{\omega_k}A\right].
+# +\frac{g_k^2}{\omega_k}A^2\right],
 # ```
 #
+# with the excited-state projector
+#
+# ```math
+# A=|e\rangle\langle e|
+# =\frac{I+Z}{2}
+# =\frac{I}{2}+S_z.
+# ```
+#
+# The coupling is a state-dependent force on each oscillator. It vanishes when
+# the spin is in $|g\rangle$, and it becomes $g_k(b_k+b_k^\dagger)$ when the
+# spin is in $|e\rangle$. A superposition therefore sends the two spin
+# components into different bath states, which reduces the spin coherence.
 # The spin starts in $|g\rangle$ (`Dn`); `Up` denotes $|e\rangle$. The bath
 # starts uncorrelated with it, with each oscillator thermal under its free
-# Hamiltonian. Although the coupling is diagonal in the $g/e$ basis, it does
-# not commute with the transverse drive and changes the population dynamics.
+# Hamiltonian. The transverse drive does not commute with $A$, so this
+# dephasing also changes the population oscillations.
 #
 # !!! note "Why include the counterterm?"
-#     Completing the square gives
-#     $\omega_k(b_k^\dagger+g_kA/\omega_k)(b_k+g_kA/\omega_k)$, since $A^2=A$.
-#     The positive counterterm cancels the static energy lowering
-#     $-g_k^2 A/\omega_k$ of a displaced oscillator. It does not remove the
-#     bath fluctuations or their dynamical back-action. With a finite Fock
-#     cutoff, the displaced oscillator itself is also only approximated.
+#     Completing the square moves the oscillator by $g_k A/\omega_k$ and
+#     leaves the static shift $-g_k^2 A^2/\omega_k$. The counterterm in $H$ is
+#     the opposite shift, $g_k^2 A^2/\omega_k$, including the denominator.
+#     Because $A^2=A$, the code adds that shift as $(g_k^2/\omega_k)$ times
+#     `ProjUp`. The fluctuations and the dynamical back-action remain. With a
+#     finite Fock cutoff, the displaced oscillator itself is also only
+#     approximated.
 #
-# We use $J(\omega)=0.2\,\omega\exp[-\omega/(3\,\mathrm{ps}^{-1})]$ in the
-# convention $J(\omega)=\sum_k g_k^2\delta(\omega-\omega_k)$. Uniform midpoint
-# bins give $\omega_k=\omega_{\min}+(k-1/2)\Delta\omega$ and
-# $g_k=\sqrt{J(\omega_k)\Delta\omega}$. The bin width belongs in the coupling;
-# refining the grid should approximate the same spectral density.
+# The upper panel of the companion figure samples
+#
+# ```math
+# J(\omega)=0.2\,\omega\exp[-\omega/(3\,\mathrm{ps}^{-1})]
+# =\sum_k g_k^2\delta(\omega-\omega_k),
+# ```
+#
+# with uniform midpoint bins
+#
+# ```math
+# \omega_k=\omega_{\min}+(k-\tfrac12)\Delta\omega,
+# \qquad
+# g_k=\sqrt{J(\omega_k)\Delta\omega}.
+# ```
+#
+# The bin width belongs in the coupling; refining the grid should approximate
+# the same spectral density.
 
 using Logging
 using LinearAlgebra
@@ -92,7 +117,8 @@ couplings = sqrt.(spectral_density.(frequencies) .* Δω)
 # ```
 #
 # The coupling `OpSum` uses site 1 for the oscillator and site 2 for the spin.
-# Each mode carries its own counterterm, so it is included exactly once.
+# Its last term is the counterterm $g_k^2 A^2/\omega_k$. Each mode carries its
+# own copy, so the shift is included exactly once.
 
 system_sites = siteinds("S=1/2", 1)
 H_system = OpSum()
@@ -163,15 +189,22 @@ println((final_time=last(trajectory.times), final_population=last(population),
 # lies near the exponential cutoff scale; the midpoint grid also resolves the
 # low-frequency modes that the four-mode example misses.
 #
-# In the lower panel, the isolated spin repeatedly reaches populations zero
-# and one, with period $2\pi/\Omega\simeq2.09$ ps. The bath-coupled curves
+# In the lower panel, the isolated spin follows
+#
+# ```math
+# P_e^{\mathrm{isolated}}(t)=\sin^2(\Omega t/2).
+# ```
+#
+# It repeatedly reaches populations zero and one, with period
+# $2\pi/\Omega\simeq2.09$ ps. The bath-coupled curves
 # develop lower peaks and higher troughs: population transfer becomes less
 # complete on successive cycles. The hotter curve has a smaller first peak
 # and is closer to $1/2$ by the end of the plotted interval.
 #
-# The $g/e$ components displace the oscillators differently, allowing the bath
-# to retain information about the system's history. This affects the coherence
-# sustaining the driven rotations. Temperature changes the initial oscillator
+# The $|g\rangle$ component leaves each oscillator undisplaced, while
+# $|e\rangle$ drives it with $g_k(b_k+b_k^\dagger)$. The bath therefore retains
+# which-path information, and the coherence that sustains the driven rotations
+# decays. Temperature changes the initial oscillator
 # fluctuations; here it changes the damping even though $J(\omega)$ and the
 # couplings are held fixed. This is a comparison over the displayed time window,
 # not a general assertion that every hotter bath damps every system faster.
@@ -185,8 +218,14 @@ println((final_time=last(trajectory.times), final_population=last(population),
 #
 # The local cutoff is especially important when $\theta/\omega_k$ is large.
 # For an untruncated free oscillator, the total initial Gibbs probability above
-# the retained levels is $\Pr(n\ge M)=e^{-M\omega_k/\theta}$. It is a useful
-# preparation diagnostic, not a bound on the eventual population error.
+# the retained levels is
+#
+# ```math
+# \Pr(n\ge M)=e^{-M\omega_k/\theta}.
+# ```
+#
+# It is a useful preparation diagnostic, not a bound on the eventual population
+# error.
 
 thermal_tail = thermal_frequency == 0 ? zeros(N_bath) :
                exp.(-local_dim .* frequencies ./ thermal_frequency)

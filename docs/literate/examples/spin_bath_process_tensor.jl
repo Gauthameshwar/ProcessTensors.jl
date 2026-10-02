@@ -233,7 +233,13 @@ println((final_time=final_time, pt_sz=last(sz_single),
 # That jump is the Strang splitting, not a failure of the bath contraction.
 # `Trotter{2}()` writes each interval as a free-system half step, the exact
 # bath propagator, and the matching half step,
-# $e^{-iH_S\Delta t/2}\,e^{-i(H_B+H_{SB})\Delta t}\,e^{-iH_S\Delta t/2}$.
+#
+# ```math
+# e^{-iH_S\Delta t/2}\,
+# e^{-i(H_B+H_{SB})\Delta t}\,
+# e^{-iH_S\Delta t/2}.
+# ```
+#
 # The system and bath generators do not commute, so each step has a local
 # error of order $\Delta t^3$. With $\Delta t=0.1$ that error is already visible
 # on a logarithmic axis, and later steps accumulate it. The mode propagator
