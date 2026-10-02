@@ -175,6 +175,14 @@ end
     @test resolve_tester_action(seq, 1) === action_z
     @test length(seq.entries) == 2
 
+    seq_plus = TesterSeq(default, 4)
+    @test (seq_plus + (action_x, 1)) === seq_plus
+    seq_plus += (action_u, 2)
+    @test resolve_tester_action(seq_plus, 1) === action_x
+    @test resolve_tester_action(seq_plus, 2) === action_u
+    @test resolve_tester_action(seq_plus, 0) === default
+    @test_throws ArgumentError seq_plus + (action_x, 5)
+
     keyword_seq = TesterSeq(nsteps=2, entries=Dict(0 => action_x))
     @test resolve_tester_action(keyword_seq, 0) === action_x
     @test resolve_tester_action(keyword_seq, 1) isa TesterIdentity
