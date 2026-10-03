@@ -30,7 +30,12 @@ and a trace, which sums over a pair of compatible indices,
 \operatorname{Tr}(A) = \sum_i A_{ii}.
 ```
 
-![Two open legs of \(A\), the contraction of \(A\) with \(B\), and the trace of \(A\).](../assets/theory/tensor_contractions.svg)
+```@raw html
+<div class="theme-figure">
+  <img class="theme-figure-light" src="../../assets/theory/tensor_contractions-light.svg" alt="Two open legs of A, the contraction of A with B, and the trace of A.">
+  <img class="theme-figure-dark" src="../../assets/theory/tensor_contractions-dark.svg" alt="Two open legs of A, the contraction of A with B, and the trace of A.">
+</div>
+```
 
 An open leg is a free index. Joining two legs contracts that index, and joining both legs of one tensor takes its trace.
 
@@ -73,7 +78,12 @@ c_{s_1\cdots s_N}
  A^{[N]s_N}_{\alpha_{N-1}\alpha_N}.
 ```
 
-![A physical index, the virtual bond between neighbouring site tensors, a three-site MPS, and a three-site MPO.](../assets/theory/mps_vocabulary.svg)
+```@raw html
+<div class="theme-figure">
+  <img class="theme-figure-light" src="../../assets/theory/mps_vocabulary-light.svg" alt="A physical index, the virtual bond between neighbouring site tensors, a three-site MPS, and a three-site MPO.">
+  <img class="theme-figure-dark" src="../../assets/theory/mps_vocabulary-dark.svg" alt="A physical index, the virtual bond between neighbouring site tensors, a three-site MPS, and a three-site MPO.">
+</div>
+```
 
 A physical index labels a local basis state. A virtual bond is the internal index that chains the site tensors. Each square is one solid colour, stepping along the chain; an MPO uses a different palette from an MPS.
 

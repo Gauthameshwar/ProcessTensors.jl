@@ -17,6 +17,8 @@ for name in \
   mps_vocabulary
 do
   pdflatex -interaction=nonstopmode "${name}.tex" >"${name}.build.log"
-  inkscape "${name}.pdf" --export-type=svg --export-filename="${out}/${name}.svg" \
-    || test -s "${out}/${name}.svg"
+  inkscape "${name}.pdf" --export-type=svg --export-filename="${out}/${name}-light.svg" \
+    || test -s "${out}/${name}-light.svg"
 done
+
+python3 generate_dark_svgs.py

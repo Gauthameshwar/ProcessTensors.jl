@@ -145,7 +145,12 @@ println("Final ⟨Sz⟩ for the isolated spin = ", last(mz_isolated))
 
 # ## [Closed experiments](@id instrument-schedules)
 #
-# ![The same process returns an open state, an outcome probability, or an observable contraction.](../assets/theory/process_contractions.svg)
+# ```@raw html
+# <div class="theme-figure">
+#   <img class="theme-figure-light" src="../../assets/theory/process_contractions-light.svg" alt="The same process returns an open state, an outcome probability, or an observable contraction.">
+#   <img class="theme-figure-dark" src="../../assets/theory/process_contractions-dark.svg" alt="The same process returns an open state, an outcome probability, or an observable contraction.">
+# </div>
+# ```
 #
 # Each experiment below uses a fresh schedule. `pt` does not change.
 # `seq += instrument, step` inserts that instrument at the slot.

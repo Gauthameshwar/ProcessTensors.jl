@@ -169,10 +169,11 @@ makedocs(;
     authors="Gauthameshwar <gauthameshwar_s@mymail.sutd.edu.sg> and contributors",
     sitename="ProcessTensors.jl",
     format=Documenter.HTML(;
+        prettyurls=true,
         canonical="https://Gauthameshwar.github.io/ProcessTensors.jl",
         edit_link="main",
         collapselevel=1,
-        assets=String["assets/admonitions.css"],
+        assets=String["assets/admonitions.css", "assets/themed-figures.css"],
     ),
     pages=[
         "Home" => "index.md",

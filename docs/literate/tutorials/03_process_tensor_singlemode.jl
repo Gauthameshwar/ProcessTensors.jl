@@ -134,7 +134,12 @@ println(pt)
 
 # ## What the object stores
 #
-# ![Process cores and the intervention that joins adjacent intervals. Time runs right to left.](../assets/theory/pt_anatomy.svg)
+# ```@raw html
+# <div class="theme-figure">
+#   <img class="theme-figure-light" src="../../assets/theory/pt_anatomy-light.svg" alt="Process cores and the intervention that joins adjacent intervals. Time runs right to left.">
+#   <img class="theme-figure-dark" src="../../assets/theory/pt_anatomy-dark.svg" alt="Process cores and the intervention that joins adjacent intervals. Time runs right to left.">
+# </div>
+# ```
 #
 # Core ``Q^{[k]}`` owns the interval ``[t_k, t_{k+1}]``. The intervention at the
 # boundary joins output ``o_{k-1}`` to input ``i_k``.
