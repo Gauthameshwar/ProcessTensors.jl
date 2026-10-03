@@ -62,7 +62,7 @@ ace_maxdim = 32
 # Each bath spin becomes a `SpinMode`. In its coupling `OpSum`, site 1 is the
 # bath spin and site 2 is the central spin. Empty `OpSum`s specify the vanishing
 # free Hamiltonians; the nonzero coupling is supplied separately. We silence
-# the constructors’ warnings about these intentionally empty Hamiltonians.
+# the constructors’ warnings about these intentionally empty Hamiltonians using the `NullLogger`.
 
 system_sites = siteinds("S=1/2", 1)
 system = with_logger(() -> spin_system(system_sites, OpSum()), NullLogger())
@@ -195,7 +195,7 @@ println((max_error_vs_exact_finite_N=maximum(abs.(spin_x .- exact_sx)),
 #     size, coupling, or `dt` is built into the cores and needs a new one.
 #     - Increase $N$ while keeping each coupling equal to $J/N$. Compare the
 #       first minimum of $\langle S_x(t)\rangle$ with the time
-#       $t=2\pi/\omega_N$ and the depth given above.
+#       $t=\pi/\omega_N$ and the depth given above.
 #     - Halve `dt` and set `nsteps = 2(nsteps - 1) + 1`, so the final time stays
 #       the same. If the second-order splitting dominates, the error against
 #       the finite-$N$ formula should fall by about a factor of four. A plateau

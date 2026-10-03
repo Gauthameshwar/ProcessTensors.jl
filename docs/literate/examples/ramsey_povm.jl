@@ -1,7 +1,7 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors #src
 # SPDX-License-Identifier: MIT #src
 # #src
-# File: docs/literate/examples/ramsey_povm_example.jl #src
+# File: docs/literate/examples/ramsey_povm.jl #src
 # Contributor: Gauthameshwar S. #src
 # #src
 # Repeated Ramsey readouts with active reset on a non-Markovian process tensor. #src
@@ -18,7 +18,7 @@
 #     - Theory: [Process Tensors](../theory/process_tensors.md)
 #
 # !!! script "Companion script"
-#     [`ramsey_povm_script.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/better-docs/scripts/ramsey_povm_script.jl)
+#     [`scripts/ramsey_povm.jl`](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/better-docs/scripts/ramsey_povm.jl)
 #     generates the protocol and probability figures with the longer schedule described below.
 #
 # ## Build the dephasing environment
