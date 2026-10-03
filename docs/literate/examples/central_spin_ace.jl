@@ -91,7 +91,7 @@ bath = spin_bath(modes)
 
 process_tensor = build_process_tensor(
     system; environment=bath,
-    method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim, compression=:zipup),
+    method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim, compression=:zipup_cpp),
     dt=dt, nsteps=nsteps,
     sys_alg=Trotter{2}(), combine_alg=Trotter{2}(),
 )

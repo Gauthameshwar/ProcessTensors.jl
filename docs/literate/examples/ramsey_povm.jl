@@ -87,7 +87,7 @@ bath = with_logger(() -> bosonic_bath(modes), NullLogger())
 # model, not a converged approximation to the Ohmic continuum.
 
 process_tensor = build_process_tensor(
-    system; method=ACE(cutoff=ACE_CUTOFF, maxdim=ACE_MAXDIM),
+    system; method=ACE(cutoff=ACE_CUTOFF, maxdim=ACE_MAXDIM, compression=:zipup_cpp),
     environment=bath, dt=DT, nsteps=NSTEPS,
     sys_alg=Trotter{2}(), combine_alg=Trotter{2}(), progress=false)
 println((maximum_bond_dimension=maxlinkdim(process_tensor),))

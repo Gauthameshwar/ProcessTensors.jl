@@ -8,7 +8,7 @@
 # against dense exp(tL) for excited-spin density and mean transverse magnetization.
 #
 # Run with:
-#   julia --project=. scripts/tebd_tfim_dissipative.jl
+#   julia --project=. -t auto scripts/tebd_tfim_dissipative.jl
 
 using Printf
 using ProcessTensors

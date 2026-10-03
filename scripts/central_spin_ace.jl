@@ -8,7 +8,8 @@
 # Central spin initially +x, bath spins +z, no free Hamiltonians.
 # Based on Cygorek et al., Nature Physics 18, 662–668 (2022), Fig. 4a.
 #
-# Run from the repository: julia --project=. -t auto scripts/central_spin_ace.jl
+# Run with:
+# julia --project=. -t auto scripts/central_spin_ace.jl
 #
 # Set PT_ACE_REBUILD=1 after changing model code or package versions.
 # PT_CENTRAL_CACHE_DIR overrides the cache directory.
@@ -21,7 +22,7 @@ const nsteps = round(Int, final_time / dt) + 1
 const N_bath_values = [5, 10, 100, 1000] # Use [5, 10] for a shorter first run.
 const ace_cutoff = 1e-10
 const ace_maxdim = 1024
-const ace_compression = :zipup
+const ace_compression = :zipup_cpp
 const trace_warning_tolerance = 1e-4
 const spin_bound_tolerance = 1e-4
 const reference_nmarkers = 21
@@ -86,7 +87,7 @@ function read_cache(path, params)
     try
         payload = deserialize(path)
         metadata = payload.metadata
-        metadata.format == 1 || return nothing
+        metadata.format == 2 || return nothing
         matches = all(k -> hasproperty(metadata, k) &&
                       getproperty(metadata, k) == getproperty(params, k), keys(params))
         matches || return nothing
@@ -144,7 +145,7 @@ for N_bath in N_bath_values
         # Keep the system and temporal cores; omit the original bath from the cache.
         slim = ProcessTensor(pt.core, pt.system, nothing, pt.dt, pt.nsteps, pt.coupling_site)
         payload = (; process_tensor=slim, system_sites,
-                   metadata=(; format=1, params..., maxlinkdim=maxlinkdim(slim)))
+                   metadata=(; format=2, params..., maxlinkdim=maxlinkdim(slim)))
         serialize(cache_path * ".tmp", payload)
         mv(cache_path * ".tmp", cache_path; force=true)
     end

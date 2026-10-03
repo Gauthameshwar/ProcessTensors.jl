@@ -5,7 +5,9 @@
 # Contributor: Gauthameshwar S.
 #
 # Three unsharp Ramsey readouts, each followed by the same active reset.
-# Run from the repository: julia --project=. scripts/ramsey_povm.jl
+#
+# Run with:
+# julia --project=. -t auto scripts/ramsey_povm.jl
 # PT_RAMSEY_CACHE overrides the cache path; PT_RAMSEY_REBUILD=1 forces rebuilding.
 # Force rebuilding after changing bath construction or package versions.
 
@@ -15,6 +17,7 @@ const ALPHA, OMEGA_C, OMEGA_MAX = 0.20, 4.0, 20.0
 const TEMPERATURE = 2.5
 const DT, NSTEPS = 0.15, 14
 const ACE_CUTOFF, ACE_MAXDIM = 1e-5, 256
+const ACE_COMPRESSION = :zipup_cpp
 const ETA, OUTCOMES = 0.90, (-1, 1)
 const READOUT_STEPS = (4, 8, 12)
 @assert N_BATH > 0 && LOCAL_DIM >= 2 && ALPHA >= 0
@@ -47,7 +50,8 @@ CairoMakie.activate!()
 # Visibility and readout times do not affect the bath PT, so are not cache keys.
 parameters = (; N_bath=N_BATH, local_dim=LOCAL_DIM, alpha=ALPHA,
     omega_cutoff=OMEGA_C, omega_max=OMEGA_MAX, thermal_frequency=TEMPERATURE,
-    dt=DT, nsteps=NSTEPS, ace_cutoff=ACE_CUTOFF, ace_maxdim=ACE_MAXDIM)
+    dt=DT, nsteps=NSTEPS, ace_cutoff=ACE_CUTOFF, ace_maxdim=ACE_MAXDIM,
+    ace_compression=ACE_COMPRESSION)
 cache_path = get(ENV, "PT_RAMSEY_CACHE", joinpath(@__DIR__, ".cache", "ramsey_povm_pt.jls"))
 
 function read_cache(path, parameters)
@@ -55,7 +59,7 @@ function read_cache(path, parameters)
     isfile(path) || return nothing
     try
         payload = open(deserialize, path)
-        get(payload.metadata, :format, 0) == 1 || return nothing
+        get(payload.metadata, :format, 0) == 2 || return nothing
         all(k -> get(payload.metadata, k, nothing) == parameters[k], keys(parameters)) || return nothing
         return payload
     catch err
@@ -87,12 +91,12 @@ if !cache_hit
     end
     bath = with_logger(() -> bosonic_bath(modes), NullLogger())
     pt = build_process_tensor(
-        system; method=ACE(cutoff=ACE_CUTOFF, maxdim=ACE_MAXDIM),
+        system; method=ACE(cutoff=ACE_CUTOFF, maxdim=ACE_MAXDIM, compression=ACE_COMPRESSION),
         environment=bath, dt=DT, nsteps=NSTEPS,
         sys_alg=Trotter{2}(), combine_alg=Trotter{2}(), progress=false)
     # The contracted core no longer needs the bath object in the serialized cache.
     process_tensor = ProcessTensor(pt.core, pt.system, nothing, pt.dt, pt.nsteps, pt.coupling_site)
-    metadata = (; format=1, parameters..., maxlinkdim=maxlinkdim(process_tensor))
+    metadata = (; format=2, parameters..., maxlinkdim=maxlinkdim(process_tensor))
     payload = (; process_tensor, system_sites, metadata)
     mkpath(dirname(cache_path))
     temporary_path = cache_path * ".tmp"

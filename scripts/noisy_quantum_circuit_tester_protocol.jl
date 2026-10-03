@@ -8,7 +8,7 @@
 # noisy-circuit result figure.
 #
 # Run with:
-# julia --project=. scripts/noisy_quantum_circuit_tester_protocol.jl
+# julia --project=. -t auto scripts/noisy_quantum_circuit_tester_protocol.jl
 
 # Event times match scripts/noisy_quantum_circuit_tester.jl: store, phase, retrieve.
 const FINAL_TIME = 5.0

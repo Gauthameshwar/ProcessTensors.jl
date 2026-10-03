@@ -6,7 +6,9 @@
 #
 # Driven thermal spin-boson model of Cygorek and Gauger,
 # J. Chem. Phys. 161, 074111 (2024), Fig. 3(c,f), plus a hotter-bath comparison.
-# Run: julia --project=. -t auto scripts/thermal_spinboson_ace.jl
+#
+# Run with:
+# julia --project=. -t auto scripts/thermal_spinboson_ace.jl
 # Place this file in the repository's scripts/ directory.
 # PT_THERMAL_CACHE overrides the cache path; PT_ACE_REBUILD=1 forces rebuilding.
 # Force rebuilding after changing model code or package versions.
@@ -102,12 +104,9 @@ function read_cache(path, params)
     isfile(path) || return nothing
     try
         payload = deserialize(path)
-        payload.metadata.format == 1 || return nothing
-        # Legacy format-1 files used these fixed spectral/compression settings.
-        metadata = (; spectral_strength=0.2, spectral_cutoff=3.0,
-                    ace_compression=:canonzip, payload.metadata...)
-        matches = all(k -> hasproperty(metadata, k) &&
-                      getproperty(metadata, k) == getproperty(params, k), keys(params))
+        payload.metadata.format == 2 || return nothing
+        matches = all(k -> hasproperty(payload.metadata, k) &&
+                      getproperty(payload.metadata, k) == getproperty(params, k), keys(params))
         matches || return nothing
         all(k -> hasproperty(payload, k), (:process_tensor_T1, :process_tensor_T3, :system_sites)) || return nothing
         return payload
@@ -175,7 +174,7 @@ if !cache_hit
     end
     # Legacy field names are retained for compatibility; T3 means the hotter case.
     payload = (; process_tensor_T1=processes[1], process_tensor_T3=processes[2], system_sites,
-               metadata=(; format=1, params...,
+               metadata=(; format=2, params...,
                          maxlinkdim=maximum(maxlinkdim.(processes)),
                          maxlinkdim_T1=maxlinkdim(processes[1]), maxlinkdim_T3=maxlinkdim(processes[2])))
     serialize(cache_path * ".tmp", payload)

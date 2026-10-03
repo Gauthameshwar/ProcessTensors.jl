@@ -8,7 +8,7 @@
 # the SWAP–Z–SWAP protocol, then writes the two-panel figure.
 #
 # Run with:
-# julia --project=. scripts/noisy_quantum_circuit_tester.jl [--rebuild]
+# julia --project=. -t auto scripts/noisy_quantum_circuit_tester.jl [--rebuild]
 
 # --- User parameters: bath, compression, and the three protocol events ---
 const N_bath = 24
@@ -22,6 +22,7 @@ const final_time = 5.0
 const nsteps = round(Int, final_time / dt) + 1
 const ace_cutoff = 1e-5
 const ace_maxdim = 512
+const ace_compression = :zipup_cpp
 const store_time_target, phase_time_target, retrieve_time_target = 1.0, 2.0, 3.0
 const trace_warning_tolerance, trace_assert_tolerance = 1e-3, 5e-2
 @assert N_bath > 0 && local_dim >= 2 && alpha >= 0 && omega_max > 0 && dt > 0
@@ -51,7 +52,7 @@ using ProcessTensors
 CairoMakie.activate!()
 
 if !(isempty(ARGS) || ARGS == ["--rebuild"])
-    error("Usage: julia --project=. scripts/noisy_quantum_circuit_tester.jl [--rebuild]")
+    error("Usage: julia --project=. -t auto scripts/noisy_quantum_circuit_tester.jl [--rebuild]")
 end
 force_rebuild = "--rebuild" in ARGS
 cache_path = joinpath(@__DIR__, ".cache", "noisy_quantum_circuit_tester_pt.jls")
@@ -59,14 +60,14 @@ figure_path = joinpath(@__DIR__, "figures", "noisy_quantum_circuit_tester.png")
 mkpath(dirname(cache_path))
 mkpath(dirname(figure_path))
 params = (; N_bath, local_dim, alpha, omega_cutoff, omega_max, thermal_frequency,
-          dt, final_time, nsteps, ace_cutoff, ace_maxdim)
+          dt, final_time, nsteps, ace_cutoff, ace_maxdim, ace_compression)
 
 # --- Cache reader: fail closed on missing/mismatched metadata ---
 function read_cache(path, params)
     isfile(path) || return nothing
     try
         payload = deserialize(path)
-        if payload.metadata.format != 1
+        if payload.metadata.format != 2
             @warn "Cache format is not reusable; rebuilding" path
             return nothing
         end
@@ -110,13 +111,13 @@ if !cache_hit
     bath = with_logger(() -> bosonic_bath(modes), NullLogger())
     pt = build_process_tensor(
         system; environment=bath, dt=dt, nsteps=nsteps,
-        method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+        method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim, compression=ace_compression),
         sys_alg=Trotter{2}(), combine_alg=Trotter{2}(), progress=true,
     )
     # Store cores and system, omitting the original bath from the payload.
     slim = ProcessTensor(pt.core, pt.system, nothing, pt.dt, pt.nsteps, pt.coupling_site)
     payload = (; process_tensor=slim, system_sites,
-               metadata=(; format=1, params..., maxlinkdim=maxlinkdim(slim)))
+               metadata=(; format=2, params..., maxlinkdim=maxlinkdim(slim)))
     serialize(cache_path * ".tmp", payload)
     mv(cache_path * ".tmp", cache_path; force=true)
     build_seconds = (time_ns() - started) / 1e9

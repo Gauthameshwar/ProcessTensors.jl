@@ -182,7 +182,9 @@ println("Temporal bond dimension = ", maxlinkdim(pt.core))
 # and compresses the temporal bonds. `cutoff` is the relative singular-value
 # threshold ``\sigma_i > \varepsilon \sigma_1``. It is a convergence parameter, not
 # a guaranteed error on an observable. The default compression schedule is
-# `:canonzip`; `:zipup` truncates each bond during the forward join.
+# `:zipup_cpp`, which truncates each temporal bond during the forward join in
+# the C++ ACE order. `:canonzip` joins one mode fully, then truncates from
+# the final time back to the initial time.
 #
 # The same spin–boson model can be built with ACE. One mode is not compressed
 # much, but the call and the printed object are the same ones used for a large
@@ -193,7 +195,7 @@ pt_ace = build_process_tensor(
     environment=environment,
     dt=dt,
     nsteps=nsteps,
-    method=ACE(cutoff=1e-8),
+    method=ACE(cutoff=1e-8, compression=:zipup_cpp),
     sys_alg=Trotter{2}(),
     progress=false,
     verbose=false,

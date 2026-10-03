@@ -8,7 +8,7 @@
 # progress and persistent verbose logging.
 #
 # Run with:
-# julia --project=. scripts/terminal/create_instruments.jl
+# julia --project=. -t auto scripts/terminal/create_instruments.jl
 
 include("common.jl")
 using ProcessTensors.Instruments: create_instruments

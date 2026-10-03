@@ -9,7 +9,7 @@
 # visible; real package algorithms should report actual scientific work.
 #
 # Run with:
-# julia --project=. scripts/terminal/spinner_demo.jl
+# julia --project=. -t auto scripts/terminal/spinner_demo.jl
 
 using ProcessTensors
 

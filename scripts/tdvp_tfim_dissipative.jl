@@ -8,7 +8,7 @@
 # frequencies, together with 2-TDVP and dense exp(tL).
 #
 # Run with:
-#   julia --project=. scripts/tdvp_tfim_dissipative.jl
+#   julia --project=. -t auto scripts/tdvp_tfim_dissipative.jl
 
 using Printf
 using ProcessTensors

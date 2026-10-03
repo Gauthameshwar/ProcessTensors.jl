@@ -8,7 +8,7 @@
 # verbose logging for a small single-mode spin bath.
 #
 # Run with:
-# julia --project=. scripts/terminal/build_process_tensor.jl
+# julia --project=. -t auto scripts/terminal/build_process_tensor.jl
 
 include("common.jl")
 @info "Loaded common.jl"

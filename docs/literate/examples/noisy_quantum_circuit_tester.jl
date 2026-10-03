@@ -78,7 +78,7 @@ end
 bath = with_logger(() -> bosonic_bath(modes), NullLogger())
 process_tensor = build_process_tensor(
     processor; environment=bath, dt=dt, nsteps=nsteps,
-    method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim),
+    method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim, compression=:zipup_cpp),
     sys_alg=Trotter{2}(), combine_alg=Trotter{2}(), progress=false,
 )
 

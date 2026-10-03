@@ -7,7 +7,7 @@
 # Single-mode bath process tensor: two-time correlator heatmaps via `two_time_correlation_seq`.
 #
 # Run with:
-#   julia --project=. scripts/pt_multitime_correlations.jl
+#   julia --project=. -t auto scripts/pt_multitime_correlations.jl
 
 import Pkg
 
