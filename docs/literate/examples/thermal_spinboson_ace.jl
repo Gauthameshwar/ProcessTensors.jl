@@ -61,23 +61,24 @@
 #     finite Fock cutoff, the displaced oscillator itself is also only
 #     approximated.
 #
-# The upper panel of the companion figure samples
+# The upper panel of the companion figure samples the smooth spectral density
 #
 # ```math
-# J(\omega)=0.2\,\omega\exp[-\omega/(3\,\mathrm{ps}^{-1})]
-# =\sum_k g_k^2\delta(\omega-\omega_k),
+# J(\omega)=0.2\,\omega\exp[-\omega/(3\,\mathrm{ps}^{-1})].
 # ```
 #
-# with uniform midpoint bins
+# The modes represent that function by a weighted comb,
+# ``J(\omega)\approx\sum_k g_k^2\delta(\omega-\omega_k)``. On a uniform midpoint
+# grid the weights are
 #
 # ```math
-# \omega_k=\omega_{\min}+(k-\tfrac12)\Delta\omega,
+# g_k^2=J(\omega_k)\,\Delta\omega,
 # \qquad
-# g_k=\sqrt{J(\omega_k)\Delta\omega}.
+# \omega_k=\omega_{\min}+(k-\tfrac12)\Delta\omega.
 # ```
 #
-# The bin width belongs in the coupling; refining the grid should approximate
-# the same spectral density.
+# The bin width belongs in the coupling. Refining the grid should approximate
+# the same ``J(\omega)``.
 
 using Logging
 using LinearAlgebra
@@ -246,6 +247,7 @@ println((largest_omitted_Gibbs_weight=maximum(thermal_tail),))
 #
 #     - Increase `local_dim` at fixed mode grid and temperature, particularly
 #       for the hotter bath. Do the peak heights and troughs stabilise?
-#     - Try allocating more ACE modes where $|J(\omega)|$ is largest, and using 
-#       fewer modes where $|J(\omega)|$ is small. Does concentrating frequency 
-#       samples this way affect the Rabi oscillations?
+#     - Place more samples where $|J(\omega)|$ is largest and fewer where it is
+#       small. Give each sample a bin width or quadrature weight so that
+#       $g_k^2$ still represents the same $J(\omega)$. Does that redistribution
+#       change the Rabi oscillations?
