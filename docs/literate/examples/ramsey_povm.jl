@@ -155,7 +155,7 @@ ramsey_instruments = Dict(
 # ```
 #
 # The documentation uses slots (2, 4, 6), giving equal waits of 0.2. The companion
-# uses (4, 8, 12), step size 0.15, 14 cores, and bond cap 256: its waits are 0.6.
+# uses (4, 8, 12), step size 0.15, 14 cores, and bond cap 512: its waits are 0.6.
 # The terminal trace closes the remaining evolution without conditioning on it.
 
 const READOUT_STEPS = (2, 4, 6)

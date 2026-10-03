@@ -173,13 +173,11 @@ println((max_error_vs_exact_finite_N=maximum(abs.(spin_x .- exact_sx)),
 # and $N=1000$ curves approach the limiting cosine.
 # Thus these offsets and phase shifts are expected finite-bath physics.
 #
-# The black crosses show the analytical large-bath limit. In the lower panel,
-# the distance from this cosine includes finite-size physics; it is not a
-# numerical error estimate. Its sharp dips can simply mark crossings of the
-# two curves. The separate error against the exact finite-$N$ expression tests
-# numerical accuracy. Trace drift and the relative Hermiticity defect show
-# different properties of the reconstructed density operator; none should be
-# read as a substitute for the finite-$N$ comparison.
+# The black crosses show the large-bath limit. In the lower panel, the solid
+# curves are the absolute error against the exact finite-$N$ expression. Trace
+# drift and the relative Hermiticity defect show different properties of the
+# reconstructed density operator. The error of the observable is compared against 
+# the analytical expectation provided above.
 #
 # !!! note "Read numerical diagnostics separately from finite-size effects"
 #     At fixed $N$, reducing `dt` and tightening compression should improve

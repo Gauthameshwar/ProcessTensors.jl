@@ -16,7 +16,7 @@ const N_BATH, LOCAL_DIM = 4, 3
 const ALPHA, OMEGA_C, OMEGA_MAX = 0.20, 4.0, 20.0
 const TEMPERATURE = 2.5
 const DT, NSTEPS = 0.15, 14
-const ACE_CUTOFF, ACE_MAXDIM = 1e-5, 256
+const ACE_CUTOFF, ACE_MAXDIM = 1e-5, 512
 const ACE_COMPRESSION = :zipup_cpp
 const ETA, OUTCOMES = 0.90, (-1, 1)
 const READOUT_STEPS = (4, 8, 12)
@@ -139,6 +139,8 @@ end
 records = vec(collect(Iterators.product(OUTCOMES, OUTCOMES, OUTCOMES)))
 probabilities = branch_probability.(records)
 normalization_error = abs(sum(probabilities) - 1)
+println((normalization_error=normalization_error, minimum_probability=minimum(probabilities),
+         probability_sum=sum(probabilities)))
 @assert minimum(probabilities) >= -1e-7
 @assert normalization_error < 5e-3
 

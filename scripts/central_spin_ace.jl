@@ -182,17 +182,15 @@ dynamics_axis = Axis(figure[1, 1]; ylabel="⟨Sx⟩ / ħ",
                      title="Fully polarised central-spin dynamics",
                      xticklabelsvisible=false, xticksvisible=false)
 error_axis = Axis(figure[2, 1]; xlabel="tJ / ħ", ylabel="absolute / relative deviation",
-                  yscale=log10, title="Finite-size deviation and numerical diagnostics")
+                  yscale=log10, title="Error against the exact finite-N result")
 
 for (i, N) in enumerate(N_bath_values)
     r = results[N]
     color = line_colors[mod1(i, length(line_colors))]
     time_axis = J .* r.times
     lines!(dynamics_axis, time_axis, r.sx; color=color, linewidth=2.2, label="N = $N")
-    lines!(error_axis, time_axis, max.(r.large_N_deviations, log_error_floor);
-           color=color, linestyle=:solid, linewidth=1.8)
     lines!(error_axis, time_axis, max.(r.finite_N_errors, log_error_floor);
-           color=color, linestyle=:dashdot, linewidth=1.8)
+           color=color, linestyle=:solid, linewidth=1.8)
     lines!(error_axis, time_axis, max.(r.trace_errors, log_error_floor);
            color=color, linestyle=:dash, linewidth=1.8)
     lines!(error_axis, time_axis, max.(r.hermiticity_errors, log_error_floor);
@@ -203,12 +201,12 @@ times = results[last(N_bath_values)].times
 marker_indices = unique(round.(Int, range(1, length(times);
                               length=clamp(reference_nmarkers, 1, length(times)))))
 scatter!(dynamics_axis, J .* times[marker_indices], 0.5 .* cos.(J .* times[marker_indices] ./ 2);
-         marker=:x, markersize=14, color=:black, label="N → ∞ (analytical)")
+         marker=:x, markersize=14, color=:black, label="N → ∞")
 ylims!(dynamics_axis, -0.55, 0.55)
 Legend(figure[1, 2], dynamics_axis; labelsize=16, tellheight=false)
 Legend(figure[2, 2],
-       [LineElement(color=:gray40, linestyle=s, linewidth=2) for s in (:solid, :dashdot, :dash, :dot)],
-       ["|⟨Sx⟩ − large-N limit|", "|⟨Sx⟩ − exact finite-N|", "|tr ρ − 1|", "‖ρ − ρ†‖ / ‖ρ‖"];
+       [LineElement(color=:gray40, linestyle=s, linewidth=2) for s in (:solid, :dash, :dot)],
+       ["|⟨Sx⟩ − exact finite-N|", "|tr ρ − 1|", "‖ρ − ρ†‖ / ‖ρ‖"];
        labelsize=16, tellheight=false)
 linkxaxes!(dynamics_axis, error_axis)
 rowgap!(figure.layout, 12)
