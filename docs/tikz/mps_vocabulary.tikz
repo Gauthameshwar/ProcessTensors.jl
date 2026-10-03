@@ -1,0 +1,89 @@
+% Physical index, virtual bond, and short MPS and MPO chains.
+% Sites stack vertically. Ket legs leave to the left; primed bra legs
+% leave to the right.
+% Requires pt_tikz_styles.tex in the preamble.
+\definecolor{MPSSiteA}{HTML}{F4F9FC}
+\definecolor{MPSSiteB}{HTML}{D6E8F4}
+\definecolor{MPSSiteC}{HTML}{B7D4E8}
+\definecolor{MPOSiteA}{HTML}{FDF8F3}
+\definecolor{MPOSiteB}{HTML}{F6E6D6}
+\definecolor{MPOSiteC}{HTML}{EBD4BE}
+\begin{tikzpicture}[PTPicture]
+  \setlength{\PTCoreStroke}{1.95pt}
+  \setlength{\PTHilbertLW}{1.8pt}
+  \setlength{\PTBondLW}{1.85pt}
+  \def\siteDy{1.58}%
+  \def\legL{0.62}%
+  \tikzset{
+    tvlab/.style={
+      font=\small\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+      anchor=north west,
+    },
+    tveq/.style={
+      font=\small,
+      text=PTLabel,
+      align=center,
+      inner sep=0.3pt,
+      anchor=north,
+    },
+  }
+
+  % (a) physical index: ket leg on the left
+  \begin{scope}[shift={(0,0)}]
+    \node[tvlab] at (0, 4.15) {(a)};
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteB]{aA}{(1.85,\siteDy)}{\(A^{[j]}\)}
+    \draw[PTHilbertKetLeg] (aA.west) -- ++(-\legL,0) coordinate (a-s);
+    \PTIndexLabel[anchor=east, math={s_j}, xshift=-1.6pt]{a-s}
+    \node[tveq] at (1.55,-1.05) {physical index};
+  \end{scope}
+
+  % (b) virtual bond
+  \begin{scope}[shift={(3.45,0)}]
+    \node[tvlab] at (0, 4.15) {(b)};
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteA]{bT}{(1.85,1.5*\siteDy)}{\(A^{[j]}\)}
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteC]{bB}{(1.85,0.5*\siteDy)}{\(A^{[j+1]}\)}
+    \draw[PTBondLeg] (bT.south) -- (bB.north) coordinate[midway] (b-chi);
+    \draw[PTHilbertKetLeg] (bT.west) -- ++(-\legL,0) coordinate (b-sj);
+    \draw[PTHilbertKetLeg] (bB.west) -- ++(-\legL,0) coordinate (b-sjp);
+    \PTIndexLabel[anchor=east, math={s_j}, xshift=-1.6pt]{b-sj}
+    \PTIndexLabel[anchor=east, math={s_{j+1}}, xshift=-1.6pt]{b-sjp}
+    \PTIndexLabel[anchor=west, math={\chi_j}, xshift=2.2pt]{b-chi}
+    \node[tveq] at (1.55,-1.05) {virtual bond \(\chi_j\)};
+  \end{scope}
+
+  % (c) short MPS
+  \begin{scope}[shift={(7.15,0)}]
+    \node[tvlab] at (0, 4.15) {(c)};
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteA]{m-1}{(1.85,2*\siteDy)}{\(A^{[1]}\)}
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteB]{m-2}{(1.85,\siteDy)}{\(A^{[2]}\)}
+    \PTTensor[minimum width=10.5mm, minimum height=10.5mm, fill=MPSSiteC]{m-3}{(1.85,0)}{\(A^{[3]}\)}
+    \draw[PTHilbertKetLeg] (m-1.west) -- ++(-\legL,0) coordinate (m-s1);
+    \draw[PTHilbertKetLeg] (m-2.west) -- ++(-\legL,0) coordinate (m-s2);
+    \draw[PTHilbertKetLeg] (m-3.west) -- ++(-\legL,0) coordinate (m-s3);
+    \PTIndexLabel[anchor=east, math={s_1}, xshift=-1.6pt]{m-s1}
+    \PTIndexLabel[anchor=east, math={s_2}, xshift=-1.6pt]{m-s2}
+    \PTIndexLabel[anchor=east, math={s_3}, xshift=-1.6pt]{m-s3}
+    \draw[PTBondLeg] (m-1.south) -- (m-2.north);
+    \draw[PTBondLeg] (m-2.south) -- (m-3.north);
+    \node[tveq] at (1.55,-1.05) {MPS};
+  \end{scope}
+
+  % (d) short MPO: ket on the left, primed bra on the right
+  \begin{scope}[shift={(10.55,0)}]
+    \node[tvlab] at (0, 4.15) {(d)};
+    \PTOperator[minimum width=10.5mm, minimum height=10.5mm, fill=MPOSiteA]{w-1}{(1.75,2*\siteDy)}{\(W^{[1]}\)}
+    \PTOperator[minimum width=10.5mm, minimum height=10.5mm, fill=MPOSiteB]{w-2}{(1.75,\siteDy)}{\(W^{[2]}\)}
+    \PTOperator[minimum width=10.5mm, minimum height=10.5mm, fill=MPOSiteC]{w-3}{(1.75,0)}{\(W^{[3]}\)}
+    \foreach \j in {1,2,3} {
+      \draw[PTHilbertKetLeg] (w-\j.west) -- ++(-\legL,0) coordinate (w-s\j);
+      \draw[PTHilbertBraLeg primed] (w-\j.east) -- ++(0.70,0) coordinate (w-sp\j);
+      \PTIndexLabel[anchor=east, math={s_{\j}}, xshift=-1.6pt]{w-s\j}
+      \PTIndexLabel[anchor=west, math={s'_{\j}}, xshift=1.8pt]{w-sp\j}
+    }
+    \draw[PTBondLeg] (w-1.south) -- (w-2.north);
+    \draw[PTBondLeg] (w-2.south) -- (w-3.north);
+    \node[tveq] at (1.75,-1.05) {MPO};
+  \end{scope}
+\end{tikzpicture}

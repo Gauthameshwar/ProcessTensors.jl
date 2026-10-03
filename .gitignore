@@ -21,6 +21,15 @@ notes/*
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/
 
+# LaTeX products from docs/tikz/build_svgs.sh
+/docs/tikz/*.aux
+/docs/tikz/*.log
+/docs/tikz/*.out
+/docs/tikz/*.pdf
+/docs/tikz/*.dvi
+/docs/tikz/*.toc
+/docs/tikz/*.build.log
+
 # Local throwaway project environments at any depth (e.g. .bench_env, .plot_env,
 # scripts/.plot_examples_env). Trailing slash limits the match to directories.
 .*env/

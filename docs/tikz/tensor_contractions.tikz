@@ -1,0 +1,62 @@
+% Open legs, a contraction, and a trace.
+% Requires pt_tikz_styles.tex in the preamble.
+\begin{tikzpicture}[PTPicture]
+  \setlength{\PTCoreStroke}{1.95pt}
+  \setlength{\PTHilbertLW}{1.8pt}
+  \setlength{\PTBondLW}{1.85pt}
+  \tikzset{
+    tvlab/.style={
+      font=\small\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+      anchor=north west,
+    },
+    tveq/.style={
+      font=\small,
+      text=PTLabel,
+      align=center,
+      inner sep=0.3pt,
+      anchor=north,
+    },
+  }
+
+  % (a) two open legs
+  \begin{scope}[shift={(0,0)}]
+    \node[tvlab] at (0, 2.05) {(a)};
+    \PTTensor[minimum width=11mm, minimum height=11mm, fill=PTHilbertKet!28]{aT}{(1.85,0.78)}{\(A\)}
+    \draw[PTHilbertKetLeg] (aT.west) -- ++(-0.68,0) coordinate (a-i);
+    \draw[PTHilbertBraLeg primed] (aT.east) -- ++(0.68,0) coordinate (a-j);
+    \PTIndexLabel[anchor=east, math={i}, xshift=-1.6pt]{a-i}
+    \PTIndexLabel[anchor=west, math={j}, xshift=1.6pt]{a-j}
+    \node[tveq] at (1.85,-0.15) {open legs};
+  \end{scope}
+
+  % (b) contracted leg
+  \begin{scope}[shift={(4.35,0)}]
+    \node[tvlab] at (0, 2.05) {(b)};
+    \PTTensor[minimum width=11mm, minimum height=11mm, fill=PTHilbertKet!28]{bA}{(1.05,0.78)}{\(A\)}
+    \PTTensor[minimum width=11mm, minimum height=11mm, fill=PTHilbertBra!34]{bB}{(2.95,0.78)}{\(B\)}
+    \draw[PTHilbertKetLeg] (bA.west) -- ++(-0.55,0) coordinate (b-i);
+    \draw[PTBondLeg] (bA.east) -- (bB.west) coordinate[midway] (b-j);
+    \draw[PTHilbertBraLeg primed] (bB.east) -- ++(0.55,0) coordinate (b-k);
+    \PTIndexLabel[anchor=east, math={i}, xshift=-1.4pt]{b-i}
+    \PTIndexLabel[anchor=south, math={j}, yshift=1.6pt]{b-j}
+    \PTIndexLabel[anchor=west, math={k}, xshift=1.4pt]{b-k}
+    \node[tveq] at (2.00,-0.15) {contracted leg};
+  \end{scope}
+
+  % (c) trace. i sits in the gap between the core and the lower bar.
+  % The caption stays on the same line as the other panels.
+  \begin{scope}[shift={(8.85,0)}]
+    \node[tvlab] at (0, 2.20) {(c)};
+    \PTTensor[minimum width=11mm, minimum height=11mm, fill=PTHilbertKet!28]{cA}{(1.70,1.06)}{\(A\)}
+    \draw[PTWire]
+      (cA.west)
+      arc[start angle=90, delta angle=180, radius=4.7mm]
+      -- ([yshift=-9.4mm]cA.east)
+      arc[start angle=270, delta angle=180, radius=4.7mm];
+    \coordinate (cA-loopmid) at ([yshift=-9.4mm]cA.center);
+    \PTIndexLabel[anchor=south, math={i}, yshift=1.6pt]{cA-loopmid}
+    \node[tveq] at (1.70,-0.15) {trace};
+  \end{scope}
+\end{tikzpicture}

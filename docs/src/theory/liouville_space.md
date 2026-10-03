@@ -77,13 +77,17 @@ A=\begin{pmatrix}a_{11}&a_{12}\\a_{21}&a_{22}\end{pmatrix}
 
 The basis here is fixed throughout. The two factors record the original column and row indices; they do not introduce a second physical system.
 
-> **Diagram placeholder — Column-major vectorisation.** Show an operator with ket index $j$ and bra index $k$, bend the bra leg alongside the ket leg, and fuse the pair into a Liouville leg labelled $(k,j)$. Include the four-entry ordering above. Distinguish index rearrangement from complex conjugation.
+![Column-major vectorisation bends the bra index beside the ket and fuses them into one Liouville leg.](../assets/theory/column_major_vectorisation.svg)
+
+The bend rearranges indices. It does not complex-conjugate the operator. The fused leg is labelled $(k,j)$, in the same order as the column-major vector above.
 
 ### Local vectorisation of a many-body operator
 
 For a density MPO, vectorisation can be performed one site at a time. At site $j$, the local ket and bra legs combine into a Liouville index of dimension $d_j^2$. The resulting object is an MPS in operator space. This local fusion leaves the existing virtual bonds unchanged; compression, if performed afterwards, is a separate operation.
 
 There is a small ordering distinction when comparing dense arrays. Vectorising the full many-body matrix groups all column indices and then all row indices. Local fusion groups each site's column–row pair together. The two arrangements are related by a fixed permutation of indices. Dense matrices and vectors must use the same arrangement before their entries can be compared.
+
+![Local vectorisation turns each ket–bra pair into one Liouville leg and leaves the virtual bonds unchanged.](../assets/theory/mpo_to_liouville_mps.svg)
 
 !!! info "In the package"
     ```julia
@@ -124,7 +128,9 @@ p_x=\operatorname{Tr}(E_x\rho)
 
 An effect specifies the outcome probability. To describe the state after that outcome, we need an operation as well, introduced in the next section.
 
-> **Diagram placeholder — Closing a Liouville leg.** Show three versions of the same state output: left open to retain $|\rho\rangle\!\rangle$, closed with the identity to obtain its trace, and closed with an effect $E_x$ to obtain an outcome probability. Add a small joint-state panel in which only the environment leg is closed.
+![An open Liouville state, its trace, an effect probability, and a partial trace of the environment.](../assets/theory/closing_a_leg.svg)
+
+Leaving the leg open retains $|\rho\rangle\!\rangle$. Closing it with the identity gives the trace, and closing it with $E_x$ gives $p_x$. Tracing only the environment leaves the system leg open.
 
 !!! info "In the package"
     ```julia

@@ -26,3 +26,56 @@ html.theme--documenter-dark .admonition.is-category-related > .admonition-header
   background-color: transparent;
   color: #9b6bdb;
 }
+
+/*
+ * Theory diagrams. Wide figures fill the article column or the admonition
+ * body. Narrow figures are capped so a 9pt TikZ label matches the surrounding
+ * font: Inkscape maps 1pt to 4/3 px, so a 9pt glyph is 12px at the SVG's
+ * intrinsic width, and the cap in em is that width divided by 12.
+ */
+article img[src*="assets/theory/"],
+.admonition img[src*="assets/theory/"] {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0.85rem auto 1.15rem;
+}
+
+article img[src*="column_major_vectorisation.svg"],
+.admonition img[src*="column_major_vectorisation.svg"] {
+  width: min(100%, 26.3em);
+}
+
+article img[src*="tensor_contractions.svg"],
+.admonition img[src*="tensor_contractions.svg"] {
+  width: min(100%, 36.5em);
+}
+
+article img[src*="mps_vocabulary.svg"],
+.admonition img[src*="mps_vocabulary.svg"] {
+  width: min(100%, 44.0em);
+}
+
+/*
+ * Process-tensor page. Captions are 8pt, so the cap is the SVG width in px
+ * divided by 10.667. That keeps those glyphs at the body font size.
+ */
+article img[src*="quantum_channel.svg"],
+.admonition img[src*="quantum_channel.svg"] {
+  width: min(100%, 18.1em);
+}
+
+article img[src*="channel_to_multitime_process.svg"],
+.admonition img[src*="channel_to_multitime_process.svg"] {
+  width: min(100%, 32.0em);
+}
+
+article img[src*="pt_anatomy.svg"],
+.admonition img[src*="pt_anatomy.svg"] {
+  width: min(100%, 38.3em);
+}
+
+article img[src*="process_contractions.svg"],
+.admonition img[src*="process_contractions.svg"] {
+  width: min(100%, 34.7em);
+}

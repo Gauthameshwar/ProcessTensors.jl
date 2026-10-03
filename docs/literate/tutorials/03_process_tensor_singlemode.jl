@@ -134,6 +134,11 @@ println(pt)
 
 # ## What the object stores
 #
+# ![Process cores and the intervention that joins adjacent intervals. Time runs right to left.](../assets/theory/pt_anatomy.svg)
+#
+# Core ``Q^{[k]}`` owns the interval ``[t_k, t_{k+1}]``. The intervention at the
+# boundary joins output ``o_{k-1}`` to input ``i_k``.
+#
 # Each time label has an input leg and an output leg. Input legs have prime
 # level `1`. Output legs have prime level `0`. Both carry a `tstep` tag.
 #

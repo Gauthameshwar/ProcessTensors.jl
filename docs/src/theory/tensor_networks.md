@@ -30,6 +30,10 @@ and a trace, which sums over a pair of compatible indices,
 \operatorname{Tr}(A) = \sum_i A_{ii}.
 ```
 
+![Two open legs of \(A\), the contraction of \(A\) with \(B\), and the trace of \(A\).](../assets/theory/tensor_contractions.svg)
+
+An open leg is a free index. Joining two legs contracts that index, and joining both legs of one tensor takes its trace.
+
 The order in which contractions are performed can strongly affect their computational cost, even though the exact result is unchanged.
 
 `ITensors.jl` makes these connections explicit through `Index` objects. Multiplication contracts matching indices rather than relying on their position in an array:
@@ -68,6 +72,10 @@ c_{s_1\cdots s_N}
  \cdots
  A^{[N]s_N}_{\alpha_{N-1}\alpha_N}.
 ```
+
+![A physical index, the virtual bond between neighbouring site tensors, a three-site MPS, and a three-site MPO.](../assets/theory/mps_vocabulary.svg)
+
+A physical index labels a local basis state. A virtual bond is the internal index that chains the site tensors. Each square is one solid colour, stepping along the chain; an MPO uses a different palette from an MPS.
 
 For open boundaries, $\alpha_0$ and $\alpha_N$ each take a single value. Every local tensor has a physical index $s_j$ and up to two nontrivial internal indices. These internal indices are called **bond indices**, with dimensions $\chi_j$.
 

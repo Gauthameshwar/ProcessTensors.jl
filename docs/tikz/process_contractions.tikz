@@ -1,0 +1,143 @@
+% One process tensor, three contractions.  Time runs right to left.
+% The cores do not change.  Only the final closure changes.
+% Requires pt_tikz_styles.tex in the preamble.
+\begin{tikzpicture}[PTPicture]
+  \def\QACoreW{10.2mm}%
+  \def\QACoreH{16.8mm}%
+  \def\QAIORaise{3.5mm}%
+  \def\QABondRaise{3.6mm}%
+  \def\QAdx{3.10}%
+  \def\QAoff{0.92}%
+  \def\cPad{2.3mm}%
+  \tikzset{
+    g9lab/.style={
+      font=\small\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+    },
+    g9leg/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      inner sep=0.5pt,
+    },
+    g9eq/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      align=center,
+      inner sep=0.4pt,
+    },
+    g9mem/.style={
+      draw=PTBond,
+      line width=\PTLinkLW,
+      line cap=butt,
+      line join=round,
+      double=none,
+      on background layer,
+    },
+  }
+
+  \newcommand{\QACore}[3]{%
+    \PTTensor[
+      fill=QAMPOcore,
+      minimum width=\QACoreW,
+      minimum height=\QACoreH,
+      font=\normalsize,
+    ]{#1}{#2}{#3}%
+    \coordinate (#1-o) at ([yshift=\QAIORaise]#1.south west);
+    \coordinate (#1-i) at ([yshift=\QAIORaise]#1.south east);
+    \coordinate (#1-L) at ([yshift=\QABondRaise]#1.west);
+    \coordinate (#1-R) at ([yshift=\QABondRaise]#1.east);
+  }
+
+  \newcommand{\GNinePT}[1]{%
+    \QACore{#1-Q2}{(0.00,0)}{\(Q^{[2]}\)}
+    \QACore{#1-Q1}{(\QAdx,0)}{\(Q^{[1]}\)}
+    \QACore{#1-Q0}{(2*\QAdx,0)}{\(Q^{[0]}\)}
+    \draw[g9mem] (#1-Q2-R) -- (#1-Q1-L) coordinate[midway] (#1-chi2);
+    \draw[g9mem] (#1-Q1-R) -- (#1-Q0-L) coordinate[midway] (#1-chi1);
+    \node[g9leg, above=2.8pt] at (#1-chi2) {\(\chi_2\)};
+    \node[g9leg, above=2.8pt] at (#1-chi1) {\(\chi_1\)};
+    \coordinate (#1-roof) at ([yshift=\cPad]#1-Q0.north);
+    \coordinate (#1-TL) at ([xshift=-\cPad]#1-Q2.west |- #1-roof);
+    \coordinate (#1-TR) at ([xshift=\cPad]#1-Q0.east |- #1-roof);
+    \coordinate (#1-Q0SE) at ($ (#1-Q0.south east)+(\cPad,-\cPad) $);
+    \coordinate (#1-Q0SW) at ($ (#1-Q0.south west)+(-\cPad,-\cPad) $);
+    \coordinate (#1-Q1SE) at ($ (#1-Q1.south east)+(\cPad,-\cPad) $);
+    \coordinate (#1-Q1SW) at ($ (#1-Q1.south west)+(-\cPad,-\cPad) $);
+    \coordinate (#1-Q2SE) at ($ (#1-Q2.south east)+(\cPad,-\cPad) $);
+    \coordinate (#1-Q2SW) at ($ (#1-Q2.south west)+(-\cPad,-\cPad) $);
+    \coordinate (#1-slot) at ([yshift=1.6mm]#1-Q0.center);
+    \coordinate (#1-g0R) at ([xshift=-\cPad]#1-Q0.west |- #1-slot);
+    \coordinate (#1-g0L) at ([xshift=\cPad]#1-Q1.east |- #1-slot);
+    \coordinate (#1-g1R) at ([xshift=-\cPad]#1-Q1.west |- #1-slot);
+    \coordinate (#1-g1L) at ([xshift=\cPad]#1-Q2.east |- #1-slot);
+    \begin{scope}[on background layer]
+      \filldraw[
+        draw=green!28!black,
+        fill=green!38!black!18!white,
+        dash pattern=on 1.7pt off 1.25pt,
+        line width=0.85pt,
+        rounded corners=5.2pt,
+      ]
+        (#1-TL) -- (#1-TR)
+        -- (#1-Q0SE) -- (#1-Q0SW)
+        -- (#1-g0R) -- (#1-g0L)
+        -- (#1-Q1SE) -- (#1-Q1SW)
+        -- (#1-g1R) -- (#1-g1L)
+        -- (#1-Q2SE) -- (#1-Q2SW)
+        -- cycle;
+    \end{scope}
+  }
+
+  \newcommand{\GNineSchedule}[1]{%
+    \PTInstrumentNode[kind=ket,fill=PTInstIn]
+      {#1-rho}{($ (#1-Q0-i)+(\QAoff,0) $)}{\(\rho_0\)}
+    \draw[PTLiouvilleLeg primed] (#1-Q0-i) -- (#1-rho.west);
+    \draw[PTLiouvilleLeg] (#1-Q0-o) -- (#1-Q1-i);
+    \PTTensor[fill=PTInstMap,minimum width=7.2mm,minimum height=7.2mm]
+      {#1-U}{($ (#1-Q1-o)!0.5!(#1-Q2-i) $)}{\(U\)}
+    \draw[PTLiouvilleLeg] (#1-Q1-o) -- (#1-U.east);
+    \draw[PTLiouvilleLeg primed] (#1-U.west) -- (#1-Q2-i);
+  }
+
+  % (a) open final output: unnormalised state
+  \begin{scope}[shift={(0.15, 6.90)}]
+    \begin{scope}[shift={(0.55,0.15)}]
+      \GNinePT{a}
+      \GNineSchedule{a}
+      \draw[PTLiouvilleLeg] (a-Q2-o) -- ++(-0.72,0) coordinate (a-open);
+      \node[g9leg, anchor=east] at ([xshift=-1.2pt]a-open) {\(o_2\)};
+      \node[g9lab, anchor=south east] at ([xshift=-1.5pt, yshift=1.2pt]a-TL) {(a)};
+    \end{scope}
+    \node[g9eq, anchor=north] at (3.85,-1.42)
+      {unnormalised output state \(\lvert\widetilde\rho\rangle\!\rangle\)};
+  \end{scope}
+
+  % (b) measurement effect: outcome probability
+  \begin{scope}[shift={(0.15, 3.45)}]
+    \begin{scope}[shift={(0.55,0.15)}]
+      \GNinePT{b}
+      \GNineSchedule{b}
+      \PTInstrumentNode[kind=bra,fill=PTInstOut]
+        {b-E}{($ (b-Q2-o)+(-\QAoff,0) $)}{\(E_x\)}
+      \draw[PTLiouvilleLeg] (b-Q2-o) -- (b-E.east);
+      \node[g9lab, anchor=south east] at ([xshift=-1.5pt, yshift=1.2pt]b-TL) {(b)};
+    \end{scope}
+    \node[g9eq, anchor=north] at (3.85,-1.42)
+      {outcome probability \(p_x=\operatorname{Tr}(E_x\widetilde\rho)\)};
+  \end{scope}
+
+  % (c) Hermitian observable contraction
+  \begin{scope}[shift={(0.15, 0.05)}]
+    \begin{scope}[shift={(0.55,0.15)}]
+      \GNinePT{c}
+      \GNineSchedule{c}
+      \PTInstrumentNode[kind=bra,fill=PTInstOut]
+        {c-O}{($ (c-Q2-o)+(-\QAoff,0) $)}{\(O\)}
+      \draw[PTLiouvilleLeg] (c-Q2-o) -- (c-O.east);
+      \node[g9lab, anchor=south east] at ([xshift=-1.5pt, yshift=1.2pt]c-TL) {(c)};
+    \end{scope}
+    \node[g9eq, anchor=north] at (3.85,-1.42)
+      {observable contraction \(\langle\!\langle O\vert\widetilde\rho\rangle\!\rangle\)};
+  \end{scope}
+\end{tikzpicture}
