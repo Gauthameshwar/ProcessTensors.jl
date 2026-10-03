@@ -4,616 +4,220 @@
 # File: scripts/central_spin_ace.jl
 # Contributor: Gauthameshwar S.
 #
-# Reproduces the fully polarized central-spin model of Cygorek et al.,
-# Nature Physics 18, 662–668 (2022), Fig. 4a, with ProcessTensors.jl.
+# Fully polarised central-spin benchmark: H = (J/N) Σ_k S⋅s_k, ħ=1.
+# Central spin initially +x, bath spins +z, no free Hamiltonians.
+# Based on Cygorek et al., Nature Physics 18, 662–668 (2022), Fig. 4a.
 #
-# Run with:
-#   julia --project=. scripts/central_spin_ace.jl
+# Run from the repository: julia --project=. -t auto scripts/central_spin_ace.jl
 #
-# Matching ACE caches in scripts/.cache skip process-tensor construction.
-# Override the cache directory with PT_CENTRAL_CACHE_DIR, or force a rebuild
-# with PT_ACE_REBUILD=1.
+# Set PT_ACE_REBUILD=1 after changing model code or package versions.
+# PT_CENTRAL_CACHE_DIR overrides the cache directory.
 
-import Pkg
-
-const REPO_ROOT = dirname(@__DIR__)
-const _PLOT_ENV = joinpath(@__DIR__, ".plot_examples_env")
-
-function activate_plot_examples_env!()
-    mkpath(_PLOT_ENV)
-    Pkg.activate(_PLOT_ENV)
-    manifest = joinpath(_PLOT_ENV, "Manifest.toml")
-
-    if !isfile(manifest)
-        Pkg.develop(Pkg.PackageSpec(path=REPO_ROOT))
-        Pkg.add([
-            Pkg.PackageSpec(name="CairoMakie"),
-            Pkg.PackageSpec(name="LaTeXStrings"),
-        ])
-    else
-        Pkg.resolve()
-        Pkg.instantiate()
-    end
-    return nothing
-end
-
-activate_plot_examples_env!()
-
-using Logging
-using LinearAlgebra
-using Printf
-using Serialization
-using CairoMakie
-using ITensors
-using ITensors.Ops: Trotter
-using LaTeXStrings
-using ProcessTensors
-
-CairoMakie.activate!()
-
-function slim_process_tensor(pt)
-    return ProcessTensor(
-        pt.core,
-        pt.system,
-        nothing,
-        pt.dt,
-        pt.nsteps,
-        pt.coupling_site,
-    )
-end
-
-function save_ace_cache(path, payload)
-    mkpath(dirname(path))
-    open(path, "w") do io
-        serialize(io, payload)
-    end
-    return path
-end
-
-function cache_parameter_mismatch(metadata, params, keys, format)
-    mismatches = String[]
-    hasproperty(metadata, :format) || return ["format: missing"]
-    metadata.format == format || return [
-        "format: cache=$(metadata.format) script=$format",
-    ]
-    for key in keys
-        cached = getproperty(metadata, key)
-        current = getproperty(params, key)
-        agrees = if cached isa Integer && current isa Integer
-            cached == current
-        elseif cached isa Number && current isa Number
-            isapprox(cached, current; atol=0, rtol=1e-12)
-        else
-            cached == current
-        end
-        agrees || push!(mismatches, "$key: cache=$cached script=$current")
-    end
-    return mismatches
-end
-
-function load_or_build_ace_cache(
-    path,
-    params,
-    keys,
-    format,
-    builder;
-    label::AbstractString,
-)
-    force_rebuild = get(ENV, "PT_ACE_REBUILD", "0") == "1"
-    if force_rebuild
-        println("PT_ACE_REBUILD=1; constructing $label.")
-    elseif isfile(path)
-        payload = try
-            open(deserialize, path)
-        catch err
-            @warn "Could not read the process-tensor cache; rebuilding." exception = (
-                err,
-                catch_backtrace(),
-            )
-            nothing
-        end
-        if payload !== nothing
-            mismatches = cache_parameter_mismatch(payload.metadata, params, keys, format)
-            if isempty(mismatches)
-                println("Found a matching ACE cache; skipping process-tensor construction.")
-                println("  cache file:                  $path")
-                if hasproperty(payload.metadata, :maxlinkdim)
-                    @printf(
-                        "  maximum PT bond dimension:   %d\n",
-                        payload.metadata.maxlinkdim,
-                    )
-                end
-                return payload, 0.0
-            end
-            println("Cached process tensor does not match the script parameters; rebuilding.")
-            for line in mismatches
-                println("  $line")
-            end
-        end
-    else
-        println("No process-tensor cache at $path; building.")
-    end
-
-    build_seconds = @elapsed begin
-        payload = builder()
-    end
-    save_ace_cache(path, payload)
-    @printf("  ACE build time:              %.3f s\n", build_seconds)
-    @printf("  wrote cache:                 %s\n", path)
-    if hasproperty(payload.metadata, :maxlinkdim)
-        @printf("  maximum PT bond dimension:   %d\n", payload.metadata.maxlinkdim)
-    end
-    return payload, build_seconds
-end
-
-# ------------------------------------------------------------------------------
-# 1. Small script utilities
-# ------------------------------------------------------------------------------
-
-const STATUS_WIDTH = 100
-
-function print_section(title::AbstractString)
-    println()
-    println(title)
-    println("-"^length(title))
-end
-
-function update_status(message::AbstractString)
-    print("\r", rpad(message, STATUS_WIDTH))
-    flush(stdout)
-end
-
-function finish_status(message::AbstractString="")
-    print("\r", " "^STATUS_WIDTH, "\r")
-    isempty(message) || println(message)
-    flush(stdout)
-end
-
-function one_site_density_matrix(ρ)
-    T = foldl(*, ρ)
-    site = only(filter(i -> plev(i) == 0 && hastags(i, "Site"), inds(T)))
-    return ComplexF64.(Array(T, prime(site), site))
-end
-
-function uniform_sample_indices(n::Int; nmarkers::Int)
-    nmarkers = clamp(nmarkers, 1, n)
-    return unique(round.(Int, range(1, n; length=nmarkers)))
-end
-
-function central_spin_diagnostics(trajectory, Sx_matrix)
-    sx = Float64[]
-    trace_errors = Float64[]
-    hermiticity_errors = Float64[]
-
-    for ρ in trajectory.states_hilbert
-        ρ_matrix = one_site_density_matrix(ρ)
-        trace_value = tr(ρ_matrix)
-        ρ_norm = norm(ρ_matrix)
-        push!(sx, real(tr(Sx_matrix * ρ_matrix) / trace_value))
-        push!(trace_errors, abs(trace_value - 1))
-        push!(
-            hermiticity_errors,
-            ρ_norm == 0 ? 0.0 : norm(ρ_matrix - ρ_matrix') / ρ_norm,
-        )
-    end
-
-    analytical_sx = 0.5 .* cos.(trajectory.times ./ 2)
-    ed_errors = abs.(sx .- analytical_sx)
-    return sx, trace_errors, hermiticity_errors, ed_errors, analytical_sx
-end
-
-function polarized_spin_density(physical_site, liouville_site)
-    return to_liouville(
-        to_dm(MPS([physical_site], ["Up"]));
-        sites=[liouville_site],
-    )
-end
-
-function polarized_central_spin_bath(N_bath::Int; J::Real)
-    Jk = J / N_bath
-    bath_sites = siteinds("S=1/2", N_bath)
-    bath_liouville_sites = liouv_sites(bath_sites)
-    modes = SpinMode[]
-
-    with_logger(NullLogger()) do
-        for k in 1:N_bath
-            update_status("  preparing polarized bath mode $k / $N_bath")
-
-            coupling = OpSum()
-            coupling += Jk, "Sx", 1, "Sx", 2
-            coupling += Jk, "Sy", 1, "Sy", 2
-            coupling += Jk, "Sz", 1, "Sz", 2
-
-            push!(
-                modes,
-                spin_mode(
-                    [bath_liouville_sites[k]],
-                    OpSum(),
-                    polarized_spin_density(bath_sites[k], bath_liouville_sites[k]);
-                    coupling=coupling,
-                ),
-            )
-        end
-    end
-
-    finish_status("  prepared $N_bath polarized bath modes")
-    bath = with_logger(NullLogger()) do
-        spin_bath(modes)
-    end
-    return bath
-end
-
-# ------------------------------------------------------------------------------
-# 2. User-adjustable parameters
-# ------------------------------------------------------------------------------
-
+# --- Parameters: start here when exploring ---
 const J = 1.0
 const dt = 0.01
 const final_time = 20.0
 const nsteps = round(Int, final_time / dt) + 1
+const N_bath_values = [5, 10, 100, 1000] # Use [5, 10] for a shorter first run.
 const ace_cutoff = 1e-10
 const ace_maxdim = 1024
-const ace_compression = :zipup_cpp
-const N_bath_values = [5, 10, 100, 1000]
-const published_polarized_rank = 4
+const ace_compression = :zipup
 const trace_warning_tolerance = 1e-4
 const spin_bound_tolerance = 1e-4
-const ed_nmarkers = 21
+const reference_nmarkers = 21
 const log_error_floor = 1e-16
 const line_colors = [:dodgerblue, :darkorange, :seagreen, :mediumpurple]
+@assert dt > 0 && J > 0 && all(N -> N > 0, N_bath_values)
+@assert !isempty(N_bath_values) && isapprox((nsteps - 1) * dt, final_time)
+
+# --- Plot environment (same automatic setup as the original script) ---
+import Pkg
+const REPO_ROOT = dirname(@__DIR__)
+plot_env = joinpath(@__DIR__, ".plot_examples_env")
+Pkg.activate(plot_env)
+if !isfile(joinpath(plot_env, "Manifest.toml"))
+    Pkg.develop(Pkg.PackageSpec(path=REPO_ROOT))
+    Pkg.add(["CairoMakie", "LaTeXStrings"])
+else
+    Pkg.resolve()
+    Pkg.instantiate()
+end
+
+using Logging
+using LinearAlgebra
+using Serialization
+using CairoMakie
+using ITensors
+using ITensors.Ops: Trotter
+using ProcessTensors
+CairoMakie.activate!()
 
 output_dir = joinpath(@__DIR__, "figures")
+cache_dir = get(ENV, "PT_CENTRAL_CACHE_DIR", joinpath(@__DIR__, ".cache"))
 mkpath(output_dir)
+mkpath(cache_dir)
 figure_path = joinpath(output_dir, "central_spin_ace.png")
-cache_dir = get(
-    ENV,
-    "PT_CENTRAL_CACHE_DIR",
-    joinpath(@__DIR__, ".cache"),
-)
-const CENTRAL_CACHE_FORMAT = 1
-const CENTRAL_CACHE_KEYS = (
-    :N_bath,
-    :J,
-    :dt,
-    :final_time,
-    :nsteps,
-    :ace_cutoff,
-    :ace_maxdim,
-    :ace_compression,
-)
 
-# ------------------------------------------------------------------------------
-# 3. Physical problem
-# ------------------------------------------------------------------------------
-
-print_section("Cygorek polarized central-spin benchmark")
-
-println("Reproducing Fig. 4a of Cygorek et al.: fully polarized bath, N sweep.")
-println("  H_S:                          0")
-println("  bath free Hamiltonians:       0")
-println("  bath initial state:           all spins along +z")
-println("  interaction:                  J_k (Sx sx + Sy sy + Sz sz)")
-println("  coupling per mode:            J_k = J / N")
-@printf("  J = ħ:                        %.1f\n", J)
-@printf("  dt:                           %.3f\n", dt)
-@printf("  final time:                   %.1f\n", final_time)
-@printf("  snapshots:                    %d\n", nsteps)
-@printf("  ACE cutoff ε:                 %.1e\n", ace_cutoff)
-@printf("  ACE maxdim safety cap:        %d\n", ace_maxdim)
-println("  ACE compression:              $ace_compression")
-println("  ACE mode maps:                Hilbert U = exp(-i H Δt), fused onto Liouville PT legs")
-println("  N values:                     $(join(N_bath_values, ", "))")
-println("  published polarized d_max:    $published_polarized_rank")
-
-system_sites = siteinds("S=1/2", 1)
-system = with_logger(NullLogger()) do
-    spin_system(system_sites, OpSum())
+# --- Three small utilities: bath assembly, cache reading, trajectory diagnostics ---
+# Only constructors with intentional zero Hamiltonians have their warnings silenced.
+function polarised_bath(N, J)
+    sites = siteinds("S=1/2", N)
+    liouville_sites = liouv_sites(sites)
+    coupling = OpSum()
+    coupling += J / N, "Sx", 1, "Sx", 2
+    coupling += J / N, "Sy", 1, "Sy", 2
+    coupling += J / N, "Sz", 1, "Sz", 2
+    modes = SpinMode[]
+    for k in 1:N
+        ρ = to_dm(MPS([sites[k]], ["Up"]))
+        ρ_l = to_liouville(ρ; sites=[liouville_sites[k]])
+        mode = with_logger(() -> spin_mode([liouville_sites[k]], OpSum(), ρ_l;
+                                           coupling=copy(coupling)), NullLogger())
+        push!(modes, mode)
+    end
+    return spin_bath(modes)
 end
-initial_density = to_dm(MPS(system_sites, ["+"]))
-Sx_matrix = ComplexF64.(
-    Array(
-        op("Sx", system_sites[1]),
-        prime(system_sites[1]),
-        system_sites[1],
-    ),
-)
 
-# ------------------------------------------------------------------------------
-# 4. ACE N sweep
-# ------------------------------------------------------------------------------
+# Early returns keep cache handling separate from the visible construction call.
+# Compare all construction settings; corrupted or incompatible caches rebuild.
+function read_cache(path, params)
+    get(ENV, "PT_ACE_REBUILD", "0") == "1" && return nothing
+    isfile(path) || return nothing
+    try
+        payload = deserialize(path)
+        metadata = payload.metadata
+        metadata.format == 1 || return nothing
+        matches = all(k -> hasproperty(metadata, k) &&
+                      getproperty(metadata, k) == getproperty(params, k), keys(params))
+        matches || return nothing
+        hasproperty(payload, :process_tensor) && hasproperty(payload, :system_sites) || return nothing
+        return payload
+    catch err
+        err isa InterruptException && rethrow()
+        @warn "Unreadable cache; rebuilding" path exception=err
+        return nothing
+    end
+end
 
-print_section("ACE scaling sweep")
+function trajectory_diagnostics(trajectory, N, J)
+    sx, trace_errors, hermiticity_errors = Float64[], Float64[], Float64[]
+    Sx = ComplexF64[0 1; 1 0] / 2
+    for state in trajectory.states_hilbert
+        tensor = foldl(*, state)
+        site = only(filter(i -> plev(i) == 0 && hastags(i, "Site"), inds(tensor)))
+        ρ = ComplexF64.(Array(tensor, prime(site), site))
+        z = tr(ρ)
+        isfinite(z) && abs(z) > 1e-12 || error("Nonfinite or vanishing trace")
+        push!(sx, real(tr(Sx * ρ) / z))
+        push!(trace_errors, abs(z - 1))
+        push!(hermiticity_errors, norm(ρ - ρ') / norm(ρ))
+    end
+    times = trajectory.times
+    exact_sx = (1 .+ N .* cos.(J * (N + 1) .* times ./ (2N))) ./ (2(N + 1))
+    limiting_sx = 0.5 .* cos.(J .* times ./ 2)
+    return (; times, sx, trace_errors, hermiticity_errors, exact_sx,
+            finite_N_errors=abs.(sx .- exact_sx),
+            large_N_deviations=abs.(sx .- limiting_sx))
+end
 
+# --- Construct (or reload) each process, then evaluate it ---
 results = Dict{Int,NamedTuple}()
-
 for N_bath in N_bath_values
-    println()
-    println("N = $N_bath")
-
+    println((bath_spins=N_bath, coupling=J / N_bath, dt=dt, final_time=final_time))
     cache_path = joinpath(cache_dir, "central_spin_ace_N$(N_bath).jls")
-    cache_params = (;
-        N_bath,
-        J,
-        dt,
-        final_time,
-        nsteps,
-        ace_cutoff,
-        ace_maxdim,
-        ace_compression,
-    )
-    payload, build_time = load_or_build_ace_cache(
-        cache_path,
-        cache_params,
-        CENTRAL_CACHE_KEYS,
-        CENTRAL_CACHE_FORMAT,
-        () -> begin
-            bath = polarized_central_spin_bath(N_bath; J=J)
-            update_status("  building ACE PT: polarized, N=$N_bath")
-            process_tensor = build_process_tensor(
-                system;
-                method=ACE(
-                    cutoff=ace_cutoff,
-                    maxdim=ace_maxdim,
-                    compression=ace_compression,
-                ),
-                environment=bath,
-                dt=dt,
-                nsteps=nsteps,
-                sys_alg=Trotter{2}(),
-                combine_alg=Trotter{2}(),
-            )
-            slim = slim_process_tensor(process_tensor)
-            return (;
-                process_tensor=slim,
-                system_sites,
-                metadata=(;
-                    format=CENTRAL_CACHE_FORMAT,
-                    N_bath,
-                    J,
-                    dt,
-                    final_time,
-                    nsteps,
-                    ace_cutoff,
-                    ace_maxdim,
-                    ace_compression,
-                    maxlinkdim=maxlinkdim(slim),
-                ),
-            )
-        end;
-        label="polarized central-spin ACE process tensor (N=$N_bath)",
-    )
+    params = (; N_bath, J, dt, final_time, nsteps, ace_cutoff, ace_maxdim, ace_compression)
+    payload = read_cache(cache_path, params)
+    build_time = 0.0
+    cache_hit = payload !== nothing
 
+    if !cache_hit
+        system_sites = siteinds("S=1/2", 1)
+        system = with_logger(() -> spin_system(system_sites, OpSum()), NullLogger())
+        build_time = @elapsed begin
+            bath = polarised_bath(N_bath, J)
+            pt = build_process_tensor(
+                system; environment=bath, dt=dt, nsteps=nsteps,
+                method=ACE(cutoff=ace_cutoff, maxdim=ace_maxdim, compression=ace_compression),
+                sys_alg=Trotter{2}(), combine_alg=Trotter{2}(),
+            )
+        end
+        # Keep the system and temporal cores; omit the original bath from the cache.
+        slim = ProcessTensor(pt.core, pt.system, nothing, pt.dt, pt.nsteps, pt.coupling_site)
+        payload = (; process_tensor=slim, system_sites,
+                   metadata=(; format=1, params..., maxlinkdim=maxlinkdim(slim)))
+        serialize(cache_path * ".tmp", payload)
+        mv(cache_path * ".tmp", cache_path; force=true)
+    end
+
+    # Cached Index identities must be reused for the initial preparation.
     process_tensor = payload.process_tensor
-    open_system_sites = payload.system_sites
-    open_initial_density = to_dm(MPS(open_system_sites, ["+"]))
-    open_Sx_matrix = ComplexF64.(
-        Array(
-            op("Sx", open_system_sites[1]),
-            prime(open_system_sites[1]),
-            open_system_sites[1],
-        ),
-    )
+    initial_density = to_dm(MPS(payload.system_sites, ["+"]))
+    evolution_time = @elapsed trajectory = evolve(process_tensor, initial_density)
+    diagnostics = trajectory_diagnostics(trajectory, N_bath, J)
+    bonds = Int[d for d in linkdims(process_tensor) if d !== nothing]
+    max_bond = maxlinkdim(process_tensor)
+    max_trace_error = maximum(diagnostics.trace_errors)
+    max_spin_bound_excess = max(maximum(abs, diagnostics.sx) - 0.5, 0.0)
 
-    finish_status(
-        @sprintf("  ACE PT ready: polarized N=%4d", N_bath),
-    )
-
-    bond_dimensions = Int[d for d in linkdims(process_tensor) if d !== nothing]
-    isempty(bond_dimensions) && error("Process tensor has no temporal link dimensions.")
-    max_bond_dimension = maximum(bond_dimensions)
-
-    @printf(
-        "    J_k = %.6f, max(linkdims(PT)) = %d\n",
-        J / N_bath,
-        max_bond_dimension,
-    )
-
-    if max_bond_dimension >= ace_maxdim
-        @warn "ACE reached the maxdim safety cap." N_bath=N_bath max_bond_dimension=max_bond_dimension
-    end
-    if max_bond_dimension != published_polarized_rank
-        @warn "Published fully polarized benchmark reports d_max=$published_polarized_rank." N_bath=N_bath max_bond_dimension=max_bond_dimension
-    end
-
-    update_status("  evolving polarized PT, N=$N_bath")
-    evolution_time = @elapsed begin
-        trajectory = evolve(process_tensor, open_initial_density)
-    end
-    finish_status(
-        @sprintf("  trajectory evolved: polarized N=%4d in %.3f s", N_bath, evolution_time),
-    )
-
-    sx, trace_errors, hermiticity_errors, ed_errors, _ =
-        central_spin_diagnostics(trajectory, open_Sx_matrix)
-    max_trace_error = maximum(trace_errors)
-    max_hermiticity_error = maximum(hermiticity_errors)
-    max_spin_bound_excess = max(maximum(abs, sx) - 0.5, 0.0)
-    analytical_error = maximum(ed_errors)
-
-    @printf(
-        "    max |tr ρ-1| = %.3e, max ‖ρ-ρ†‖/‖ρ‖ = %.3e, max |Sx|-1/2 = %.3e, max |Sx - ED| = %.3e\n",
-        max_trace_error,
-        max_hermiticity_error,
-        max_spin_bound_excess,
-        analytical_error,
-    )
-
-    if max_trace_error > trace_warning_tolerance
-        @warn "Trace drift exceeds the benchmark warning tolerance." N_bath=N_bath max_trace_error=max_trace_error
-    end
-    max_spin_bound_excess <= spin_bound_tolerance || error(
-        "Unphysical central-spin trajectory for N=$N_bath: max |Sx|-1/2 = $max_spin_bound_excess.",
-    )
-
-    results[N_bath] = (
-        max_bond_dimension=max_bond_dimension,
-        bond_dimensions=bond_dimensions,
-        build_time=build_time,
-        evolution_time=evolution_time,
-        times=trajectory.times,
-        sx=sx,
-        trace_errors=trace_errors,
-        hermiticity_errors=hermiticity_errors,
-        ed_errors=ed_errors,
-        max_trace_error=max_trace_error,
-        max_hermiticity_error=max_hermiticity_error,
-        max_spin_bound_excess=max_spin_bound_excess,
-        analytical_error=analytical_error,
-    )
+    @assert all(isfinite, diagnostics.sx)
+    @assert max_spin_bound_excess <= spin_bound_tolerance "Transverse spin exceeds its physical bound"
+    max_trace_error > trace_warning_tolerance && @warn "Trace drift exceeds tolerance" N_bath max_trace_error
+    max_bond >= ace_maxdim && @warn "ACE reached the bond cap; check convergence" N_bath max_bond
+    results[N_bath] = (; diagnostics..., bond_dimensions=bonds, max_bond_dimension=max_bond,
+                       build_time, evolution_time, cache_hit, max_trace_error, max_spin_bound_excess)
+    println((cache_hit=cache_hit, max_bond=max_bond, build_seconds=build_time,
+             evolution_seconds=evolution_time,
+             max_trace_error=max_trace_error,
+             max_hermiticity_error=maximum(diagnostics.hermiticity_errors),
+             max_finite_N_error=maximum(diagnostics.finite_N_errors),
+             max_large_N_deviation=maximum(diagnostics.large_N_deviations)))
 end
 
-# ------------------------------------------------------------------------------
-# 5. Figure
-# ------------------------------------------------------------------------------
+# --- Plot: physical finite-size effects and numerical diagnostics ---
+# All reference curves use the actual returned times and the adjustable J.
+# Clipping to log_error_floor is for display only; stored diagnostics are raw.
+figure = Figure(size=(1400, 900), fontsize=18)
+dynamics_axis = Axis(figure[1, 1]; ylabel="⟨Sx⟩ / ħ",
+                     title="Fully polarised central-spin dynamics",
+                     xticklabelsvisible=false, xticksvisible=false)
+error_axis = Axis(figure[2, 1]; xlabel="tJ / ħ", ylabel="absolute / relative deviation",
+                  yscale=log10, title="Finite-size deviation and numerical diagnostics")
 
-print_section("Plotting")
+for (i, N) in enumerate(N_bath_values)
+    r = results[N]
+    color = line_colors[mod1(i, length(line_colors))]
+    time_axis = J .* r.times
+    lines!(dynamics_axis, time_axis, r.sx; color=color, linewidth=2.2, label="N = $N")
+    lines!(error_axis, time_axis, max.(r.large_N_deviations, log_error_floor);
+           color=color, linestyle=:solid, linewidth=1.8)
+    lines!(error_axis, time_axis, max.(r.finite_N_errors, log_error_floor);
+           color=color, linestyle=:dashdot, linewidth=1.8)
+    lines!(error_axis, time_axis, max.(r.trace_errors, log_error_floor);
+           color=color, linestyle=:dash, linewidth=1.8)
+    lines!(error_axis, time_axis, max.(r.hermiticity_errors, log_error_floor);
+           color=color, linestyle=:dot, linewidth=1.8)
+end
 
-# Extra width is for the right-hand legends so the stacked panels keep
-# the previous 1100 × 850 plot aspect.
-figure = Figure(size=(1300, 850), fontsize=18)
 times = results[last(N_bath_values)].times
-ed_sx = 0.5 .* cos.(times ./ 2)
-ed_idx = uniform_sample_indices(length(times); nmarkers=ed_nmarkers)
-
-dynamics_axis = Axis(
-    figure[1, 1];
-    ylabel=L"$\langle S_x\rangle/\hbar$",
-    title="Fully polarized central-spin dynamics",
-    xticklabelsvisible=false,
-    xticksvisible=false,
-    xlabelvisible=false,
-)
-
-for (i, N_bath) in enumerate(N_bath_values)
-    trajectory = results[N_bath]
-    lines!(
-        dynamics_axis,
-        trajectory.times,
-        trajectory.sx;
-        color=line_colors[i],
-        linewidth=2.2,
-        label="N = $N_bath",
-    )
-end
-
-scatter!(
-    dynamics_axis,
-    times[ed_idx],
-    ed_sx[ed_idx];
-    marker=:x,
-    markersize=14,
-    color=:black,
-    label=L"$N \to \infty$",
-)
-
+marker_indices = unique(round.(Int, range(1, length(times);
+                              length=clamp(reference_nmarkers, 1, length(times)))))
+scatter!(dynamics_axis, J .* times[marker_indices], 0.5 .* cos.(J .* times[marker_indices] ./ 2);
+         marker=:x, markersize=14, color=:black, label="N → ∞ (analytical)")
 ylims!(dynamics_axis, -0.55, 0.55)
-
-Legend(
-    figure[1, 2],
-    dynamics_axis;
-    labelsize=16,
-    nbanks=1,
-    tellheight=false,
-    valign=:center,
-    halign=:left,
-)
-
-error_axis = Axis(
-    figure[2, 1];
-    xlabel=L"$tJ/\hbar$",
-    ylabel="density-matrix error",
-    yscale=log10,
-    title="Trace, Hermiticity, and ED errors",
-)
-
-for (i, N_bath) in enumerate(N_bath_values)
-    trajectory = results[N_bath]
-    color = line_colors[i]
-    lines!(
-        error_axis,
-        trajectory.times,
-        max.(trajectory.ed_errors, log_error_floor);
-        color=color,
-        linestyle=:solid,
-        linewidth=1.8,
-    )
-    lines!(
-        error_axis,
-        trajectory.times,
-        max.(trajectory.trace_errors, log_error_floor);
-        color=color,
-        linestyle=:dash,
-        linewidth=1.8,
-    )
-    lines!(
-        error_axis,
-        trajectory.times,
-        max.(trajectory.hermiticity_errors, log_error_floor);
-        color=color,
-        linestyle=:dot,
-        linewidth=1.8,
-    )
-end
-
-Legend(
-    figure[2, 2],
-    [
-        LineElement(color=:gray40, linestyle=:solid, linewidth=2),
-        LineElement(color=:gray40, linestyle=:dash, linewidth=2),
-        LineElement(color=:gray40, linestyle=:dot, linewidth=2),
-    ],
-    [
-        L"$|\langle S_x\rangle-\frac{1}{2}\cos(t/2)|$",
-        L"$|\mathrm{tr}\,\rho-1|$",
-        L"$\Vert\rho-\rho^\dagger\Vert/\Vert\rho\Vert$",
-    ];
-    labelsize=16,
-    nbanks=1,
-    tellheight=false,
-    valign=:center,
-    halign=:left,
-)
-
+Legend(figure[1, 2], dynamics_axis; labelsize=16, tellheight=false)
+Legend(figure[2, 2],
+       [LineElement(color=:gray40, linestyle=s, linewidth=2) for s in (:solid, :dashdot, :dash, :dot)],
+       ["|⟨Sx⟩ − large-N limit|", "|⟨Sx⟩ − exact finite-N|", "|tr ρ − 1|", "‖ρ − ρ†‖ / ‖ρ‖"];
+       labelsize=16, tellheight=false)
 linkxaxes!(dynamics_axis, error_axis)
 rowgap!(figure.layout, 12)
 colgap!(figure.layout, 12)
-rowsize!(figure.layout, 1, Relative(0.5))
-rowsize!(figure.layout, 2, Relative(0.5))
-
 save(figure_path, figure)
+println("Saved figure: $figure_path")
 
-println("Saved figure:")
-println("  $figure_path")
-
-# ------------------------------------------------------------------------------
-# 6. Final summary
-# ------------------------------------------------------------------------------
-
-print_section("Summary")
-
-println("Completed polarized Cygorek central-spin ACE benchmark.")
-println("  figure:                        $figure_path")
-
-ranks = [results[N].max_bond_dimension for N in N_bath_values]
-analytical_errors = [results[N].analytical_error for N in N_bath_values]
-
-for N_bath in N_bath_values
-    result = results[N_bath]
-    @printf(
-        "  N=%4d  J_k=%8.5f  chi_max=%4d  |trρ-1|_max=%.3e  ‖ρ-ρ†‖_max=%.3e  |Sx-ED|_max=%.3e  build=%8.3f s  evolve=%8.3f s\n",
-        N_bath,
-        J / N_bath,
-        result.max_bond_dimension,
-        result.max_trace_error,
-        result.max_hermiticity_error,
-        result.analytical_error,
-        result.build_time,
-        result.evolution_time,
-    )
-end
-
-println()
-println("Sanity checks:")
-println("  published d_max = $published_polarized_rank for polarized N = 10, 100, 1000")
-println("  observed chi_max = $(join(ranks, ", "))")
-println("  analytical errors should decrease with N: $(join(round.(analytical_errors; sigdigits=3), ", "))")
+# The published d_max=4 (N=10,100,1000) is a comparison point, not an invariant
+# of every representation/compression setting. Report bonds without asserting it.
+println((bath_sizes=N_bath_values,
+         maximum_bonds=[results[N].max_bond_dimension for N in N_bath_values]))
+# Small trace/Hermiticity defects or a physical Sx do not prove positivity.
+# For convergence, vary dt/cutoff/maxdim at fixed N and inspect finite_N_errors.
