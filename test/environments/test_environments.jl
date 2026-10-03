@@ -348,9 +348,8 @@ end
     ρ∞ = dense_mode_density(thermal_mode(b_sites, H_b, Inf; coupling=coupling_b))
     @test ρ∞ ≈ Matrix{ComplexF64}(I, n_phys, n_phys) / n_phys atol=1e-12
 
-    ρ_empty = @test_warn r"BosonicMode:H is empty" dense_mode_density(
-        thermal_mode(b_sites, OpSum(), 0.0),
-    )
+    mode_empty = @test_logs (:warn, r"BosonicMode:H is empty") thermal_mode(b_sites, OpSum(), 0.0)
+    ρ_empty = dense_mode_density(mode_empty)
     @test ρ_empty ≈ Matrix{ComplexF64}(I, n_phys, n_phys) / n_phys atol=1e-12
 
     @test_throws DomainError thermal_mode(b_sites, H_b, -1.0)
