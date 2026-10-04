@@ -41,6 +41,7 @@ end
 using CairoMakie
 using ITensors
 using ITensors.Ops: Trotter
+using LaTeXStrings
 using Logging
 using Serialization
 using ProcessTensors
@@ -167,51 +168,211 @@ for (label, p, q) in zip(labels, probabilities, independent_probabilities)
 end
 normalization_error > 1e-5 && @warn "Check ACE convergence before interpreting the residual" normalization_error
 
-# --- Two figures: persistent bath, then record statistics ---
-set_theme!(Theme(fontsize=18,
-    Axis=(topspinevisible=false, rightspinevisible=false, xgridvisible=false),
-    Legend=(labelsize=16,)))
-pt_color, effect_color, reset_color = "#3A9A5B", "#FCB06D", "#F7E58B"
-protocol_figure = Figure(size=(1100, 300))
-ax = Axis(protocol_figure[1, 1]; title="Ramsey readouts: reset the qubit, retain the bath",
-          limits=(-0.13final_time, 1.07final_time, -0.5, 0.85))
-hidedecorations!(ax)
-hidespines!(ax)
-lines!(ax, [0, final_time], [0.55, 0.55]; color=pt_color, linewidth=4)
-lines!(ax, [0, final_time], [0, 0]; color=:black, linewidth=2)
-text!(ax, -0.03final_time, 0.55; text="Bath", align=(:right, :center), color=pt_color)
-text!(ax, -0.03final_time, 0; text="Qubit", align=(:right, :center))
-scatter!(ax, [0], [0]; color=reset_color, markersize=18, strokewidth=1)
-text!(ax, 0, -0.12; text="prepare +", align=(:center, :top))
-# Offsets separate symbols visually; measurement and reset share one time slot.
-marker_offset = 0.014final_time
-for (j, time) in enumerate(readout_times)
-    lines!(ax, [time, time], [0.08, 0.50]; color=(pt_color, 0.4), linewidth=2)
-    scatter!(ax, [time-marker_offset, time+marker_offset], [0, 0];
-             color=[effect_color, reset_color], markersize=18, strokewidth=1)
-    text!(ax, time, 0.67; text="x$j", align=(:center, :center))
-    text!(ax, time, -0.12; text="measure → reset
-t=$(round(time; digits=3))",
-          align=(:center, :top), fontsize=16)
-end
-text!(ax, final_time, -0.12; text="trace", align=(:center, :top))
-Label(protocol_figure[2, 1], "X readout visibility η = $ETA  •  Every reset prepares |+⟩  •  Bath is never reset";
-      fontsize=16)
+# --- Protocol diagram and record-probability figures ---
+set_theme!(
+    Theme(
+        fontsize=20,
+        Axis=(
+            xgridvisible=false,
+            ygridvisible=true,
+            topspinevisible=false,
+            rightspinevisible=false,
+            titlesize=22,
+            xlabelsize=22,
+            ylabelsize=22,
+            xticklabelsize=18,
+            yticklabelsize=18,
+        ),
+        Legend=(labelsize=18,),
+    ),
+)
 
-record_figure = Figure(size=(1050, 420))
-probability_axis = Axis(record_figure[1, 1]; title="Outcome-record probabilities",
-    xlabel="(x₁ x₂ x₃)", ylabel="Probability", xticks=(1:8, labels))
-positions = collect(1:8)
-barplot!(probability_axis, positions .- 0.15, probabilities; width=0.26,
-         color=pt_color, label="process-tensor record")
-barplot!(probability_axis, positions .+ 0.15, independent_probabilities; width=0.26,
-         color=effect_color, label="product of marginals")
+const PREPARE_COLOR = "#F7E58B"
+const POVM_COLOR = "#FCB06D"
+const PT_COLOR = "#3A9A5B"
+const PT_FILL = (PT_COLOR, 0.28)
+const SYS_Y = 0.0
+const PT_Y = 0.28
+
+protocol_figure = Figure(size=(1050, 260), figure_padding=(10, 16, 6, 12))
+Label(
+    protocol_figure[0, 1],
+    "Three repeated Ramsey readouts";
+    fontsize=22,
+    font=:bold,
+    tellwidth=false,
+)
+Label(
+    protocol_figure[1, 1],
+    L"\rho_{\mathrm{r}}=|+\rangle\langle+| \qquad E_x^{(\eta)}=\frac{1}{2}(I+x\eta\sigma_x),\ \eta=0.90";
+    fontsize=19,
+    tellwidth=false,
+)
+
+readout_x = (2.50, 5.00, 7.50)
+pair_half = 0.14
+marker_clearance = 0.10
+prepare_x = 0.0
+line_start = 0.0
+line_end = 10.0
+xpad = 1.05
+
+protocol_axis = Axis(
+    protocol_figure[2, 1];
+    limits=(-xpad, line_end + xpad, -0.48, 0.58),
+)
+hidedecorations!(protocol_axis)
+hidespines!(protocol_axis)
+
+povm_xs = readout_x .- pair_half
+reset_xs = readout_x .+ pair_half
+evolution_intervals = (
+    (line_start, povm_xs[1] - marker_clearance),
+    (reset_xs[1] + marker_clearance, povm_xs[2] - marker_clearance),
+    (reset_xs[2] + marker_clearance, povm_xs[3] - marker_clearance),
+    (reset_xs[3] + marker_clearance, line_end),
+)
+
+for (x0, x1) in evolution_intervals
+    xs = range(x0, x1; length=24)
+    band!(
+        protocol_axis,
+        xs,
+        fill(SYS_Y, length(xs)),
+        fill(PT_Y, length(xs));
+        color=PT_FILL,
+    )
+    lines!(protocol_axis, [x0, x1], [SYS_Y, SYS_Y]; color=:black, linewidth=2.4)
+end
+
+lines!(protocol_axis, [line_start, line_end], [PT_Y, PT_Y]; color=PT_COLOR, linewidth=2.4)
+text!(
+    protocol_axis,
+    line_start - 0.08,
+    PT_Y;
+    text="PT",
+    align=(:right, :center),
+    color=PT_COLOR,
+    fontsize=18,
+)
+text!(
+    protocol_axis,
+    line_start - 0.08,
+    SYS_Y;
+    text="QUBIT",
+    align=(:right, :center),
+    color=:black,
+    fontsize=18,
+)
+scatter!(
+    protocol_axis,
+    [line_end],
+    [PT_Y];
+    marker=:rtriangle,
+    markersize=18,
+    color=PT_COLOR,
+)
+scatter!(
+    protocol_axis,
+    [line_end],
+    [SYS_Y];
+    marker=:rtriangle,
+    markersize=18,
+    color=:black,
+)
+
+scatter!(
+    protocol_axis,
+    [prepare_x],
+    [SYS_Y];
+    color=PREPARE_COLOR,
+    markersize=18,
+    strokecolor=:black,
+    strokewidth=2.4,
+)
+text!(
+    protocol_axis,
+    prepare_x,
+    -0.18;
+    text=L"\rho_{\mathrm{r}}",
+    align=(:center, :top),
+    fontsize=22,
+)
+
+outcome_labels = (L"x_1", L"x_2", L"x_3")
+for (round, center) in enumerate(readout_x)
+    scatter!(
+        protocol_axis,
+        [povm_xs[round]],
+        [SYS_Y];
+        color=POVM_COLOR,
+        markersize=18,
+        strokecolor=:black,
+        strokewidth=2.4,
+    )
+    scatter!(
+        protocol_axis,
+        [reset_xs[round]],
+        [SYS_Y];
+        color=PREPARE_COLOR,
+        markersize=18,
+        strokecolor=:black,
+        strokewidth=2.4,
+    )
+    text!(
+        protocol_axis,
+        center,
+        PT_Y + 0.10;
+        text=outcome_labels[round],
+        align=(:center, :bottom),
+        fontsize=22,
+    )
+    text!(
+        protocol_axis,
+        povm_xs[round] - 0.22,
+        -0.14;
+        text=L"E_x^{(\eta)}",
+        align=(:center, :top),
+        fontsize=22,
+    )
+    text!(
+        protocol_axis,
+        reset_xs[round] + 0.22,
+        -0.14;
+        text=L"\rho_{\mathrm{r}}",
+        align=(:center, :top),
+        fontsize=22,
+    )
+end
+
+record_figure = Figure(size=(1050, 380), figure_padding=(16, 16, 10, 12))
+probability_axis = Axis(
+    record_figure[1, 1];
+    title="Outcome-record probabilities",
+    xlabel=L"(x_1 x_2 x_3)",
+    ylabel=L"p(x_1,x_2,x_3)",
+    xticks=(1:length(labels), labels),
+)
+
+positions = collect(1:length(records))
+barplot!(
+    probability_axis,
+    positions .- 0.15,
+    probabilities;
+    width=0.26,
+    color=PT_COLOR,
+    label="process-tensor record",
+)
+barplot!(
+    probability_axis,
+    positions .+ 0.15,
+    independent_probabilities;
+    width=0.26,
+    color=(POVM_COLOR, 0.92),
+    label="product of marginals",
+)
 axislegend(probability_axis; position=:rt, framevisible=false)
-# Do not conceal a negative numerical weight with a hard zero lower limit.
-ylims!(probability_axis, min(0, 1.1minimum(probabilities)),
-        1.2maximum(vcat(probabilities, independent_probabilities)))
-Label(record_figure[2, 1], "Factorization residual = $(round(factorization_residual; sigdigits=4))";
-      fontsize=16)
+ylims!(probability_axis, 0, 1.12 * maximum(vcat(probabilities, independent_probabilities)))
 
 output_dir = joinpath(@__DIR__, "figures")
 mkpath(output_dir)
