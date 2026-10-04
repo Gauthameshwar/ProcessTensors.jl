@@ -1,0 +1,81 @@
+/* Automatic theme adaptation for theory SVGs.
+ * Toggles between light and dark SVG assets according to Documenter's active theme.
+ */
+
+article .theme-figure,
+.admonition .theme-figure {
+  margin: 0.85rem auto 1.15rem;
+  text-align: center;
+}
+
+article .theme-figure img,
+.admonition .theme-figure img {
+  width: 100%;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Specific width caps matching TikZ font scaling */
+article .theme-figure img[src*="column_major_vectorisation"],
+.admonition .theme-figure img[src*="column_major_vectorisation"] {
+  width: min(100%, 26.3em);
+}
+
+article .theme-figure img[src*="tensor_contractions"],
+.admonition .theme-figure img[src*="tensor_contractions"] {
+  width: min(100%, 36.5em);
+}
+
+article .theme-figure img[src*="mps_vocabulary"],
+.admonition .theme-figure img[src*="mps_vocabulary"] {
+  width: min(100%, 44.0em);
+}
+
+article .theme-figure img[src*="quantum_channel"],
+.admonition .theme-figure img[src*="quantum_channel"] {
+  width: min(100%, 18.1em);
+}
+
+article .theme-figure img[src*="channel_to_multitime_process"],
+.admonition .theme-figure img[src*="channel_to_multitime_process"] {
+  width: min(100%, 32.0em);
+}
+
+article .theme-figure img[src*="pt_anatomy"],
+.admonition .theme-figure img[src*="pt_anatomy"] {
+  width: min(100%, 38.3em);
+}
+
+article .theme-figure img[src*="process_contractions"],
+.admonition .theme-figure img[src*="process_contractions"] {
+  width: min(100%, 34.7em);
+}
+
+article .theme-figure img[src*="closing_a_leg"],
+.admonition .theme-figure img[src*="closing_a_leg"] {
+  width: min(100%, 32.0em);
+}
+
+/* Visibility toggle */
+.theme-figure-light {
+  display: block;
+}
+
+.theme-figure-dark {
+  display: none;
+}
+
+html.theme--documenter-dark .theme-figure-light,
+html.theme--catppuccin-mocha .theme-figure-light,
+html.theme--catppuccin-macchiato .theme-figure-light,
+html.theme--catppuccin-frappe .theme-figure-light {
+  display: none !important;
+}
+
+html.theme--documenter-dark .theme-figure-dark,
+html.theme--catppuccin-mocha .theme-figure-dark,
+html.theme--catppuccin-macchiato .theme-figure-dark,
+html.theme--catppuccin-frappe .theme-figure-dark {
+  display: block !important;
+}
