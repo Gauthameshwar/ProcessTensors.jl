@@ -7,7 +7,7 @@
 # Multimode spin-bath process tensor: fused-memory `evolve` vs joint Liouville ED.
 #
 # Run with:
-#   julia --project=. scripts/pt_tfim_multimode.jl
+#   julia --project=. -t auto scripts/pt_tfim_multimode.jl
 
 import Pkg
 

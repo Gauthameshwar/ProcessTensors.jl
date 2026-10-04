@@ -1,0 +1,59 @@
+% A one-time quantum channel. Time runs right to left.
+% Requires pt_tikz_styles.tex in the preamble.
+\begin{tikzpicture}[PTPicture]
+  \def\mapSide{11.0mm}%
+  \def\ketAlt{9.526mm}%
+  \tikzset{
+    g5eq/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      align=center,
+      inner sep=0.4pt,
+      anchor=north,
+    },
+  }
+  \newcommand{\GFiveMapKet}[3]{%
+    \node[
+      name=#1,
+      inner sep=0pt,
+      outer sep=0pt,
+      minimum width=\ketAlt,
+      minimum height=\mapSide,
+    ] at #2 {};
+    \begin{scope}[on PTforeground layer]
+      \PTSetTriangleRound{\ketAlt}{\mapSide}%
+      \filldraw[
+        draw=black,
+        fill=PTLiouville!16,
+        line width=\PTCoreStroke,
+        line join=round,
+        rounded corners=\PTRelRound,
+      ]
+        (#1.west |- #1.south) -- (#1.east) -- (#1.west |- #1.north) -- cycle;
+      \node[
+        font=\scriptsize,
+        text=PTLabel,
+        inner sep=0pt,
+        outer sep=0pt,
+      ]
+        at ($ (#1.west)!0.40!(#1.east) $) {#3};
+    \end{scope}
+  }
+
+  \GFiveMapKet{a-out}{(0.52, 0.48)}{\(\rho(t)\)}
+  \draw[PTLiouvilleLeg] (a-out.west) -- ++(-0.22,0);
+  \PTProcessCore[minimum width=\mapSide,minimum height=\mapSide,font=\normalsize]
+    {a-Phi}{(3.12, 0.48)}{\(\hat{\Phi}_{t:s}\)}
+  \GFiveMapKet{a-in}{(4.38, 0.48)}{\(\rho(s)\)}
+  \draw[PTLiouvilleLeg] (a-Phi.east) -- (a-in.west);
+  \draw[PTLiouvilleLeg] (a-Phi.west) -- ++(-0.24,0) coordinate (a-free);
+  \draw[
+    -{Stealth[length=2.6mm, width=1.8mm]},
+    line width=1.15pt,
+    draw=PTLabel,
+    line cap=round,
+  ] ([xshift=-1.8mm]a-free) -- ([xshift=1.8mm]a-out.east);
+  \node[g5eq] at (2.45,-0.78)
+    {\(\lvert\rho(t)\rangle\!\rangle
+      =\hat{\Phi}_{t:s}\lvert\rho(s)\rangle\!\rangle\)};
+\end{tikzpicture}

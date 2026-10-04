@@ -1,21 +1,23 @@
 # Installation
 
-`ProcessTensors.jl` requires **Julia 1.10 or later**. The package is under active development and is installed from GitHub for v0.1.0; it is not yet on the General Registry.
+`ProcessTensors.jl` requires **Julia 1.10 or later**. The package is under active development and is installed from GitHub; it is not yet on the General Registry.
+
+The latest tagged release is [v0.2.0](https://github.com/Gauthameshwar/ProcessTensors.jl/releases/tag/v0.2.0). `ACE()` and the other work listed under `Unreleased` in the changelog are not in that tag, so `rev="v0.2.0"` does not reproduce this site.
 
 ## Install the package
 
-From the Julia REPL, install the **v0.1.0** release:
+From the Julia REPL, install the latest release:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.1.0")
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.2.0")
 ```
 
 To track the latest development version on `main`:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl")
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="main")
 ```
 
 Then load it in a session:
@@ -51,9 +53,12 @@ Pkg.test("ProcessTensors")
 
 ## Build the documentation locally
 
+From the repository root:
+
 ```julia
 using Pkg
 Pkg.activate("docs")
+Pkg.develop(path=".")
 Pkg.instantiate()
 ```
 

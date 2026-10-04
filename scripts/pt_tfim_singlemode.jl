@@ -7,7 +7,7 @@
 # Single-mode spin-bath process tensor: split `evolve` vs joint Liouville ED reference.
 #
 # Run with:
-#   julia --project=. scripts/pt_tfim_singlemode.jl
+#   julia --project=. -t auto scripts/pt_tfim_singlemode.jl
 
 import Pkg
 

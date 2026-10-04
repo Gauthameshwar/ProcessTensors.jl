@@ -1,0 +1,294 @@
+% Joint evolution and the open process.  Time runs right to left.
+% (a) system--environment evolution with interventions,
+% (b) the same network after the interventions are removed.
+% The open slots in (b) are the multilinear process, not identity operations.
+% The one-time channel is quantum_channel.tikz.
+% Requires pt_tikz_styles.tex in the preamble.
+\begin{tikzpicture}[PTPicture]
+  \def\envY{0.96}%
+  \def\sysY{0.00}%
+  \def\midY{0.48}%
+  \def\Uwid{8.6mm}%
+  \def\Uhgt{16.4mm}%
+  \def\mapSide{11.0mm}%
+  % Equilateral: altitude = (sqrt(3)/2)*side
+  \def\ketAlt{9.526mm}%
+  \def\bLeg{4.8mm}%
+  \tikzset{
+    g5lab/.style={
+      font=\small\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+      anchor=north west,
+    },
+    g5eq/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      align=center,
+      inner sep=0.4pt,
+      anchor=north,
+    },
+    g5sub/.style={
+      font=\scriptsize,
+      text=PTLabel,
+      inner sep=0.4pt,
+    },
+    g5ph/.style={
+      dash pattern=on 1.6pt off 1.3pt,
+      draw=black!45,
+      line width=0.7pt,
+      rounded corners=2.2pt,
+      fill=PTProcess!35,
+    },
+  }
+
+  % Equilateral Liouville ket with the same side length as the (a) channel square.
+  \newcommand{\GFiveMapKet}[3]{%
+    \node[
+      name=#1,
+      inner sep=0pt,
+      outer sep=0pt,
+      minimum width=\ketAlt,
+      minimum height=\mapSide,
+    ] at #2 {};
+    \begin{scope}[on PTforeground layer]
+      \PTSetTriangleRound{\ketAlt}{\mapSide}%
+      \filldraw[
+        draw=black,
+        fill=PTLiouville!16,
+        line width=\PTCoreStroke,
+        line join=round,
+        rounded corners=\PTRelRound,
+      ]
+        (#1.west |- #1.south) -- (#1.east) -- (#1.west |- #1.north) -- cycle;
+      \node[
+        font=\scriptsize,
+        text=PTLabel,
+        inner sep=0pt,
+        outer sep=0pt,
+      ]
+        at ($ (#1.west)!0.40!(#1.east) $) {#3};
+    \end{scope}
+  }
+  % Right-pointing; wires attach on the vertical west base.
+  \newcommand{\GFiveSEKet}[2]{%
+    \node[
+      name=#1,
+      inner sep=0pt,
+      outer sep=0pt,
+      minimum width=\Uwid,
+      minimum height=\Uhgt,
+    ] at #2 {};
+    \begin{scope}[on PTforeground layer]
+      \PTSetTriangleRound{\Uwid}{\Uhgt}%
+      \filldraw[
+        draw=black,
+        fill=PTLiouville!16,
+        line width=\PTCoreStroke,
+        line join=round,
+        rounded corners=\PTRelRound,
+      ]
+        (#1.west |- #1.south) -- (#1.east) -- (#1.west |- #1.north) -- cycle;
+      \node[font=\small, text=PTLabel, inner sep=0.3pt, align=center]
+        at ($ (#1.west)!0.36!(#1.east) $) {\(\rho_{SE}\)};
+    \end{scope}
+  }
+
+  % =====================================================================
+  % (a) and (b) on one row
+  % =====================================================================
+  \begin{scope}[shift={(0.45, 4.72)}]
+    % -----------------------------------------------------------------
+    % (a)  open_S, Tr_E, U32 (A2 otimes I) U21 (A1 otimes I) U10 (A0 otimes I) rho_SE
+    % Environment on top, system below; both Liouville.
+    % The propagator centres match panel (b).
+    % -----------------------------------------------------------------
+    \begin{scope}[shift={(0, 0)}]
+      \coordinate (b-ey) at (0, \envY);
+      \coordinate (b-sy) at (0, \sysY);
+
+      \PTInstrument[minimum width=7.2mm,minimum height=7.2mm]
+        {b-A2}{(3.05, \sysY)}{\(\mathcal A_2\)}
+      \PTInstrument[minimum width=7.2mm,minimum height=7.2mm]
+        {b-A1}{(5.15, \sysY)}{\(\mathcal A_1\)}
+      \PTInstrument[minimum width=7.2mm,minimum height=7.2mm]
+        {b-A0}{(7.25, \sysY)}{\(\mathcal A_0\)}
+      \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+        {b-U32}{(2.00, \midY)}{\(\mathcal U_{3:2}\)}
+      \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+        {b-U21}{(4.10, \midY)}{\(\mathcal U_{2:1}\)}
+      \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+        {b-U10}{(6.20, \midY)}{\(\mathcal U_{1:0}\)}
+      \GFiveSEKet{b-rho}{(8.42, \midY)}
+
+      % System rail (bottom): open on the left
+      \draw[PTLiouvilleLeg]
+        (b-rho.west |- b-sy) -- (b-A0.east);
+      \draw[PTLiouvilleLeg]
+        (b-A0.west) -- (b-U10.east |- b-sy);
+      \draw[PTLiouvilleLeg]
+        (b-U10.west |- b-sy) -- (b-A1.east);
+      \draw[PTLiouvilleLeg]
+        (b-A1.west) -- (b-U21.east |- b-sy);
+      \draw[PTLiouvilleLeg]
+        (b-U21.west |- b-sy) -- (b-A2.east);
+      \draw[PTLiouvilleLeg]
+        (b-A2.west) -- (b-U32.east |- b-sy);
+      \draw[PTLiouvilleLeg]
+        (b-U32.west |- b-sy) -- ++(-\bLeg,0) coordinate (b-open);
+      \node[g5sub, anchor=east] at ([xshift=-1.6pt]b-open) {\(S\)};
+
+      % Environment rail (top): unbroken, traced at the left
+      \draw[PTLiouvilleLeg]
+        (b-rho.west |- b-ey) -- (b-U10.east |- b-ey);
+      \draw[PTLiouvilleLeg]
+        (b-U10.west |- b-ey) -- (b-U21.east |- b-ey);
+      \draw[PTLiouvilleLeg]
+        (b-U21.west |- b-ey) -- (b-U32.east |- b-ey);
+      \coordinate (b-tr) at ($(b-U32.west |- b-ey)+(-\bLeg,0)$);
+      \draw[PTLiouvilleLeg]
+        (b-U32.west |- b-ey) -- (b-tr);
+      \PTTraceOutTick{b-tr}
+      \node[g5sub, anchor=east] at ([xshift=-3.2pt]b-tr) {\(E\)};
+      \node[g5lab, anchor=south east]
+        at ([xshift=-1.5pt, yshift=2pt]$(b-U32.west |- b-U32.north)+(-8.2mm,0)$) {(a)};
+
+      % Small RTL time mark, bottom-right (clear of rho_SE)
+      \coordinate (b-tR) at (8.72,-0.92);
+      \coordinate (b-tL) at (7.72,-0.92);
+      \draw[
+        -{Stealth[length=2.0mm, width=1.4mm]},
+        line width=1.0pt,
+        draw=PTLabel,
+        line cap=round,
+      ] (b-tR) -- (b-tL);
+      \node[g5sub, anchor=south] at ($(b-tR)!0.5!(b-tL)+(0,1.2pt)$) {time};
+
+      \node[g5eq] at (4.55,-1.42)
+        {\(\rho_S(t_3)
+          =\operatorname{Tr}_E[
+            \mathcal U_{3:2}(\mathcal A_2\otimes\mathcal I_E)\,
+            \mathcal U_{2:1}(\mathcal A_1\otimes\mathcal I_E)\,
+            \mathcal U_{1:0}(\mathcal A_0\otimes\mathcal I_E)
+            [\rho_{SE}(t_0)]
+          ]\)};
+    \end{scope}
+  \end{scope}
+
+  % =====================================================================
+  % (b) process tensor: (a) without instruments, enclosed
+  % =====================================================================
+  \begin{scope}[shift={(0.45, 0.55)}]
+    \coordinate (c-ey) at (0, \envY);
+    \coordinate (c-sy) at (0, \sysY);
+    \coordinate (c-ny) at (0, 0.54);
+    \def\cPad{2.3mm}%
+    \def\cSlot{4.4mm}%
+    \def\cTrDist{2.5mm}%
+    % Roof sits \cPad above U.north; bulge radius matches that gap from the env rail.
+    \def\cBulgeR{5.7mm}%
+    \def\cRoofR{5.2pt}%
+
+    \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+      {c-U32}{(2.00, \midY)}{\(\mathcal U_{3:2}\)}
+    \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+      {c-U21}{(4.10, \midY)}{\(\mathcal U_{2:1}\)}
+    \PTTensor[fill=PTTensor,minimum width=\Uwid,minimum height=\Uhgt]
+      {c-U10}{(6.20, \midY)}{\(\mathcal U_{1:0}\)}
+    \GFiveSEKet{c-rho}{(8.42, \midY)}
+    \coordinate (c-tr) at ($(c-U32.west |- c-ey)+(-\cTrDist,0)$);
+
+    % Roof is a flat line at the semicircle's north y, out to the rho_SE tip x.
+    \coordinate (c-trS) at ($(c-tr)+(0,-\cBulgeR)$);
+    \coordinate (c-trN) at ($(c-tr)+(0,\cBulgeR)$);
+    \coordinate (c-TR) at ([xshift=\cPad]c-rho.east |- c-trN);
+    \coordinate (c-TRin) at ([xshift=-\cRoofR]c-TR);
+    \coordinate (c-RSbot) at ($(c-rho.south east)+(\cPad,-\cPad)$);
+    \coordinate (c-RSbotL) at ($(c-rho.south west)+(-\cPad,-\cPad)$);
+    \coordinate (c-rhoWny) at ([xshift=-\cPad]c-rho.west |- c-ny);
+    \coordinate (c-U10Eny) at ([xshift=\cPad]c-U10.east |- c-ny);
+    \coordinate (c-U10SE) at ($(c-U10.south east)+(\cPad,-\cPad)$);
+    \coordinate (c-U10SW) at ($(c-U10.south west)+(-\cPad,-\cPad)$);
+    \coordinate (c-U10Wny) at ([xshift=-\cPad]c-U10.west |- c-ny);
+    \coordinate (c-U21Eny) at ([xshift=\cPad]c-U21.east |- c-ny);
+    \coordinate (c-U21SE) at ($(c-U21.south east)+(\cPad,-\cPad)$);
+    \coordinate (c-U21SW) at ($(c-U21.south west)+(-\cPad,-\cPad)$);
+    \coordinate (c-U21Wny) at ([xshift=-\cPad]c-U21.west |- c-ny);
+    \coordinate (c-U32Eny) at ([xshift=\cPad]c-U32.east |- c-ny);
+    \coordinate (c-U32SE) at ($(c-U32.south east)+(\cPad,-\cPad)$);
+    \coordinate (c-U32SW) at ($(c-U32.south west)+(-\cPad,-\cPad)$);
+    \coordinate (c-U32WtrS) at ([xshift=-\cPad]c-U32.west |- c-trS);
+    \begin{scope}[on background layer]
+      \filldraw[
+        draw=green!28!black,
+        fill=green!38!black!18!white,
+        fill opacity=1,
+        draw opacity=1,
+        dash pattern=on 1.7pt off 1.25pt,
+        line width=0.85pt,
+      ]
+        (c-trN) -- (c-TRin)
+        arc[start angle=90, delta angle=-90, radius=\cRoofR]
+        [rounded corners=5.2pt]
+        -- (c-RSbot) -- (c-RSbotL)
+        -- (c-rhoWny) -- (c-U10Eny)
+        -- (c-U10SE) -- (c-U10SW)
+        -- (c-U10Wny) -- (c-U21Eny)
+        -- (c-U21SE) -- (c-U21SW)
+        -- (c-U21Wny) -- (c-U32Eny)
+        -- (c-U32SE) -- (c-U32SW)
+        [sharp corners]
+        -- (c-U32WtrS) -- (c-trS)
+        arc[start angle=-90, delta angle=-180, radius=\cBulgeR]
+        -- cycle;
+    \end{scope}
+
+    % Environment rail (inside T), traced on the left
+    \draw[PTLiouvilleLeg]
+      (c-rho.west |- c-ey) -- (c-U10.east |- c-ey);
+    \draw[PTLiouvilleLeg]
+      (c-U10.west |- c-ey) -- (c-U21.east |- c-ey);
+    \draw[PTLiouvilleLeg]
+      (c-U21.west |- c-ey) -- (c-U32.east |- c-ey);
+    \draw[PTLiouvilleLeg]
+      (c-U32.west |- c-ey) -- (c-tr);
+    \PTTraceOutTick{c-tr}
+    \node[g5lab, anchor=south east]
+      at ([xshift=-1.5pt, yshift=1.5pt]$(c-tr)+(-\cBulgeR,\cBulgeR)$) {(b)};
+
+    % Open system slots: output on the right of each pair, input on the left
+    \draw[PTLiouvilleLeg]
+      (c-rho.west |- c-sy) -- ++(-\cSlot,0);
+    \draw[PTLiouvilleLeg primed]
+      (c-U10.east |- c-sy) -- ++(\cSlot,0);
+    \draw[PTLiouvilleLeg]
+      (c-U10.west |- c-sy) -- ++(-\cSlot,0);
+    \draw[PTLiouvilleLeg primed]
+      (c-U21.east |- c-sy) -- ++(\cSlot,0);
+    \draw[PTLiouvilleLeg]
+      (c-U21.west |- c-sy) -- ++(-\cSlot,0);
+    \draw[PTLiouvilleLeg primed]
+      (c-U32.east |- c-sy) -- ++(\cSlot,0);
+    \draw[PTLiouvilleLeg]
+      (c-U32.west |- c-sy) -- ++(-\cSlot,0) coordinate (c-open);
+
+    \coordinate (c-tR) at (8.72,-0.92);
+    \coordinate (c-tL) at (7.72,-0.92);
+    \draw[
+      -{Stealth[length=2.0mm, width=1.4mm]},
+      line width=1.0pt,
+      draw=PTLabel,
+      line cap=round,
+    ] (c-tR) -- (c-tL);
+    \node[g5sub, anchor=south] at ($(c-tR)!0.5!(c-tL)+(0,1.2pt)$) {time};
+
+    \node[g5eq] at (4.55,-1.42)
+      {\(\mathcal T_{3:0}
+        =\operatorname{Tr}_E[
+          \mathcal U_{3:2}\,
+          \mathcal U_{2:1}\,
+          \mathcal U_{1:0}
+          [\rho_{SE}(t_0)]
+        ]\)};
+  \end{scope}
+\end{tikzpicture}

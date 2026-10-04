@@ -8,7 +8,7 @@
 # progress, and durable verbose open-leg diagnostics.
 #
 # Run with:
-# julia --project=. scripts/terminal/evaluate_process.jl
+# julia --project=. -t auto scripts/terminal/evaluate_process.jl
 
 include("common.jl")
 @info "Loaded common.jl"

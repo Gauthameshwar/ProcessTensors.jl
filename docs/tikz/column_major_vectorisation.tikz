@@ -1,0 +1,64 @@
+% Column-major vectorisation.  Bending the bra beside the ket is an
+% index rearrangement, not complex conjugation.
+% Requires pt_tikz_styles.tex in the preamble.
+\begin{tikzpicture}[PTPicture]
+  \setlength{\PTCoreStroke}{2.05pt}
+  \setlength{\PTHilbertLW}{1.9pt}
+  \setlength{\PTLiouvilleLW}{1.00pt}
+  \setlength{\PTLiouvilleGap}{2.05pt}
+  \setlength{\PTKetWidth}{10.2mm}
+  \setlength{\PTKetHeight}{11.8mm}
+  \setlength{\PTVecBendR}{3.5mm}
+  \setlength{\PTVecOverhang}{0.28mm}
+  \setlength{\PTFuseGap}{2.05mm}
+  \setlength{\PTVecRun}{2.25mm}
+  \setlength{\PTVecDipH}{5.8mm}
+  \tikzset{
+    g2eq/.style={
+      font=\small,
+      text=PTLabel,
+      align=center,
+      inner sep=0.4pt,
+      anchor=north,
+    },
+    g2arr/.style={
+      -{Stealth[length=2.4mm, width=1.7mm]},
+      line width=1.35pt,
+      draw=PTLabel,
+    },
+  }
+
+  \begin{scope}[shift={(3.70, 1.35)}]
+    \PTOperator[minimum width=10.4mm,minimum height=10.4mm]{vA}{(-3.15,0)}{\(A\)}
+    \draw[PTHilbertKetLeg] (vA.west) -- ++(-0.28,0) coordinate (vA-j);
+    \draw[PTHilbertBraLeg] (vA.east) -- ++(0.28,0) coordinate (vA-k);
+    \PTIndexLabel[anchor=east, math={j}, xshift=-1.2pt]{vA-j}
+    \PTIndexLabel[anchor=west, math={k}, xshift=1.2pt]{vA-k}
+
+    \PTOperator[minimum width=10.4mm,minimum height=10.4mm]{vAb}{(0.15,0)}{\(A\)}
+    \PTVectoriseToKet{vAb}
+    \coordinate (vAb-tl) at ($ (vAb.west) + (-\PTVecOverhang, 2*\PTVecBendR) $);
+    \coordinate (vAb-elbow) at ($ (vAb.east) + (\PTVecBendR, \PTVecBendR) $);
+    \coordinate (g2a-s) at ($ (vA.north east) + (2.2mm, 2.2mm) $);
+    \path let
+      \p1=(g2a-s),
+      \p2=(vAb-tl),
+      \n{d2}={\y1-\y2}
+    in coordinate (g2a-e) at ($ (vAb-tl) + (-\n{d2}, \n{d2}) $);
+    \draw[g2arr] (g2a-s) to[bend left=34] (g2a-e);
+    \PTIndexLabel[anchor=south east, math={k}, xshift=-1.0pt, yshift=0.4pt]{vAb-bra}
+    \PTIndexLabel[anchor=north east, math={j}, xshift=-1.0pt, yshift=-0.4pt]{vAb-ket}
+
+    \PTLiouvilleKet{vAL}{(3.55,0)}{\(A\)}
+    \draw[PTLiouvilleLeg] (vAL.west) -- ++(-0.62,0) coordinate (vAL-ell);
+    \path let \p1=(vAb-elbow), \p2=(vAL-ell) in
+      node[font=\small, text=PTLabel] at ({0.5*(\x1+\x2)}, 0) {\(\equiv\)};
+    \PTIndexLabel[anchor=south, math={(k,j)}, yshift=1.8pt]
+      {$(vAL-ell)!0.18!(vAL.west)$}
+
+    \node[g2eq] at (-2.20,-1.15)
+      {\(\hat A=a_{jk}\lvert j\rangle\langle k\rvert\)};
+    \node[g2eq] at ($ (vAb)!0.5!(vAL) +(0,-1.15) $)
+      {\(\lvert A\rangle\!\rangle=a_{jk}\lvert k\rangle\otimes\lvert j\rangle\)};
+  \end{scope}
+\end{tikzpicture}

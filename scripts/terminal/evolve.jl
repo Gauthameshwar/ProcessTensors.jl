@@ -8,7 +8,7 @@
 # for a small single-mode spin-bath process tensor.
 #
 # Run with:
-# julia --project=. scripts/terminal/evolve.jl
+# julia --project=. -t auto scripts/terminal/evolve.jl
 
 include("common.jl")
 @info "Loaded common.jl"

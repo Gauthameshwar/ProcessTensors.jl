@@ -8,7 +8,7 @@
 # verbose logging on a short two-spin chain.
 #
 # Run with:
-# julia --project=. scripts/terminal/tebd.jl
+# julia --project=. -t auto scripts/terminal/tebd.jl
 
 using ProcessTensors
 using ITensors

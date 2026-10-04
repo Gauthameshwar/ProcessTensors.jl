@@ -8,7 +8,7 @@
 # two-site TDVP and plots its energy and excitation response.
 #
 # Run with:
-#   julia --project=. scripts/laser_driven_tdvp.jl
+#   julia --project=. -t auto scripts/laser_driven_tdvp.jl
 
 import Pkg
 

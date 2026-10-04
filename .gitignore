@@ -17,16 +17,27 @@ notes/*
 
 # Literate-generated example pages (source: docs/literate/examples/*.jl)
 /docs/src/examples/*.md
-# Keep the hand-written instrument-sequences stub until it is Literate-migrated.
-!/docs/src/examples/instrument_sequences.md
 
 # Example figures copied from scripts/figures during docs/make.jl
 /docs/src/assets/examples/
+
+# LaTeX products from docs/tikz/build_svgs.sh
+/docs/tikz/*.aux
+/docs/tikz/*.log
+/docs/tikz/*.out
+/docs/tikz/*.pdf
+/docs/tikz/*.dvi
+/docs/tikz/*.toc
+/docs/tikz/*.build.log
 
 # Local throwaway project environments at any depth (e.g. .bench_env, .plot_env,
 # scripts/.plot_examples_env). Trailing slash limits the match to directories.
 .*env/
 **/.*env/
+
+# Manim render cache and draft outputs from docs/animations/*.py
+/docs/animations/media/
+__pycache__/
 
 # Serialized process-tensor caches from companion scripts
 scripts/.cache/

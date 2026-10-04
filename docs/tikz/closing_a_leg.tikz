@@ -1,0 +1,95 @@
+% Closing a Liouville leg: keep the state, trace it out, read an
+% effect probability, or trace out only the environment.
+% Requires pt_tikz_styles.tex in the preamble.
+\newcommand{\PTEffectBra}[3]{%
+  \node[
+    name=#1,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum width=\PTKetWidth,
+    minimum height=\PTKetHeight,
+  ] at #2 {};
+  \begin{scope}[on PTforeground layer]
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}
+    \filldraw[
+      draw=black,
+      fill=PTHilbertBra!42,
+      line width=\PTCoreStroke,
+      line join=round,
+      rounded corners=\PTRelRound,
+    ] (#1.east |- #1.south) -- (#1.west) -- (#1.east |- #1.north) -- cycle;
+    \node[font=\small, text=PTLabel, inner sep=0.4pt]
+      at ($ (#1.east)!0.36!(#1.west) $) {#3};
+  \end{scope}
+}
+\begin{tikzpicture}[PTPicture]
+  \setlength{\PTKetWidth}{9.6mm}
+  \setlength{\PTKetHeight}{11.1mm}
+  \setlength{\PTCoreStroke}{1.85pt}
+  \setlength{\PTLiouvilleLW}{0.95pt}
+  \setlength{\PTLiouvilleGap}{1.95pt}
+  \def\cellW{4.05}%
+  \tikzset{
+    gclab/.style={
+      font=\small\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+      anchor=north west,
+    },
+    gceq/.style={
+      font=\small,
+      text=PTLabel,
+      align=center,
+      inner sep=0.4pt,
+      anchor=north,
+    },
+    gcleg/.style={
+      font=\small,
+      text=PTLabel,
+      inner sep=0.5pt,
+    },
+  }
+
+  % (a) open state
+  \begin{scope}[shift={(0,0)}]
+    \node[gclab] at (0, 1.95) {(a)};
+    \PTLiouvilleKet{a-rho}{(2.05,0.78)}{\(\rho\)}
+    \draw[PTLiouvilleLeg] (a-rho.west) -- ++(-0.85,0) coordinate (a-open);
+    \node[gceq] at (1.55,-0.18) {\(\lvert\rho\rangle\!\rangle\)};
+  \end{scope}
+
+  % (b) trace, capped by the trace-out tick rather than an identity bra
+  \begin{scope}[shift={(\cellW,0)}]
+    \node[gclab] at (0, 1.95) {(b)};
+    \PTLiouvilleKet{b-rho}{(2.35,0.78)}{\(\rho\)}
+    \PTTraceOut{b-tr}{($(b-rho.west)+(-0.95,0)$)}
+    \draw[PTLiouvilleLeg] (b-rho.west) -- (b-tr-east);
+    \node[gceq] at (1.70,-0.18) {\(\operatorname{Tr}(\rho)\)};
+  \end{scope}
+
+  % (c) effect
+  \begin{scope}[shift={(2*\cellW,0)}]
+    \node[gclab] at (0, 1.95) {(c)};
+    \PTEffectBra{c-E}{(1.05,0.78)}{\(E_x\)}
+    \PTLiouvilleKet{c-rho}{(2.85,0.78)}{\(\rho\)}
+    \draw[PTLiouvilleLeg] (c-E.east) -- (c-rho.west);
+    \node[gceq] at (1.95,-0.18) {\(p_x=\operatorname{Tr}(E_x\rho)\)};
+  \end{scope}
+
+  % (d) partial trace of the environment
+  \begin{scope}[shift={(3*\cellW,0)}]
+    \node[gclab] at (0, 1.95) {(d)};
+    \PTLiouvilleKet{d-rho}{(2.55,0.78)}{\(\rho_{SE}\)}
+    \coordinate (d-Esrc) at ($(d-rho.west)+(0,0.28)$);
+    \coordinate (d-Ssrc) at ($(d-rho.west)+(0,-0.28)$);
+    \coordinate (d-tip) at ($(d-rho.west)+(-1.45,0)$);
+    \coordinate (d-S) at (d-tip |- d-Ssrc);
+    \coordinate (d-E) at (d-tip |- d-Esrc);
+    \draw[PTLiouvilleLeg] (d-Ssrc) -- (d-S);
+    \PTTraceOut{d-tr}{($(d-E)+(2.8mm,0)$)}
+    \draw[PTLiouvilleLeg] (d-Esrc) -- (d-tr-east);
+    \node[gcleg, anchor=east] at ([xshift=-3.5pt]d-E) {\(E\)};
+    \node[gcleg, anchor=east] at ([xshift=-3.5pt]d-S) {\(S\)};
+    \node[gceq] at (1.85,-0.18) {\(\operatorname{Tr}_E(\rho_{SE})\)};
+  \end{scope}
+\end{tikzpicture}

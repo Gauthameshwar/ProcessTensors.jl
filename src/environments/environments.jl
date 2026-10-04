@@ -10,15 +10,17 @@
 module Environments
 
 import ..ProcessTensors
-using ..ProcessTensors: AbstractMPS, MPS, Hilbert, Liouville, OpSum, Index, siteinds, has_tag_token
+using ..ProcessTensors: AbstractMPS, MPS, MPO, Hilbert, Liouville, OpSum, Index, siteinds,
+    has_tag_token, tag_tokens, to_liouville, _phys_site_from_liouv
 using ..Spectrals: AbstractSpectralDensity, ohmic_sd
 using ITensors
 using ITensors: dim, terms
+using LinearAlgebra: Hermitian, I, eigen, exp, tr
 import Base: show
 
 export AbstractBathMode, AbstractBath, BosonicMode, SpinMode, BosonicBath, SpinBath,
        bosonic_mode, spin_mode, bosonic_bath, spin_bath,
-       mode_initial_states
+       mode_initial_states, thermal_mode
 
 """
     AbstractBathMode
@@ -353,6 +355,119 @@ end
 Return the initial state of each bath mode in `bath`.
 """
 mode_initial_states(bath::AbstractBath) = getfield.(bath.modes, :rho0)
+
+"""
+    thermal_mode(mode::AbstractBathMode, T::Real)
+    thermal_mode(sites, H::OpSum, T::Real; coupling=OpSum(), n_max=dim(only(sites))-1)
+
+Return a bath mode whose initial state is thermal at temperature `T`.
+
+`T` is in the same energy units as the coefficients in the mode Hamiltonian
+(`ħ = k_B = 1`). Finite `T > 0` gives the Gibbs state ``e^{-H/T}/Z``. `T = 0`
+gives the ground state of `H`, or the projector onto a degenerate ground
+space. `T = Inf` gives the maximally mixed state ``I/d``. Negative or `NaN`
+temperatures throw `DomainError`.
+
+The replacement methods keep `H`, `sites`, `coupling`, and `n_max` and only
+replace `rho0`. The constructor infers [`BosonicMode`](@ref) or
+[`SpinMode`](@ref) from Liouville site-family tags and forwards to
+[`bosonic_mode`](@ref) or [`spin_mode`](@ref).
+
+# Examples
+```julia
+mode = thermal_mode(liouv_sites, H, 1.0; coupling=coupling)
+cold = thermal_mode(mode, 0.0)
+```
+"""
+function thermal_mode(mode::BosonicMode, T::Real)
+    rho0 = _thermal_liouville_state(mode.sites, mode.H, T)
+    return BosonicMode(mode.sites, mode.H, mode.n_max, rho0; coupling=mode.coupling)
+end
+
+function thermal_mode(mode::SpinMode, T::Real)
+    rho0 = _thermal_liouville_state(mode.sites, mode.H, T)
+    return SpinMode(mode.sites, mode.H, rho0; coupling=mode.coupling)
+end
+
+thermal_mode(mode::AbstractBathMode, T::Real) = throw(
+    ArgumentError(
+        "thermal_mode: unsupported bath mode type $(typeof(mode)). " *
+        "Expected BosonicMode or SpinMode.",
+    ),
+)
+
+function thermal_mode(
+    sites::AbstractVector{<:Index},
+    H::OpSum,
+    T::Real;
+    coupling::OpSum=OpSum(),
+    n_max::Int=dim(only(sites)) - 1,
+)
+    length(sites) == 1 || throw(
+        ArgumentError(
+            "thermal_mode: a bath mode must have exactly one site index. Got $(length(sites)).",
+        ),
+    )
+    rho0 = _thermal_liouville_state(sites, H, T)
+    site = only(sites)
+    tokens = tag_tokens(site)
+    if any(t -> occursin("Boson", t), tokens)
+        return bosonic_mode(sites, H, rho0; n_max=n_max, coupling=coupling)
+    elseif any(t -> occursin("S=", t), tokens)
+        return spin_mode(sites, H, rho0; coupling=coupling)
+    end
+    throw(
+        ArgumentError(
+            "thermal_mode: sites must be bosonic or spin Liouville indices. Got $(tag_tokens.(sites)).",
+        ),
+    )
+end
+
+# Local Gibbs / ground / infinite-T density on one Liouville bath site.
+function _thermal_liouville_state(sites::AbstractVector{<:Index}, H::OpSum, T::Real)
+    isnan(T) && throw(DomainError(T, "thermal_mode: T must be 0, positive, or Inf."))
+    T < 0 && throw(DomainError(T, "thermal_mode: T must be 0, positive, or Inf."))
+    length(sites) == 1 || throw(
+        ArgumentError(
+            "thermal_mode: a bath mode must have exactly one site index. Got $(length(sites)).",
+        ),
+    )
+    site = only(sites)
+    has_tag_token(site, "Liouv") || throw(
+        ArgumentError(
+            "thermal_mode: sites must be Liouville indices. Got $(tag_tokens(site)).",
+        ),
+    )
+
+    phys = _phys_site_from_liouv(site)
+    d = dim(phys)
+    # Empty OpSum MPOs are identity in ITensors, but an empty Hamiltonian is H = 0.
+    H_mat = if isempty(terms(H))
+        zeros(ComplexF64, d, d)
+    else
+        H_tensor = foldl(*, MPO(H, [phys]))
+        ComplexF64.(Array(H_tensor, prime(phys), phys))
+    end
+    H_h = Hermitian((H_mat + H_mat') / 2)
+
+    ρ_mat = if isinf(T)
+        Matrix{ComplexF64}(I, d, d) / d
+    elseif T == 0
+        vals, vecs = eigen(H_h)
+        E0 = real(vals[1])
+        tol = 1e-10 * max(one(E0), abs(E0))
+        n_gs = count(e -> real(e) <= E0 + tol, vals)
+        P = vecs[:, 1:n_gs]
+        ρ = P * P'
+        ρ ./ tr(ρ)
+    else
+        ρ = Matrix{ComplexF64}(exp(Hermitian(-Matrix(H_h) / T)))
+        ρ ./ tr(ρ)
+    end
+
+    ρ_it = ITensor(Matrix{ComplexF64}(ρ_mat), prime(phys), phys)
+    return to_liouville(MPO(ρ_it, [phys]); sites=Index[sites...])
+end
 
 function Base.show(io::IO, mode::BosonicMode)
     println(io, "ProcessTensors.BosonicMode")

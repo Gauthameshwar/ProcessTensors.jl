@@ -213,6 +213,7 @@ spin_mode
 bosonic_bath
 spin_bath
 mode_initial_states
+thermal_mode
 ```
 
 ```@docs

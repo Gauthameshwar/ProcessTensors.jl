@@ -32,17 +32,18 @@ const EXAMPLE_ASSETS = joinpath(DOCS_ROOT, "src", "assets", "examples")
 const SCRIPT_FIGURES = normpath(joinpath(DOCS_ROOT, "..", "scripts", "figures"))
 
 const TUTORIAL_GROUPS = [
-    ("Foundations", [
+    ("Tensor-network foundations", [
         ("00_itensor_basics.jl", "itensor_basics", "ITensor Basics"),
         ("01_mps_mpo_basics.jl", "mps_mpo_basics", "MPS and MPO Basics"),
         ("02_liouville_basics.jl", "liouville_basics", "Liouville-Space Basics"),
     ]),
-    ("Dynamics", [
-        ("03_unitary_dynamics.jl", "unitary_dynamics", "Unitary Dynamics"),
-        ("04_dissipative_dynamics.jl", "dissipative_dynamics", "Dissipative Dynamics"),
-    ]),
     ("Process tensors", [
-        ("05_process_tensor_singlemode.jl", "process_tensor_singlemode", "Single-Mode Process Tensor"),
+        ("03_process_tensor_singlemode.jl", "process_tensor_singlemode", "Construct a process tensor"),
+        ("04_process_tensor_instruments.jl", "process_tensor_instruments", "Process tensor instruments"),
+    ]),
+    ("Additional dynamics tools", [
+        ("05_unitary_dynamics.jl", "unitary_dynamics", "Unitary Dynamics"),
+        ("06_dissipative_dynamics.jl", "dissipative_dynamics", "Dissipative Dynamics"),
     ]),
 ]
 
@@ -75,41 +76,32 @@ tutorial_sidebar = [
 ]
 
 const LITERATE_EXAMPLES = [
-    ("tebd_time_evolution.jl", "tebd_time_evolution", "TEBD time evolution"),
-    ("tdvp_time_evolution.jl", "tdvp_time_evolution", "TDVP time evolution"),
-    ("laser_driven_tdvp.jl", "laser_driven_tdvp", "Laser-driven TDVP dynamics"),
-    ("dissipative_spin.jl", "dissipative_spin", "Dissipative spin chain"),
-    ("boundary_driven_spin_chain.jl", "boundary_driven_spin_chain", "Boundary-driven spin chain"),
-    ("driven_dissipative_bose_hubbard.jl", "driven_dissipative_bose_hubbard", "Driven-dissipative Bose–Hubbard"),
     ("spin_bath_process_tensor.jl", "spin_bath_process_tensor", "Spin-bath process tensor"),
     ("central_spin_ace.jl", "central_spin_ace", "Central-spin dynamics using ACE"),
     ("thermal_spinboson_ace.jl", "thermal_spinboson_ace", "Thermal spin-boson dynamics using ACE"),
     ("noisy_quantum_circuit_tester.jl", "noisy_quantum_circuit_tester", "Noisy quantum circuit and testers"),
+    ("ramsey_povm.jl", "ramsey_povm", "Ramsey readouts as a probe of bath memory"),
     ("multitime_correlations.jl", "multitime_correlations", "Multi-time correlations"),
+    ("dissipative_spin.jl", "dissipative_spin", "Dissipative spin chain"),
+    ("driven_dissipative_bose_hubbard.jl", "driven_dissipative_bose_hubbard", "Driven-dissipative Bose–Hubbard"),
+    ("laser_driven_tdvp.jl", "laser_driven_tdvp", "Laser-driven TDVP dynamics"),
 ]
 
 const EXAMPLE_GROUPS = [
-    ("Time evolution algorithms", [
-        ("TEBD time evolution", "tebd_time_evolution"),
-        ("TDVP time evolution", "tdvp_time_evolution"),
-    ]),
-    ("Dissipative dynamics", [
-        ("Dissipative spin chain", "dissipative_spin"),
-        ("Boundary-driven spin chain", "boundary_driven_spin_chain"),
-        ("Driven-dissipative Bose–Hubbard", "driven_dissipative_bose_hubbard"),
-    ]),
-    ("Driven systems", [
-        ("Laser-driven TDVP dynamics", "laser_driven_tdvp"),
-    ]),
     ("Process tensors", [
         ("Spin-bath process tensor", "spin_bath_process_tensor"),
         ("Central-spin dynamics using ACE", "central_spin_ace"),
         ("Thermal spin-boson dynamics using ACE", "thermal_spinboson_ace"),
-        ("Testers and noisy quantum qubits", "noisy_quantum_circuit_tester"),
     ]),
     ("Instruments and correlations", [
-        ("Instrument sequences", "instrument_sequences"),
+        ("Testers and noisy quantum qubits", "noisy_quantum_circuit_tester"),
+        ("Ramsey POVM measurements", "ramsey_povm"),
         ("Multi-time correlations", "multitime_correlations"),
+    ]),
+    ("Additional time evolution", [
+        ("Dissipative spin chain", "dissipative_spin"),
+        ("Driven-dissipative Bose–Hubbard", "driven_dissipative_bose_hubbard"),
+        ("Laser-driven TDVP dynamics", "laser_driven_tdvp"),
     ]),
 ]
 
@@ -150,26 +142,18 @@ for (src, stem, _) in LITERATE_EXAMPLES
 end
 
 stage_example_figures([
-    "tebd_tfim_unitary_hilbert_dynamics_mx.png",
-    "tebd_tfim_unitary_hilbert_rho_error.png",
-    "tebd_tfim_unitary_liouville_dynamics_mx.png",
-    "tebd_tfim_unitary_liouville_rho_error.png",
-    "tdvp_tfim_unitary_hilbert_dynamics_mx.png",
-    "tdvp_tfim_unitary_hilbert_energy_drift.png",
-    "tdvp_tfim_unitary_hilbert_rho_error.png",
-    "tdvp_tfim_unitary_liouville_dynamics_mx.png",
-    "tdvp_tfim_unitary_liouville_energy_drift.png",
-    "tdvp_tfim_unitary_liouville_rho_error.png",
     "laser_driven_tdvp.png",
     "tebd_tfim_dissipative_dynamics_nup.png",
     "tebd_tfim_dissipative_dynamics_mx.png",
-    "boundary_driven_xxz_transport.png",
     "driven_dissipative_bose_hubbard.png",
     "pt_tfim_singlemode.png",
     "pt_tfim_multimode.png",
     "central_spin_ace.png",
     "thermal_spinboson_ace.png",
     "noisy_quantum_circuit_tester.png",
+    "noisy_quantum_circuit_tester_protocol.png",
+    "ramsey_povm_protocol.png",
+    "ramsey_povm_records.png",
     "pt_multitime_correlations.png",
 ])
 
@@ -185,10 +169,11 @@ makedocs(;
     authors="Gauthameshwar <gauthameshwar_s@mymail.sutd.edu.sg> and contributors",
     sitename="ProcessTensors.jl",
     format=Documenter.HTML(;
+        prettyurls=true,
         canonical="https://Gauthameshwar.github.io/ProcessTensors.jl",
         edit_link="main",
         collapselevel=1,
-        assets=String["assets/admonitions.css"],
+        assets=String["assets/admonitions.css", "assets/themed-figures.css", "assets/feature-clips.css"],
     ),
     pages=[
         "Home" => "index.md",
@@ -208,4 +193,5 @@ makedocs(;
 deploydocs(;
     repo="github.com/Gauthameshwar/ProcessTensors.jl",
     devbranch="main",
+    push_preview=true,
 )

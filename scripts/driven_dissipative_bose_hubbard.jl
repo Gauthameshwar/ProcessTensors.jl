@@ -8,7 +8,7 @@
 # onsite interactions and plots the common pump with the mean-occupation response.
 #
 # Run with:
-#   julia --project=. scripts/driven_dissipative_bose_hubbard.jl
+#   julia --project=. -t auto scripts/driven_dissipative_bose_hubbard.jl
 
 import Pkg
 

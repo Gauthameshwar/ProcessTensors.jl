@@ -1,175 +1,105 @@
 # ProcessTensors.jl
 
-`ProcessTensors.jl` is a Julia package for MPS-based open quantum dynamics, Liouville-space simulation, and process tensors.
+`ProcessTensors.jl` is an ITensor-native framework for studying quantum systems
+with environmental memory. Construct a process tensor from a microscopic
+environment, then reuse it with different preparations, controls, measurements,
+and multi-time probes. 
 
----
+These tutorials connect the physical picture, tensor-network representation,
+and runnable Julia code, helping you learn the process-tensor framework while
+using it to design numerical experiments.
 
-## Why this project exists
+## Build once, explore many experiments
 
-Most open-quantum-softwares that exist today handles Markovian 
-dynamics well, but say little about what happens when the
-environment remembers. As quantum devices push
-into regimes of strong coupling and structured environments, memory effects
-become the rule rather than the exception, and **process tensors** have
-emerged as the natural language for describing them.
+When a system interacts with an environment, its present reduced state may not
+contain all the information needed to predict its future. The environment can
+retain information about earlier interactions and interventions. A process tensor
+describes how the system responds to interventions at different times, including
+the influence of environmental memory. ProcessTensors.jl represents this
+multi-time response using matrix product operators, allowing the same process
+tensor to be reused across different experiments. 
 
-The tools for working with process tensors, however, remain
-sparse for a field this active. `ProcessTensors.jl` exists to 
-close that gap. This package primarily uses MPS/MPO infrastructure to 
-define and manipulate process tensors in a memory-efficient way. 
-It's built natively on `ITensorMPS.jl`, deliberately 
-separating low-level tensor-network machinery from high-level physics workflows, 
-so that the codes appear as natural and close to the theory. 
-Alongside the code, the documentation is written to teach the basics 
-of Liouville-space and process-tensor formalism, paired with runnable 
-examples that mirror the underlying equations closely.
+```@raw html
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/ace-light.gif" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/ace-dark.gif" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/ace-light-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/ace-dark-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
+  <figcaption><strong>Construct a process tensor:</strong> Combine the influence of independent environmental modes and compress the resulting temporal bonds using ACE.</figcaption>
+</figure>
 
-Today, `ProcessTensors.jl` covers the essentials: single-mode and small
-multimode process tensors, spin and bosonic baths, reduced dynamics, and
-multi-time correlations. The next concrete milestone is extending this to
-large, realistic non-Markovian environments via the ACE algorithm — a
-near-term, committed goal rather than a distant aspiration.
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/instruments-light.gif" alt="Time runs right to left. A preparation, a custom map, and an open output snap into the slots of a three-step instrument tape; the unspecified slot is filled by an identity.">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/instruments-dark.gif" alt="Time runs right to left. A preparation, a custom map, and an open output snap into the slots of a three-step instrument tape; the unspecified slot is filled by an identity.">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/instruments-light-poster.png" alt="A filled three-step instrument tape: preparation, identity, custom map, and open output.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/instruments-dark-poster.png" alt="A filled three-step instrument tape: preparation, identity, custom map, and open output.">
+  <figcaption><strong>Customize your instruments:</strong> Define the interventions you wish to perform on the system at chosen times; unspecified slots default to identity.</figcaption>
+</figure>
 
-Beyond that, the longer-term vision is for this package to grow from a
-clean, accessible implementation into a genuine research platform: a place
-where process-tensor and open-system tensor-network algorithms —
-TEMPO, PT-TEMPO, TEDOPA, and other influence-functional-based methods — can
-be implemented side by side, benchmarked against each other, taught to
-newcomers, and reused by researchers who'd rather build on solid
-infrastructure than rebuild it from scratch.
-
----
-
-## Where to start
-
-Most of what makes this package distinctive appears in two tutorials:
-
-* **[Dissipative Dynamics](tutorials/dissipative_dynamics.md)** — open-system evolution in Liouville space: Lindblad generators, `liouvillian_mpo`, TEBD/TDVP on density matrices.
-* **[Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md)** — process-tensor construction, bath memory, instruments, `evolve`, and `evaluate_process`.
-
-Everything else in the documentation supports those two pages: ITensor syntax, MPS/MPO objects, Hilbert-versus-Liouville conventions, and closed-system dynamics as stepping stones.
-
-Choose a path that suits you best:
-
-| Background                                                           | Suggested route                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **You code and know the theory.**                                    | Start with [Dissipative Dynamics](tutorials/dissipative_dynamics.md), then [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md). Skim [Hilbert and Liouville Space](theory/liouville_space.md) and [Process Tensors](theory/process_tensors.md) for conventions only. Use [Examples](examples/tebd_time_evolution.md) for scripts and [API Reference](api.md) for the function list.                                      |
-| **You know the theory but are new to ITensors.**                     | [ITensor Basics](tutorials/itensor_basics.md) → [MPS and MPO Basics](tutorials/mps_mpo_basics.md) → [Liouville-Space Basics](tutorials/liouville_basics.md) → the two core tutorials above. Use theory pages as a convention dictionary, not the main route.                                                                                                                                                                             |
-| **You are new to open quantum systems or tensor networks in Julia.** | [Installation](installation.md) → [ITensor Basics](tutorials/itensor_basics.md) → [MPS and MPO Basics](tutorials/mps_mpo_basics.md) → [Liouville-Space Basics](tutorials/liouville_basics.md) → [Unitary Dynamics](tutorials/unitary_dynamics.md) → [Dissipative Dynamics](tutorials/dissipative_dynamics.md) → [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md). Read theory when a concept or notation is unclear. |
-
-!!! note "Tutorials are cumulative"
-    Later tutorials assume syntax and conventions from earlier ones, especially ITensor index identity, shared `sites_L`, and density-matrix vectorisation.
-
-!!! tip "Theory pages"
-    Use the theory section as a convention dictionary, not as a prerequisite course for every tutorial.
-
-!!! tip "Performance and feedback (Advanced Usage)"
-    Long runs such as `build_process_tensor`, `evolve`, `evaluate_process`, and `tebd` support
-    `progress` and `verbose` keywords. To maximise performance in benchmarks, parameter sweeps,
-    or HPC jobs, disable transient progress bars (`progress=false`) and choose whether you want
-    durable milestone logs (`verbose=true`) or a silent run (`verbose=false`). See
-    [Advanced Usage](advanced_usage.md) for the recommended combinations, threading notes, and
-    demo scripts under `scripts/terminal/`.
-
----
-
-## Quick start
-
-If you already know where you are headed, the snippet below builds a one-spin system coupled to one spin bath mode and constructs a process tensor. For context and checks along the way, use [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md).
-
-```julia
-using ITensors
-using ProcessTensors
-
-dt = 0.1
-nsteps = 24
-
-# Physical Hilbert-space sites
-sys = siteinds("S=1/2", 1)
-bath = siteinds("S=1/2", 1)
-
-# Liouville-space sites
-sysL = liouv_sites(sys)
-bathL = liouv_sites(bath)
-
-# System Hamiltonian
-Hsys = OpSum()
-Hsys += 1.0, "Sx", 1
-system = spin_system(sys, Hsys)
-
-# Bath initial state
-ψmps = MPS(bath, ["Up"])
-ρmpo = to_dm(ψmps)
-ρbath0 = to_liouville(ρmpo; sites=bathL)
-
-# Bath Hamiltonian
-Hbath = OpSum()
-Hbath += 1.0, "Sx", 1
-
-# System-bath coupling
-Hcoupling = OpSum()
-Hcoupling += 1.0, "Sz", 1, "Sz", 2
-
-mode = spin_mode(bathL, Hbath, ρbath0; coupling = Hcoupling)
-environment = spin_bath([mode])
-
-pt = build_process_tensor(system, system.sites[1]; environment, dt, nsteps)
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/contraction-light.gif" alt="Time runs right to left. Two identical process tensors are contracted with instruments; the left ends as an open reduced state (triangle) and the right as a closed scalar (circle).">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/contraction-dark.gif" alt="Time runs right to left. Two identical process tensors are contracted with instruments; the left ends as an open reduced state (triangle) and the right as a closed scalar (circle).">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/contraction-light-poster.png" alt="Contraction results: an open reduced state (triangle) on the left and a closed scalar (circle) on the right.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/contraction-dark-poster.png" alt="Contraction results: an open reduced state (triangle) on the left and a closed scalar (circle) on the right.">
+  <figcaption><strong>Evaluate and reuse:</strong> Contract the same process tensor with different instruments to obtain reduced states and scalar values.</figcaption>
+</figure>
 ```
 
-The process tensor can now be used to evolve a reduced system state.
+## Get started
 
-```julia
-ρsys0 = to_dm(MPS(sys, ["Up"]))
+Follow [Installation](installation.md) to set up the package, then choose your learning route depending on what suits you the best
 
-trajectory = evolve(pt, ρsys0)
-```
+| Your starting point | Suggested route |
+| --- | --- |
+| **Ready to use process tensors** | [Installation](installation.md), then [Construct your first process tensor](tutorials/process_tensor_singlemode.md) and [Explore a process with instruments](tutorials/process_tensor_instruments.md). Consult the [API reference](api.md) as needed. |
+| **Learning the physical framework** | Start with [Process Tensors](theory/process_tensors.md), then [Construct your first process tensor](tutorials/process_tensor_singlemode.md). |
+| **New to ITensor or Liouville representations** | Use [ITensor Basics](tutorials/itensor_basics.md), [MPS and MPO Basics](tutorials/mps_mpo_basics.md), and [Liouville-Space Basics](tutorials/liouville_basics.md) for the supporting conventions. |
 
-Or it can be contracted with an explicit sequence of instruments.
+The foundations explain named ITensor indices, density matrices, and vectorisation.
+You can consult them whenever these concepts arise in a process-tensor
+calculation. 
 
-```julia
-obs = OpSum()
-obs += 1.0, "Sz", 1
+For theory and notation, see [Process Tensors](theory/process_tensors.md),
+[Quantum States and Liouville Space](theory/liouville_space.md), and
+[Tensor Networks in Physics](theory/tensor_networks.md). For progress reporting,
+threading, and execution settings, see [Advanced Usage](advanced_usage.md).
 
-seq = default_schedule(pt)
-add!(seq, 0, state_preparation(ρsys0))
-add!(seq, nsteps, observable_measurement(obs))
+## What can you explore?
 
-expectation = evaluate_process(pt, seq)
-```
+| What can you explore? | Suggested walkthrough |
+| --- | --- |
+| Build a process from several environmental modes | [Spin-bath process tensor](examples/spin_bath_process_tensor.md) |
+| Compress spin and thermal bosonic environments with ACE | [Central-spin dynamics using ACE](examples/central_spin_ace.md); [Thermal spin-boson dynamics using ACE](examples/thermal_spinboson_ace.md) |
+| Design preparations, controls, and measurements | [Explore a process with instruments](tutorials/process_tensor_instruments.md) |
+| Probe bath memory through repeated measurements | [Ramsey readouts as a probe of bath memory](examples/ramsey_povm.md) |
+| Calculate multi-time correlations | [Multi-time correlations](examples/multitime_correlations.md) |
+| Carry an ancillary system between interventions | [Testers and noisy quantum circuit](examples/noisy_quantum_circuit_tester.md) |
 
----
+Use `Dense()` for small environments or `ACE()` to incorporate initially
+independent bath modes and compress their temporal influence. Gaussian PT-TEMPO
+and chain-mapped constructions are planned extensions.
 
-## Find a doc page by topic
+## Additional tools for open quantum dynamics
 
-| Goal                                        | Page                                                                 |
-| ------------------------------------------- | -------------------------------------------------------------------- |
-| Open-system / Lindblad evolution            | [Dissipative Dynamics](tutorials/dissipative_dynamics.md)            |
-| Bulk-dissipative spin chain                 | [Dissipative spin chain](examples/dissipative_spin.md)               |
-| Boundary-driven transport                   | [Boundary-driven spin chain](examples/boundary_driven_spin_chain.md) |
-| Driven dissipative bosons                   | [Driven-dissipative Bose–Hubbard](examples/driven_dissipative_bose_hubbard.md) |
-| Process tensors, baths, and instruments     | [Single-Mode Process Tensor](tutorials/process_tensor_singlemode.md) |
-| Package setup                               | [Installation](installation.md)                                      |
-| Physics conventions and notation            | [Theory: Hilbert and Liouville Space](theory/liouville_space.md)     |
-| ITensor index and contraction syntax        | [Tutorial: ITensor Basics](tutorials/itensor_basics.md)              |
-| Hilbert-space MPS/MPO                       | [Tutorial: MPS and MPO Basics](tutorials/mps_mpo_basics.md)          |
-| Vectorized density matrices                 | [Tutorial: Liouville Basics](tutorials/liouville_basics.md)          |
-| Closed-system TEBD/TDVP                     | [Tutorial: Unitary Dynamics](tutorials/unitary_dynamics.md)          |
-| Time-dependent Hamiltonians                 | [Laser-driven TDVP dynamics](examples/laser_driven_tdvp.md)         |
-| Multimode baths and multi-time correlations | [Spin-bath process tensor](examples/spin_bath_process_tensor.md)   |
-| Memory-assisted control of a noisy qubit     | [Testers and noisy quantum circuit](examples/noisy_quantum_circuit_tester.md) |
-| End-to-end scripts                          | [Examples](examples/tebd_time_evolution.md)                           |
-| Progress, verbose output, and threading     | [Advanced Usage](advanced_usage.md)                                  |
-| Function reference                          | [API Reference](api.md)                                              |
+The package also provides Hilbert- and Liouville-space MPS/MPO objects,
+density-matrix conversions, Lindblad generators, and TEBD/TDVP evolution.
+These tools support model preparation and reference calculations and can also
+be used independently for time-local dynamics.
 
-!!! note "Examples"
-    Example pages are model-oriented Literate walkthroughs with companion scripts under `scripts/`.
-    Start from the tutorial that matches the physics, then open the corresponding example for a
-    larger lattice or a driven variant.
-
----
+See [Unitary Dynamics](tutorials/unitary_dynamics.md) for closed-system
+evolution and [Dissipative Dynamics](tutorials/dissipative_dynamics.md) for
+Markovian open-system evolution. Larger models include a
+[dissipative spin chain](examples/dissipative_spin.md) and
+[driven-dissipative Bose–Hubbard dynamics](examples/driven_dissipative_bose_hubbard.md).
 
 ## Citing and contributing
 
-`ProcessTensors.jl` is under active development. Contributions from expert developers, bug reports from users, new examples, and discussions about future directions are very welcome.
+If you use `ProcessTensors.jl` in research, please cite the
+[package repository](https://github.com/Gauthameshwar/ProcessTensors.jl) and the
+relevant methods and theory references linked in the documentation.
 
-If you use the package in research, please cite the [ProcessTensors.jl repository](https://github.com/Gauthameshwar/ProcessTensors.jl) and any relevant process-tensor or tensor-network literature cited in the theory pages.
+Bug reports, questions, new examples, and algorithm contributions are welcome.
+Visit the [issue tracker](https://github.com/Gauthameshwar/ProcessTensors.jl/issues)
+for questions and feedback, or read the
+[contribution guidelines](https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/CONTRIBUTING.md)
+to get involved.

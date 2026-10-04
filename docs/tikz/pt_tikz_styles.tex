@@ -1,0 +1,1196 @@
+% =============================================================================
+% pt_tikz_styles.tex --- Process-tensor graphical calculus (SciPost / docs)
+% =============================================================================
+%
+% Visual conventions
+% ------------------
+% Time in every process-tensor diagram runs RIGHT TO LEFT:
+%
+%     end  <----------------  start
+%               time
+%     t_n                     t_0
+%
+% Earlier operations sit to the right of later ones.  The reusable time arrow
+% always points left.  Never reverse this convention in a panel.
+%
+% Spaces are distinguished by LINE STRUCTURE, not colour (wires are black):
+%   * Hilbert ket leg     --- solid wire.
+%   * Hilbert bra leg     --- solid wire plus an optional prime marker.
+%   * Liouville leg       --- double wire (fused s \otimes s^*, dim d^2).
+%   * PT-MPO link index   --- solid wire at twice the site-leg thickness.
+%   * Ordinary TN bond    --- solid wire at the site-leg thickness.
+%   * Classical outcome   --- dashed wire.
+%
+% Boundary states are equilateral triangles, not arrowheads:
+%   * Ket  ----|>     right-pointing triangle; wire enters from the left.
+%   * Bra  <|----     left-pointing triangle;  wire exits to the right.
+% Outlines are black.  Fills may differ (ket / bra / Liouville / instrument).
+% A Liouville vector has a plain triangle; only its leg is double-wired.
+%
+% Operators and two-legged tensors are squares with a thick stroke and slight
+% corner rounding.  Process cores use a light-blue fill; instruments use a
+% light-gold fill; ordinary operators use a light-grey fill.
+% Filled shapes are drawn on a foreground layer so wires never show through.
+% Trace symbols are cups (Hilbert) or compact Tr nodes (Liouville), never
+% ordinary measurement boxes.
+%
+% Input / output ports on a process core (local time also right-to-left):
+%   * Output of the process (to the instrument) sits on the RIGHT of the pair.
+%   * Input  of the process (from the instrument) sits on the LEFT of the pair.
+%
+% Column-major vectorisation (Julia / ProcessTensors.jl):
+%     |A>> = sum_{j,k} A_{jk} |k> \otimes |j>
+%     vec(|j><k|) = |k> \otimes |j>
+%     vec(A \rho B) = (B^T \otimes A) |\rho>>
+%
+% Public commands (all prefixed PT)
+% ---------------------------------
+%   \PTKet / \PTBra / \PTLiouvilleKet / \PTLiouvilleBra
+%   \PTTensor / \PTOperator / \PTSuperoperator / \PTProcessCore / \PTInstrument
+%   \PTInstrumentNode          generic instrument constructor
+%   \PTIdentity / \PTControl / \PTUnitary / \PTPrepare / \PTMeasure
+%   \PTProjective / \PTCausalBreak / \PTTraceHilbert / \PTTraceLiouville
+%   \PTCombiner / \PTCombinerInv
+%   \PTIndexLabel              math + ITensor tag + optional prime
+%   \PTCup / \PTCap / \PTTimeArrow
+%   \PTDrawProcessMPO[n=4, at={0,0}, name=pt]  % at = x,y without extra parens
+%   \PTDrawJointProcess        wrapper with joint=true
+%
+% Introducing a new instrument
+% ----------------------------
+% Derive it from \PTInstrumentNode (or from a ket/bra/trace kind).  Example:
+%
+%   \newcommand{\PTReset}[4][]{%
+%     \PTInstrumentNode[fill=PTInstrument, classical=none, #1]{#2}{#3}{#4}%
+%   }
+%   % usage: \PTReset{R}{(0,0)}{\(\mathcal{R}_k\)}
+%
+% Future instruments (testers, feedback, multi-site, coarse-grained
+% measurements, discard-and-reprepare, ...) should likewise be thin wrappers
+% around \PTInstrumentNode so existing figures keep compiling.
+%
+% Overriding colours
+% ------------------
+% All styles refer to named colours.  Redefine them AFTER inputting this
+% file and BEFORE any tikzpicture; do not edit the drawing commands:
+%
+%   \definecolor{PTLink}{HTML}{111111}
+%   \definecolor{PTProcess}{HTML}{F0F0F0}
+%
+% Lengths (\PTCoreWidth, \PTTimeSpacing, ...) may be \setlength similarly.
+%
+% Loading
+% -------
+% Preamble only:
+%   \input{figures/tikz/pt_tikz_styles.tex}
+% Figure fragments then:
+%   \input{figures/tikz/<name>.tikz}
+%
+% =============================================================================
+
+\ifdefined\PTTikZLoaded
+  \expandafter\endinput
+\fi
+\def\PTTikZLoaded{1}
+
+\RequirePackage{tikz}
+\RequirePackage{xcolor}
+\RequirePackage{keyval}
+\usetikzlibrary{
+  arrows.meta,
+  backgrounds,
+  calc,
+  decorations.markings,
+  fit,
+  matrix,
+  positioning,
+  shapes.geometric
+}
+
+% -----------------------------------------------------------------------------
+% Colours (Okabe--Ito / colour-blind friendly; intelligible in grayscale)
+% -----------------------------------------------------------------------------
+\definecolor{PTHilbertKet}{HTML}{0072B2}
+\definecolor{PTHilbertBra}{HTML}{D55E00}
+\definecolor{PTLiouville}{HTML}{7B3294}
+\definecolor{PTLink}{HTML}{009E73}
+\definecolor{PTTensor}{HTML}{E8E8E8}
+\definecolor{PTProcess}{HTML}{DCEAF7}
+\definecolor{QAMPOcore}{HTML}{ACE8AE}
+\definecolor{PTInstrument}{HTML}{F6E8A6}
+\definecolor{PTInstIn}{HTML}{F7E58B}
+\definecolor{PTInstOut}{HTML}{FCB06D}
+\definecolor{PTInstMap}{HTML}{AD9986}
+\definecolor{PTTrace}{HTML}{CC79A7}
+\definecolor{PTMeasurement}{HTML}{E69F00}
+\definecolor{PTLabel}{HTML}{333333}
+\definecolor{PTBond}{HTML}{6A6A6A}
+
+% -----------------------------------------------------------------------------
+% Lengths (the single place to retune the visual language)
+% -----------------------------------------------------------------------------
+\newlength{\PTCoreWidth}      \setlength{\PTCoreWidth}{9.6mm}
+\newlength{\PTCoreHeight}     \setlength{\PTCoreHeight}{9.6mm}
+\newlength{\PTTimeSpacing}    \setlength{\PTTimeSpacing}{20.0mm}
+\newlength{\PTLegLength}      \setlength{\PTLegLength}{7.0mm}
+\newlength{\PTIOSep}          \setlength{\PTIOSep}{2.4mm}
+% Equilateral triangle: vertical base = side, horizontal altitude = (sqrt(3)/2)*side.
+\newlength{\PTKetHeight}      \setlength{\PTKetHeight}{7.8mm}
+\newlength{\PTKetWidth}       \setlength{\PTKetWidth}{6.75mm}
+\newlength{\PTBendDepth}      \setlength{\PTBendDepth}{5.5mm}
+\newlength{\PTVecBendR}       \setlength{\PTVecBendR}{2.5mm}
+\newlength{\PTFuseGap}        \setlength{\PTFuseGap}{1.5mm}
+\newlength{\PTVecOverhang}    \setlength{\PTVecOverhang}{0.20mm}
+\newlength{\PTVecRun}         \setlength{\PTVecRun}{1.6mm}
+\newlength{\PTVecDipH}        \setlength{\PTVecDipH}{4.2mm}
+\newlength{\PTCombinerSize}   \setlength{\PTCombinerSize}{7.2mm}
+\newlength{\PTHilbertLW}      \setlength{\PTHilbertLW}{1.35pt}
+\newlength{\PTLiouvilleLW}    \setlength{\PTLiouvilleLW}{0.70pt}
+\newlength{\PTLiouvilleGap}   \setlength{\PTLiouvilleGap}{1.55pt}
+\newlength{\PTLinkLW}         \setlength{\PTLinkLW}{2.70pt}
+\newlength{\PTBondLW}         \setlength{\PTBondLW}{1.35pt}
+\newlength{\PTClassicalLW}    \setlength{\PTClassicalLW}{1.15pt}
+\newlength{\PTCoreStroke}     \setlength{\PTCoreStroke}{1.45pt}
+% Fallback only; \PTTensor computes a size-relative radius from Fig. 8
+% (1.2mm on an 11mm square, 0.8mm on an 11mm-tall triangle).
+\newlength{\PTCoreRadius}     \setlength{\PTCoreRadius}{1.3pt}
+\newlength{\PTBridgeHalo}     \setlength{\PTBridgeHalo}{4.2pt}
+\newlength{\PTRelRound}
+\newlength{\PTRndCmpA}
+\newlength{\PTRndCmpB}
+
+% Fig. 8 reference ratios: square 1.2/11, triangle 0.8/11, of min(width,height).
+\newcommand{\PTSetSquareRound}[2]{%
+  \setlength{\PTRndCmpA}{#1}%
+  \setlength{\PTRndCmpB}{#2}%
+  \ifdim\PTRndCmpA>\PTRndCmpB
+    \pgfmathsetlength{\PTRelRound}{(1.2/11)*\PTRndCmpB}%
+  \else
+    \pgfmathsetlength{\PTRelRound}{(1.2/11)*\PTRndCmpA}%
+  \fi
+}
+\newcommand{\PTSetTriangleRound}[2]{%
+  \setlength{\PTRndCmpA}{#1}%
+  \setlength{\PTRndCmpB}{#2}%
+  \ifdim\PTRndCmpA>\PTRndCmpB
+    \pgfmathsetlength{\PTRelRound}{(0.8/11)*\PTRndCmpB}%
+  \else
+    \pgfmathsetlength{\PTRelRound}{(0.8/11)*\PTRndCmpA}%
+  \fi
+}
+\newlength{\PTTraceNodeRound}
+\PTSetSquareRound{7.2mm}{7.2mm}
+\setlength{\PTTraceNodeRound}{\PTRelRound}
+
+% Scratch length for the MPO drawer (not a public tuning knob).
+\newlength{\PTMPOspacing}
+
+% -----------------------------------------------------------------------------
+% Layers: wires behind, labels in the middle, filled shapes in front.
+% -----------------------------------------------------------------------------
+\pgfdeclarelayer{PTforeground}
+\pgfsetlayers{background,main,PTforeground}
+\tikzset{
+  on PTforeground layer/.style={
+    execute at begin scope={\pgfonlayer{PTforeground}},
+    execute at end scope={\endpgfonlayer},
+  },
+}
+
+% -----------------------------------------------------------------------------
+% Line and node styles
+% -----------------------------------------------------------------------------
+\tikzset{
+  PTPicture/.style={
+    baseline,
+    line join=round,
+    >={Stealth[length=2.0mm, width=1.45mm]},
+  },
+  % --- wires (black; structure, not colour, distinguishes spaces) ----------
+  PTWire/.style={
+    draw=black,
+    line width=\PTHilbertLW,
+    line cap=butt,
+    line join=round,
+    double=none,
+  },
+  PTHilbertKetLeg/.style={
+    PTWire,
+    on background layer,
+  },
+  PTHilbertBraLeg/.style={
+    draw=black,
+    line width=\PTHilbertLW,
+    line cap=butt,
+    line join=round,
+    double=none,
+    on background layer,
+  },
+  % Optional prime tick at the midpoint of a bra wire.
+  PTHilbertBraLeg primed/.style={
+    PTHilbertBraLeg,
+    postaction={
+      decorate,
+      decoration={
+        markings,
+        mark=at position 0.55 with {
+          \node[font=\scriptsize, text=PTLabel, inner sep=0.4pt,
+                xshift=3.2pt, yshift=0.4pt] {\(\prime\)};
+        }
+      }
+    },
+  },
+  PTLiouvilleLeg/.style={
+    draw=black,
+    line width=\PTLiouvilleLW,
+    double=white,
+    double distance=\PTLiouvilleGap,
+    line cap=butt,
+    line join=round,
+    on background layer,
+  },
+  % Prime tick at mid-stub: a thin, slightly tall slash through both rails.
+  PTLiouvilleLeg primed/.style={
+    PTLiouvilleLeg,
+    postaction={
+      decorate,
+      decoration={
+        markings,
+        mark=at position 0.5 with {
+          \fill[white] (-0.28mm,-1.12mm) rectangle (0.62mm,1.20mm);
+          \draw[
+            PTLabel,
+            line width=0.45pt,
+            line cap=round,
+          ] (-0.18mm,-0.98mm) -- (0.38mm,1.06mm);
+        }
+      }
+    },
+  },
+  PTBondLeg/.style={
+    draw=black,
+    line width=\PTBondLW,
+    line cap=butt,
+    line join=round,
+    double=none,
+    on background layer,
+  },
+  PTLinkLeg/.style={
+    draw=black,
+    line width=\PTLinkLW,
+    line cap=butt,
+    line join=round,
+    double=none,
+    on background layer,
+  },
+  PTClassicalLeg/.style={
+    draw=black,
+    line width=\PTClassicalLW,
+    dash pattern=on 2.4pt off 1.6pt,
+    line cap=butt,
+    line join=round,
+    double=none,
+    on background layer,
+  },
+  PTTraceCup/.style={
+    draw=PTTrace,
+    line width=\PTHilbertLW,
+    line cap=round,
+    line join=round,
+    double=none,
+    on background layer,
+  },
+  % White halo so an over-crossing does not look like a contraction.
+  PTBridge/.style={
+    preaction={
+      draw=white,
+      line width=\PTBridgeHalo,
+      double=none,
+      line cap=butt,
+    },
+  },
+  % --- cores ---------------------------------------------------------------
+  PTCore/.style={
+    draw=black,
+    fill=PTTensor,
+    rounded corners=\PTCoreRadius,
+    minimum width=\PTCoreWidth,
+    minimum height=\PTCoreHeight,
+    inner sep=2.2pt,
+    outer sep=0pt,
+    line width=\PTCoreStroke,
+    font=\small,
+    text=PTLabel,
+    align=center,
+  },
+  PTTraceNode/.style={
+    draw=black,
+    fill=PTTrace!18,
+    rounded corners=\PTTraceNodeRound,
+    minimum width=7.2mm,
+    minimum height=7.2mm,
+    inner sep=1.4pt,
+    outer sep=0pt,
+    line width=\PTCoreStroke,
+    font=\small,
+    text=PTLabel,
+    align=center,
+  },
+  PTDummyBond/.style={
+    circle,
+    fill=black,
+    draw=none,
+    inner sep=1.15pt,
+    outer sep=0pt,
+  },
+}
+
+% -----------------------------------------------------------------------------
+% Index labels: math + ITensor tag + optional prime level
+% -----------------------------------------------------------------------------
+\makeatletter
+\define@key{ptindex}{anchor}{\def\PTIndexAnchor{#1}}
+\define@key{ptindex}{math}{\def\PTIndexMath{#1}}
+\define@key{ptindex}{tag}{\def\PTIndexTag{#1}}
+\define@key{ptindex}{prime}{\def\PTIndexPrime{#1}}
+\define@key{ptindex}{xshift}{\def\PTIndexX{#1}}
+\define@key{ptindex}{yshift}{\def\PTIndexY{#1}}
+\makeatother
+
+% Append a visual prime level to math (') and to a tag (ASCII apostrophe).
+\newcommand{\PTIndexPrimeTokens}{%
+  \ifx\PTIndexPrime\empty
+  \else
+    \ifnum\PTIndexPrime>0 '\fi
+    \ifnum\PTIndexPrime>1 '\fi
+    \ifnum\PTIndexPrime>2 '\fi
+  \fi
+}
+
+\newcommand{\PTIndexLabel}[2][]{%
+  \def\PTIndexAnchor{south}%
+  \def\PTIndexMath{}%
+  \def\PTIndexTag{}%
+  \def\PTIndexPrime{}%
+  \def\PTIndexX{0pt}%
+  \def\PTIndexY{0pt}%
+  \setkeys{ptindex}{#1}%
+  \node[
+    inner sep=0.9pt,
+    outer sep=1.2pt,
+    anchor=\PTIndexAnchor,
+    align=center,
+    xshift=\PTIndexX,
+    yshift=\PTIndexY,
+    text=PTLabel,
+  ] at (#2) {%
+    \def\PTIndexMathEmpty{}%
+    \ifx\PTIndexMath\PTIndexMathEmpty
+    \else
+      {\small\(\PTIndexMath\PTIndexPrimeTokens\)}%
+      \ifx\PTIndexTag\PTIndexMathEmpty
+      \else \\[-0.15ex]%
+      \fi
+    \fi
+    \ifx\PTIndexTag\PTIndexMathEmpty
+    \else
+      {\scriptsize\ttfamily \PTIndexTag\PTIndexPrimeTokens}%
+    \fi
+  };%
+}
+
+% -----------------------------------------------------------------------------
+% Ket and bra boundary tensors
+% -----------------------------------------------------------------------------
+% Invisible rectangular node provides named anchors.  The triangle is drawn
+% on top so that .west (ket) / .east (bra) is the wire attachment (base).
+
+\newcommand{\PTKet}[3]{%
+  \node[
+    name=#1,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum width=\PTKetWidth,
+    minimum height=\PTKetHeight,
+    font=\small,
+  ] at #2 {};
+  \begin{scope}[on PTforeground layer]
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}
+    \filldraw[
+      draw=black,
+      fill=PTHilbertKet!18,
+      line width=\PTCoreStroke,
+      line join=round,
+      rounded corners=\PTRelRound,
+    ] (#1.west |- #1.south) -- (#1.east) -- (#1.west |- #1.north) -- cycle;
+    \node[font=\small, text=PTLabel, inner sep=0.4pt]
+      at ($ (#1.west)!0.36!(#1.east) $) {#3};
+  \end{scope}
+}
+
+\newcommand{\PTBra}[3]{%
+  \node[
+    name=#1,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum width=\PTKetWidth,
+    minimum height=\PTKetHeight,
+    font=\small,
+  ] at #2 {};
+  \begin{scope}[on PTforeground layer]
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}
+    \filldraw[
+      draw=black,
+      fill=PTHilbertBra!18,
+      line width=\PTCoreStroke,
+      line join=round,
+      rounded corners=\PTRelRound,
+    ] (#1.east |- #1.south) -- (#1.west) -- (#1.east |- #1.north) -- cycle;
+    \node[font=\small, text=PTLabel, inner sep=0.4pt]
+      at ($ (#1.east)!0.36!(#1.west) $) {#3};
+  \end{scope}
+}
+
+\newcommand{\PTLiouvilleKet}[3]{%
+  \node[
+    name=#1,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum width=\PTKetWidth,
+    minimum height=\PTKetHeight,
+    font=\small,
+  ] at #2 {};
+  \begin{scope}[on PTforeground layer]
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}
+    \filldraw[
+      draw=black,
+      fill=PTLiouville!16,
+      line width=\PTCoreStroke,
+      line join=round,
+      rounded corners=\PTRelRound,
+    ] (#1.west |- #1.south) -- (#1.east) -- (#1.west |- #1.north) -- cycle;
+    \node[font=\small, text=PTLabel, inner sep=0.4pt]
+      at ($ (#1.west)!0.36!(#1.east) $) {#3};
+  \end{scope}
+}
+
+\newcommand{\PTLiouvilleBra}[3]{%
+  \node[
+    name=#1,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum width=\PTKetWidth,
+    minimum height=\PTKetHeight,
+    font=\small,
+  ] at #2 {};
+  \begin{scope}[on PTforeground layer]
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}
+    \filldraw[
+      draw=black,
+      fill=PTLiouville!16,
+      line width=\PTCoreStroke,
+      line join=round,
+      rounded corners=\PTRelRound,
+    ] (#1.east |- #1.south) -- (#1.west) -- (#1.east |- #1.north) -- cycle;
+    \node[font=\small, text=PTLabel, inner sep=0.4pt]
+      at ($ (#1.east)!0.36!(#1.west) $) {#3};
+  \end{scope}
+}
+
+% Output Liouville ket when time runs right-to-left: left-pointing triangle,
+% wire attached at .east (same geometry as a Liouville bra).
+\newcommand{\PTLiouvilleKetLeft}[3]{\PTLiouvilleBra{#1}{#2}{#3}}
+
+% -----------------------------------------------------------------------------
+% Square tensor cores (thick stroke, slight corner rounding)
+% -----------------------------------------------------------------------------
+\makeatletter
+\define@key{pttensor}{fill}{\def\PTTensorFill{#1}}
+\define@key{pttensor}{draw}{\def\PTTensorDrawCol{#1}}
+\define@key{pttensor}{minimum width}{\def\PTTensorMinW{#1}}
+\define@key{pttensor}{minimum height}{\def\PTTensorMinH{#1}}
+\define@key{pttensor}{rounded}{\def\PTTensorRnd{#1}}
+\define@key{pttensor}{font}{\def\PTTensorFont{#1}}
+\makeatother
+
+\newcommand{\PTTensor}[4][]{%
+  \def\PTTensorFill{PTTensor}%
+  \def\PTTensorDrawCol{black}%
+  \def\PTTensorMinW{\PTCoreWidth}%
+  \def\PTTensorMinH{\PTCoreHeight}%
+  \def\PTTensorRnd{PTAUTO}%
+  \def\PTTensorFont{\small}%
+  \setkeys{pttensor}{#1}%
+  \def\PTAuto{PTAUTO}%
+  \ifx\PTTensorRnd\PTAuto
+    \PTSetSquareRound{\PTTensorMinW}{\PTTensorMinH}%
+  \else
+    \setlength{\PTRelRound}{\PTTensorRnd}%
+  \fi
+  \begin{scope}[on PTforeground layer]
+    \node[
+      name=#2,
+      PTCore,
+      fill=\PTTensorFill,
+      draw=\PTTensorDrawCol,
+      minimum width=\PTTensorMinW,
+      minimum height=\PTTensorMinH,
+      rounded corners=\PTRelRound,
+      font=\PTTensorFont,
+    ] at #3 {#4};
+  \end{scope}
+}
+
+\newcommand{\PTOperator}[4][]{%
+  \PTTensor[fill=PTTensor, minimum width=\PTCoreWidth, minimum height=\PTCoreWidth, #1]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTSuperoperator}[4][]{%
+  \PTTensor[
+    fill=PTTensor,
+    minimum width=\PTCoreWidth,
+    minimum height=\PTCoreWidth,
+    #1
+  ]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTProcessCore}[4][]{%
+  \PTTensor[
+    fill=PTProcess,
+    minimum width=\PTCoreWidth,
+    minimum height=\PTCoreWidth,
+    #1
+  ]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTInstrument}[4][]{%
+  \PTTensor[fill=PTInstrument,minimum width=\PTCoreWidth,minimum height=\PTCoreWidth,#1]{#2}{#3}{#4}%
+}
+
+% Vertical Hilbert ket (north) and bra (south) stubs on an operator.
+\newcommand{\PTOperatorLegs}[1]{%
+  \draw[PTHilbertKetLeg] (#1.north) -- ++(0,\PTLegLength) coordinate (#1-ket);
+  \draw[PTHilbertBraLeg] (#1.south) -- ++(0,-\PTLegLength) coordinate (#1-bra);
+}
+
+% -----------------------------------------------------------------------------
+% Combiners: s \otimes s'  -->  \ell    and the inverse
+% -----------------------------------------------------------------------------
+\makeatletter
+\define@key{ptcomb}{direction}{\def\PTCombDir{#1}}
+\makeatother
+\def\PTCombDirUp{up}
+\def\PTCombDirDown{down}
+\def\PTCombDirLeft{left}
+\def\PTCombDirRight{right}
+
+\newcommand{\PTCombiner}[4][]{%
+  \def\PTCombDir{up}%
+  \setkeys{ptcomb}{#1}%
+  \ifx\PTCombDir\PTCombDirDown
+    \def\PTCombRot{180}%
+  \else\ifx\PTCombDir\PTCombDirLeft
+    \def\PTCombRot{90}%
+  \else\ifx\PTCombDir\PTCombDirRight
+    \def\PTCombRot{270}%
+  \else
+    \def\PTCombRot{0}%
+  \fi\fi\fi
+  \PTSetTriangleRound{\PTCombinerSize}{\PTCombinerSize}%
+  \begin{scope}[on PTforeground layer]
+    \node[
+      name=#2,
+      isosceles triangle,
+      isosceles triangle apex angle=60,
+      shape border rotate=\PTCombRot,
+      inner sep=0pt,
+      outer sep=0pt,
+      minimum width=\PTCombinerSize,
+      draw=black,
+      fill=white,
+      line width=\PTCoreStroke,
+      rounded corners=\PTRelRound,
+      font=\scriptsize,
+      text=PTLabel,
+    ] at #3 {};
+    \node[font=\scriptsize, text=PTLabel, inner sep=0.8pt, anchor=east]
+      at ([xshift=-1.6pt]#2.west) {#4};
+  \end{scope}
+  \coordinate (#2-fused) at (#2.apex);
+  \coordinate (#2-ket)   at (#2.left corner);
+  \coordinate (#2-bra)   at (#2.right corner);
+}
+
+\newcommand{\PTCombinerInv}[4][]{%
+  \PTCombiner[direction=down, #1]{#2}{#3}{#4}%
+}
+
+% -----------------------------------------------------------------------------
+% Cups, caps, time arrow, callouts
+% -----------------------------------------------------------------------------
+% Cup (union, opens upward): used for traces and vectorisation bends.
+% The two endpoints are the open wire tips; control points sit below them.
+\newcommand{\PTCup}[3][]{%
+  \draw[#1] (#2)
+    .. controls ($ (#2) + (0,-\PTBendDepth) $)
+            and ($ (#3) + (0,-\PTBendDepth) $) ..
+    (#3);
+}
+
+% Trace: left and right semicircles joined by a straight bar BELOW the core
+% (never behind it).  #2-loopmid is the bar midpoint for a single index tag.
+% Drawn on the main layer so the bar is not covered by the core; the core
+% still sits in front at the ports.
+\newcommand{\PTTraceLoop}[2][PTWire]{%
+  \draw[#1]
+    (#2.west)
+    arc[start angle=90, delta angle=180, radius=4.0mm]
+    -- ([yshift=-8.0mm]#2.east)
+    arc[start angle=270, delta angle=180, radius=4.0mm];
+  \coordinate (#2-loopmid) at ([yshift=-8.0mm]#2.center);
+}
+
+% Same loop, but above the core (used for Tr(A) and Tr(O rho) in Fig. 2).
+\newcommand{\PTTraceLoopAbove}[2][PTWire]{%
+  \draw[#1]
+    (#2.west)
+    arc[start angle=270, delta angle=-180, radius=4.0mm]
+    -- ([yshift=8.0mm]#2.east)
+    arc[start angle=90, delta angle=-180, radius=4.0mm];
+  \coordinate (#2-looptop) at ([yshift=8.0mm]#2.center);
+}
+
+% Gradual S-dip: horizontal span \PTVecDipH, drop 2 R - fuse gap.
+\makeatletter
+% Bend the east (bra) wire over the top, then dip it down next to the
+% ket so the pair reads as a fused Liouville leg.  |A>>
+% #1-ket = lower left (j), #1-bra = upper left (k).
+\newcommand{\PTVectoriseToKet}[1]{%
+  \draw[PTHilbertBraLeg]
+    (#1.east)
+    arc[start angle=270, delta angle=90, radius=\PTVecBendR]
+    arc[start angle=0, delta angle=90, radius=\PTVecBendR]
+    -- ($ (#1.west) + (-\PTVecOverhang, 2*\PTVecBendR) $)
+    .. controls
+      ($ (#1.west) + (-\PTVecOverhang-0.42*\PTVecDipH, 2*\PTVecBendR) $)
+      and
+      ($ (#1.west) + (-\PTVecOverhang-0.58*\PTVecDipH, \PTFuseGap) $) ..
+    ($ (#1.west) + (-\PTVecOverhang-\PTVecDipH, \PTFuseGap) $)
+    -- ++(-\PTVecRun,0) coordinate (#1-bra);
+  \draw[PTHilbertKetLeg]
+    (#1.west) -- (#1-bra |- #1.west) coordinate (#1-ket);
+}
+
+% Bend a west-port wire over the top (left-bulging semicircle), then dip
+% it down next to the east port: <<A| or <<I|.
+% #1 = name, #2 = west coordinate, #3 = east coordinate.
+% #1-bra = lower right (k), #1-ket = upper right (j).
+\newcommand{\PTVectorisePortsToBra}[3]{%
+  \draw[PTHilbertKetLeg]
+    (#2)
+    arc[start angle=270, delta angle=-90, radius=\PTVecBendR]
+    arc[start angle=180, delta angle=-90, radius=\PTVecBendR]
+    -- ($ (#3) + (\PTVecOverhang, 2*\PTVecBendR) $)
+    .. controls
+      ($ (#3) + (\PTVecOverhang+0.42*\PTVecDipH, 2*\PTVecBendR) $)
+      and
+      ($ (#3) + (\PTVecOverhang+0.58*\PTVecDipH, \PTFuseGap) $) ..
+    ($ (#3) + (\PTVecOverhang+\PTVecDipH, \PTFuseGap) $)
+    -- ++(\PTVecRun,0) coordinate (#1-ket);
+  \draw[PTHilbertBraLeg]
+    (#3) -- (#1-ket |- #3) coordinate (#1-bra);
+}
+\newcommand{\PTVectoriseToBra}[1]{%
+  \PTVectorisePortsToBra{#1}{#1.west}{#1.east}%
+}
+% Identity as a wire: left-bulging cup, then dip immediately (no extra
+% straight run after the semicircle).  #1 = name, #2 = west coordinate.
+\newcommand{\PTVectoriseIdentityToBra}[2]{%
+  \draw[PTHilbertKetLeg]
+    (#2)
+    arc[start angle=270, delta angle=-90, radius=\PTVecBendR]
+    arc[start angle=180, delta angle=-90, radius=\PTVecBendR]
+    .. controls
+      ($ (#2) + (0.42*\PTVecDipH, 2*\PTVecBendR) $)
+      and
+      ($ (#2) + (0.58*\PTVecDipH, \PTFuseGap) $) ..
+    ($ (#2) + (\PTVecDipH, \PTFuseGap) $)
+    -- ++(\PTVecRun,0) coordinate (#1-ket);
+  \draw[PTHilbertBraLeg]
+    (#2) -- (#1-ket |- #2) coordinate (#1-bra);
+}
+\makeatother
+
+% Compact trace-out: a short Liouville stub capped on the open (west) end
+% by a straight slash at site-leg thickness.  The midpoint sits on the
+% wire; the tick is drawn in front so it hides the double-wire butt.
+% Anchors: #1, #1-west (slashed tip), #1-east (attachment).
+\newcommand{\PTTraceOutTick}[1]{%
+  \begin{scope}[on PTforeground layer, shift={(#1)}, rotate=-34]
+    \draw[
+      black,
+      line cap=round,
+      line width=\PTHilbertLW,
+    ]
+      (0, 2.42mm) -- (0, -2.42mm);
+  \end{scope}
+}
+\newcommand{\PTTraceOut}[2]{%
+  \coordinate (#1) at #2;
+  \coordinate (#1-west) at ($ #2 + (-2.8mm,0) $);
+  \coordinate (#1-east) at ($ #2 + (2.4mm,0) $);
+  \draw[PTLiouvilleLeg]
+    (#1-west) -- (#1-east);
+  \PTTraceOutTick{#1-west}
+}
+
+% Transpose bends: left (ket) port over the top towards the right, now a
+% primed bra (coordinate #1-i); right (bra) port under the bottom towards
+% the left, now an unprimed ket (coordinate #1-j).
+\newcommand{\PTTransposeBends}[1]{%
+  \draw[PTHilbertBraLeg]
+    (#1.west)
+    arc[start angle=270, delta angle=-90, radius=3.3mm]
+    arc[start angle=180, delta angle=-90, radius=3.3mm]
+    coordinate (#1-itop);
+  \draw[PTHilbertBraLeg primed]
+    (#1-itop) -- ++(11.5mm,0) coordinate (#1-i);
+  \draw[PTHilbertKetLeg]
+    (#1.east)
+    arc[start angle=90, delta angle=-90, radius=3.3mm]
+    arc[start angle=0, delta angle=-90, radius=3.3mm]
+    -- ++(-11.5mm,0) coordinate (#1-j);
+}
+\newcommand{\PTCap}[3][]{%
+  \draw[#1] (#2)
+    .. controls ($ (#2) + (0,\PTBendDepth) $)
+            and ($ (#3) + (0,\PTBendDepth) $) ..
+    (#3);
+}
+
+% Sideways cup used when bending a vertical bra wire into a second output.
+% #2 = start (usually the operator's south / bra port).
+% #3 = end   (the new upward ket-like port for the bra index).
+% The bend goes to the LEFT of both points by default (column-major: |k>
+% becomes the left factor).
+\newcommand{\PTVecBend}[3][]{%
+  \draw[#1] (#2)
+    .. controls ($ (#2) + (0,-\PTBendDepth) $)
+            and ($ (#3) + (0,-\PTBendDepth) $) ..
+    (#3);
+}
+
+% Time arrow: ALWAYS left-pointing.  #1 = right coord, #2 = left coord.
+% Optional first argument is a TikZ node-anchor for the label (default below).
+\newcommand{\PTTimeArrow}[4][below=2.4pt]{%
+  \draw[
+    -{Stealth[length=2.2mm, width=1.55mm]},
+    line width=1.05pt,
+    draw=PTLabel,
+    line cap=round,
+  ] (#2) -- (#3)
+    node[midway, #1, font=\small, text=PTLabel, inner sep=0.6pt] {#4};
+}
+
+\newcommand{\PTPanelLabel}[2]{%
+  \node[
+    font=\small\bfseries,
+    text=PTLabel,
+    inner sep=0.4pt,
+    anchor=south west,
+  ] at #1 {#2};
+}
+
+\newcommand{\PTCallout}[3][]{%
+  \node[
+    font=\scriptsize,
+    text=PTLabel,
+    inner sep=0.8pt,
+    align=left,
+    #1,
+  ] at (#2) {#3};
+}
+
+\newcommand{\PTMapsTo}[2][]{%
+  \node[font=\small, text=PTLabel, inner sep=1pt, #1] at #2 {\(\longmapsto\)};
+}
+
+% -----------------------------------------------------------------------------
+% Instruments
+% -----------------------------------------------------------------------------
+\newif\ifPTInstClassical
+\PTInstClassicalfalse
+\def\PTInstKindBox{box}
+\def\PTInstKindKet{ket}
+\def\PTInstKindBra{bra}
+\def\PTInstKindTrace{trace}
+
+\makeatletter
+\define@key{ptinst}{fill}{\def\PTInstFill{#1}}
+\define@key{ptinst}{draw}{\def\PTInstDraw{#1}}
+\define@key{ptinst}{minimum width}{\def\PTInstMinW{#1}}
+\define@key{ptinst}{minimum height}{\def\PTInstMinH{#1}}
+\define@key{ptinst}{kind}{\def\PTInstKind{#1}}
+\define@key{ptinst}{classical}{\def\PTInstClassDir{#1}}
+\define@key{ptinst}{classical label}{\def\PTInstClassLab{#1}}
+\define@key{ptinst}{classical length}{\def\PTInstClassLen{#1}}
+\define@key{ptinst}{rounded}{\def\PTInstRnd{#1}}
+\makeatother
+
+% Generic constructor.  Quantum legs are NOT auto-drawn: connect to the
+% node anchors (north, south, east, west, or the triangle bases).
+% Classical legs ARE auto-drawn when classical != none.
+\newcommand{\PTInstrumentNode}[4][]{%
+  \def\PTInstFill{PTInstrument}%
+  \def\PTInstDraw{black}%
+  \def\PTInstMinW{\PTCoreWidth}%
+  \def\PTInstMinH{\PTCoreWidth}%
+  \def\PTInstKind{box}%
+  \def\PTInstClassDir{none}%
+  \def\PTInstClassLab{}%
+  \def\PTInstClassLen{6.2mm}%
+  \def\PTInstRnd{PTAUTO}%
+  \setkeys{ptinst}{#1}%
+  \def\PTInstNone{none}%
+  \ifx\PTInstKind\PTInstKindKet
+    \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}%
+    \node[
+      name=#2,
+      inner sep=0pt,
+      outer sep=0pt,
+      minimum width=\PTKetWidth,
+      minimum height=\PTKetHeight,
+    ] at #3 {};
+    \begin{scope}[on PTforeground layer]
+      \filldraw[
+        draw=black,
+        fill=\PTInstFill,
+        line width=\PTCoreStroke,
+        line join=round,
+        rounded corners=\PTRelRound,
+      ] (#2.west |- #2.south) -- (#2.east) -- (#2.west |- #2.north) -- cycle;
+      \node[font=\small, text=PTLabel, inner sep=0.4pt]
+        at ($ (#2.west)!0.36!(#2.east) $) {#4};
+    \end{scope}
+  \else
+    \ifx\PTInstKind\PTInstKindBra
+      \PTSetTriangleRound{\PTKetWidth}{\PTKetHeight}%
+      \node[
+        name=#2,
+        inner sep=0pt,
+        outer sep=0pt,
+        minimum width=\PTKetWidth,
+        minimum height=\PTKetHeight,
+      ] at #3 {};
+      \begin{scope}[on PTforeground layer]
+        \filldraw[
+          draw=black,
+          fill=\PTInstFill,
+          line width=\PTCoreStroke,
+          line join=round,
+          rounded corners=\PTRelRound,
+        ] (#2.east |- #2.south) -- (#2.west) -- (#2.east |- #2.north) -- cycle;
+        \node[font=\small, text=PTLabel, inner sep=0.4pt]
+          at ($ (#2.east)!0.36!(#2.west) $) {#4};
+      \end{scope}
+    \else
+      \ifx\PTInstKind\PTInstKindTrace
+        \begin{scope}[on PTforeground layer]
+          \node[name=#2, PTTraceNode] at #3 {#4};
+        \end{scope}
+      \else
+        \def\PTAuto{PTAUTO}%
+        \ifx\PTInstRnd\PTAuto
+          \PTSetSquareRound{\PTInstMinW}{\PTInstMinH}%
+        \else
+          \setlength{\PTRelRound}{\PTInstRnd}%
+        \fi
+        \begin{scope}[on PTforeground layer]
+          \node[
+            name=#2,
+            PTCore,
+            fill=\PTInstFill,
+            draw=\PTInstDraw,
+            minimum width=\PTInstMinW,
+            minimum height=\PTInstMinH,
+            rounded corners=\PTRelRound,
+          ] at #3 {#4};
+        \end{scope}
+      \fi
+    \fi
+  \fi
+  \ifx\PTInstClassDir\PTInstNone
+  \else
+    \def\PTInstDirDown{down}%
+    \def\PTInstDirUp{up}%
+    \def\PTInstDirLeft{left}%
+    \def\PTInstDirRight{right}%
+    \ifx\PTInstClassDir\PTInstDirDown
+      \draw[PTClassicalLeg] (#2.south) -- ++(0,-\PTInstClassLen)
+        coordinate (#2-classical);
+    \else\ifx\PTInstClassDir\PTInstDirUp
+      \draw[PTClassicalLeg] (#2.north) -- ++(0,\PTInstClassLen)
+        coordinate (#2-classical);
+    \else\ifx\PTInstClassDir\PTInstDirLeft
+      \draw[PTClassicalLeg] (#2.west) -- ++(-\PTInstClassLen,0)
+        coordinate (#2-classical);
+    \else
+      \draw[PTClassicalLeg] (#2.east) -- ++(\PTInstClassLen,0)
+        coordinate (#2-classical);
+    \fi\fi\fi
+    \def\PTInstClassEmpty{}%
+    \ifx\PTInstClassLab\PTInstClassEmpty
+    \else
+      \node[font=\small, text=PTLabel, inner sep=0.8pt, anchor=north]
+        at ([yshift=-1.0pt]#2-classical) {\(\PTInstClassLab\)};
+    \fi
+  \fi
+}
+
+\newcommand{\PTIdentity}[4][]{%
+  \PTInstrumentNode[fill=PTTensor, #1]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTControl}[4][]{%
+  \PTInstrumentNode[#1]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTUnitary}[4][]{%
+  \PTInstrumentNode[#1]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTPrepare}[4][]{%
+  \PTInstrumentNode[kind=ket, fill=PTInstrument, #1]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTMeasure}[4][]{%
+  \PTInstrumentNode[
+    classical=down,
+    classical label={x},
+    #1
+  ]{#2}{#3}{#4}%
+}
+
+\newcommand{\PTProjective}[4][]{%
+  \PTInstrumentNode[
+    classical=down,
+    classical label={x},
+    #1
+  ]{#2}{#3}{#4}%
+}
+
+% Measurement (earlier, right) then preparation (later, left).
+% Quantum wire is broken; the classical outcome is drawn separately.
+% Nodes: <name>-E, <name>-P, <name>-x.
+\newcommand{\PTCausalBreak}[3][]{%
+  \begin{scope}[shift={#3}]
+    \PTInstrumentNode[
+      classical=none,
+      minimum width=8.4mm,
+      minimum height=8.4mm,
+      #1
+    ]{#2-E}{(0,0)}{\(E^{(x)}\)}
+    \PTPrepare{#2-P}{(-1.65,0)}{\(\mathcal{P}\)}
+    \draw[PTClassicalLeg] (#2-E.south) -- ++(0,-5.8mm) coordinate (#2-x);
+    \node[font=\small, text=PTLabel, inner sep=0.6pt, anchor=north]
+      at ([yshift=-0.8pt]#2-x) {\(x\)};
+  \end{scope}
+}
+
+% Hilbert-space trace: magenta cup closing ket and bra tips.
+\newcommand{\PTTraceHilbert}[2]{%
+  \PTCup[PTTraceCup]{#1}{#2}%
+  \node[font=\small, text=PTTrace, inner sep=0.5pt, anchor=north]
+    at ($ (#1)!0.5!(#2) + (0,-\PTBendDepth-0.5pt) $) {\(\mathrm{Tr}\)};
+}
+
+% Liouville-space trace: compact Tr node sitting on a fused leg.
+\newcommand{\PTTraceLiouville}[3]{%
+  \begin{scope}[on PTforeground layer]
+    \node[name=#1, PTTraceNode] at #2 {#3};
+  \end{scope}
+}
+
+% -----------------------------------------------------------------------------
+% PT-MPO / joint process tensor
+% -----------------------------------------------------------------------------
+\newif\ifPTMPOjoint
+\newif\ifPTMPOtags
+\newif\ifPTMPOchi
+\newif\ifPTMPOtimes
+\newif\ifPTMPOarrow
+\newif\ifPTMPOfinal
+\PTMPOjointfalse
+\PTMPOtagstrue
+\PTMPOchitrue
+\PTMPOtimestrue
+\PTMPOarrowtrue
+\PTMPOfinalfalse
+
+\makeatletter
+\define@key{ptmpo}{n}{\def\PTMPOn{#1}}
+\define@key{ptmpo}{at}{\def\PTMPOat{#1}}
+\define@key{ptmpo}{name}{\def\PTMPOname{#1}}
+\define@key{ptmpo}{spacing}{\setlength{\PTMPOspacing}{#1}}
+\define@key{ptmpo}{joint}{\csname PTMPOjoint#1\endcsname}
+\define@key{ptmpo}{tags}{\csname PTMPOtags#1\endcsname}
+\define@key{ptmpo}{chi}{\csname PTMPOchi#1\endcsname}
+\define@key{ptmpo}{times}{\csname PTMPOtimes#1\endcsname}
+\define@key{ptmpo}{time arrow}{\csname PTMPOarrow#1\endcsname}
+\define@key{ptmpo}{final}{\csname PTMPOfinal#1\endcsname}
+\define@key{ptmpo}{label}{\def\PTMPOlabel{#1}}
+\makeatother
+
+% Draw n time cores W^{[0]} (right, t_0) ... W^{[n-1]} (left).
+% Node names:  <name>-W-<k>
+% IO tips:     <name>-out-<k>  (process output, RIGHT of pair)
+%              <name>-in-<k>   (process input,  LEFT  of pair)
+% Time arrow:  <name>-t0  (right)  -->  <name>-tn (left)
+\newcommand{\PTDrawProcessMPO}[1][]{%
+  \PTMPOjointfalse
+  \PTMPOtagstrue
+  \PTMPOchitrue
+  \PTMPOtimestrue
+  \PTMPOarrowtrue
+  \PTMPOfinalfalse
+  \setlength{\PTMPOspacing}{\PTTimeSpacing}%
+  \def\PTMPOn{3}%
+  \def\PTMPOat{0,0}%
+  \def\PTMPOname{pt}%
+  \def\PTMPOlabel{}%
+  \setkeys{ptmpo}{#1}%
+  \coordinate (\PTMPOname-origin) at (\PTMPOat);
+  \edef\PTMPOlast{\PTMPOname-W-\the\numexpr\PTMPOn-1\relax}%
+  % --- cores, right (k=0) to left ------------------------------------------
+  \foreach \k in {0,...,\the\numexpr\PTMPOn-1\relax} {%
+    \path (\PTMPOname-origin)
+      ++(-\k*\PTMPOspacing,0)
+      coordinate (\PTMPOname-c-\k);
+    \PTProcessCore{\PTMPOname-W-\k}{(\PTMPOname-c-\k)}{\(W^{[\k]}\)}%
+    % Local ports: output on the right, input on the left (local time).
+    \coordinate (\PTMPOname-outsrc-\k) at
+      ([xshift=\PTIOSep]\PTMPOname-W-\k.south);
+    \coordinate (\PTMPOname-insrc-\k) at
+      ([xshift=-\PTIOSep]\PTMPOname-W-\k.south);
+    \draw[PTLiouvilleLeg]
+      (\PTMPOname-outsrc-\k) -- ++(0,-\PTLegLength)
+      coordinate (\PTMPOname-out-\k);
+    \draw[PTLiouvilleLeg]
+      (\PTMPOname-insrc-\k) -- ++(0,-\PTLegLength)
+      coordinate (\PTMPOname-in-\k);
+  }%
+  % --- joint body (no exposed link indices) or MPO links -------------------
+  \ifPTMPOjoint
+    \node[
+      fit=(\PTMPOname-W-0) (\PTMPOlast),
+      inner xsep=3.6pt,
+      inner ysep=4.6pt,
+      rounded corners=5.5pt,
+      fill=PTProcess!55,
+      draw=black,
+      line width=0.7pt,
+    ] (\PTMPOname-body) {};
+    \draw[
+      draw=PTProcess!70!black,
+      line width=3.4pt,
+      line cap=round,
+    ] (\PTMPOlast.center) -- (\PTMPOname-W-0.center);
+  \else
+    \ifnum\PTMPOn>1
+      \foreach \k [
+        evaluate=\k as \knext using int(\k+1)
+      ] in {0,...,\the\numexpr\PTMPOn-2\relax} {%
+        \draw[PTLinkLeg]
+          (\PTMPOname-W-\k.west) -- (\PTMPOname-W-\knext.east)
+          coordinate[midway] (\PTMPOname-link-\k);
+        \ifPTMPOchi
+          \node[font=\small, text=PTLabel, inner sep=0.5pt, above=1.4pt]
+            at (\PTMPOname-link-\k) {\(\chi_{\k}\)};
+        \fi
+        \ifPTMPOtags
+          \PTIndexLabel[
+            anchor=south,
+            tag={PTLink,t-0\k},
+            yshift=11.0pt,
+          ]{\PTMPOname-link-\k}%
+        \fi
+      }%
+    \fi
+    % Dimension-1 boundary stubs.
+    \draw[PTLinkLeg] (\PTMPOname-W-0.east) -- ++(4.2mm,0)
+      coordinate (\PTMPOname-bnd-R);
+    \begin{scope}[on PTforeground layer]
+      \node[PTDummyBond] (\PTMPOname-dummy-R) at (\PTMPOname-bnd-R) {};
+    \end{scope}
+    \draw[PTLinkLeg]
+      (\PTMPOlast.west) -- ++(-4.2mm,0)
+      coordinate (\PTMPOname-bnd-L);
+    \begin{scope}[on PTforeground layer]
+      \node[PTDummyBond] (\PTMPOname-dummy-L) at (\PTMPOname-bnd-L) {};
+    \end{scope}
+  \fi
+  % --- optional final (t_n) physical output on the far left ----------------
+  \ifPTMPOfinal
+    \coordinate (\PTMPOname-final-src) at ([yshift=1.6mm]\PTMPOlast.west);
+    \draw[PTLiouvilleLeg] (\PTMPOname-final-src) -- ++(-7.5mm,0)
+      coordinate (\PTMPOname-final);
+  \fi
+  % --- time labels and left-pointing arrow ---------------------------------
+  \coordinate (\PTMPOname-t0) at ([yshift=-15.2mm, xshift=5.0mm]\PTMPOname-W-0.south);
+  \coordinate (\PTMPOname-tn) at ([yshift=-15.2mm, xshift=-5.0mm]\PTMPOlast.south);
+  \ifPTMPOtimes
+    \node[font=\small, text=PTLabel, inner sep=0.4pt, anchor=west]
+      at (\PTMPOname-t0) {\(t_{0}\)};
+    \node[font=\small, text=PTLabel, inner sep=0.4pt, anchor=east]
+      at (\PTMPOname-tn) {\(t_{n}\)};
+  \fi
+  \ifPTMPOarrow
+    \PTTimeArrow[below=1.2pt]{\PTMPOname-t0}{\PTMPOname-tn}{\(t\)}%
+  \fi
+  \ifPTMPOtags
+    \PTIndexLabel[
+      anchor=west,
+      math={\ell_{\mathrm{out}}},
+      tag={Output,t-00},
+      xshift=3.0pt,
+    ]{\PTMPOname-out-0}%
+    \PTIndexLabel[
+      anchor=east,
+      math={\ell_{\mathrm{in}}},
+      tag={Input,t-00},
+      xshift=-3.0pt,
+      yshift=-4.2pt,
+    ]{\PTMPOname-in-0}%
+  \fi
+  \def\PTMPOlabelEmpty{}%
+  \ifx\PTMPOlabel\PTMPOlabelEmpty
+  \else
+    \node[font=\small, text=PTLabel, inner sep=1pt, above=3.6pt]
+      at ($ (\PTMPOname-W-0.north)!0.5!(\PTMPOlast.north) $)
+      {\PTMPOlabel};
+  \fi
+}
+
+\newcommand{\PTDrawJointProcess}[1][]{%
+  \PTDrawProcessMPO[joint=true,chi=false,tags=false,#1]%
+}
+
+% -----------------------------------------------------------------------------
+% Example of a future instrument (commented; copy and adapt).
+% -----------------------------------------------------------------------------
+% \newcommand{\PTReset}[4][]{%
+%   \PTInstrumentNode[fill=PTInstrument, classical=none, #1]{#2}{#3}{#4}%
+% }
+% % Tester / ancilla interaction (two-site box):
+% \newcommand{\PTTester}[4][]{%
+%   \PTInstrumentNode[
+%     fill=PTInstrument,
+%     minimum width=1.55\PTCoreWidth,
+%     #1
+%   ]{#2}{#3}{#4}%
+% }
+% % Feedback-conditioned operation: reuse classical=down and wire it into
+% % a later \PTInstrumentNode.
+%
+% This file is a library.  Compile pt_tikz_demo.tex for a catalogue of
+% every primitive.

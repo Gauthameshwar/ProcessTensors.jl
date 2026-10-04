@@ -1,0 +1,125 @@
+% Process-tensor core anatomy.  Time runs right to left.
+% A core owns one interval.  An intervention joins the output of one
+% interval to the input of the next.  Requires pt_tikz_styles.tex.
+\begin{tikzpicture}[PTPicture]
+  \def\QACoreW{10.2mm}%
+  \def\QACoreH{16.8mm}%
+  \def\QAIOLen{3.2mm}%
+  \def\QAIORaise{3.5mm}%
+  \def\QABondRaise{3.6mm}%
+  \def\QAdx{2.95}%
+  \tikzset{
+    qalab/.style={
+      font=\normalsize\bfseries,
+      text=PTLabel,
+      inner sep=1.0pt,
+    },
+    qaleg/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      inner sep=0.6pt,
+    },
+    qamem/.style={
+      draw=PTBond,
+      line width=\PTLinkLW,
+      line cap=butt,
+      line join=round,
+      double=none,
+      on background layer,
+    },
+    qaeq/.style={
+      font=\footnotesize,
+      text=PTLabel,
+      align=center,
+      inner sep=1.0pt,
+    },
+  }
+
+  % Tall process core.  Output port is on the left (later time);
+  % input port is on the right (earlier time).
+  \newcommand{\QACore}[3]{%
+    \PTTensor[
+      fill=QAMPOcore,
+      minimum width=\QACoreW,
+      minimum height=\QACoreH,
+      font=\normalsize,
+    ]{#1}{#2}{#3}%
+    \coordinate (#1-o) at ([yshift=\QAIORaise]#1.south west);
+    \coordinate (#1-i) at ([yshift=\QAIORaise]#1.south east);
+    \coordinate (#1-L) at ([yshift=\QABondRaise]#1.west);
+    \coordinate (#1-R) at ([yshift=\QABondRaise]#1.east);
+  }
+
+  % ------------------------------------------------------------------ (a)
+  \begin{scope}[shift={(0.15,0.55)}]
+    \QACore{a-Q2}{(0.00,0)}{\(Q^{[2]}\)}
+    \QACore{a-Q1}{(\QAdx,0)}{\(Q^{[1]}\)}
+    \QACore{a-Q0}{(2*\QAdx,0)}{\(Q^{[0]}\)}
+
+    \draw[qamem] (a-Q2-R) -- (a-Q1-L)
+      coordinate[midway] (a-a2);
+    \draw[qamem] (a-Q1-R) -- (a-Q0-L)
+      coordinate[midway] (a-a1);
+    \node[qaleg, above=3.2pt] at (a-a2) {\(\chi_2\)};
+    \node[qaleg, above=3.2pt] at (a-a1) {\(\chi_1\)};
+
+    % A_1 joins o_0 (unprimed output) to i_1 (primed input).
+    \coordinate (a-A) at ($(a-Q0-o)!0.5!(a-Q1-i)$);
+    \PTInstrument[minimum width=7.4mm,minimum height=7.4mm]
+      {a-A1}{(a-A)}{\(\mathcal A_1\)}
+    \draw[PTLiouvilleLeg] (a-Q0-o) -- (a-A1.east);
+    \draw[PTLiouvilleLeg primed] (a-A1.west) -- (a-Q1-i);
+    \node[qaleg, below=1.6pt] at (a-A1.south) {\(i_1\leftarrow o_0\)};
+
+    \draw[PTLiouvilleLeg] (a-Q2-o) -- ++(-\QAIOLen,0) coordinate (a-o2);
+    \draw[PTLiouvilleLeg primed] (a-Q2-i) -- ++(\QAIOLen,0) coordinate (a-i2);
+    \draw[PTLiouvilleLeg] (a-Q1-o) -- ++(-\QAIOLen,0) coordinate (a-o1);
+    \draw[PTLiouvilleLeg primed] (a-Q0-i) -- ++(\QAIOLen,0) coordinate (a-i0);
+
+    \node[qaleg, below=2.4pt] at (a-o2) {\(o_2\)};
+    \node[qaleg, below=2.4pt] at (a-i2) {\(i_2\)};
+    \node[qaleg, below=2.4pt] at (a-o1) {\(o_1\)};
+    \node[qaleg, below=2.4pt] at (a-i0) {\(i_0\)};
+
+    \node[qaleg, above=1.5pt] at (a-Q0.north) {\([t_0,t_1]\)};
+    \node[qaleg, above=1.5pt] at (a-Q1.north) {\([t_1,t_2]\)};
+    \node[qaleg, above=1.5pt] at (a-Q2.north) {\([t_2,t_3]\)};
+
+    \node[qalab, anchor=south east, inner sep=1.4pt]
+      at ([yshift=4.2mm]a-Q2.north west) {(a)};
+
+    \coordinate (a-tR) at ($(a-Q0.south)+(0.15,-1.15)$);
+    \coordinate (a-tL) at ($(a-tR)+(-1.15,0)$);
+    \draw[
+      -{Stealth[length=2.0mm, width=1.4mm]},
+      line width=1.0pt,
+      draw=PTLabel,
+      line cap=round,
+    ] (a-tR) -- (a-tL);
+    \node[qaleg, anchor=south] at ($(a-tR)!0.5!(a-tL)+(0,1.2pt)$) {time};
+  \end{scope}
+
+  % ------------------------------------------------------------------ (b)
+  \begin{scope}[shift={(8.55,0.55)}]
+    \QACore{b-Qk}{(0,0)}{\(Q^{[k]}\)}
+    \node[qaleg, above=1.5pt] at (b-Qk.north) {\([t_k,t_{k+1}]\)};
+
+    \draw[qamem] (b-Qk-L) -- ++(-\QAIOLen,0) coordinate (b-akp);
+    \draw[qamem] (b-Qk-R) -- ++(\QAIOLen,0) coordinate (b-ak);
+    \node[qaleg, anchor=east, xshift=-1.4pt] at (b-akp) {\(\chi_{k+1}\)};
+    \node[qaleg, anchor=west, xshift=1.4pt] at (b-ak) {\(\chi_k\)};
+
+    \draw[PTLiouvilleLeg] (b-Qk-o) -- ++(-\QAIOLen,0) coordinate (b-ok);
+    \draw[PTLiouvilleLeg primed] (b-Qk-i) -- ++(\QAIOLen,0) coordinate (b-ik);
+    \node[qaleg, anchor=east, xshift=-1.4pt] at (b-ok) {\(o_k\)};
+    \node[qaleg, anchor=west, xshift=1.4pt] at (b-ik) {\(i_k\)};
+
+    \node[qalab, anchor=south east, inner sep=1.4pt]
+      at ([yshift=4.2mm]b-Qk.north west) {(b)};
+
+    \node[qaeq, anchor=north west] at (-1.55,-1.35) {%
+      \(i_k\): prime level \(1\)\\
+      \(o_k\): prime level \(0\)%
+    };
+  \end{scope}
+\end{tikzpicture}

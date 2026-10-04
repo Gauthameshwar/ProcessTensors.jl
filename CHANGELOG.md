@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Removed
+
+* **Boundary-driven XXZ example.** The Literate page, companion script, and
+  transport figure are no longer part of the documentation.
+* **Unitary TFIM TEBD and TDVP examples.** The closed-system comparison pages,
+  companion scripts, and figures are removed. A short treatment remains in the
+  unitary-dynamics tutorial.
+
 ### Added
 
+* **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`
+  is the Gibbs state of the local mode Hamiltonian at temperature `T`, the
+  ground-state projector at `T = 0`, or the maximally mixed state at `T = Inf`.
+  Replacement methods keep Hamiltonian, sites, coupling, and `n_max`.
+* **Ramsey POVM example.** A Literate walkthrough and companion ACE script
+  contract three unsharp ``X`` measure-and-reset instruments with a thermal
+  dephasing process tensor, then compare the joint record to a product of
+  single-round marginals. The companion script is `scripts/ramsey_povm.jl`
+  and writes separate protocol and record figures.
 * **Testers and noisy quantum qubits example:** A Literate walkthrough and
   companion ACE script demonstrate store–wait–retrieve control, tester-only
   phase operations, joint trajectories, and system–tester mutual information.
