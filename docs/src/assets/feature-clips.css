@@ -1,7 +1,7 @@
 /* Homepage feature clips (docs/animations/*.py).
- * Transparent GIFs sit directly on the article background; the light/dark pair is
- * selected by themed-figures.css. Under prefers-reduced-motion the static posters
- * replace the GIFs.
+ * Every clip image starts hidden so Documenter's `article img { display: block }`
+ * cannot stack the light and dark assets. Animated GIFs are shown only when the
+ * reader has not requested reduced motion; posters are shown only when they have.
  */
 
 article .feature-clip {
@@ -16,6 +16,13 @@ article .feature-clip img {
   margin-right: auto;
 }
 
+/* Beat themed-figures.css, whose dark-theme rule is
+   `html.theme--… .theme-figure-dark { display: block !important }`. */
+article .feature-clip img.clip-motion,
+article .feature-clip img.clip-poster {
+  display: none !important;
+}
+
 article .feature-clip img[src*="contraction-"] {
   width: min(100%, 58em);
 }
@@ -26,28 +33,24 @@ article .feature-clip figcaption {
   opacity: 0.85;
 }
 
-/* One theme at a time. These beat Documenter's `article img { display: block }`. */
-article .feature-clip img.theme-figure-light {
-  display: block !important;
-}
+@media (prefers-reduced-motion: no-preference) {
+  article .feature-clip img.theme-figure-light.clip-motion {
+    display: block !important;
+  }
 
-article .feature-clip img.theme-figure-dark,
-article .feature-clip img.clip-poster {
-  display: none !important;
-}
+  html.theme--documenter-dark article .feature-clip img.theme-figure-light.clip-motion,
+  html.theme--catppuccin-mocha article .feature-clip img.theme-figure-light.clip-motion,
+  html.theme--catppuccin-macchiato article .feature-clip img.theme-figure-light.clip-motion,
+  html.theme--catppuccin-frappe article .feature-clip img.theme-figure-light.clip-motion {
+    display: none !important;
+  }
 
-html.theme--documenter-dark article .feature-clip img.theme-figure-light,
-html.theme--catppuccin-mocha article .feature-clip img.theme-figure-light,
-html.theme--catppuccin-macchiato article .feature-clip img.theme-figure-light,
-html.theme--catppuccin-frappe article .feature-clip img.theme-figure-light {
-  display: none !important;
-}
-
-html.theme--documenter-dark article .feature-clip img.theme-figure-dark.clip-motion,
-html.theme--catppuccin-mocha article .feature-clip img.theme-figure-dark.clip-motion,
-html.theme--catppuccin-macchiato article .feature-clip img.theme-figure-dark.clip-motion,
-html.theme--catppuccin-frappe article .feature-clip img.theme-figure-dark.clip-motion {
-  display: block !important;
+  html.theme--documenter-dark article .feature-clip img.theme-figure-dark.clip-motion,
+  html.theme--catppuccin-mocha article .feature-clip img.theme-figure-dark.clip-motion,
+  html.theme--catppuccin-macchiato article .feature-clip img.theme-figure-dark.clip-motion,
+  html.theme--catppuccin-frappe article .feature-clip img.theme-figure-dark.clip-motion {
+    display: block !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

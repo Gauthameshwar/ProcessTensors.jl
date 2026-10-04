@@ -893,7 +893,7 @@ def _bounds(mobs: list[VMobject]) -> tuple[float, float, float, float]:
 
 
 def plan_zoom_results(scene: "PTContractionScene") -> Beat:
-    """Bring the two results together in the middle of the frame and zoom in on them."""
+    """Bring the two results together in the middle of the frame and zoom in by 1.2×."""
     left_mobs = _result_mobs(scene.panels[0])
     right_mobs = _result_mobs(scene.panels[1])
     ll, lr, lb, lt = _bounds(left_mobs)
@@ -908,11 +908,8 @@ def plan_zoom_results(scene: "PTContractionScene") -> Beat:
     move = rate_functions.smooth
     anims = [mob.animate(run_time=TIMING["zoom"], rate_func=move).shift(point(dx_l, dy_l)) for mob in left_mobs]
     anims += [mob.animate(run_time=TIMING["zoom"], rate_func=move).shift(point(dx_r, dy_r)) for mob in right_mobs]
-    width_after = (rr + dx_r) - (ll + dx_l)
-    height_after = max(lt + dy_l, rt + dy_r) - min(lb + dy_l, rb + dy_r)
     frame = scene.camera.frame
-    aspect = frame.width / frame.height
-    width = min(frame.width, max(width_after, height_after * aspect) * 2.05)
+    width = frame.width / 1.2
     anims.append(frame.animate(run_time=TIMING["zoom"], rate_func=move).move_to(point(0.0, 0.0)).set(width=width))
     return Beat(name="zoom_results", animations=anims, discard=[frame])
 

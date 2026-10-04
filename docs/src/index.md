@@ -14,9 +14,10 @@ using it to design numerical experiments.
 When a system interacts with an environment, its present reduced state may not
 contain all the information needed to predict its future. The environment can
 retain information about earlier interactions and interventions. A process tensor
-stores this bath response which can readily be used on various system interventions. 
-ProcessTensors.jl  primarily uses MPS/MPO infrastructure to define and manipulate 
-process tensors in a memory-efficient way. 
+describes how the system responds to interventions at different times, including
+the influence of environmental memory. ProcessTensors.jl represents this
+multi-time response using matrix product operators, allowing the same process
+tensor to be reused across different experiments. 
 
 ```@raw html
 <figure class="feature-clip">
@@ -24,7 +25,7 @@ process tensors in a memory-efficient way.
   <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/ace-dark.gif" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
   <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/ace-light-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
   <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/ace-dark-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
-  <figcaption><strong>Construct a process tensor:</strong> Compress the influence of multiple environmental modes into a single process tensor MPO using state-of-the-art algorithms.</figcaption>
+  <figcaption><strong>Construct a process tensor:</strong> Combine the influence of independent environmental modes and compress the resulting temporal bonds using ACE.</figcaption>
 </figure>
 
 <figure class="feature-clip">
@@ -65,34 +66,18 @@ threading, and execution settings, see [Advanced Usage](advanced_usage.md).
 
 ## What can you explore?
 
-| Task | Package workflow |
+| What can you explore? | Suggested walkthrough |
 | --- | --- |
-| Construct a microscopic process | Define spin or bosonic bath modes and build a `ProcessTensor`. |
-| Choose a construction method | Use `Dense()` for small environments or `ACE()` to incorporate and compress independent bath modes. |
-| Apply interventions | Assemble preparations, controls, and outcome-resolved operations in an `InstrumentSeq`. |
-| Obtain reduced states and statistics | Use `evolve` for trajectories and `evaluate_process` for general contractions. |
-| Probe multi-time correlations | Insert operators at different times while retaining the environmental influence. |
-| Include an ancillary memory | Use testers to describe experiments with an ancilla carried between interventions. |
-| Inspect the temporal representation | Examine input/output legs and memory bonds to understand the stored network. |
+| Build a process from several environmental modes | [Spin-bath process tensor](examples/spin_bath_process_tensor.md) |
+| Compress spin and thermal bosonic environments with ACE | [Central-spin dynamics using ACE](examples/central_spin_ace.md); [Thermal spin-boson dynamics using ACE](examples/thermal_spinboson_ace.md) |
+| Design preparations, controls, and measurements | [Explore a process with instruments](tutorials/process_tensor_instruments.md) |
+| Probe bath memory through repeated measurements | [Ramsey readouts as a probe of bath memory](examples/ramsey_povm.md) |
+| Calculate multi-time correlations | [Multi-time correlations](examples/multitime_correlations.md) |
+| Carry an ancillary system between interventions | [Testers and noisy quantum circuit](examples/noisy_quantum_circuit_tester.md) |
 
-`Dense()` retains the full environmental Liouville space. `ACE()` (Automated
-Compression of Environments) incorporates initially independent bath modes
-sequentially and compresses their temporal influence. 
-
-Gaussian PT-TEMPO and chain-mapped constructions remain development directions.
-
-## Continue with process-tensor workflows
-
-| Goal | Walkthrough |
-| --- | --- |
-| Construct your first process tensor | [Construct your first process tensor](tutorials/process_tensor_singlemode.md) |
-| Probe that process with instruments | [Explore a process with instruments](tutorials/process_tensor_instruments.md) |
-| Extend to several bath modes | [Spin-bath process tensor](examples/spin_bath_process_tensor.md) |
-| Compress an independent spin environment | [Central-spin dynamics using ACE](examples/central_spin_ace.md) |
-| Construct a thermal bosonic environment | [Thermal spin-boson dynamics using ACE](examples/thermal_spinboson_ace.md) |
-| Explore repeated measurements and resets | [Ramsey readouts as a probe of bath memory](examples/ramsey_povm.md) |
-| Evaluate multi-time operator insertions | [Multi-time correlations](examples/multitime_correlations.md) |
-| Use an ancillary tester | [Testers and noisy quantum circuit](examples/noisy_quantum_circuit_tester.md) |
+Use `Dense()` for small environments or `ACE()` to incorporate initially
+independent bath modes and compress their temporal influence. Gaussian PT-TEMPO
+and chain-mapped constructions are planned extensions.
 
 ## Additional tools for open quantum dynamics
 
