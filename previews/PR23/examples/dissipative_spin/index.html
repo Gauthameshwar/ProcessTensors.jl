@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Dissipative spin chain · ProcessTensors.jl</title><meta name="title" content="Dissipative spin chain · ProcessTensors.jl"/><meta property="og:title" content="Dissipative spin chain · ProcessTensors.jl"/><meta property="twitter:title" content="Dissipative spin chain · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/dissipative_spin/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/dissipative_spin/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/examples/dissipative_spin/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/><link href="../../assets/themed-figures.css" rel="stylesheet" type="text/css"/><link href="../../assets/feature-clips.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Tensor-network foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../../tutorials/mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../../tutorials/liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/process_tensor_singlemode/">Construct a process tensor</a></li><li><a class="tocitem" href="../../tutorials/process_tensor_instruments/">Process tensor instruments</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Additional dynamics tools</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../../tutorials/dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spin_bath_process_tensor/">Spin-bath process tensor</a></li><li><a class="tocitem" href="../central_spin_ace/">Central-spin dynamics using ACE</a></li><li><a class="tocitem" href="../thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../noisy_quantum_circuit_tester/">Testers and noisy quantum qubits</a></li><li><a class="tocitem" href="../ramsey_povm/">Ramsey POVM measurements</a></li><li><a class="tocitem" href="../multitime_correlations/">Multi-time correlations</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox" checked/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Additional time evolution</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Dissipative spin chain</a><ul class="internal"><li><a class="tocitem" href="#Model"><span>Model</span></a></li><li><a class="tocitem" href="#Liouville-space-TEBD"><span>Liouville-space TEBD</span></a></li><li><a class="tocitem" href="#What-the-populations-show"><span>What the populations show</span></a></li></ul></li><li><a class="tocitem" href="../driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard</a></li><li><a class="tocitem" href="../laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Additional time evolution</a></li><li class="is-active"><a href>Dissipative spin chain</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Dissipative spin chain</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/examples/dissipative_spin.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Dissipative-spin-chain-dynamics"><a class="docs-heading-anchor" href="#Dissipative-spin-chain-dynamics">Dissipative spin-chain dynamics</a><a id="Dissipative-spin-chain-dynamics-1"></a><a class="docs-heading-anchor-permalink" href="#Dissipative-spin-chain-dynamics" title="Permalink"></a></h1><p>A closed transverse-field Ising model describes coherent spin rotation and correlated many-body motion. Real spin platforms also exchange energy with their surroundings, so coherent dynamics is progressively damped and the system relaxes toward a state selected by both the Hamiltonian and the environment. How does local amplitude damping change the Up population and the transverse magnetization of a transverse-field Ising chain? The observables are the mean Up density <span>$\bar n_\uparrow(t)$</span> and the mean Pauli magnetization <span>$\overline X(t)$</span>.</p><div class="admonition is-category-related" id="Related-material-4cffa544852c3079"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-4cffa544852c3079" title="Permalink"></a></header><div class="admonition-body"><ul><li>Tutorial: <a href="../../tutorials/dissipative_dynamics/#Dissipative-Dynamics">Dissipative Dynamics</a> (<code>liouvillian_mpo</code>, Liouville TEBD)</li><li>Theory: <a href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li></ul></div></div><div class="admonition is-category-script" id="Companion-script-a5f11e737332411d"><header class="admonition-header">Companion script<a class="admonition-anchor" href="#Companion-script-a5f11e737332411d" title="Permalink"></a></header><div class="admonition-body"><p>The figures below, with first-, second-, and fourth-order TEBD against dense <span>$e^{t\mathcal L}$</span> evolution, are generated by <a href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/scripts/tebd_tfim_dissipative.jl"><code>scripts/tebd_tfim_dissipative.jl</code></a>. This page runs one second-order trajectory on a shorter window.</p></div></div><h2 id="Model"><a class="docs-heading-anchor" href="#Model">Model</a><a id="Model-1"></a><a class="docs-heading-anchor-permalink" href="#Model" title="Permalink"></a></h2><p>Time is in units of <span>$1/J$</span>, with <span>$\hbar=1$</span>. The spin chain is</p><p class="math-container">\[H
+=
+-J\sum_{j=1}^{N-1} Z_jZ_{j+1}
+-h\sum_{j=1}^{N} X_j ,\]</p><p>with a local loss channel on every site. On an <code>S=1/2</code> site, the Hamiltonian operators <span>$X$</span> and <span>$Z$</span> are Pauli operators. The jump operator <span>$S^-$</span> is the spin lowering operator, with <span>$S^-|\mathrm{Up}\rangle=|\mathrm{Dn}\rangle$</span>. The master equation is</p><p class="math-container">\[\frac{d\rho}{dt}
+=
+-i[H,\rho]
++
+\gamma\sum_{j=1}^{N}\mathcal{D}[S_j^-]\rho ,
+\qquad
+\mathcal{D}[L]\rho
+=
+L\rho L^\dagger
+-\frac{1}{2}\{L^\dagger L,\rho\}.\]</p><p>The initial state is <span>$|\mathrm{Up}\cdots\mathrm{Up}\rangle$</span>. Its local Up population is the projector <span>$(I+Z)/2$</span>. That product state is an eigenstate of every local <span>$Z$</span>, and it is an eigenstate of the interacting <span>$H$</span> only in special limits. The two plotted densities are</p><p class="math-container">\[\bar n_\uparrow(t)
+=
+\frac{1}{N}\sum_{j=1}^{N}
+\left\langle\frac{I+Z_j}{2}\right\rangle_t ,
+\qquad
+\overline X(t)
+=
+\frac{1}{N}\sum_{j=1}^{N}\langle X_j\rangle_t .\]</p><p><span>$\sum_j X_j$</span> commutes with <span>$\overline X$</span>, so the transverse field by itself does not rotate <span>$\overline X$</span>. A nonzero value in this model comes from the Ising coupling, the field, and the loss acting together.</p><h3 id="Parameters-and-operators"><a class="docs-heading-anchor" href="#Parameters-and-operators">Parameters and operators</a><a id="Parameters-and-operators-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters-and-operators" title="Permalink"></a></h3><pre><code class="language-julia hljs">using ITensors
+using ITensors.Ops: Trotter
+using ProcessTensors
+
+const N = 6
+const J = 1.0
+const transverse_field = 1.2
+const decay_rate = 0.5
+const dt = 0.1
+const final_time = 4.0
+const maxdim = 96
+const cutoff = 1e-10
+
+physical_sites = siteinds(&quot;S=1/2&quot;, N)
+liouville_sites = liouv_sites(physical_sites)
+
+hamiltonian = let H = OpSum()
+    for j in 1:(N - 1)
+        H += -J, &quot;Z&quot;, j, &quot;Z&quot;, j + 1
+    end
+    for j in 1:N
+        H += -transverse_field, &quot;X&quot;, j
+    end
+    H
+end</code></pre><pre><code class="nohighlight hljs">sum(
+  -1.0 Z(1,) Z(2,)
+  -1.0 Z(2,) Z(3,)
+  -1.0 Z(3,) Z(4,)
+  -1.0 Z(4,) Z(5,)
+  -1.0 Z(5,) Z(6,)
+  -1.2 X(1,)
+  -1.2 X(2,)
+  -1.2 X(3,)
+  -1.2 X(4,)
+  -1.2 X(5,)
+  -1.2 X(6,)
+)</code></pre><p>A tuple <code>(γ, &quot;S-&quot;, j)</code> contributes <span>$\gamma\mathcal D[S_j^-]$</span> to the Liouvillian. The first entry is the dissipative rate, the second entry is the jump operator responsible for the dissipation, and the third is the site index where this operator sits.</p><pre><code class="language-julia hljs">jump_operators = [(decay_rate, &quot;S-&quot;, j) for j in 1:N]
+
+initial_state = MPS(physical_sites, fill(&quot;Up&quot;, N))
+initial_density = to_dm(initial_state)
+initial_density_liouville =
+    to_liouville(initial_density; sites=liouville_sites)
+
+mean_x_operator = let observable = OpSum()
+    for j in 1:N
+        observable += 1 / N, &quot;X&quot;, j
+    end
+    observable
+end</code></pre><pre><code class="nohighlight hljs">sum(
+  0.16666666666666666 X(1,)
+  0.16666666666666666 X(2,)
+  0.16666666666666666 X(3,)
+  0.16666666666666666 X(4,)
+  0.16666666666666666 X(5,)
+  0.16666666666666666 X(6,)
+)</code></pre><p>Now we define the observables we wish to track in the Liouville space. Local projector onto <code>Up</code> is <span>$(I + Z)/2$</span>, and the local transverse magnetization is <span>$X/N$</span>.</p><pre><code class="language-julia hljs">excited_density_operator = let observable = OpSum()
+    for j in 1:N
+        observable += 0.5 / N, &quot;Id&quot;, j
+        observable += 0.5 / N, &quot;Z&quot;, j
+    end
+    observable
+end
+
+mean_x_liouville = to_liouville(
+    MPO(mean_x_operator, physical_sites);
+    sites=liouville_sites,
+)
+excited_density_liouville = to_liouville(
+    MPO(excited_density_operator, physical_sites);
+    sites=liouville_sites,
+)
+
+@assert isapprox(real(tr(initial_density)), 1.0; atol=1e-12)</code></pre><h2 id="Liouville-space-TEBD"><a class="docs-heading-anchor" href="#Liouville-space-TEBD">Liouville-space TEBD</a><a id="Liouville-space-TEBD-1"></a><a class="docs-heading-anchor-permalink" href="#Liouville-space-TEBD" title="Permalink"></a></h2><p>Vectorization turns the master equation into</p><p class="math-container">\[\frac{d}{dt}|\rho(t)\rangle\rangle
+=
+\mathcal L|\rho(t)\rangle\rangle .\]</p><p><code>tebd</code> builds the local Liouville gates from <code>hamiltonian</code> and <code>jump_operators</code>. The evolution interval passed to it is the real step <code>dt</code>, because <span>$\mathcal L$</span> already contains the factor <span>$-i$</span>. This page uses one second-order splitting, <code>Trotter{2}()</code>.</p><pre><code class="language-julia hljs">nsteps = round(Int, final_time / dt)
+@assert isapprox(nsteps * dt, final_time; atol=100eps(Float64))
+times = collect(range(0.0; step=dt, length=nsteps + 1))
+
+trajectory = let
+    density = copy(initial_density_liouville)
+    mean_x = Float64[]
+    excited_density = Float64[]
+    trace_errors = Float64[]
+    bond_dimensions = Int[]
+
+    for step in eachindex(times)
+        trace_value = tr(to_hilbert(density))
+        push!(mean_x, real(inner(mean_x_liouville, density) / trace_value))
+        push!(
+            excited_density,
+            real(inner(excited_density_liouville, density) / trace_value),
+        )
+        push!(trace_errors, abs(trace_value - 1))
+        push!(bond_dimensions, maxlinkdim(density))
+
+        step == length(times) &amp;&amp; continue
+
+        density = tebd(
+            density,
+            hamiltonian,
+            dt,
+            dt;
+            jump_ops=jump_operators,
+            alg=Trotter{2}(),
+            maxdim=maxdim,
+            cutoff=cutoff,
+            progress=false,
+        )
+    end
+
+    (
+        mean_x=mean_x,
+        excited_density=excited_density,
+        trace_errors=trace_errors,
+        bond_dimensions=bond_dimensions,
+    )
+end
+
+println((
+    N=N,
+    final_time=final_time,
+    final_mean_X=trajectory.mean_x[end],
+    final_n_up=trajectory.excited_density[end],
+    max_trace_error=maximum(trajectory.trace_errors),
+    max_bond_dimension=maximum(trajectory.bond_dimensions),
+))
+
+@assert all(isfinite, trajectory.mean_x)
+@assert all(isfinite, trajectory.excited_density)
+@assert all(value -&gt; -1 - 1e-8 ≤ value ≤ 1 + 1e-8, trajectory.mean_x)
+@assert all(value -&gt; -1e-8 ≤ value ≤ 1 + 1e-8, trajectory.excited_density)
+@assert maximum(trajectory.trace_errors) &lt; 1e-2</code></pre><pre><code class="nohighlight hljs">(N = 6, final_time = 4.0, final_mean_X = 0.15744056987955202, final_n_up = 0.423256547960821, max_trace_error = 0.0011085364277420991, max_bond_dimension = 64)
+</code></pre><h2 id="What-the-populations-show"><a class="docs-heading-anchor" href="#What-the-populations-show">What the populations show</a><a id="What-the-populations-show-1"></a><a class="docs-heading-anchor-permalink" href="#What-the-populations-show" title="Permalink"></a></h2><p>The cells above use <span>$N=6$</span>, end at <span>$t=4$</span>, and apply only <code>Trotter{2}()</code>, with <code>maxdim=96</code> and <code>cutoff=1e-10</code>. The figures are the companion run: <span>$N=4$</span>, the same <span>$J$</span>, <span>$h$</span>, <span>$\gamma$</span>, and <span>$\Delta t=0.1$</span>, through <span>$t=9$</span>, with orders 1, 2, and 4 against dense <span>$e^{t\mathcal L}$</span>, <code>maxdim=128</code>, and <code>cutoff=1e-12</code>.</p><p><img src="../../assets/examples/tebd_tfim_dissipative_dynamics_nup.png" alt="Excited-spin density for dissipative TFIM TEBD and dense evolution"/></p><p>The Up density starts at 1, falls below the dashed late-time level, and recovers toward it. At this <span>$\Delta t$</span>, first-order TEBD stays visibly above the dense curve. Orders 2 and 4 track that curve through <span>$t=9$</span>. Agreement on this <span>$N=4$</span> window is the comparison the figure supports.</p><p><img src="../../assets/examples/tebd_tfim_dissipative_dynamics_mx.png" alt="Transverse magnetization for dissipative TFIM TEBD and dense evolution"/></p><p><span>$\overline X$</span> starts at zero, becomes nonzero, and oscillates while the loss damps it toward the dashed level. The same first-order curve falls away from the dense result, while orders 2 and 4 stay with it. The dashed line is the steady response of this master equation.</p><p>A trace that stays near 1 does not establish accuracy. The first-order population is the visible counterexample: its trace can remain acceptable while <span>$\bar n_\uparrow$</span> and <span>$\overline X$</span> are still offset. Bond truncation and the finite window are separate limits. This <span>$t=9$</span> curve has settled near the dashed line; a shorter window would not show that.</p><div class="admonition is-success" id="Try-changing-e0da9912f758a7"><header class="admonition-header"> Try changing<a class="admonition-anchor" href="#Try-changing-e0da9912f758a7" title="Permalink"></a></header><div class="admonition-body"><p>These edits test which parts of <span>$\bar n_\uparrow$</span> and <span>$\overline X$</span> come from the field, the Ising coupling, and the timestep. Rebuild the Hamiltonian or the jump list and rerun <code>tebd</code> from the initial all-<code>Up</code> state.</p><ul><li>Set <code>transverse_field = 0</code>. The Up density should follow <span>$\bar n_\uparrow(t)=e^{-\gamma t}$</span>. The Ising coupling leaves that law unchanged.</li><li>Set <code>J = 0</code> and keep the field and the loss. <span>$\overline X$</span> stays zero for a product of independent spins that start in <code>Up</code>.</li><li>Use the companion length <span>$N=4$</span>, halve <code>dt</code>, and keep the same final time. Compare the late population and <span>$\overline X$</span> with that script&#39;s dense reference at the same <span>$J$</span>, <span>$h$</span>, and <span>$\gamma$</span>.</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../multitime_correlations/">« Multi-time correlations</a><a class="docs-footer-nextpage" href="../driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Sunday 4 October 2026 14:22">Sunday 4 October 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

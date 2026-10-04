@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Construct a process tensor · ProcessTensors.jl</title><meta name="title" content="Construct a process tensor · ProcessTensors.jl"/><meta property="og:title" content="Construct a process tensor · ProcessTensors.jl"/><meta property="twitter:title" content="Construct a process tensor · ProcessTensors.jl"/><meta name="description" content="Documentation for ProcessTensors.jl."/><meta property="og:description" content="Documentation for ProcessTensors.jl."/><meta property="twitter:description" content="Documentation for ProcessTensors.jl."/><meta property="og:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><meta property="twitter:url" content="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><link rel="canonical" href="https://Gauthameshwar.github.io/ProcessTensors.jl/tutorials/process_tensor_singlemode/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/admonitions.css" rel="stylesheet" type="text/css"/><link href="../../assets/themed-figures.css" rel="stylesheet" type="text/css"/><link href="../../assets/feature-clips.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="ProcessTensors.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">ProcessTensors.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../theory/tensor_networks/">Tensor Networks in Physics</a></li><li><a class="tocitem" href="../../theory/liouville_space/">Quantum States and Liouville Space</a></li><li><a class="tocitem" href="../../theory/process_tensors/">Process Tensors</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox" checked/><label class="tocitem" for="menuitem-4"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Tensor-network foundations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../itensor_basics/">ITensor Basics</a></li><li><a class="tocitem" href="../mps_mpo_basics/">MPS and MPO Basics</a></li><li><a class="tocitem" href="../liouville_basics/">Liouville-Space Basics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox" checked/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Construct a process tensor</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Spin–boson-ingredients"><span>Spin–boson ingredients</span></a></li><li><a class="tocitem" href="#building-the-process-tensor"><span>Time grid and Dense construction</span></a></li><li><a class="tocitem" href="#What-the-object-stores"><span>What the object stores</span></a></li><li><a class="tocitem" href="#Dense-and-ACE-constructors"><span>Dense and ACE constructors</span></a></li><li><a class="tocitem" href="#Save-the-process-tensor-and-reuse-it"><span>Save the process tensor and reuse it</span></a></li></ul></li><li><a class="tocitem" href="../process_tensor_instruments/">Process tensor instruments</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Additional dynamics tools</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../unitary_dynamics/">Unitary Dynamics</a></li><li><a class="tocitem" href="../dissipative_dynamics/">Dissipative Dynamics</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox"/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-5-1" type="checkbox"/><label class="tocitem" for="menuitem-5-1"><span class="docs-label">Process tensors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../examples/spin_bath_process_tensor/">Spin-bath process tensor</a></li><li><a class="tocitem" href="../../examples/central_spin_ace/">Central-spin dynamics using ACE</a></li><li><a class="tocitem" href="../../examples/thermal_spinboson_ace/">Thermal spin-boson dynamics using ACE</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Instruments and correlations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../examples/noisy_quantum_circuit_tester/">Testers and noisy quantum qubits</a></li><li><a class="tocitem" href="../../examples/ramsey_povm/">Ramsey POVM measurements</a></li><li><a class="tocitem" href="../../examples/multitime_correlations/">Multi-time correlations</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Additional time evolution</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../examples/dissipative_spin/">Dissipative spin chain</a></li><li><a class="tocitem" href="../../examples/driven_dissipative_bose_hubbard/">Driven-dissipative Bose–Hubbard</a></li><li><a class="tocitem" href="../../examples/laser_driven_tdvp/">Laser-driven TDVP dynamics</a></li></ul></li></ul></li><li><a class="tocitem" href="../../advanced_usage/">Advanced Usage</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li><a class="is-disabled">Process tensors</a></li><li class="is-active"><a href>Construct a process tensor</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Construct a process tensor</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Gauthameshwar/ProcessTensors.jl/blob/main/docs/literate/tutorials/03_process_tensor_singlemode.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Construct-a-process-tensor"><a class="docs-heading-anchor" href="#Construct-a-process-tensor">Construct a process tensor</a><a id="Construct-a-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Construct-a-process-tensor" title="Permalink"></a></h1><p>A process tensor stores how an open system responds to a sequence of operations. This page builds that object for one spin coupled to one truncated boson. The spin is the system we will probe. The boson is the bath.</p><p>The next tutorial keeps this process tensor fixed and changes the experiment. Vectorisation is assumed only where a bath state is stored; see <a href="../liouville_basics/#Liouville-Space-Basics">Liouville-Space Basics</a> for that conversion.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using ITensors
+using ProcessTensors
+using ITensors.Ops: Exact, Trotter</code></pre><h2 id="Spin–boson-ingredients"><a class="docs-heading-anchor" href="#Spin–boson-ingredients">Spin–boson ingredients</a><a id="Spin–boson-ingredients-1"></a><a class="docs-heading-anchor-permalink" href="#Spin–boson-ingredients" title="Permalink"></a></h2><p>The model is a spin–boson Hamiltonian with one truncated oscillator:</p><p class="math-container">\[H_S = h S^x,
+\qquad
+H_B = \omega a^\dagger a,
+\qquad
+H_{SB} = g S^z (a + a^\dagger).\]</p><p>The boson starts in the vacuum <span>$|0\rangle$</span>. The displacement coupling <span>$a + a^\dagger$</span> acts on that state. A number coupling <span>$a^\dagger a$</span> would not: the vacuum is its ground state, so the interaction would be zero.</p><p>The system preparation is not part of the process tensor. It is supplied later, when the process is evaluated.</p><pre><code class="language-julia hljs">h = 0.6
+ω = 1.1
+g = 2.0
+n_max = 2
+
+system_sites = siteinds(&quot;S=1/2&quot;, 1)
+
+H_S = OpSum()
+H_S += h, &quot;Sx&quot;, 1
+
+system = spin_system(system_sites, H_S)
+
+println(&quot;System:&quot;)
+println(system)
+
+@assert system isa SpinSystem
+@assert length(system.sites) == 1</code></pre><pre><code class="nohighlight hljs">System:
+ProcessTensors.SpinSystem
+  sites: 1
+  space: Liouville
+  site dims: 4
+  dissipative: false
+
+</code></pre><pre><code class="language-julia hljs">boson_sites = siteinds(&quot;Boson&quot;, 1; dim=n_max + 1)
+boson_sites_L = liouv_sites(boson_sites)
+
+H_B = OpSum()
+H_B += ω, &quot;N&quot;, 1
+
+ψB0 = MPS(boson_sites, [&quot;0&quot;])
+ρB0 = to_dm(ψB0)
+ρB0_L = to_liouville(ρB0; sites=boson_sites_L)
+
+H_SB = OpSum()
+H_SB += g, &quot;A&quot;, 1, &quot;Sz&quot;, 2
+H_SB += g, &quot;Adag&quot;, 1, &quot;Sz&quot;, 2
+
+mode = bosonic_mode(boson_sites_L, H_B, ρB0_L; coupling=H_SB)
+environment = bosonic_bath([mode])
+
+println(&quot;Environment:&quot;)
+println(environment)
+
+@assert mode isa BosonicMode
+@assert environment isa BosonicBath
+@assert dim(only(boson_sites)) == n_max + 1</code></pre><pre><code class="nohighlight hljs">Environment:
+ProcessTensors.BosonicBath
+  modes: 1
+  space: Liouville
+  site dims: 9
+  bath Liouville dimension: 9
+
+  mode summary:
+    [1] BosonicMode(dim=9, H_terms=1, coupling_terms=2, n_max=8)
+
+</code></pre><p>The coupling <code>OpSum</code> uses a local two-site convention: site <code>1</code> is the boson and site <code>2</code> is the spin. <code>bosonic_mode</code> stores the boson in Liouville space because the process tensor is built from density matrices. The Hilbert boson is truncated at occupations <span>$n = 0, 1, 2$</span>. The <code>n_max</code> field printed with the mode is one less than the Liouville dimension of that site, not this occupation cutoff.</p><h2 id="building-the-process-tensor"><a class="docs-heading-anchor" href="#building-the-process-tensor">Time grid and Dense construction</a><a id="building-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#building-the-process-tensor" title="Permalink"></a></h2><p><code>dt</code> is the propagation interval between intervention slots. <code>nsteps</code> is the number of those intervals. Slot <code>step</code> is where an operation can act between the output of time <code>step - 1</code> and the input of time <code>step</code>.</p><pre><code class="language-julia hljs">pt = build_process_tensor(system; environment, dt, nsteps, method=Dense())</code></pre><p><code>method=Dense()</code> keeps the joint system–bath Liouville space. For this single truncated boson that space is small enough to exponentiate exactly. <code>alg=Exact()</code> builds that joint step directly, and <code>sys_alg=Trotter{2}()</code> places the free spin map symmetrically around it. The free spin map is already stored in the process tensor, so the default instrument between slots is an identity.</p><pre><code class="language-julia hljs">dt = 0.1
+nsteps = 8
+
+pt = build_process_tensor(
+    system;
+    environment=environment,
+    dt=dt,
+    nsteps=nsteps,
+    method=Dense(),
+    alg=Exact(),
+    sys_alg=Trotter{2}(),
+    progress=false,
+    verbose=false,
+)
+
+println(&quot;Spin–boson process tensor:&quot;)
+println(pt)
+
+@assert pt isa ProcessTensor
+@assert pt.nsteps == nsteps
+@assert pt.dt == dt
+@assert pt.environment isa BosonicBath</code></pre><pre><code class="nohighlight hljs">Spin–boson process tensor:
+8-step ProcessTensor{SpinSystem, BosonicBath} | dt=0.1 | t_final=0.8 | maxlinkdim=9
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: BosonicBath(nmodes=1, D_bath=9, coupling=true)
+  core:        MPO{Liouville}(length=8, linkdims=[9, 9, 9, 9, 9, 9, 9])
+
+</code></pre><h2 id="What-the-object-stores"><a class="docs-heading-anchor" href="#What-the-object-stores">What the object stores</a><a id="What-the-object-stores-1"></a><a class="docs-heading-anchor-permalink" href="#What-the-object-stores" title="Permalink"></a></h2><div class="theme-figure">
+  <img class="theme-figure-light" src="../../assets/theory/pt_anatomy-light.svg" alt="Process cores and the intervention that joins adjacent intervals. Time runs right to left.">
+  <img class="theme-figure-dark" src="../../assets/theory/pt_anatomy-dark.svg" alt="Process cores and the intervention that joins adjacent intervals. Time runs right to left.">
+</div><p>Core <span>$Q^{[k]}$</span> owns the interval <span>$[t_k, t_{k+1}]$</span>. The intervention at the boundary joins output <span>$o_{k-1}$</span> to input <span>$i_k$</span>.</p><p>Each time label has an input leg and an output leg. Input legs have prime level <code>1</code>. Output legs have prime level <code>0</code>. Both carry a <code>tstep</code> tag.</p><p>Intervention slot <code>step</code> connects the output leg at <code>step - 1</code> to the input leg at <code>step</code>. For <code>step = 1</code> that is output <code>tstep=0</code> and input <code>tstep=1</code>.</p><pre><code class="language-julia hljs">println(&quot;Input leg at time 0:&quot;)
+println(input_sites(pt, 0))
+
+println(&quot;Output leg at time 0:&quot;)
+println(output_sites(pt, 0))
+
+out_prev, in_curr = coupling_times(pt, 1)
+
+println(&quot;Legs connected by slot 1:&quot;)
+println(out_prev)
+println(in_curr)
+
+@assert plev(only(input_sites(pt, 0))) == 1
+@assert plev(only(output_sites(pt, 0))) == 0
+@assert only(out_prev) == only(output_sites(pt, 0))
+@assert only(in_curr) == only(input_sites(pt, 1))</code></pre><pre><code class="nohighlight hljs">Input leg at time 0:
+ITensors.Index[(dim=4|id=718|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)&#39;]
+Output leg at time 0:
+ITensors.Index[(dim=4|id=718|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)]
+Legs connected by slot 1:
+ITensors.Index[(dim=4|id=718|&quot;Liouv,n=1,ptype=S=1/2,tstep=0&quot;)]
+ITensors.Index[(dim=4|id=501|&quot;Liouv,n=1,ptype=S=1/2,tstep=1&quot;)&#39;]
+</code></pre><p>The bonds between cores carry the boson from one slot to the next. <code>Dense()</code> keeps that space uncompressed, so the bond dimension is the stored bath Liouville space. It is not a witness that the dynamics are non-Markovian.</p><pre><code class="language-julia hljs">println(&quot;Temporal bond dimension = &quot;, maxlinkdim(pt.core))
+
+@assert maxlinkdim(pt.core) &gt; 1</code></pre><pre><code class="nohighlight hljs">Temporal bond dimension = 9
+</code></pre><div class="admonition is-warning" id="Reuse-Liouville-indices-e4680c1792e65335"><header class="admonition-header">Reuse Liouville indices<a class="admonition-anchor" href="#Reuse-Liouville-indices-e4680c1792e65335" title="Permalink"></a></header><div class="admonition-body"><p>Process-tensor contractions depend on exact ITensor index identity. Use the sites stored by the system, the boson, and the process tensor. Do not build a fresh index that only looks similar.</p></div></div><h2 id="Dense-and-ACE-constructors"><a class="docs-heading-anchor" href="#Dense-and-ACE-constructors">Dense and ACE constructors</a><a id="Dense-and-ACE-constructors-1"></a><a class="docs-heading-anchor-permalink" href="#Dense-and-ACE-constructors" title="Permalink"></a></h2><p><code>build_process_tensor</code> takes the same system, environment, and time grid for every builder. <code>method</code> selects the builder.</p><p><code>Dense()</code>, used above, is the right choice when the joint bath space still fits in one exact step, as it does for this one oscillator.</p><p><code>ACE()</code> is the other constructor. It joins independent bath modes one at a time and compresses the temporal bonds. <code>cutoff</code> is the relative singular-value threshold <span>$\sigma_i &gt; \varepsilon \sigma_1$</span>. It is a convergence parameter, not a guaranteed error on an observable. The default compression schedule is <code>:zipup_cpp</code>, which truncates each temporal bond during the forward join in the C++ ACE order. <code>:canonzip</code> joins one mode fully, then truncates from the final time back to the initial time.</p><p>The same spin–boson model can be built with ACE. One mode is not compressed much, but the call and the printed object are the same ones used for a large bath.</p><pre><code class="language-julia hljs">pt_ace = build_process_tensor(
+    system;
+    environment=environment,
+    dt=dt,
+    nsteps=nsteps,
+    method=ACE(cutoff=1e-8, compression=:zipup_cpp),
+    sys_alg=Trotter{2}(),
+    progress=false,
+    verbose=false,
+)
+
+println(&quot;ACE process tensor:&quot;)
+println(pt_ace)
+
+@assert pt_ace isa ProcessTensor
+@assert pt_ace.nsteps == nsteps
+@assert pt_ace.dt == dt</code></pre><pre><code class="nohighlight hljs">ACE process tensor:
+8-step ProcessTensor{SpinSystem, BosonicBath} | dt=0.1 | t_final=0.8 | maxlinkdim=9
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: BosonicBath(nmodes=1, D_bath=9, coupling=true)
+  core:        MPO{Liouville}(length=8, linkdims=[4, 9, 9, 9, 9, 9, 3])
+
+</code></pre><div class="admonition is-success" id="Progress-and-verbose-output-f165f70178b71ff2"><header class="admonition-header">Progress and verbose output<a class="admonition-anchor" href="#Progress-and-verbose-output-f165f70178b71ff2" title="Permalink"></a></header><div class="admonition-body"><p>Building the process tensor is often the expensive step of the workflow. <code>progress=true</code> shows a transient bar while that build runs, and <code>verbose=true</code> keeps a short log of the major stages after it finishes. The defaults are <code>progress=:auto</code> and <code>verbose=false</code>. The calls on this page use <code>progress=false</code> so the rendered output stays a plain printout. See <a href="../../advanced_usage/">Advanced Usage</a> for the combinations to use locally, in a notebook, or on a cluster.</p></div></div><h2 id="Save-the-process-tensor-and-reuse-it"><a class="docs-heading-anchor" href="#Save-the-process-tensor-and-reuse-it">Save the process tensor and reuse it</a><a id="Save-the-process-tensor-and-reuse-it-1"></a><a class="docs-heading-anchor-permalink" href="#Save-the-process-tensor-and-reuse-it" title="Permalink"></a></h2><p>The expensive object is the temporal MPO. ITensorMPS writes that MPO to HDF5. The <code>ProcessTensor</code> wrapper itself is not an HDF5 type, so the file stores <code>pt.core</code>. Reading it back and passing the same system, bath, and time grid restores a process tensor whose site indices still match the original ones.</p><pre><code class="language-julia hljs">using HDF5
+using ITensorMPS: MPO as ITensorMPO
+
+pt_file = joinpath(tempdir(), &quot;spin_boson_process_tensor.h5&quot;)
+
+h5open(pt_file, &quot;w&quot;) do file
+    write(file, &quot;process_tensor&quot;, pt.core)
+end
+
+pt_core = h5open(pt_file, &quot;r&quot;) do file
+    read(file, &quot;process_tensor&quot;, ITensorMPO)
+end
+
+pt_loaded = ProcessTensor(pt_core, system, environment, dt, nsteps)
+
+println(&quot;Loaded process tensor:&quot;)
+println(pt_loaded)
+println(&quot;Saved file: &quot;, pt_file)</code></pre><pre><code class="nohighlight hljs">Loaded process tensor:
+8-step ProcessTensor{SpinSystem, BosonicBath} | dt=0.1 | t_final=0.8 | maxlinkdim=9
+
+  system:      SpinSystem(nsites=1, dissipative=false)
+  environment: BosonicBath(nmodes=1, D_bath=9, coupling=true)
+  core:        MPO{Liouville}(length=8, linkdims=[9, 9, 9, 9, 9, 9, 9])
+
+Saved file: /tmp/spin_boson_process_tensor.h5
+</code></pre><p>What stays fixed is this object: the spin, the boson, the coupling, the time grid, and the loaded tensor. What changes in the next tutorial is only the operations applied to the spin.</p><p><a href="../process_tensor_instruments/#Process-tensor-instruments">Explore a process with instruments</a> prepares that spin, reads out trajectories and probabilities, and compares experiments on this same process.</p><div class="admonition is-category-related" id="Related-material-def485f421aa6ba1"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-def485f421aa6ba1" title="Permalink"></a></header><div class="admonition-body"><ul><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li><li><a href="../liouville_basics/#Liouville-Space-Basics">Liouville-Space Basics</a> — vectorisation of the bath state</li><li><a href="../process_tensor_instruments/#Process-tensor-instruments">Explore a process with instruments</a> — experiments on this process tensor</li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../liouville_basics/">« Liouville-Space Basics</a><a class="docs-footer-nextpage" href="../process_tensor_instruments/">Process tensor instruments »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Sunday 4 October 2026 14:22">Sunday 4 October 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
