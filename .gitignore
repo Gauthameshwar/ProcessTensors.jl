@@ -35,6 +35,10 @@ notes/*
 .*env/
 **/.*env/
 
+# Manim render cache and draft outputs from docs/animations/*.py
+/docs/animations/media/
+__pycache__/
+
 # Serialized process-tensor caches from companion scripts
 scripts/.cache/
 

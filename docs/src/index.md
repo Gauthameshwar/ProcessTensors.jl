@@ -13,21 +13,36 @@ using it to design numerical experiments.
 
 When a system interacts with an environment, its present reduced state may not
 contain all the information needed to predict its future. The environment can
-retain information about earlier interactions and interventions. A process
-tensor describes how the system responds to a sequence of operations at
-specified times, including the influence of this memory. 
-The package separates two parts of a calculation:
-
-1. **Construct the process.** Specify the system, environment, coupling, and
-   time grid, then build their multi-time process tensor.
-2. **Choose an experiment.** Supply a preparation and a sequence of controls,
-   measurements, or operator insertions.
-3. **Evaluate and reuse.** Obtain reduced states, outcome probabilities,
-   expectation values, or correlations, then change the experiment and evaluate
-   the same process tensor again.
-
+retain information about earlier interactions and interventions. A process tensor
+stores this bath response which can readily be used on various system interventions. 
 ProcessTensors.jl  primarily uses MPS/MPO infrastructure to define and manipulate 
 process tensors in a memory-efficient way. 
+
+```@raw html
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/ace-light.gif" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/ace-dark.gif" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/ace-light-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/ace-dark-poster.png" alt="A three-core process tensor with downward system legs, produced by ACE compression of two environment modes.">
+  <figcaption><strong>Construct a process tensor:</strong> Compress the influence of multiple environmental modes into a single process tensor MPO using state-of-the-art algorithms.</figcaption>
+</figure>
+
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/instruments-light.gif" alt="Time runs right to left. A preparation, a custom map, and an open output snap into the slots of a three-step instrument tape; the unspecified slot is filled by an identity.">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/instruments-dark.gif" alt="Time runs right to left. A preparation, a custom map, and an open output snap into the slots of a three-step instrument tape; the unspecified slot is filled by an identity.">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/instruments-light-poster.png" alt="A filled three-step instrument tape: preparation, identity, custom map, and open output.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/instruments-dark-poster.png" alt="A filled three-step instrument tape: preparation, identity, custom map, and open output.">
+  <figcaption><strong>Customize your instruments:</strong> Define the interventions you wish to perform on the system at chosen times; unspecified slots default to identity.</figcaption>
+</figure>
+
+<figure class="feature-clip">
+  <img class="theme-figure-light clip-motion" loading="lazy" src="assets/animations/contraction-light.gif" alt="Time runs right to left. Two identical process tensors are contracted with instruments; the left ends as an open reduced state (triangle) and the right as a closed scalar (circle).">
+  <img class="theme-figure-dark clip-motion" loading="lazy" src="assets/animations/contraction-dark.gif" alt="Time runs right to left. Two identical process tensors are contracted with instruments; the left ends as an open reduced state (triangle) and the right as a closed scalar (circle).">
+  <img class="theme-figure-light clip-poster" loading="lazy" src="assets/animations/contraction-light-poster.png" alt="Contraction results: an open reduced state (triangle) on the left and a closed scalar (circle) on the right.">
+  <img class="theme-figure-dark clip-poster" loading="lazy" src="assets/animations/contraction-dark-poster.png" alt="Contraction results: an open reduced state (triangle) on the left and a closed scalar (circle) on the right.">
+  <figcaption><strong>Evaluate and reuse:</strong> Contract the same process tensor with different instruments to obtain reduced states and scalar values.</figcaption>
+</figure>
+```
 
 ## Get started
 

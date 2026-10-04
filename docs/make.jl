@@ -173,7 +173,7 @@ makedocs(;
         canonical="https://Gauthameshwar.github.io/ProcessTensors.jl",
         edit_link="main",
         collapselevel=1,
-        assets=String["assets/admonitions.css", "assets/themed-figures.css"],
+        assets=String["assets/admonitions.css", "assets/themed-figures.css", "assets/feature-clips.css"],
     ),
     pages=[
         "Home" => "index.md",
