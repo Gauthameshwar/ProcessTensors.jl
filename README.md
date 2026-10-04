@@ -39,6 +39,35 @@ The same package can also be used before process tensors enter the story: closed
 | **Run experiments on a process** | Assemble preparations, controls, measurements, left/right actions, trace-outs, and open legs into an `InstrumentSeq`, then contract it with `evaluate_process`. |
 | **Reuse the same environment** | Once a process tensor is built, evolve new initial states with `evolve`, evaluate different protocols, or probe multi-time correlations without rebuilding the bath. |
 
+In each clip below, time runs from right to left.
+
+**Construct a process tensor:** Combine the influence of independent environmental modes and compress the resulting temporal bonds using ACE.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/animations/ace-dark.gif">
+    <img src="docs/src/assets/animations/ace-light.gif" width="640" alt="Time runs right to left. Two environment modes over three time steps are absorbed column by column and compressed into a three-core process tensor with downward system legs.">
+  </picture>
+</p>
+
+**Customize your instruments:** Define the interventions you wish to perform on the system at chosen times; unspecified slots default to identity.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/animations/instruments-dark.gif">
+    <img src="docs/src/assets/animations/instruments-light.gif" width="640" alt="Time runs right to left. A preparation, a custom map, and an open output snap into the slots of a three-step instrument tape; the unspecified slot is filled by an identity, leaving a filled instrument tape.">
+  </picture>
+</p>
+
+**Evaluate and reuse:** Contract the same process tensor with different instruments to obtain reduced states and expectation values.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/animations/contraction-dark.gif">
+    <img src="docs/src/assets/animations/contraction-light.gif" width="900" alt="Time runs right to left. Two identical process tensors are contracted with instruments; the left ends as an open reduced state (triangle) and the right as a closed scalar (circle).">
+  </picture>
+</p>
+
 ## Installation
 
 Install the latest tagged release from GitHub:
