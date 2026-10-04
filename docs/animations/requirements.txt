@@ -1,0 +1,3 @@
+# Python environment for the homepage/README Manim animations.
+# Tested with Python 3.12 and ffmpeg 8.0.1 (system binary, used for GIF/WebM/MP4 export).
+manim==0.21.0
