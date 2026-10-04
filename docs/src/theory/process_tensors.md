@@ -132,9 +132,7 @@ A final effect closes $o_{n-1}$, the system output at $t_n$. Thus the label of a
 </div>
 ```
 
-Core $Q^{[k]}$ owns the interval $[t_k,t_{k+1}]$. The intervention $\mathcal A_k$ joins $o_{k-1}$ to $i_k$. The input leg has prime level 1 and the output leg has prime level 0. Those primes label the Liouville ports. They are not the ket and bra indices already fused inside each leg. Julia stores $Q^{[k]}$ at position $k+1$.
-
-In the package's PT-core convention, the input is primed and the output is unprimed. These primes distinguish Liouville input/output legs; they do not label the ket and bra indices already fused inside each Liouville leg. Use the supplied index helpers when attaching custom tensors.
+Core $Q^{[k]}$ owns the interval $[t_k,t_{k+1}]$. The intervention $\mathcal A_k$ joins $o_{k-1}$ to $i_k$. The input leg has prime level 1 and the output leg has prime level 0. Those primes label the Liouville ports. They are not the ket and bra indices already fused inside each leg. Julia stores $Q^{[k]}$ at position $k+1$. Use `input_sites` and `output_sites` when attaching custom tensors.
 
 !!! info "In the package"
     ```julia

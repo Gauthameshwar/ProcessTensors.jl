@@ -437,23 +437,26 @@ println("MPO type: ", typeof(L_mpo_open))
 sites_L_for_state = liouv_sites(sites)
 ρL_demo = to_liouville(ρ; sites=sites_L_for_state)
 L_from_hilbert_sites = liouvillian_mpo(H, sites)
-sL_on_generator = only(siteinds(L_from_hilbert_sites))
+generator_sites = only(siteinds(L_from_hilbert_sites))
+generator_index = only(i for i in generator_sites if plev(i) == 0)
+state_index = only(siteinds(ρL_demo))
 
-println("Index on ρL:              ", sites_L_for_state[1])
-println("Index on liouvillian_mpo:   ", sL_on_generator)
-println("Same index object?       ", sites_L_for_state[1] == sL_on_generator)
+println("Index on ρL:            ", state_index)
+println("Unprimed index on L:    ", generator_index)
+println("Same index object?      ", state_index == generator_index)
 
-@assert sites_L_for_state[1] != sL_on_generator
+@assert state_index != generator_index
 
-try
-    apply(L_from_hilbert_sites, ρL_demo)
-    error("expected apply to fail on mismatched Liouville indices")
-catch err
-    println("apply fails as expected: ", typeof(err).name.name)
-end
+mismatched = apply(L_from_hilbert_sites, ρL_demo)
+mismatched_tensor = only(mismatched)
+@assert hasind(mismatched_tensor, state_index)
+@assert length(inds(mismatched_tensor)) == 3
+println("Indices left on the tensor: ", length(inds(mismatched_tensor)))
 
-# Contractions such as `apply(L_from_hilbert_sites, ρL_demo)` then
-# fail because ITensors matches legs by index identity, not by appearance.
+# `apply` returns, but it does not act with this generator on `ρL`. A matched
+# one-site contraction leaves a single site index. Here the state's index is
+# still present, together with the generator's legs, because ITensors contracts
+# indices only when they are the same object.
 # The fix is to pass the **same** Liouville sites to every constructor:
 #
 # ```julia

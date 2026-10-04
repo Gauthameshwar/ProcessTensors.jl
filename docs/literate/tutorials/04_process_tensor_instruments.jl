@@ -299,35 +299,59 @@ println(conditional_trace)
 
 # ## A causal break
 #
-# Measuring the spin and then preparing a fresh state breaks the spin's own
-# record of its past. Information that remains must sit in the boson.
-#
-# Use the same spin-up effect, the same repreparation ``|\uparrow\rangle``, and
-# the same final ``S^z``. Change only the state prepared at the first slot.
+# Select spin up and then prepare ``|\uparrow\rangle``. The selection discards
+# the spin's own record, and the repreparation puts the same state back. The
+# final ``S^z`` contraction is still multiplied by the probability of that
+# selection. Divide by the branch probability before comparing the two
+# preparations. A zero probability would leave the conditional expectation
+# undefined.
+
+break_instrument = observable_measurement(P_up) * state_preparation(ρ_up)
+
+seq_prob_plus = default_schedule(pt)
+seq_prob_plus += state_preparation(ρ_plus), 0
+seq_prob_plus += break_instrument, 2
+seq_prob_plus += trace_out(), pt.nsteps
+p_from_plus = evaluate_process(pt, seq_prob_plus)
 
 seq_break_plus = default_schedule(pt)
 seq_break_plus += state_preparation(ρ_plus), 0
-seq_break_plus += observable_measurement(P_up) * state_preparation(ρ_up), 2
+seq_break_plus += break_instrument, 2
 seq_break_plus += observable_measurement(Sz), pt.nsteps
+
+seq_prob_down = default_schedule(pt)
+seq_prob_down += state_preparation(ρ_dn), 0
+seq_prob_down += break_instrument, 2
+seq_prob_down += trace_out(), pt.nsteps
+p_from_down = evaluate_process(pt, seq_prob_down)
 
 seq_break_down = default_schedule(pt)
 seq_break_down += state_preparation(ρ_dn), 0
-seq_break_down += observable_measurement(P_up) * state_preparation(ρ_up), 2
+seq_break_down += break_instrument, 2
 seq_break_down += observable_measurement(Sz), pt.nsteps
 
-sz_from_plus = evaluate_process(pt, seq_break_plus)
-sz_from_down = evaluate_process(pt, seq_break_down)
+@assert abs(p_from_plus) > 1e-8
+@assert abs(p_from_down) > 1e-8
+sz_from_plus = evaluate_process(pt, seq_break_plus) / p_from_plus
+sz_from_down = evaluate_process(pt, seq_break_down) / p_from_down
 
-println("Final ⟨Sz⟩ after a break, prepared in |+⟩:")
-println(sz_from_plus)
-println("Final ⟨Sz⟩ after a break, prepared in |↓⟩:")
-println(sz_from_down)
+println((
+    p_from_plus=p_from_plus,
+    p_from_down=p_from_down,
+    conditional_sz_from_plus=sz_from_plus,
+    conditional_sz_from_down=sz_from_down,
+))
 
-# The two values differ, so the boson still carries information about the
-# earlier preparation. This comparison illustrates that residual influence. It
-# is not a complete test of Markovianity.
+# The selection probabilities differ by about two orders of magnitude, so the
+# unnormalised contractions differ even though both branches reprepare
+# ``|\uparrow\rangle``. After dividing, the conditional expectations agree to
+# a few parts in ``10^4``. On this early break the two histories do not leave
+# a visible difference in the final ``\langle S^z\rangle``. That agreement is
+# one observable on this short window. It does not show that the process is
+# Markovian.
 
-@assert abs(sz_from_plus - sz_from_down) > 1e-4
+@assert abs(p_from_plus - p_from_down) > abs(sz_from_plus - sz_from_down)
+@assert all(isfinite, (real(sz_from_plus), real(sz_from_down)))
 
 # !!! info "Larger experiments to try next"
 #     The instruments on this page are the same operations used in the longer
