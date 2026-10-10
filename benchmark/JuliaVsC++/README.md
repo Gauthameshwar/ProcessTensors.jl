@@ -90,6 +90,36 @@ Rebuild with `cd ACE && make`. Pin one OpenMP/MKL/OpenBLAS thread and
 `julia -t 1`. `ACE_CPUS` / `JULIA_VS_CPP_CPUS` is a core pool (one case per
 free core). Completed CSV keys are skipped.
 
+### macOS (Apple Silicon)
+
+Intel MKL has no native arm64 macOS build. The MacBook campaign links ACE
+against OpenBLAS with `-DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE`, so Eigen's
+`JacobiSVD` dispatches to `LAPACKE_zgesvd` (the non-MKL half of
+`EIGEN_USE_MKL_ALL`). The gitignored `ACE/Makefile` has a Darwin `@rpath` link
+and an `OPENBLAS_HOME` block for this.
+
+```bash
+brew install gcc openblas
+curl -L https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz | tar xz -C ACE/external
+cd ACE && make CXX=/opt/homebrew/bin/g++-16 \
+  EIGEN_HOME="$PWD/external/eigen-3.4.0" OPENBLAS_HOME=/opt/homebrew/opt/openblas
+```
+
+macOS has no core affinity, so cases run unpinned and `ACE_CPUS` only sets how
+many run at once (default pool = performance cores). The Julia benchmark
+manifest needs `julia +1.12.7`. Write the campaign to its own directory so the
+archived `results/{cpp,julia}/central_spin.csv` are never touched:
+
+```bash
+export JULIA_VS_CPP_RESULTS=benchmark/JuliaVsC++/results/macbook
+ACE_CPUS="0 1 2 3" bash benchmark/JuliaVsC++/run_cpp_central_spin.sh
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  julia +1.12.7 -t 1 --project=benchmark benchmark/JuliaVsC++/run_julia_central_spin.jl
+```
+
+Run C++ first: partial and unpolarised Julia baths read the C++ orientation
+dumps from `$JULIA_VS_CPP_RESULTS/cpp/`.
+
 ## Run
 
 ```bash

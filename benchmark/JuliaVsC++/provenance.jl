@@ -39,6 +39,7 @@ function package_version(name::AbstractString)
 end
 
 function cpu_model()
+    Sys.isapple() && return strip(first(Sys.cpu_info()).model)
     path = "/proc/cpuinfo"
     isfile(path) || return Sys.MACHINE
     for line in eachline(path)
@@ -51,7 +52,7 @@ end
 
 function available_ram()
     path = "/proc/meminfo"
-    isfile(path) || return string(Sys.total_memory())
+    isfile(path) || return @sprintf("%.1f GiB", Sys.total_memory() / 1024^3)
     for line in eachline(path)
         if startswith(line, "MemAvailable:") || startswith(line, "MemTotal:")
             kb = parse(Float64, split(line)[2])
@@ -62,6 +63,7 @@ function available_ram()
 end
 
 function peak_rss_kb()
+    Sys.isapple() && return string(Sys.maxrss() ÷ 1024)
     path = "/proc/self/status"
     isfile(path) || return ""
     for line in eachline(path)
@@ -123,6 +125,8 @@ function pin_to_cpu!(cpu::Int)
 end
 
 function pin_next_task_cpu!(case_index::Integer)
+    # macOS has no sched_setaffinity; the case runs unpinned.
+    Sys.isapple() && return nothing
     cpus = requested_cpus()
     isempty(cpus) && return nothing
     preferred = cpus[mod1(case_index, length(cpus))]
@@ -142,6 +146,7 @@ end
 
 
 function cpus_allowed()
+    Sys.isapple() && return "unpinned"
     path = "/proc/self/status"
     isfile(path) || return pinned_cpu()
     for line in eachline(path)

@@ -16,6 +16,22 @@ if [[ -z "${ACE_ROOT:-}" ]]; then
     ACE_ROOT="$(cd "$BENCH_HERE/../.." && pwd)/ACE"
   fi
 fi
+if [[ -z "${EIGEN_HOME:-}" && -d "$ACE_ROOT/external/eigen-3.4.0" ]]; then
+  EIGEN_HOME="$ACE_ROOT/external/eigen-3.4.0"
+fi
+
+is_darwin() {
+  [[ "$(uname -s)" == Darwin ]]
+}
+
+# macOS cannot pin a process to a core; CSV rows record this instead of a CPU id.
+pin_label() {
+  if is_darwin; then
+    printf 'unpinned'
+  else
+    printf '%s' "$1"
+  fi
+}
 
 
 single_thread_env() {
@@ -30,7 +46,13 @@ single_thread_env() {
 # Machine-online CPUs, not the current process affinity. `nproc` follows the
 # inherited taskset/cgroup mask and can report 1 even on a 128-thread host.
 online_cpu_spec() {
-  if [[ -r /sys/devices/system/cpu/online ]]; then
+  if is_darwin; then
+    # Apple Silicon: default worker pool is the performance cores only, so
+    # concurrent cases are not scheduled onto efficiency cores.
+    local p
+    p=$(sysctl -n hw.perflevel0.logicalcpu 2>/dev/null || sysctl -n hw.logicalcpu)
+    printf '0-%s' "$((p - 1))"
+  elif [[ -r /sys/devices/system/cpu/online ]]; then
     tr -d ' \n' < /sys/devices/system/cpu/online
   else
     printf '0-%s' "$(($(nproc --all) - 1))"
@@ -58,10 +80,15 @@ expand_cpu_spec() {
 }
 
 current_affinity_spec() {
+  if is_darwin; then
+    printf '0-%s' "$(($(sysctl -n hw.logicalcpu) - 1))"
+    return
+  fi
   awk '/^Cpus_allowed_list:/ { print $2; exit }' /proc/self/status 2>/dev/null || nproc
 }
 
 widen_runner_affinity() {
+  is_darwin && return 0
   local spec current
   spec="$(online_cpu_spec)"
   current="$(current_affinity_spec)"
@@ -143,36 +170,93 @@ require_exclusive_cpus() {
   need_cpu_list
 }
 
+ace_linked_libs() {
+  local bin="$1"
+  if is_darwin; then
+    otool -L "$bin" 2>/dev/null
+  else
+    ldd "$bin" 2>/dev/null
+  fi
+}
+
 ace_compiler_flags() {
   local flags="-O3 -fno-math-errno -g -m64 --std=c++14 -fPIC -pthread"
+  local lib="$ACE_ROOT/lib/libACE.so"
   if [[ -n "${MKLROOT:-}" ]]; then
     flags="$flags -DEIGEN_USE_MKL_ALL"
+  elif ace_linked_libs "$lib" | grep -qi openblas; then
+    flags="$flags -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE"
   fi
   printf '%s' "$flags"
 }
 
+# The compiler that built ACE: GCC links its own libstdc++, clang links libc++.
+ace_compiler_version() {
+  local lib="$ACE_ROOT/lib/libACE.so" gxx
+  if [[ -n "${ACE_CXX:-}" ]]; then
+    "$ACE_CXX" --version | head -n 1
+  elif is_darwin && ace_linked_libs "$lib" | grep -q 'opt/gcc/'; then
+    gxx=$(ls /opt/homebrew/bin/g++-[0-9]* 2>/dev/null | sort -V | tail -n 1)
+    "$gxx" --version | head -n 1
+  else
+    ${CXX:-g++} --version | head -n 1
+  fi
+}
+
 ace_eigen_version() {
-  local hdr="${EIGEN_HOME:-/usr/include/eigen3}/Eigen/src/Core/util/Macros.h"
-  if [[ -f "$hdr" ]]; then
+  local root="${EIGEN_HOME:-/usr/include/eigen3}"
+  local hdr
+  for hdr in "$root/Eigen/Version" "$root/Eigen/src/Core/util/Macros.h"; do
+    [[ -f "$hdr" ]] || continue
     awk '
       /^#define EIGEN_WORLD_VERSION/ {w=$3}
       /^#define EIGEN_MAJOR_VERSION/ {j=$3}
       /^#define EIGEN_MINOR_VERSION/ {n=$3}
-      END { if (w != "") printf "%s.%s.%s", w, j, n; else print "unknown" }
-    ' "$hdr"
+      /^#define EIGEN_PATCH_VERSION/ {p=$3}
+      END {
+        if (w == "") exit 1
+        if (p != "") printf "%s.%s.%s", j, n, p; else printf "%s.%s.%s", w, j, n
+      }
+    ' "$hdr" && printf ' (%s)' "$root" && return
+  done
+  printf 'unknown'
+}
+
+ace_openblas_version() {
+  local cfg="${OPENBLAS_HOME:-/opt/homebrew/opt/openblas}/include/openblas_config.h"
+  if [[ -f "$cfg" ]]; then
+    sed -n 's/^#define OPENBLAS_VERSION " *\(.*[^ ]\) *"/\1/p' "$cfg"
   else
-    printf 'unknown'
+    printf 'OpenBLAS (version unknown)'
   fi
 }
 
 ace_blas_link() {
-  local bin="${ACE_BIN:-$ACE_ROOT/bin/ACE}"
-  if [[ -x "$bin" ]] && ldd "$bin" 2>/dev/null | grep -qi mkl; then
+  local lib="$ACE_ROOT/lib/libACE.so"
+  if ace_linked_libs "$lib" | grep -qi mkl; then
     printf 'Intel MKL (linked)'
+  elif ace_linked_libs "$lib" | grep -qi openblas; then
+    printf '%s via LAPACKE; no MKL; Eigen JacobiSVD -> LAPACKE_?gesvd' "$(ace_openblas_version)"
   elif [[ -n "${MKLROOT:-}" ]]; then
     printf 'MKLROOT set but ACE binary is not linked to MKL'
   else
-    printf 'no MKL (Eigen default / libopenblas if present)'
+    printf 'no MKL, no LAPACK (Eigen built-in JacobiSVD)'
+  fi
+}
+
+ace_cpu_model() {
+  if is_darwin; then
+    sysctl -n machdep.cpu.brand_string
+  else
+    awk -F': ' '/model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null || echo unknown
+  fi
+}
+
+ace_ram() {
+  if is_darwin; then
+    awk -v b="$(sysctl -n hw.memsize)" 'BEGIN { printf "%.1f GiB", b / 1024 / 1024 / 1024 }'
+  else
+    awk '/MemTotal:/ {printf "%.1f GiB", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo unknown
   fi
 }
 
@@ -198,16 +282,20 @@ EOF
 
 print_ace_provenance() {
   local bin="${ACE_BIN:-$ACE_ROOT/bin/ACE}"
-  local cpu_model cores ram host
-  cpu_model=$(awk -F': ' '/model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null || echo unknown)
-  cores_all=$(nproc --all 2>/dev/null || nproc)
-  cores=$(expand_cpu_spec "$(current_affinity_spec)" | wc -w)
-  ram=$(awk '/MemTotal:/ {printf "%.1f GiB", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo unknown)
+  local cpu_model cores ram host cores_all
+  cpu_model=$(ace_cpu_model)
+  if is_darwin; then
+    cores_all=$(sysctl -n hw.logicalcpu)
+  else
+    cores_all=$(nproc --all 2>/dev/null || nproc)
+  fi
+  cores=$(expand_cpu_spec "$(current_affinity_spec)" | wc -w | tr -d ' ')
+  ram=$(ace_ram)
   host="$(uname -s) $(uname -r) $(uname -m)"
   cat <<EOF
 ACE C++ BENCHMARK PROVENANCE
 ACE commit           : $(ace_commit)
-compiler/version     : $(${CXX:-g++} --version | head -n 1)
+compiler/version     : $(ace_compiler_version)
 compile flags        : $(ace_compiler_flags)
 Eigen version        : $(ace_eigen_version)
 BLAS/LAPACK          : $(ace_blas_link)
@@ -221,7 +309,8 @@ cpus allowed         : $(current_affinity_spec)
 available RAM        : $ram
 host/kernel          : $host
 ACE binary           : $bin
-timing clock         : GNU time %e wall seconds
+CPU pinning          : $(is_darwin && echo 'none (macOS has no core affinity; pool = performance cores)' || echo 'taskset -c, one exclusive CPU per case')
+timing clock         : $(is_darwin && echo '/usr/bin/time -p real seconds' || echo 'GNU time %e wall seconds')
 timing scope         : setup / build / contraction / I/O / total
 
 EOF
@@ -373,14 +462,34 @@ run_ace_pinned() {
   local cpu="$1" log="$2" timef="$3"
   shift 3
   single_thread_env
-  local -a cmd=()
-  if [[ -n "$cpu" ]]; then
-    cmd+=(taskset -c "$cpu")
+  if is_darwin; then
+    local raw="$timef.raw"
+    /usr/bin/time -l -p -o "$raw" "$ACE_BIN" "$@" > "$log" 2>&1
+    awk '
+      $1 == "real" { e = $2 }
+      /maximum resident set size/ { m = int($1 / 1024) }
+      $2 == "swaps" { w = $1 }
+      END { printf "%s %s %s\n", e, m, w }
+    ' "$raw" > "$timef"
+    rm -f "$raw"
+  else
+    local -a cmd=()
+    if [[ -n "$cpu" ]]; then
+      cmd+=(taskset -c "$cpu")
+    fi
+    cmd+=("$ACE_BIN" "$@")
+    /usr/bin/time -f '%e %M %W' -o "$timef" "${cmd[@]}" > "$log" 2>&1
   fi
-  cmd+=("$ACE_BIN" "$@")
-  /usr/bin/time -f '%e %M %W' -o "$timef" "${cmd[@]}" > "$log" 2>&1
   parse_gnu_time "$timef"
   contract_s=$(contract_from_log "$log")
+}
+
+now_s() {
+  if is_darwin; then
+    perl -MTime::HiRes=time -e 'printf "%.6f", time'
+  else
+    date +%s.%N
+  fi
 }
 
 time_cmd() {
@@ -388,8 +497,8 @@ time_cmd() {
   local log="$1"
   shift
   local start end
-  start=$(date +%s.%N)
+  start=$(now_s)
   "$@" >> "$log" 2>&1 || return $?
-  end=$(date +%s.%N)
+  end=$(now_s)
   awk -v s="$start" -v e="$end" 'BEGIN { printf "%.6f", e - s }'
 }

@@ -20,8 +20,11 @@ using Statistics
 
 include(joinpath(@__DIR__, "provenance.jl"))
 
-const RESULTS_DIR = joinpath(@__DIR__, "results", "julia")
-const CPP_RESULTS_DIR = joinpath(@__DIR__, "results", "cpp")
+# JULIA_VS_CPP_RESULTS redirects both the Julia CSV and the C++ orientation dumps
+# it reads, so a new machine campaign never touches the archived results/ files.
+const RESULTS_ROOT = abspath(get(ENV, "JULIA_VS_CPP_RESULTS", joinpath(@__DIR__, "results")))
+const RESULTS_DIR = joinpath(RESULTS_ROOT, "julia")
+const CPP_RESULTS_DIR = joinpath(RESULTS_ROOT, "cpp")
 const BENCH_SAMPLES = parse(Int, get(ENV, "ACE_BENCH_SAMPLES", "1"))
 const BENCH_SECONDS = parse(Float64, get(ENV, "ACE_BENCH_SECONDS", "1800"))
 

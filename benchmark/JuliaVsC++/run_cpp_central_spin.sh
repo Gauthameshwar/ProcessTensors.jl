@@ -11,6 +11,10 @@
 # Optional:
 #   ACE_CPUS="0 1 2 3" NS="5 10" POLS="polarised" \
 #     bash benchmark/JuliaVsC++/run_cpp_central_spin.sh
+#
+# JULIA_VS_CPP_RESULTS=benchmark/JuliaVsC++/results/macbook sends the CSV, logs,
+# and orientation dumps to a separate campaign directory. On macOS cases are
+# unpinned and ACE_CPUS only sets how many run at once.
 
 set -euo pipefail
 
@@ -19,7 +23,9 @@ ACE_BIN="${ACE_BIN:-$ROOT/ACE/bin/ACE}"
 ANALYZE="${ANALYZE:-$ROOT/ACE/tools/PTB_analyze}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CPP="$HERE/cpp"
-OUT="$HERE/results/cpp"
+RESULTS_ROOT="${JULIA_VS_CPP_RESULTS:-$HERE/results}"
+[[ "$RESULTS_ROOT" == /* ]] || RESULTS_ROOT="$PWD/$RESULTS_ROOT"
+OUT="$RESULTS_ROOT/cpp"
 CASE_DIR="$OUT/.central_spin_cases"
 NS="${NS:-5 10 25 50 100}"
 POLS="${POLS:-polarised partial unpolarised}"
@@ -107,7 +113,7 @@ run_one_case() {
   echo "=== C++ ACE  polarisation=$pol  N=$N  J_k=$Jk  cpu=$cpu ==="
   print_run_parameters \
     "cpp_${tag}" central_spin "$pol" "$N" 2 "$(polarization_for "$pol")" \
-    "$DT" "$TE" "$NSTEPS" "$CUTOFF" true "$(seed_for "$pol")" n/a "J_k=$Jk" "$cpu"
+    "$DT" "$TE" "$NSTEPS" "$CUTOFF" true "$(seed_for "$pol")" n/a "J_k=$Jk" "$(pin_label "$cpu")"
 
   run_ace_pinned "$cpu" "$log" "$timef" \
     "$param" \
@@ -139,7 +145,7 @@ run_one_case() {
   print_validation "$maxdim" "n/a (dont_propagate)" "n/a (dont_propagate)" "n/a (dont_propagate)" "$status"
 
   printf '%s\n' "$HEADER" > "$fragment"
-  echo "cpp,central_spin,$pol,$N,$Jk,$DT,$TE,$CUTOFF,$elapsed_sec,$maxdim,$log,$pt,,$build_s,$contract_s,$io_s,$elapsed_sec,$peak_rss_kb,$swap_io,build+write_PT,${OMP_NUM_THREADS:-1},${MKL_NUM_THREADS:-1},$cpu,$maxdim,n/a,n/a,n/a,$status" >> "$fragment"
+  echo "cpp,central_spin,$pol,$N,$Jk,$DT,$TE,$CUTOFF,$elapsed_sec,$maxdim,$log,$pt,,$build_s,$contract_s,$io_s,$elapsed_sec,$peak_rss_kb,$swap_io,build+write_PT,${OMP_NUM_THREADS:-1},${MKL_NUM_THREADS:-1},$(pin_label "$cpu"),$maxdim,n/a,n/a,n/a,$status" >> "$fragment"
 }
 
 shopt -s nullglob
