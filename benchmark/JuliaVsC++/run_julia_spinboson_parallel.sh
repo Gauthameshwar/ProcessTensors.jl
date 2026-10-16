@@ -113,7 +113,8 @@ queue_launch() {
   q_label="kBT/Omega=$temperature N_modes=$n_modes"
   rm -f "$q_frag"
   echo "CPU $cpu  <-  $q_label  (julia -t 1, BLAS=1, $COMPRESSION)"
-  taskset -c "$cpu" env \
+  stream_prefixed "$q_log" "$q_label" \
+    taskset -c "$cpu" env \
     OMP_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
@@ -126,9 +127,7 @@ queue_launch() {
     JULIA_VS_CPP_TEMPS="$temperature" \
     JULIA_VS_CPP_NS="$n_modes" \
     JULIA_VS_CPP_OUTPUT=".spinboson_cases/${stem}.csv" \
-    julia -t 1 --project="$ROOT/benchmark" "$HERE/run_julia_spinboson.jl" \
-    > "$q_log" 2>&1 &
-  q_pid=$!
+    stdbuf -oL -eL julia -t 1 --project="$ROOT/benchmark" "$HERE/run_julia_spinboson.jl"
 }
 
 need_cpu_list

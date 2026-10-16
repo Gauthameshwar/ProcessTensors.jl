@@ -147,8 +147,7 @@ queue_launch() {
   q_label="kBT/Omega=$T N_modes=$N"
   rm -f "$q_frag"
   echo "Launching C++ $q_label on exclusive CPU $cpu"
-  ( run_one_case "$T" "$N" "$cpu" ) > "$q_log" 2>&1 &
-  q_pid=$!
+  stream_prefixed "$q_log" "$q_label" run_one_case "$T" "$N" "$cpu"
 }
 
 need_cpu_list
