@@ -1,0 +1,13 @@
+code,polarisation,N,compression,t_min_s,maxdim,memory_bytes,allocs,nthreads,blas_threads
+julia,polarised,5,zipup,3.463794807,28,8803360056,2110503,1,1
+julia,polarised,5,zipup_cpp,3.214941057,28,7692899352,2061250,1,1
+julia,polarised,5,canonzip,6.081546971,28,13818626984,1856375,1,1
+julia,polarised,10,zipup,6.676570577,24,18127411032,4233188,1,1
+julia,polarised,10,zipup_cpp,6.618728639,24,15971396904,4118534,1,1
+julia,polarised,10,canonzip,13.35099708,20,30604351216,3731753,1,1
+julia,polarised,25,zipup,9.287698546,15,28369555536,10396481,1,1
+julia,polarised,25,zipup_cpp,9.372205767,15,25238600800,10083141,1,1
+julia,polarised,25,canonzip,17.825092329,13,44618529160,9225531,1,1
+julia,unpolarised,5,zipup,18.431676118,57,32297865528,2247547,1,1
+julia,unpolarised,5,zipup_cpp,19.009200544,57,27493437912,2198401,1,1
+julia,unpolarised,5,canonzip,17.610101675,57,32630774336,1903443,1,1

@@ -80,41 +80,15 @@ uses the same closed form in [`common.jl`](common.jl).
 ## Setup
 
 ```bash
-sudo apt install g++ make libeigen3-dev libopenblas-dev liblapacke-dev
-```
-
-Upstream ACE links an external LAPACK only when `MKLROOT` is set
-(`-DEIGEN_USE_MKL_ALL`). AMD and Arm-based chips have no solid MKL support. In the gitignored `ACE/Makefile`
-`else` branch, reuse the same variables so Eigen's `JacobiSVD` calls
-`LAPACKE_?gesvd`:
-
-```make
-else
-  $(info ACE will be compiled against OpenBLAS LAPACKE. JacobiSVD uses LAPACKE gesvd.)
-  MKL_INCL = -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE
-  MKL_LINK = -lopenblas -llapacke
-endif
-```
-
-Unset `MKLROOT`, then `cd ACE && make clean && make`. `ldd ACE/lib/libACE.so`
-must list `libopenblas` and must not list MKL. On Debian, LAPACKE is the
-separate `-llapacke`. This server has no passwordless `sudo` and no system
-Eigen, so the same flags point at a user-local build: Eigen 3.4.0 headers in
-`ACE/external/eigen-3.4.0`, and OpenBLAS 0.3.30 (`TARGET=SKYLAKEX`) installed
-at `~/.local/openblas`, whose `libopenblas.so` exports `LAPACKE_zgesvd`.
-
-```bash
-make EIGEN_HOME="$PWD/external/eigen-3.4.0" OPENBLAS_HOME="$HOME/.local/openblas"
-```
-
-```bash
+sudo apt install libeigen3-dev   # headers at /usr/include/eigen3
+cd ACE && make && cd ..          # libACE.so, bin/ACE, tools/PTB_analyze
 export PATH="$PWD/ACE/bin:$PWD/ACE/tools:$PATH"
 ACE                              # usage, not command-not-found
 ```
 
-Pin one OpenMP/MKL/OpenBLAS thread and `julia -t 1`. `ACE_CPUS` /
-`JULIA_VS_CPP_CPUS` is a core pool (one case per free core). Completed CSV
-keys are skipped. Each campaign streams case output as it is printed.
+Rebuild with `cd ACE && make`. Pin one OpenMP/MKL/OpenBLAS thread and
+`julia -t 1`. `ACE_CPUS` / `JULIA_VS_CPP_CPUS` is a core pool (one case per
+free core). Completed CSV keys are skipped.
 
 ## Run
 
@@ -202,6 +176,9 @@ This production sweep is $\Delta t=0.1$, $n=200$. Published IB:
 This sweep is $C/\Omega^2=0.2$, $N\_E\in\{5,10,20,50,100\}$,
 $t\_{\mathrm{final}}=8$, $\varepsilon=10^{-8}$.
 
+Beating laptop Table S.3.1 times on a Threadripper only shows a healthy
+`-O3` C++ binary, not that Julia is faster.
+
 ## Matching caveats
 
 - Fully polarised CS is a like-for-like microscopic match. Unpolarised /
@@ -211,22 +188,3 @@ $t\_{\mathrm{final}}=8$, $\varepsilon=10^{-8}$.
 - `sys_alg=Trotter{2}()` is the system–bath split. C++ mode maps are exact
   per mode then joined. Julia embeds $H\_S$ after the bath sweep (does not
   change $D\_{\max}$).
-
-## Software versions
-
-Software used for the timings in `results/`:
-
-| Piece | Version |
-| :--- | :--- |
-| `g++` | 13.3.0, `-O3 -fno-math-errno -g -m64 --std=c++14 -fPIC -pthread` |
-| Eigen | 3.4.0 (`ACE/external/eigen-3.4.0`) |
-| C++ BLAS/LAPACK | OpenBLAS 0.3.30, built `TARGET=SKYLAKEX`, LP64 |
-| C++ link | `-DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE`; `JacobiSVD` calls `LAPACKE_?gesvd`. No MKL |
-| ACE | `d15e85c` (`fixed parameters in CTEMPO example`) |
-| Julia | 1.12.7, `julia -t 1` |
-| ProcessTensors | 0.2.0 |
-| ITensors / ITensorMPS | 0.9.31 / 0.4.1 |
-| Julia BLAS | OpenBLAS 0.3.29 ILP64 (`libopenblas64_.so`), one thread |
-| Compression | Julia `:zipup_cpp` (`gesdd`); C++ Eigen `JacobiSVD` via LAPACKE `gesvd` |
-
-One OpenMP thread and one BLAS thread on every case.

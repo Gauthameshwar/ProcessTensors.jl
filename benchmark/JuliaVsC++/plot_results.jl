@@ -128,10 +128,8 @@ function series!(axis, points, plot_style, implementation)
     return nothing
 end
 
-const LABEL_ANGLES = ntuple(k -> 2π * (k - 1) / 24, 24)
-const LABEL_RADII = (0.034, 0.046, 0.058)
-const MARKER_CLEAR = 0.013
-const LINE_CLEAR = 0.016
+const LABEL_ANGLES = ntuple(k -> 2π * (k - 1) / 16, 16)
+const LABEL_RADII = (0.022, 0.032, 0.042)
 
 function panel_uv_limits(points)
     xs = getproperty.(points, :runtime)
@@ -186,33 +184,36 @@ function seg_hits_aabb(u0, v0, u1, v1, box)
     return false
 end
 
-function label_box(u, v, θ, d; w=0.066, h=0.030)
+function label_box(u, v, θ, d; w=0.085, h=0.042)
     cu, cv = u + d * cos(θ), v + d * sin(θ)
     return (u0=cu - w/2, u1=cu + w/2, v0=cv - h/2, v1=cv + h/2, cu=cu, cv=cv)
 end
 
-function dist_point_aabb(px, py, box)
-    dx = max(box.u0 - px, 0.0, px - box.u1)
-    dy = max(box.v0 - py, 0.0, py - box.v1)
-    return hypot(dx, dy)
-end
-
-function dist_point_seg(px, py, u0, v0, u1, v1)
-    dx, dy = u1 - u0, v1 - v0
-    len2 = dx * dx + dy * dy
-    t = len2 == 0 ? 0.0 : clamp(((px - u0) * dx + (py - v0) * dy) / len2, 0.0, 1.0)
-    return hypot(px - (u0 + t * dx), py - (v0 + t * dy))
-end
-
 function label_override(point)
+    N = round(Int, point.sweep)
+    if point.case_key == "unpolarised" && N == 25
+        return (θ=π, d=0.034)
+    end
+    if point.case_key == "unpolarised" && N == 50
+        return point.implementation == "Julia" ? (θ=5π/4, d=0.032) : (θ=3π/4, d=0.034)
+    end
+    if point.implementation == "Julia" && point.case_key == "1" && N == 5
+        return (θ=3π/2, d=0.034)
+    end
+    if point.implementation == "C++" && point.case_key == "1" && N == 5
+        return (θ=π/2, d=0.034)
+    end
+    if point.implementation == "Julia" && point.case_key == "1" && N == 10
+        return (θ=11π/6, d=0.05)
+    end
+    if point.implementation == "Julia" && point.case_key == "1" && N == 20
+        return (θ=π, d=0.034)
+    end
     return nothing
 end
 
-"""Place N=… labels on a ring around each marker.
-
-At a given radius, pick the angle that keeps the caption off the marker and as far from the series line as possible. A larger radius is used only when every angle on the inner ring covers a marker or another caption.
-"""
-function annotation_poses(points; w=0.066, h=0.030)
+"""Place N=… labels on a ring of radius d around each marker, choosing θ to avoid other markers, polylines, and labels."""
+function annotation_poses(points; w=0.085, h=0.042)
     isempty(points) && return NamedTuple[]
     lims = panel_uv_limits(points)
     uv = [to_uv(p.runtime, p.maxdim, lims) for p in points]
@@ -256,45 +257,41 @@ function annotation_poses(points; w=0.066, h=0.030)
             end
         end
         nloc > 0 && (local_u /= nloc; local_v /= nloc)
-        # Innermost ring that clears markers and other captions. On that ring,
-        # take the angle farthest from the series lines.
         best = nothing
-        best_rank = (1, 1, Inf, 1, 0.0, Inf)
+        best_cost = Inf
+        found = false
         for d in LABEL_RADII
             for θ in LABEL_ANGLES
                 box = label_box(u, v, θ, d; w, h)
-                on_label = false
+                cost = 25 * d
+                (box.u0 < 0 || box.u1 > 1 || box.v0 < 0 || box.v1 > 1) && (cost += 80)
+                for (j, (uj, vj)) in enumerate(uv)
+                    j == i && continue
+                    point_in_aabb(uj, vj, box; pad=0.016) && (cost += 400)
+                    cost += 8 / max(hypot(box.cu - uj, box.cv - vj), 0.02)
+                end
                 for other in placed
-                    aabb_overlap(box, other) && (on_label = true)
+                    aabb_overlap(box, other) && (cost += 900)
+                    cost += 18 / max(hypot(box.cu - other.cu, box.cv - other.cv), 0.02)
                 end
-                marker_gap = Inf
-                for (uj, vj) in uv
-                    marker_gap = min(marker_gap, dist_point_aabb(uj, vj, box))
-                end
-                on_marker = marker_gap < MARKER_CLEAR
-                line_gap = Inf
                 for (u0, v0, u1, v1) in segments
-                    line_gap = min(line_gap, dist_point_seg(box.cu, box.cv, u0, v0, u1, v1))
+                    seg_hits_aabb(u0, v0, u1, v1, box) && (cost += 280)
                 end
-                off_frame = box.u0 < 0 || box.u1 > 1 || box.v0 < 0 || box.v1 > 1
-                on_line = line_gap < LINE_CLEAR || off_frame
-                away = nloc > 0 ? -((box.cu - u) * (u - local_u) + (box.cv - v) * (v - local_v)) : 0.0
-                rank = (
-                    on_label ? 1 : 0,
-                    on_marker ? 1 : 0,
-                    d,
-                    on_line ? 1 : 0,
-                    -min(line_gap, 0.08),
-                    away,
-                )
-                if rank < best_rank
-                    best_rank = rank
+                if nloc > 0
+                    cost -= 4 * ((box.cu - u) * (u - local_u) + (box.cv - v) * (v - local_v))
+                end
+                if cost < best_cost
+                    best_cost = cost
                     best = box
                 end
+                if cost < 8
+                    found = true
+                    break
+                end
             end
-            best_rank[1] == 0 && best_rank[2] == 0 && best_rank[4] == 0 && break
+            found && break
         end
-        box = best === nothing ? label_box(u, v, π/4, LABEL_RADII[1]; w, h) : best
+        box = best === nothing ? label_box(u, v, π/4, LABEL_RADII[end]; w, h) : best
         push!(placed, box)
         x, y = from_uv(box.cu, box.cv, lims)
         poses[i] = (; x, y)
