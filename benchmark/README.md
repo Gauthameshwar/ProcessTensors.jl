@@ -147,8 +147,11 @@ $\varepsilon=10^{-8}$, $N\_E\in\{5,10,20,50,100\}$,
 $k\_B T/\Omega\in\{0,0.5,1.0,3.0\}$.
 
 ```bash
-sudo apt install libeigen3-dev
-cd ACE && make && cd ..
+sudo apt install g++ make libeigen3-dev libopenblas-dev liblapacke-dev
+# ACE/Makefile else branch (no MKLROOT): JacobiSVD -> LAPACKE gesvd
+#   MKL_INCL = -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE
+#   MKL_LINK = -lopenblas -llapacke
+cd ACE && make clean && make && cd ..
 export PATH="$PWD/ACE/bin:$PWD/ACE/tools:$PATH"
 bash benchmark/JuliaVsC++/run_cpp_central_spin.sh
 bash benchmark/JuliaVsC++/run_cpp_spinboson.sh
