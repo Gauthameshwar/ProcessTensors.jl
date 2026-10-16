@@ -22,4 +22,4 @@ ProcessTensors.jl units.
 
 Last ED check ([`results/summary.txt`](results/summary.txt)): $N=3$,
 `:zipup_cpp`, max rel. Frobenius vs ED $\approx 8.6\times 10^{-8}$,
-Julia vs C++ $\approx 3.5\times 10^{-10}$.
+Julia vs C++ $\approx 3.5\times 10^{-10}$
