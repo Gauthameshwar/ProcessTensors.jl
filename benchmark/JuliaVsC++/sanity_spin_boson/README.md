@@ -18,5 +18,5 @@ bash benchmark/JuliaVsC++/run_sanity_cpp_julia_ed.sh
   independent-boson / Morse family
 
 Last ED check ([`results/summary.txt`](results/summary.txt)): $N\_E=2$,
-$M=5$, `:zipup_cpp`, max rel. Frobenius vs ED $\approx 2.1\times 10^{-5}$,
-Julia vs C++ $\approx 6.5\times 10^{-7}$
+$M=5$, max rel. Frobenius vs ED $\approx 2.1\times 10^{-5}$,
+Julia vs C++ $\approx 6.5\times 10^{-7}$.

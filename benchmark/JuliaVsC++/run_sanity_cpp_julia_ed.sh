@@ -51,7 +51,7 @@ run_one() {
         ACE_BIN="$ACE_BIN" \
         SKIP_INSTANTIATE=1 \
         JULIA_VS_CPP_BLAS_THREADS=1 \
-    stdbuf -oL -eL julia -t 1 --project="$ROOT/benchmark" "$script"
+    julia -t 1 --project="$ROOT/benchmark" "$script"
   echo
 }
 

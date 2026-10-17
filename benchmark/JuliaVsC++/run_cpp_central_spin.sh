@@ -173,7 +173,8 @@ queue_launch() {
   q_label="polarisation=$pol N=$N"
   rm -f "$q_frag"
   echo "Launching C++ $q_label on exclusive CPU $cpu"
-  stream_prefixed "$q_log" "$q_label" run_one_case "$pol" "$N" "$cpu"
+  ( run_one_case "$pol" "$N" "$cpu" ) > "$q_log" 2>&1 &
+  q_pid=$!
 }
 
 need_cpu_list

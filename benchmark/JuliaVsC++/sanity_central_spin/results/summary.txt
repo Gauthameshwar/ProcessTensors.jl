@@ -7,5 +7,5 @@ final_time=1.0
 cutoff=1.0e-10
 julia_maxdim=8
 max_relative_frobenius_julia_vs_ed=8.578519962116174e-8
-max_relative_frobenius_cpp_vs_ed=8.578363451941797e-8
-max_relative_frobenius_julia_vs_cpp=3.5134595920559365e-10
+max_relative_frobenius_cpp_vs_ed=8.578395569145804e-8
+max_relative_frobenius_julia_vs_cpp=3.50976438403526e-10
