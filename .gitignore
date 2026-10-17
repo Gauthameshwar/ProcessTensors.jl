@@ -51,5 +51,6 @@ scripts/.cache/
 # Throwaway smoke CSVs from local environment checks
 benchmark/**/*smoke*.csv
 
-# Benchmarking with OG ACE (not part of our package)
-ACE/*
+# Benchmarking with OG ACE (not part of our package).
+# Ignore the directory itself so a nested clone is not recorded as a submodule.
+/ACE/

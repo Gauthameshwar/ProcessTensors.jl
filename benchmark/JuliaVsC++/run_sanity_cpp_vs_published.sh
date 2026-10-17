@@ -89,9 +89,8 @@ for spec in "${cases[@]}"; do
     taskset -c "$SANITY_CPU" \
     env OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
         MKL_DYNAMIC=FALSE OMP_DYNAMIC=FALSE \
-    "$ACE_BIN" "$param" > "$log" 2>&1 || {
+    stdbuf -oL -eL "$ACE_BIN" "$param" 2>&1 | tee "$log" || {
       echo "ACE failed; see $log" >&2
-      tail -n 30 "$log" >&2
       exit 1
     }
 

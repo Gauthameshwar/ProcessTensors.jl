@@ -16,6 +16,15 @@ if [[ -z "${ACE_ROOT:-}" ]]; then
     ACE_ROOT="$(cd "$BENCH_HERE/../.." && pwd)/ACE"
   fi
 fi
+# User-local OpenBLAS used when system packages are not installed.
+if [[ -z "${OPENBLAS_HOME:-}" && -d "${HOME}/.local/openblas/lib" ]]; then
+  OPENBLAS_HOME="${HOME}/.local/openblas"
+  export OPENBLAS_HOME
+fi
+if [[ -z "${EIGEN_HOME:-}" && -d "$ACE_ROOT/external/eigen-3.4.0" ]]; then
+  EIGEN_HOME="$ACE_ROOT/external/eigen-3.4.0"
+  export EIGEN_HOME
+fi
 
 
 single_thread_env() {
@@ -127,11 +136,10 @@ run_in_cpu_batches() {
     done
     for i in "${!pids[@]}"; do
       if wait "${pids[$i]}"; then
-        [[ -f "${logs[$i]}" ]] && cat "${logs[$i]}"
+        echo "Finished: ${labs[$i]}"
         merge_fragment "${frags[$i]}"
       else
         echo "Case failed: ${labs[$i]} (see ${logs[$i]})" >&2
-        [[ -f "${logs[$i]}" ]] && tail -n 40 "${logs[$i]}" >&2
         failed=1
       fi
     done
@@ -143,12 +151,58 @@ require_exclusive_cpus() {
   need_cpu_list
 }
 
+# Background a function or command. Its output is streamed to this process's
+# stdout with a prefix as each line is produced, and an unprefixed copy is
+# kept in the log. Sets q_pid to the streaming subshell.
+stream_prefixed() {
+  local log="$1" prefix="$2"
+  shift 2
+  (
+    set -o pipefail
+    # '|' is the delimiter: spin-boson labels contain '/' (kBT/Omega), which
+    # breaks sed's default s/// form and kills the pipeline under pipefail.
+    "$@" 2>&1 | stdbuf -oL tee "$log" | stdbuf -oL sed -u "s|^|[${prefix}] |"
+  ) &
+  q_pid=$!
+}
+
 ace_compiler_flags() {
   local flags="-O3 -fno-math-errno -g -m64 --std=c++14 -fPIC -pthread"
+  local lib="$ACE_ROOT/lib/libACE.so"
   if [[ -n "${MKLROOT:-}" ]]; then
     flags="$flags -DEIGEN_USE_MKL_ALL"
+  elif [[ -f "$lib" ]] && ldd "$lib" 2>/dev/null | grep -qi openblas; then
+    flags="$flags -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE"
   fi
   printf '%s' "$flags"
+}
+
+ace_openblas_version() {
+  local cfg dir cflags
+  local -a candidates=()
+  if [[ -n "${OPENBLAS_HOME:-}" ]]; then
+    candidates+=("${OPENBLAS_HOME}/include/openblas_config.h")
+  fi
+  if command -v pkg-config >/dev/null 2>&1; then
+    cflags=$(pkg-config --cflags openblas 2>/dev/null || true)
+    for dir in $cflags; do
+      [[ "$dir" == -I* ]] || continue
+      dir="${dir#-I}"
+      candidates+=("$dir/openblas_config.h" "$dir/openblas/openblas_config.h")
+    done
+  fi
+  candidates+=(
+    /usr/include/openblas_config.h
+    /usr/include/openblas/openblas_config.h
+    /usr/include/x86_64-linux-gnu/openblas/openblas_config.h
+    /usr/include/x86_64-linux-gnu/openblas-pthread/openblas_config.h
+  )
+  for cfg in "${candidates[@]}"; do
+    [[ -f "$cfg" ]] || continue
+    sed -n 's/^#define OPENBLAS_VERSION " *\(.*[^ ]\) *"/\1/p' "$cfg"
+    return
+  done
+  printf 'OpenBLAS (version unknown)'
 }
 
 ace_eigen_version() {
@@ -166,13 +220,15 @@ ace_eigen_version() {
 }
 
 ace_blas_link() {
-  local bin="${ACE_BIN:-$ACE_ROOT/bin/ACE}"
-  if [[ -x "$bin" ]] && ldd "$bin" 2>/dev/null | grep -qi mkl; then
+  local lib="$ACE_ROOT/lib/libACE.so"
+  if [[ -f "$lib" ]] && ldd "$lib" 2>/dev/null | grep -qi mkl; then
     printf 'Intel MKL (linked)'
+  elif [[ -f "$lib" ]] && ldd "$lib" 2>/dev/null | grep -qi openblas; then
+    printf '%s via LAPACKE; no MKL; Eigen JacobiSVD -> LAPACKE_?gesvd' "$(ace_openblas_version)"
   elif [[ -n "${MKLROOT:-}" ]]; then
     printf 'MKLROOT set but ACE binary is not linked to MKL'
   else
-    printf 'no MKL (Eigen default / libopenblas if present)'
+    printf 'no MKL, no LAPACK (Eigen built-in JacobiSVD)'
   fi
 }
 
@@ -377,8 +433,9 @@ run_ace_pinned() {
   if [[ -n "$cpu" ]]; then
     cmd+=(taskset -c "$cpu")
   fi
-  cmd+=("$ACE_BIN" "$@")
-  /usr/bin/time -f '%e %M %W' -o "$timef" "${cmd[@]}" > "$log" 2>&1
+  cmd+=(stdbuf -oL -eL "$ACE_BIN" "$@")
+  # tee keeps the ACE log and lets the caller stream lines as ACE prints them.
+  /usr/bin/time -f '%e %M %W' -o "$timef" "${cmd[@]}" 2>&1 | tee "$log"
   parse_gnu_time "$timef"
   contract_s=$(contract_from_log "$log")
 }
