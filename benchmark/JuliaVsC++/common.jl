@@ -294,11 +294,15 @@ function driven_tls_system()
     end
 end
 
-function build_ace_pt(system, bath; dt, nsteps, cutoff, maxdim, compression=:zipup_cpp)
+function build_ace_pt(
+    system, bath; dt, nsteps, cutoff, maxdim, compression=:zipup_cpp, svd_alg=nothing,
+)
     return with_logger(NullLogger()) do
         build_process_tensor(
             system;
-            method=ACE(cutoff=cutoff, maxdim=maxdim, compression=compression),
+            method=ACE(
+                cutoff=cutoff, maxdim=maxdim, compression=compression, svd_alg=svd_alg,
+            ),
             environment=bath,
             dt,
             nsteps,
@@ -323,8 +327,12 @@ function trial_stats(trial)
 end
 
 """Untimed compile/warmup build, then BenchmarkTools samples of construction only."""
-function measure_ace_pt(system, bath; dt, nsteps, cutoff, maxdim, compression=:zipup_cpp)
-    pt = build_ace_pt(system, bath; dt, nsteps, cutoff, maxdim, compression)
+function measure_ace_pt(
+    system, bath; dt, nsteps, cutoff, maxdim, compression=:zipup_cpp, svd_alg=nothing,
+)
+    pt = build_ace_pt(
+        system, bath; dt, nsteps, cutoff, maxdim, compression, svd_alg,
+    )
     χ = Int(maxlinkdim(pt.core))
     bench = @benchmarkable build_ace_pt(
         $system,
@@ -334,6 +342,7 @@ function measure_ace_pt(system, bath; dt, nsteps, cutoff, maxdim, compression=:z
         cutoff=$cutoff,
         maxdim=$maxdim,
         compression=$compression,
+        svd_alg=$svd_alg,
     )
     trial = run(bench; samples=BENCH_SAMPLES, evals=1, seconds=BENCH_SECONDS)
     return pt, trial_stats(trial), χ

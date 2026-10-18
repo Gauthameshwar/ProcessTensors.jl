@@ -1,0 +1,2 @@
+model,N,julia_gesvd_build_s,julia_gesvd_maxdim,julia_gesvd_setup_s,svd_alg,cutoff
+central_spin,10,394.852679318,49,17.383604464,qr_iteration,1.0e-10

@@ -156,6 +156,7 @@ function _ace_svd_bond!(
     destination::Int;
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     abs(source - destination) == 1 || throw(
         ArgumentError("ACE compression requires neighboring cores; got $source and $destination."),
@@ -169,6 +170,7 @@ function _ace_svd_bond!(
         source_unique;
         cutoff=0.0,
         lefttags=tags(bond),
+        alg=svd_alg,
     )
     u = commonind(U, S)
     v = commonind(S, V)
@@ -203,6 +205,7 @@ function _ace_backward_sweep!(
     cores::Vector{ITensor};
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     for source in length(cores):-1:2
         _ace_svd_bond!(
@@ -211,6 +214,7 @@ function _ace_backward_sweep!(
             source - 1;
             epsilon=epsilon,
             maxdim=maxdim,
+            svd_alg=svd_alg,
         )
     end
     return cores
@@ -241,9 +245,10 @@ function _ace_cpp_split(
     epsilon::Real,
     maxdim::Integer,
     lefttags,
+    svd_alg=nothing,
 )
     U, S, V = svd(
-        source, left_inds; cutoff=0.0, lefttags,
+        source, left_inds; cutoff=0.0, lefttags, alg=svd_alg,
     )
     u = commonind(U, S)
     v = commonind(S, V)
@@ -280,6 +285,7 @@ function _ace_cpp_forward_svd!(
     mode_destination::ITensor;
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     right_inds = unique(vcat(
         collect(commoninds(cores[source], old_destination)),
@@ -295,6 +301,7 @@ function _ace_cpp_forward_svd!(
         epsilon,
         maxdim,
         lefttags="PT,Link,tstep=$source",
+        svd_alg,
     )
     return pass_on
 end
@@ -303,6 +310,7 @@ function _ace_cpp_backward_sweep!(
     cores::Vector{ITensor};
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     for source in length(cores):-1:2
         destination = source - 1
@@ -314,6 +322,7 @@ function _ace_cpp_backward_sweep!(
             epsilon,
             maxdim,
             lefttags=tags(bond),
+            svd_alg,
         )
         cores[destination] *= pass_on
     end
@@ -332,6 +341,7 @@ function _ace_join_and_sweep_cpp!(
     alg=Exact(),
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     mode_cores, mode_inputs, mode_outputs = _ace_mode_cores(
         combine_alg, coupling_site, mode, dt, nsteps, alg,
@@ -354,10 +364,11 @@ function _ace_join_and_sweep_cpp!(
                 mode_cores[_ace_next_mode_core(combine_alg, n)];
                 epsilon=epsilon,
                 maxdim=maxdim,
+                svd_alg=svd_alg,
             )
         end
     end
-    return _ace_cpp_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim)
+    return _ace_cpp_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim, svd_alg=svd_alg)
 end
 
 # Absorb one mode by joining the full time chain without truncation, moving the
@@ -374,6 +385,7 @@ function _ace_join_then_canonzip!(
     alg=Exact(),
     epsilon::Real,
     maxdim::Integer,
+    svd_alg=nothing,
 )
     mode_cores, mode_inputs, mode_outputs = _ace_mode_cores(
         combine_alg, coupling_site, mode, dt, nsteps, alg,
@@ -392,7 +404,7 @@ function _ace_join_then_canonzip!(
     for n in eachindex(cores)
         cores[n] = mpo[n]
     end
-    return _ace_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim)
+    return _ace_backward_sweep!(cores; epsilon=epsilon, maxdim=maxdim, svd_alg=svd_alg)
 end
 
 """
@@ -471,6 +483,7 @@ function _build_ace_pt_cores(
                 alg=alg,
                 epsilon=method.cutoff,
                 maxdim=method.maxdim,
+                svd_alg=method.svd_alg,
             )
             χ = ITensorMPS.maxlinkdim(CoreMPO(cores))
             @progress_update run k (mode=k, maxlinkdim=χ)

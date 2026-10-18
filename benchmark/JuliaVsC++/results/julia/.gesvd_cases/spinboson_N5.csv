@@ -1,0 +1,2 @@
+model,N,julia_gesvd_build_s,julia_gesvd_maxdim,julia_gesvd_setup_s,svd_alg,cutoff
+spinboson,5,5998.282528703,77,29.2640756,qr_iteration,1.0e-8

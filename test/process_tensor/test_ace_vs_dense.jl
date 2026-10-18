@@ -61,6 +61,10 @@ end
     @test ACE().cutoff == 1e-10
     @test ACE().maxdim == typemax(Int)
     @test ACE().compression === :zipup_cpp
+    @test ACE().svd_alg === nothing
+    @test ACE(; svd_alg="qr_iteration").svd_alg == "qr_iteration"
+    @test ACE(; svd_alg="divide_and_conquer").svd_alg == "divide_and_conquer"
+    @test_throws ArgumentError ACE(; svd_alg="gesdd")
     @test ACE(; cutoff=1e-8, maxdim=32).cutoff == 1e-8
     @test ACE(; cutoff=1e-8, maxdim=32).maxdim == 32
     @test ACE(; compression=:zipup_cpp).compression === :zipup_cpp
@@ -252,6 +256,14 @@ end
         @test _ace_traj_err(trajs[compression], traj_dense) < 1e-3
     end
     @test _ace_traj_err(trajs[:zipup_cpp], trajs[:canonzip]) < 1e-10
+
+    pt_gesvd = build_process_tensor(
+        system, system.sites[1];
+        method=ACE(cutoff=0.0, compression=:zipup_cpp, svd_alg="qr_iteration"),
+        environment=bath, dt=dt, nsteps=nsteps,
+        combine_alg=Trotter{2}(),
+    )
+    @test _ace_traj_err(_ace_dense_traj(pt_gesvd, rho0_h), trajs[:zipup_cpp]) < 1e-8
 end
 
 @testset "ACE: uncoupled modes reproduce the free-system trajectory" begin
