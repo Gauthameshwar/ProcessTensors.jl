@@ -1,0 +1,7 @@
+# Raw audit outputs and built harnesses. The processed CSVs and report.md are tracked.
+logs/
+fixtures/
+cpp/*.so
+cpp/gesvd_replay
+results/*.png
+results/per_svd_dump.csv
