@@ -83,6 +83,7 @@ using .Instruments: add!
 # Process tensors
 
 include("process_tensor/process_tensor.jl")
+include("process_tensor/choi.jl")
 
 # Instrument materialisation depends on process-tensor leg definitions
 Base.include(
@@ -174,6 +175,7 @@ export joint_propagation, joint_unitary
 # Process tensors
 export Dense, ACE
 export ProcessTensor
+export choi_pt_mpo
 export build_process_tensor, default_schedule
 export evaluate_process, evolve
 export two_time_correlation_seq

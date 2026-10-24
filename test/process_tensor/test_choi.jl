@@ -1,0 +1,97 @@
+# Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
+# SPDX-License-Identifier: MIT
+#
+# File: test/process_tensor/test_choi.jl
+# Contributor: John F. Kam
+#
+# Tests Choi conversion against analytic channels and dense reshuffling.
+#
+# Run with:
+#   julia --project=. test/process_tensor/test_choi.jl
+
+using ProcessTensors
+using ITensors
+using LinearAlgebra
+using Test
+import ITensorMPS
+
+if !isdefined(Main, :hilbert_mpo_to_dense)
+    include(joinpath(@__DIR__, "..", "time_evolution", "tebd_test_utils.jl"))
+end
+if !isdefined(Main, :_single_mode_bath)
+    include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
+end
+
+# Create a dense Choi reference using array reshaping rather than ITensor combiners.
+function _choi_dense_reference(pt::ProcessTensor)
+    d = isqrt(dim(only(output_sites(pt, 0))))
+    legs = Index[]
+    for k in reverse(0:(pt.nsteps - 1))
+        push!(legs, only(output_sites(pt, k)), only(input_sites(pt, k)))
+    end
+
+    A = reshape(Array(contract_core(pt.core), legs...), ntuple(_ -> d, 4 * pt.nsteps))
+    permutation = ((1:2:ndims(A))..., (2:2:ndims(A))...)
+    D = d^(2 * pt.nsteps)
+    return reshape(permutedims(A, permutation), D, D)
+end
+
+# Test single-step unitary Choi operator.
+@testset "choi_pt_mpo: single-step unitary" begin
+    @testset "$family" for family in ("S=1/2", "S=1")
+        sites = siteinds(family, 1)
+        H = OpSum() + (0.4, "Sx", 1) + (0.7, "Sy", 1) + (0.2, "Sz", 1)
+        system = spin_system(sites, H)
+        dt = 0.1
+        pt = build_process_tensor(system; dt=dt, nsteps=1, progress=false)
+        W = choi_pt_mpo(pt)
+
+        U = exp(-im * dt * dense_hamiltonian_matrix(H, sites))
+        v = vec(U)
+        expected = v * v'
+        J = hilbert_mpo_to_dense(W, [siteind(W, 1)])
+        @test J ≈ expected atol=1e-12
+    end
+end
+
+# Compare a process with memory against an independent dense Choi reference.
+# Check output indices, preservation of inner bonds, and that the source is unchanged.
+@testset "choi_pt_mpo: memory bonds and dense reference" begin
+    H = OpSum() + (0.3, "Sy", 1)
+    system = spin_system(siteinds("S=1/2", 1), H)
+    bath = _single_mode_bath(only(system.sites))
+    pt = build_process_tensor(
+        system; environment=bath, method=Dense(), dt=0.1, nsteps=3, progress=false,
+    )
+    @test maxlinkdim(pt) > 1
+
+    original = deepcopy(pt.core)
+    W = choi_pt_mpo(pt)
+    @test W isa MPO{Hilbert}
+    @test length(W) == pt.nsteps
+
+    for j in 1:pt.nsteps
+        s = siteind(W, j)
+        @test dim(s) == 4
+        @test plev(s) == 0
+        @test hastags(s, "Site,Choi,tstep=$(j - 1)")
+
+        links = Set(i for i in inds(original[j]) if has_tag_token(i, "Link"))
+        @test Set(inds(W.core[j])) == union(links, Set((s, prime(s))))
+
+        @test Set(inds(pt.core[j])) == Set(inds(original[j]))
+        @test pt.core[j] ≈ original[j]
+    end
+
+    sites = reverse([siteind(W, j) for j in 1:length(W)])
+    J = hilbert_mpo_to_dense(W, sites)
+    @test J ≈ _choi_dense_reference(pt) atol=1e-12
+end
+
+@testset "choi_pt_mpo: non-square Liouville dimension" begin
+    system = qubit_system(siteinds("Qubit", 1))
+    s = Index(3; tags="Liouv,tstep=0")
+    core = ITensorMPS.MPO([delta(prime(s), s)])
+    pt = ProcessTensor(core, system, nothing, 0.1, 1, only(system.sites))
+    @test_throws ArgumentError choi_pt_mpo(pt)
+end
