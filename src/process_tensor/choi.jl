@@ -16,12 +16,16 @@ Convert a process tensor MPO to its unnormalized Choi MPO.
 
 Each temporal core acts on the combined input ⊗ output Hilbert space.
 For a system of dimension ``d``, each fused site has dimension ``d^2``.
+Each core has one physical index pair, `s` and `prime(s)`, with tags
+`"Site,Choi,tstep=k"` for timestep `k`.
 
 Primed indices label rows (ket) and unprimed indices columns (bra), following
 the ordinary Hilbert MPO convention.
+Splitting a Liouville leg uses unprimed ⊗ primed ordering:
+``\\operatorname{vec}(|i\\rangle\\langle j|) = |j\\rangle \\otimes |i\\rangle``.
 
 The conversion acts locally on each core and does not modify the inner bonds
-or modify the process tensor itself, acting only as a change of representation.
+or the process tensor itself, acting only as a change of representation.
 
 # Examples
 ```julia

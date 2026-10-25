@@ -180,6 +180,20 @@ println("Temporal bond dimension = ", maxlinkdim(pt.core))
 #     the sites stored by the system, the boson, and the process tensor. Do not
 #     build a fresh index that only looks similar.
 
+# ## Choi MPO representation
+#
+# [`choi_pt_mpo`](@ref) converts `pt` to its unnormalized Choi MPO. Both the
+# ket (primed) and bra (unprimed) indices use input ⊗ output ordering.
+# For a single channel,
+#
+# ```math
+# J_{\mathcal E} = \sum_{i,j} |i\rangle\langle j|_{\mathrm{in}}
+# \otimes \mathcal E(|i\rangle\langle j|)_{\mathrm{out}}.
+# ```
+
+W = choi_pt_mpo(pt)
+println("Choi site at time 0: ", siteind(W, 1))
+
 # ## Dense and ACE constructors
 #
 # `build_process_tensor` takes the same system, environment, and time grid for
