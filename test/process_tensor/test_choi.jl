@@ -69,11 +69,13 @@ end
     W = choi_pt_mpo(pt)
     @test W isa MPO{Hilbert}
     @test length(W) == pt.nsteps
+    @test tr(W) ≈ 2^pt.nsteps atol=1e-12
 
     for j in 1:pt.nsteps
         s = siteind(W, j)
         @test dim(s) == 4
-        @test plev(s) == 0
+        @test only(siteinds(W, j; plev=0)) == s
+        @test only(siteinds(W, j; plev=1)) == prime(s)
         @test hastags(s, "Site,Choi,tstep=$(j - 1)")
 
         links = Set(i for i in inds(original[j]) if has_tag_token(i, "Link"))
@@ -86,6 +88,28 @@ end
     sites = reverse([siteind(W, j) for j in 1:length(W)])
     J = hilbert_mpo_to_dense(W, sites)
     @test J ≈ _choi_dense_reference(pt) atol=1e-12
+
+    # Apply the Choi operator to a product MPS on its fused sites.
+    psi = MPS(reverse(sites), fill(1, length(W)))
+    phi = apply(W, psi; alg="naive", truncate=false)
+    v = hilbert_mps_to_dense(psi, sites)
+    @test hilbert_mps_to_dense(phi, sites) ≈ J * v atol=1e-12
+end
+
+# The identity process corresponds to a tensor product of Bell operators.
+@testset "choi_pt_mpo: identity process" begin
+    system = qubit_system(siteinds("Qubit", 1))
+    pt = build_process_tensor(system; dt=0.1, nsteps=3, progress=false)
+    W = choi_pt_mpo(pt)
+
+    # Unnormalized Bell projector for each identity channel.
+    omega = [1.0, 0, 0, 1]
+    J_step = omega * omega'
+    expected = kron(kron(J_step, J_step), J_step)
+
+    sites = reverse([siteind(W, j) for j in 1:length(W)])
+    @test maxlinkdim(W) == 1
+    @test hilbert_mpo_to_dense(W, sites) ≈ expected atol=1e-12
 end
 
 @testset "choi_pt_mpo: non-square Liouville dimension" begin
