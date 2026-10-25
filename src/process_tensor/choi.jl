@@ -14,23 +14,17 @@ import ITensorMPS: MPO as CoreMPO
 
 Convert a process tensor MPO to its unnormalized Choi MPO.
 
-Each temporal core acts on the combined input ⊗ output Hilbert space.
-For a system of dimension ``d``, each fused site has dimension ``d^2``.
-Each core has one physical index pair, `s` and `prime(s)`, with tags
-`"Site,Choi,tstep=k"` for timestep `k`.
-
-Primed indices label rows (ket) and unprimed indices columns (bra), following
-the ordinary Hilbert MPO convention.
-Splitting a Liouville leg uses unprimed ⊗ primed ordering:
-``\\operatorname{vec}(|i\\rangle\\langle j|) = |j\\rangle \\otimes |i\\rangle``.
-
-The conversion acts locally on each core and does not modify the inner bonds
-or the process tensor itself, acting only as a change of representation.
+Each core has separate dimension-``d`` `in` and `out` Hilbert indices,
+tagged `"Site,Choi,in,tstep=k"` and `"Site,Choi,out,tstep=k"`, and their
+primed partners. Standard MPO ordering is retained: primed rows (bra-facing),
+unprimed columns (ket-facing). The `in`/`out` tags label temporal ports;
+priming does not label time. Memory links and `pt` are unchanged.
+Use `siteinds(W, j; tags="in", plev=0)` to select an input index.
 
 # Examples
 ```julia
 W = choi_pt_mpo(pt)
-s = siteind(W, 1)
+inputs = siteinds(W, 1; tags="in", plev=0)
 ```
 """
 function choi_pt_mpo(pt::ProcessTensor)
@@ -48,8 +42,8 @@ function choi_pt_mpo(pt::ProcessTensor)
         )
 
         # Define constituent Hilbert indices.
-        h_in = Index(d; tags="in,tstep=$k")
-        h_out = Index(d; tags="out,tstep=$k")
+        h_in = Index(d; tags="Site,Choi,in,tstep=$k")
+        h_out = Index(d; tags="Site,Choi,out,tstep=$k")
 
         # Split Liouville legs into the primed and unprimed Hilbert indices via combiners.
         C_in = combiner(prime(h_in), h_in)
@@ -61,11 +55,7 @@ function choi_pt_mpo(pt::ProcessTensor)
         # Construct the re-indexed MPO core via contraction with combiners.
         core = pt.core[k + 1] * dag(C_in) * dag(C_out)
 
-        # Fuse input/output bra coordinates and their corresponding ket coordinates.
-        C = combiner(h_out, h_in; tags="Site,Choi,tstep=$k")
-        choi_core = core * C * prime(C)
-
-        push!(cores, choi_core)
+        push!(cores, core)
     end
 
     return MPO{Hilbert}(CoreMPO(cores))

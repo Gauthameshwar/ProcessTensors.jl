@@ -36,6 +36,10 @@ function _choi_dense_reference(pt::ProcessTensor)
     return reshape(permutedims(A, permutation), D, D)
 end
 
+# Array axes are output-fastest within each input ⊗ output temporal site.
+_choi_sites(W) = [only(siteinds(W, j; tags=port, plev=0))
+                  for j in reverse(1:length(W)) for port in ("out", "in")]
+
 # Test single-step unitary Choi operator.
 @testset "choi_pt_mpo: single-step unitary" begin
     @testset "$family" for family in ("S=1/2", "S=1")
@@ -49,7 +53,7 @@ end
         U = exp(-im * dt * dense_hamiltonian_matrix(H, sites))
         v = vec(U)
         expected = v * v'
-        J = hilbert_mpo_to_dense(W, [siteind(W, 1)])
+        J = hilbert_mpo_to_dense(W, _choi_sites(W))
         @test J ≈ expected atol=1e-12
     end
 end
@@ -72,25 +76,29 @@ end
     @test tr(W) ≈ 2^pt.nsteps atol=1e-12
 
     for j in 1:pt.nsteps
-        s = siteind(W, j)
-        @test dim(s) == 4
-        @test only(siteinds(W, j; plev=0)) == s
-        @test only(siteinds(W, j; plev=1)) == prime(s)
-        @test hastags(s, "Site,Choi,tstep=$(j - 1)")
+        input = only(siteinds(W, j; tags="in", plev=0))
+        output = only(siteinds(W, j; tags="out", plev=0))
+        @test input != output
+        @test dim(input) == dim(output) == 2
+        @test Set(siteinds(W, j; plev=0)) == Set((input, output))
+        @test Set(siteinds(W, j; plev=1)) == Set((prime(input), prime(output)))
+        @test all(i -> hastags(i, "Site,Choi,tstep=$(j - 1)"), (input, output))
 
         links = Set(i for i in inds(original[j]) if has_tag_token(i, "Link"))
-        @test Set(inds(W.core[j])) == union(links, Set((s, prime(s))))
+        @test Set(inds(W.core[j])) == union(links, Set((input, output, prime(input), prime(output))))
 
         @test Set(inds(pt.core[j])) == Set(inds(original[j]))
         @test pt.core[j] ≈ original[j]
     end
 
-    sites = reverse([siteind(W, j) for j in 1:length(W)])
+    sites = _choi_sites(W)
     J = hilbert_mpo_to_dense(W, sites)
     @test J ≈ _choi_dense_reference(pt) atol=1e-12
 
-    # Apply the Choi operator to a product MPS on its fused sites.
-    psi = MPS(reverse(sites), fill(1, length(W)))
+    # Apply to an MPS with matching separate input/output legs per core.
+    tensors = [prod(onehot(s => 1) for s in siteinds(W, j; plev=0))
+               for j in 1:length(W)]
+    psi = ProcessTensors.MPS{Hilbert}(ITensorMPS.MPS(tensors))
     phi = apply(W, psi; alg="naive", truncate=false)
     v = hilbert_mps_to_dense(psi, sites)
     @test hilbert_mps_to_dense(phi, sites) ≈ J * v atol=1e-12
@@ -107,7 +115,7 @@ end
     J_step = omega * omega'
     expected = kron(kron(J_step, J_step), J_step)
 
-    sites = reverse([siteind(W, j) for j in 1:length(W)])
+    sites = _choi_sites(W)
     @test maxlinkdim(W) == 1
     @test hilbert_mpo_to_dense(W, sites) ≈ expected atol=1e-12
 end
