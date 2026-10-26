@@ -165,6 +165,10 @@ build_process_tensor(::AbstractSystem)
 ```
 
 ```@docs
+choi_pt_mpo
+```
+
+```@docs
 evaluate_process(::ProcessTensor, ::InstrumentSeq)
 evaluate_process(::ProcessTensor, ::AbstractVector{<:InstrumentSeq})
 evaluate_process(::ProcessTensor, ::Any, ::InstrumentSeq)

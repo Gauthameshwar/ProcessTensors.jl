@@ -14,6 +14,18 @@ using ITensors
 using LinearAlgebra
 using Random
 
+if !isdefined(Main, :_single_mode_bath)
+    function _single_mode_bath(sys_site)
+        env_phys = siteinds("S=1/2", 1)
+        env_liouv = liouv_sites(env_phys)
+        ρ_env = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
+        H_env = OpSum() + (0.5, "Sx", 1)
+        cpl = OpSum() + (0.1, "Sz", 1, "Sz", 2)
+        mode = spin_mode(env_liouv, H_env, ρ_env; coupling=cpl)
+        return spin_bath([mode])
+    end
+end
+
 if !isdefined(Main, :_physical_sites_from_hilbert_mpo)
     function _physical_sites_from_hilbert_mpo(rho::AbstractMPO{Hilbert})
         return [only(filter(i -> plev(i) == 0, inds(rho.core[j]))) for j in 1:length(rho.core)]

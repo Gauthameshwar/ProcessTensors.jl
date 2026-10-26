@@ -25,16 +25,6 @@ function _markovian_system()
     return system, only(system.sites)
 end
 
-function _single_mode_bath(sys_site)
-    env_phys = siteinds("S=1/2", 1)
-    env_liouv = liouv_sites(env_phys)
-    ρ_env = to_liouville(to_dm(MPS(env_phys, ["Up"])); sites=env_liouv)
-    H_env = OpSum() + (0.5, "Sx", 1)
-    cpl = OpSum() + (0.1, "Sz", 1, "Sz", 2)
-    mode = spin_mode(env_liouv, H_env, ρ_env; coupling=cpl)
-    return spin_bath([mode])
-end
-
 function _multimode_bath(sys_site)
     e1 = siteinds("S=1/2", 1)
     e2 = siteinds("S=1/2", 1)
