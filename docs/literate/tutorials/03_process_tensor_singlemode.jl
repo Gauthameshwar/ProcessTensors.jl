@@ -204,8 +204,8 @@ println("Input bra: ", siteinds(W, 1; tags="in", plev=1))
 println("Output ket: ", siteinds(W, 1; tags="out", plev=0))
 println("Output bra: ", siteinds(W, 1; tags="out", plev=1))
 
-# Use `tags="in"` or `tags="out"` to select a temporal port and `plev` to
-# select ket or bra. Use `siteinds` to retrieve both ports; `siteind` returns
+# Use `tags="in"` or `tags="out"` to select a temporal leg and `plev` to
+# select ket or bra. Use `siteinds` to retrieve both legs; `siteind` returns
 # only one physical index.
 
 # ## Dense and ACE constructors
