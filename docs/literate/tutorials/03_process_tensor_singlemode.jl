@@ -182,9 +182,9 @@ println("Temporal bond dimension = ", maxlinkdim(pt.core))
 
 # ## Choi MPO representation
 #
-# [`choi_pt_mpo`](@ref) converts `pt` to its unnormalized Choi MPO. Both the
-# ket (primed) and bra (unprimed) indices use input ⊗ output ordering.
-# For a single channel,
+# [`choi_pt_mpo`](@ref) converts `pt` to its unnormalized Choi MPO. Each core keeps
+# four separate Hilbert indices: an unprimed ket (`plev=0`) and a primed bra
+# (`plev=1`) on both the `"in"` leg and the `"out"` leg.
 #
 # ```math
 # J_{\mathcal E} = \sum_{i,j} |i\rangle\langle j|_{\mathrm{in}}
@@ -193,21 +193,19 @@ println("Temporal bond dimension = ", maxlinkdim(pt.core))
 
 W = choi_pt_mpo(pt)
 
-println("Choi indices at time 0: ", inds(W.core[1]))
+# All four indices of core k share `tstep=k`; `in` and `out` label its two site legs.
+# Both legs have an unprimed ket index (`plev=0`) and a primed bra index (`plev=1`),
+# giving four Hilbert indices. This differs from the Liouville PT-MPO, where priming 
+# distinguishes input from output. The tag `tstep=k` labels the interval for 
+# all four indices; the `Link` indices carry memory between intervals.
+
 println("Input ket: ", siteinds(W, 1; tags="in", plev=0))
 println("Input bra: ", siteinds(W, 1; tags="in", plev=1))
 println("Output ket: ", siteinds(W, 1; tags="out", plev=0))
 println("Output bra: ", siteinds(W, 1; tags="out", plev=1))
 
-# All four indices of core k share `tstep=k`; `in` and `out` label its two ports.
-# Both ports have an unprimed ket index
-# (`plev=0`) and a primed bra index (`plev=1`), giving four Hilbert indices.
-# This differs from the Liouville PT-MPO, where priming distinguishes input from output.
-# The tag `tstep=k` labels the interval for all four indices; the `Link`
-# indices carry memory between intervals.
-#
-# Use `tags="in"` or `tags="out"` to select a temporal port and `plev` to
-# select ket or bra. Use `siteinds` to retrieve both ports; `siteind` returns
+# Use `tags="in"` or `tags="out"` to select a temporal leg and `plev` to
+# select ket or bra. Use `siteinds` to retrieve both legs; `siteind` returns
 # only one physical index.
 
 # ## Dense and ACE constructors
