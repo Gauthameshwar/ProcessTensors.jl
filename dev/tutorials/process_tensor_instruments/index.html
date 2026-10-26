@@ -79,7 +79,7 @@ println(&quot;⟨Sz⟩ with the boson:&quot;)
 println(mz)
 
 @assert all(isfinite, mz)</code></pre><pre><code class="nohighlight hljs">⟨Sz⟩ with the boson:
-[0.499109168766007, 0.4964742974846906, 0.49220367976870466, 0.4864636357302842, 0.4794607708287583, 0.47142330444241337, 0.46258582250926816, 0.4531809198255542]
+[0.499109168766007, 0.4964742974846906, 0.49220367976870466, 0.4864636357302841, 0.4794607708287582, 0.47142330444241326, 0.4625858225092681, 0.4531809198255542]
 </code></pre><p>A trajectory with no boson shows whether the oscillator influences the spin. Build the same spin and the same grid with <code>environment = nothing</code>, then call <code>evolve</code> again.</p><pre><code class="language-julia hljs">pt_isolated = build_process_tensor(
     system;
     dt=dt,
@@ -97,7 +97,7 @@ mz_isolated = [
 
 println(&quot;Final ⟨Sz⟩ with the boson = &quot;, last(mz))
 println(&quot;Final ⟨Sz⟩ for the isolated spin = &quot;, last(mz_isolated))</code></pre><pre><code class="nohighlight hljs">Final ⟨Sz⟩ with the boson = 0.4531809198255542
-Final ⟨Sz⟩ for the isolated spin = 0.4434974613896422
+Final ⟨Sz⟩ for the isolated spin = 0.4434974613896423
 </code></pre><p>The two final values differ because the boson influences the spin. A changed trajectory does not, by itself, establish that the influence is non-Markovian.</p><pre><code class="language-julia hljs">@assert abs(last(mz) - last(mz_isolated)) &gt; 1e-4</code></pre><h2 id="instrument-schedules"><a class="docs-heading-anchor" href="#instrument-schedules">Closed experiments</a><a id="instrument-schedules-1"></a><a class="docs-heading-anchor-permalink" href="#instrument-schedules" title="Permalink"></a></h2><div class="theme-figure">
   <img class="theme-figure-light" src="../../assets/theory/process_contractions-light.svg" alt="The same process returns an open state, an outcome probability, or an observable contraction.">
   <img class="theme-figure-dark" src="../../assets/theory/process_contractions-dark.svg" alt="The same process returns an open state, an outcome probability, or an observable contraction.">
@@ -112,7 +112,7 @@ println(probability)
 
 @assert probability isa ComplexF64
 @assert abs(probability - 1) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">Closed-process probability:
-0.9999999999999978 - 1.373934479473031e-18im
+0.9999999999999978 + 7.157431044956864e-18im
 </code></pre><h3 id="Measure-a-final-observable"><a class="docs-heading-anchor" href="#Measure-a-final-observable">Measure a final observable</a><a id="Measure-a-final-observable-1"></a><a class="docs-heading-anchor-permalink" href="#Measure-a-final-observable" title="Permalink"></a></h3><p>Replace the final trace by <span>$S^z$</span>. The scalar is now the expectation value <span>$\operatorname{Tr}(S^z\rho)$</span>, and it matches the last point of <code>evolve</code>.</p><pre><code class="language-julia hljs">seq_sz = default_schedule(pt)
 seq_sz += state_preparation(ρ_up), 0
 seq_sz += observable_measurement(Sz), pt.nsteps
@@ -123,7 +123,7 @@ println(&quot;Final ⟨Sz⟩ from the schedule:&quot;)
 println(sz_final)
 
 @assert abs(real(sz_final) - last(mz)) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">Final ⟨Sz⟩ from the schedule:
-0.4531809198255542 + 4.457172573091802e-19im
+0.4531809198255542 + 4.798578648824033e-18im
 </code></pre><h3 id="Insert-a-control-pulse"><a class="docs-heading-anchor" href="#Insert-a-control-pulse">Insert a control pulse</a><a id="Insert-a-control-pulse-1"></a><a class="docs-heading-anchor-permalink" href="#Insert-a-control-pulse" title="Permalink"></a></h3><p>The process tensor already contains the free spin propagation. An extra <code>unitary_propagation</code> at one slot is an additional control, not a second copy of that free map. The Hamiltonian is applied on the system&#39;s Liouville sites.</p><p>Compare the final <span>$S^z$</span> with and without an <span>$S^y$</span> pulse at slot 2. At that early slot the spin is still close to <span>$|\uparrow\rangle$</span>, so an <span>$S^z$</span> pulse would barely move it.</p><pre><code class="language-julia hljs">H_pulse = OpSum()
 H_pulse += 8.0, &quot;Sy&quot;, 1
 
@@ -140,9 +140,9 @@ println(&quot;Final ⟨Sz⟩ without the pulse:&quot;)
 println(sz_final)
 
 @assert abs(sz_pulse - sz_final) &gt; 1e-4</code></pre><pre><code class="nohighlight hljs">Final ⟨Sz⟩ with the pulse:
-0.3044292539900346 + 1.0395729543023092e-20im
+0.3044292539900348 + 1.4264582699249594e-17im
 Final ⟨Sz⟩ without the pulse:
-0.4531809198255542 + 4.457172573091802e-19im
+0.4531809198255542 + 4.798578648824033e-18im
 </code></pre><h2 id="Outcomes-and-open-legs"><a class="docs-heading-anchor" href="#Outcomes-and-open-legs">Outcomes and open legs</a><a id="Outcomes-and-open-legs-1"></a><a class="docs-heading-anchor-permalink" href="#Outcomes-and-open-legs" title="Permalink"></a></h2><h3 id="Leave-the-final-output-open"><a class="docs-heading-anchor" href="#Leave-the-final-output-open">Leave the final output open</a><a id="Leave-the-final-output-open-1"></a><a class="docs-heading-anchor-permalink" href="#Leave-the-final-output-open" title="Permalink"></a></h3><p><code>open_output()</code> does not apply a physical map. It leaves the final reduced state uncontracted, which is the same kind of object <code>evolve</code> reads along the trajectory.</p><pre><code class="language-julia hljs">seq_open = default_schedule(pt)
 seq_open += state_preparation(ρ_up), 0
 seq_open += open_output(), pt.nsteps
@@ -181,7 +181,7 @@ println(&quot;Probability of spin up at slot 2:&quot;)
 println(prob_up)
 
 @assert 0 &lt; real(prob_up) &lt; 1</code></pre><pre><code class="nohighlight hljs">Probability of spin up at slot 2:
-0.4999999999999988 + 4.404075338872816e-18im
+0.49999999999999895 + 6.155291097823346e-18im
 </code></pre><p>The instrument above is stored lazily and materialised when the process tensor is contracted. A materialised ITensor for the same map represents the same intervention; the lazy form is the one used here.</p><h3 id="Recover-the-conditional-state"><a class="docs-heading-anchor" href="#Recover-the-conditional-state">Recover the conditional state</a><a id="Recover-the-conditional-state-1"></a><a class="docs-heading-anchor-permalink" href="#Recover-the-conditional-state" title="Permalink"></a></h3><p>Leave the output open after the same effect. The returned state is unnormalised. Its trace is the outcome probability.</p><pre><code class="language-julia hljs">seq_conditional = default_schedule(pt)
 seq_conditional += state_preparation(ρ_plus), 0
 seq_conditional += spin_up_effect, 2
@@ -195,7 +195,7 @@ println(conditional_trace)
 
 @assert ρ_conditional isa MPS{Liouville}
 @assert abs(conditional_trace - prob_up) &lt; 1e-8</code></pre><pre><code class="nohighlight hljs">Trace of the unnormalised conditional state:
-0.4999999999999988 + 4.404075338872816e-18im
+0.49999999999999895 + 6.155291097823346e-18im
 </code></pre><h2 id="A-causal-break"><a class="docs-heading-anchor" href="#A-causal-break">A causal break</a><a id="A-causal-break-1"></a><a class="docs-heading-anchor-permalink" href="#A-causal-break" title="Permalink"></a></h2><p>Select spin up and then prepare <span>$|\uparrow\rangle$</span>. The selection discards the spin&#39;s own record, and the repreparation puts the same state back. The final <span>$S^z$</span> contraction is still multiplied by the probability of that selection. Divide by the branch probability before comparing the two preparations. A zero probability would leave the conditional expectation undefined.</p><pre><code class="language-julia hljs">break_instrument = observable_measurement(P_up) * state_preparation(ρ_up)
 
 seq_prob_plus = default_schedule(pt)
@@ -230,6 +230,6 @@ println((
     p_from_down=p_from_down,
     conditional_sz_from_plus=sz_from_plus,
     conditional_sz_from_down=sz_from_down,
-))</code></pre><pre><code class="nohighlight hljs">(p_from_plus = 0.4999999999999988 + 4.404075338872816e-18im, p_from_down = 0.003525702515308351 - 4.7578578164369995e-21im, conditional_sz_from_plus = 0.4715886867770566 + 5.916940273619273e-19im, conditional_sz_from_down = 0.47133458415107543 + 2.3250465125487416e-19im)
+))</code></pre><pre><code class="nohighlight hljs">(p_from_plus = 0.49999999999999895 + 6.155291097823346e-18im, p_from_down = 0.003525702515308349 + 1.0549815122061227e-20im, conditional_sz_from_plus = 0.4715886867770567 + 7.58692282990244e-19im, conditional_sz_from_down = 0.47133458415107543 + 3.413832828908529e-19im)
 </code></pre><p>The selection probabilities differ by about two orders of magnitude, so the unnormalised contractions differ even though both branches reprepare <span>$|\uparrow\rangle$</span>. After dividing, the conditional expectations agree to a few parts in <span>$10^4$</span>. On this early break the two histories do not leave a visible difference in the final <span>$\langle S^z\rangle$</span>. That agreement is one observable on this short window. It does not show that the process is Markovian.</p><pre><code class="language-julia hljs">@assert abs(p_from_plus - p_from_down) &gt; abs(sz_from_plus - sz_from_down)
-@assert all(isfinite, (real(sz_from_plus), real(sz_from_down)))</code></pre><div class="admonition is-info" id="Larger-experiments-to-try-next-692b188b1eaecef3"><header class="admonition-header">Larger experiments to try next<a class="admonition-anchor" href="#Larger-experiments-to-try-next-692b188b1eaecef3" title="Permalink"></a></header><div class="admonition-body"><p>The instruments on this page are the same operations used in the longer examples. Multi-time correlations insert operators at several slots of one process tensor. A tester carries an extra ancilla from one intervention to the next.</p><ul><li><a href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a href="../../examples/noisy_quantum_circuit_tester/">Noisy quantum circuits with a memory-bearing tester</a></li></ul></div></div><div class="admonition is-category-related" id="Related-material-f8949f8c5b3ca8ac"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-f8949f8c5b3ca8ac" title="Permalink"></a></header><div class="admonition-body"><ul><li><a href="../process_tensor_singlemode/#Construct-a-process-tensor">Construct a process tensor</a> — the spin–boson model used here</li><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../process_tensor_singlemode/">« Construct a process tensor</a><a class="docs-footer-nextpage" href="../unitary_dynamics/">Unitary Dynamics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 26 October 2026 02:59">Monday 26 October 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+@assert all(isfinite, (real(sz_from_plus), real(sz_from_down)))</code></pre><div class="admonition is-info" id="Larger-experiments-to-try-next-692b188b1eaecef3"><header class="admonition-header">Larger experiments to try next<a class="admonition-anchor" href="#Larger-experiments-to-try-next-692b188b1eaecef3" title="Permalink"></a></header><div class="admonition-body"><p>The instruments on this page are the same operations used in the longer examples. Multi-time correlations insert operators at several slots of one process tensor. A tester carries an extra ancilla from one intervention to the next.</p><ul><li><a href="../../examples/multitime_correlations/">Multi-time correlations</a></li><li><a href="../../examples/noisy_quantum_circuit_tester/">Noisy quantum circuits with a memory-bearing tester</a></li></ul></div></div><div class="admonition is-category-related" id="Related-material-f8949f8c5b3ca8ac"><header class="admonition-header">Related material<a class="admonition-anchor" href="#Related-material-f8949f8c5b3ca8ac" title="Permalink"></a></header><div class="admonition-body"><ul><li><a href="../process_tensor_singlemode/#Construct-a-process-tensor">Construct a process tensor</a> — the spin–boson model used here</li><li>Theory: <a href="../../theory/process_tensors/">Process Tensors</a></li></ul></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../process_tensor_singlemode/">« Construct a process tensor</a><a class="docs-footer-nextpage" href="../unitary_dynamics/">Unitary Dynamics »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 26 October 2026 04:37">Monday 26 October 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
