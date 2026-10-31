@@ -25,10 +25,10 @@ function _maximally_mixed_liouville(liouv_site::Index)
 end
 
 # Build the InstrumentSeq whose `evaluate_process` result is the reduced system
-# state at snapshot `k` (`t = k * dt`, open output leg `out_k`).
+# state at the output of core `m` (`t = m * dt`).
 #
-# Past slots `0:k` are copied from `seq`. The output at time `k` is left open.
-# Every *future* core is closed with the disconnected CPTP probe
+# Attachments before that output are copied from `seq`; the output of core `m`
+# is left open. Every later core is closed with the disconnected CPTP probe
 # `TraceOut ⊗ StatePreparation(I/d)` so dangling compressed memory bonds
 # (ACE) are contracted through the remaining influence functional. This is the
 # same object as the O(N) `:closures` walk, evaluated once per snapshot
@@ -36,37 +36,23 @@ end
 function _evolve_snapshot_seq(
     pt::ProcessTensor,
     seq::InstrumentSeq,
-    k::Int;
+    m::Int;
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
 )
     n = pt.nsteps
-    0 <= k < n || throw(BoundsError(0:(n - 1), k))
+    1 <= m <= n || throw(BoundsError(1:n, m))
 
     snap = InstrumentSeq(default=default_instr, nsteps=n)
-    for t in 0:k
-        instr = if t == 0
-            Instruments.resolve_instrument(seq, 0)
-        else
-            Instruments.resolve_instrument(seq, t, default_instr)
-        end
-        instr === nothing && throw(
-            ArgumentError(
-                "evolve: missing instrument at tstep=$t while building snapshot k=$k.",
-            ),
-        )
-        add!(snap, instr, t)
+    for ((k, kind), instr) in seq.entries
+        (kind === :input ? k <= m : k < m) && add!(snap, instr, k)
     end
-
-    if k == n - 1
-        add!(snap, open_output(), n)
-        return snap
-    end
+    m == n && return snap
 
     ρ_mm = _maximally_mixed_liouville(pt.coupling_site)
-    # Slot k+1 claims out_k (left open) and closes in_{k+1} with I/d.
-    add!(snap, open_output() * state_preparation(ρ_mm), k + 1)
-    for t in (k + 2):(n - 1)
-        add!(snap, trace_out() * state_preparation(ρ_mm), t)
+    # Between-attachment m leaves the output of core m open and feeds I/d into core m + 1.
+    add!(snap, open_output() * state_preparation(ρ_mm), m)
+    for k in (m + 1):(n - 1)
+        add!(snap, trace_out() * state_preparation(ρ_mm), k)
     end
     add!(snap, trace_out(), n)
     return snap
@@ -82,7 +68,7 @@ function _pt_bond_closures(pt::ProcessTensor)
     n > 1 || return closures
     carry = ITensor(1.0)
     for j in n:-1:2
-        out_leg = only(output_sites(pt, j - 1))
+        out_leg = only(output_sites(pt, j))
         in_leg = prime(out_leg)
         d_sys = isqrt(dim(out_leg))
         blob = pt.core[j] * carry
@@ -105,13 +91,18 @@ function _evolve(
     alg,
     run,
 )
-    states_liouville = Vector{MPS{Liouville}}(undef, pt.nsteps)
-    states_hilbert = Vector{MPO{Hilbert}}(undef, pt.nsteps)
-    times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
+    n = pt.nsteps
+    states_liouville = Vector{MPS{Liouville}}(undef, n + 1)
+    states_hilbert = Vector{MPO{Hilbert}}(undef, n + 1)
+    times = [pt.dt * k for k in 0:n]
 
     @progress_stage run "Preparing trajectory"
-    @progress_bar run "Computing reduced snapshots" pt.nsteps begin
-        for k in 0:(pt.nsteps - 1)
+    @progress_bar run "Computing reduced snapshots" (n + 1) begin
+        prepared = Instruments.instrument_itensor(seq.entries[(1, :input)], input_sites(pt, 1), 1)
+        states_liouville[1] = _liouville_mps_from_itensor(prepared, output_sites(pt, 1))
+        states_hilbert[1] = to_hilbert(states_liouville[1])
+        @progress_update run 1 (t=times[1],)
+        for k in 1:n
             snap = _evolve_snapshot_seq(pt, seq, k; default_instr=default_instr)
             rho_liouv = _evaluate_process(
                 pt,
@@ -122,12 +113,12 @@ function _evolve(
             )
             rho_liouv isa MPS{Liouville} || throw(
                 ArgumentError(
-                    "evolve: expected MPS{Liouville} at snapshot k=$k; got $(typeof(rho_liouv)).",
+                    "evolve: expected MPS{Liouville} at the output of core $k; got $(typeof(rho_liouv)).",
                 ),
             )
-            states_liouville[k + 1] = rho_liouv
-            states_hilbert[k + 1] = to_hilbert(rho_liouv)
             snapshot = k + 1
+            states_liouville[snapshot] = rho_liouv
+            states_hilbert[snapshot] = to_hilbert(rho_liouv)
             @progress_update run snapshot (t=times[snapshot],)
         end
     end
@@ -142,9 +133,10 @@ function _evolve(
     alg,
     run,
 )
-    states_liouville = Vector{MPS{Liouville}}(undef, pt.nsteps)
-    states_hilbert = Vector{MPO{Hilbert}}(undef, pt.nsteps)
-    times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
+    n = pt.nsteps
+    states_liouville = Vector{MPS{Liouville}}(undef, n + 1)
+    states_hilbert = Vector{MPO{Hilbert}}(undef, n + 1)
+    times = [pt.dt * k for k in 0:n]
 
     @progress_stage run "Preparing trajectory"
     instruments = Instruments._create_instruments(
@@ -159,24 +151,27 @@ function _evolve(
     closures = _pt_bond_closures(pt)
 
     prev_pt_core = pt.core[1] * instruments[1]
-    @progress_bar run "Computing reduced snapshots" pt.nsteps begin
-        for k in 0:(pt.nsteps - 1)
-            if k > 0
-                prev_pt_core *= instruments[k + 1]
-                prev_pt_core *= pt.core[k + 1]
+    @progress_bar run "Computing reduced snapshots" (n + 1) begin
+        states_liouville[1] = _liouville_mps_from_itensor(instruments[1], output_sites(pt, 1))
+        states_hilbert[1] = to_hilbert(states_liouville[1])
+        @progress_update run 1 (t=times[1],)
+        for k in 1:n
+            if k > 1
+                prev_pt_core *= instruments[k]
+                prev_pt_core *= pt.core[k]
             end
             out_sites = output_sites(pt, k)
             snapshot = prev_pt_core
-            if k + 1 <= length(closures)
-                snapshot = snapshot * closures[k + 1]
+            if k <= length(closures)
+                snapshot = snapshot * closures[k]
             end
             # Close leftover legs (Dense fused-bath traces; ACE should already
             # be absorbed by the closures) except the open system output.
             reduced = _trace_out_except(snapshot, out_sites)
             rho_liouv = _liouville_mps_from_itensor(reduced, out_sites)
-            states_liouville[k + 1] = rho_liouv
-            states_hilbert[k + 1] = to_hilbert(rho_liouv)
             snapshot_k = k + 1
+            states_liouville[snapshot_k] = rho_liouv
+            states_hilbert[snapshot_k] = to_hilbert(rho_liouv)
             @progress_update run snapshot_k (t=times[snapshot_k],)
         end
     end
@@ -184,39 +179,39 @@ function _evolve(
 end
 
 # Multiple dispatch helpers for evolve storage depending on what trajectories the user wants
-function _evolve_storage(::Val{false}, ::Val{false}, nsteps::Int)
+function _evolve_storage(::Val{false}, ::Val{false}, nsamples::Int)
     return (
-        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
 end
 
-function _evolve_storage(::Val{true}, ::Val{false}, nsteps::Int)
+function _evolve_storage(::Val{true}, ::Val{false}, nsamples::Int)
     return (
-        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
-        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
 end
 
-function _evolve_storage(::Val{false}, ::Val{true}, nsteps::Int)
+function _evolve_storage(::Val{false}, ::Val{true}, nsamples::Int)
     return (
-        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
-        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
 end
 
-function _evolve_storage(::Val{true}, ::Val{true}, nsteps::Int)
+function _evolve_storage(::Val{true}, ::Val{true}, nsamples::Int)
     return (
-        states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
-        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
-        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsteps),
-        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsteps),
+        states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        joint_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
 end
 
@@ -269,8 +264,9 @@ function _evolve(
     tester_seq::Union{Nothing,TesterSeq},
     run,
 )
-    times = [pt.dt * k for k in 0:(pt.nsteps - 1)]
-    storage = _evolve_storage(return_tester, return_joint, pt.nsteps)
+    n = pt.nsteps
+    times = [pt.dt * k for k in 0:n]
+    storage = _evolve_storage(return_tester, return_joint, n + 1)
 
     @progress_stage run "Preparing trajectory"
     instruments = Instruments._create_instruments(
@@ -292,26 +288,39 @@ function _evolve(
     closures = _pt_bond_closures(pt)
 
     prefix = pt.core[1] * control.instruments[1]
-    @progress_bar run "Computing reduced snapshots" pt.nsteps begin
-        for k in 0:(pt.nsteps - 1)
-            if k > 0
-                prefix *= control.instruments[k + 1]
-                prefix *= pt.core[k + 1]
+    @progress_bar run "Computing reduced snapshots" (n + 1) begin
+        first_output = output_sites(pt, 1)
+        initialized = replaceind(instruments[1], prime(only(first_output)), only(first_output)) *
+                      control.initial_memory
+        _store_evolve_snapshot!(
+            storage,
+            initialized,
+            first_output,
+            control.tester_sites,
+            1,
+            return_tester,
+            return_joint,
+        )
+        @progress_update run 1 (t=times[1],)
+        for k in 1:n
+            if k > 1
+                prefix *= control.instruments[k]
+                prefix *= pt.core[k]
             end
 
             system_sites = output_sites(pt, k)
-            snapshot = prefix * control.pending_post[k + 1]
-            post_system = control.post_system[k + 1]
+            snapshot = prefix * control.pending_post[k]
+            post_system = control.post_system[k]
             if post_system !== nothing
                 snapshot = replaceind(snapshot, post_system, only(system_sites))
             end
             snapshot = replaceind(
                 snapshot,
-                control.memory_output[k + 1],
+                control.memory_output[k],
                 only(control.tester_sites),
             )
-            if k + 1 <= length(closures)
-                snapshot *= closures[k + 1]
+            if k <= length(closures)
+                snapshot *= closures[k]
             end
 
             slot = k + 1
@@ -380,10 +389,16 @@ end
 Return reduced system snapshots generated by contracting a process tensor with
 an instrument schedule.
 
+The trajectory has `pt.nsteps + 1` samples at `times == [k * dt for k in 0:pt.nsteps]`.
+Sample `1` is the prepared input of core `1` before any core acts; sample
+`k + 1` is the output of core `k`, the state at `k * dt`.
+
 Pass `tester` and optionally `tester_seq` to propagate ancillary tester memory.
 Tester states are returned by default when a tester is present; set
 `return_tester=false` to omit them or `return_joint=true` to additionally return
-joint system-tester states. 
+joint system-tester states. Tester and joint trajectories have the same length:
+sample `1` holds the initialized tester (and the product system-tester state)
+before interval `1`, and sample `k + 1` the state after interval `k`.
 
 Tester trajectories use the fields `tester_states_liouville` and
 `tester_states_hilbert`; requested joint trajectories use
@@ -401,7 +416,7 @@ Tester trajectories use the fields `tester_states_liouville` and
 # Examples
 ```julia
 trajectory = evolve(pt, ρ0)
-ρ_t = trajectory.states_hilbert[3]
+ρ_2dt = trajectory.states_hilbert[3]
 trajectory_ref = evolve(pt, ρ0; contraction=:evaluate)
 
 sA = siteinds("Qubit", 1)
@@ -465,7 +480,7 @@ function evolve(
         @progress_stage run "Evolved reduced system" (
             nsteps=pt.nsteps,
             dt=pt.dt,
-            snapshots=pt.nsteps,
+            snapshots=pt.nsteps + 1,
             elapsed_seconds=(time() - started),
         )
         return result
@@ -477,8 +492,9 @@ end
 """
     evolve(pt, rho0, seq; default_instr=_schedule_default_instr(pt))
 
-Insert `state_preparation(rho0)` at `tstep = 0` and return reduced system
-snapshots for the resulting schedule.
+Attach `state_preparation(rho0)` to the input of core `1`, replacing any
+existing preparation there, and return reduced system snapshots for the
+resulting schedule.
 """
 function evolve(
     pt::ProcessTensor,
@@ -487,8 +503,8 @@ function evolve(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     kwargs...
 )
-    seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
-    add!(seq_full, state_preparation(rho0), 0)
+    seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=copy(seq.entries))
+    add!(seq_full, state_preparation(rho0), 1)
     return evolve(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
@@ -505,6 +521,6 @@ function evolve(
     kwargs...
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0), 0)
+    add!(seq, state_preparation(rho0), 1)
     return evolve(pt, seq; default_instr=default_instr, kwargs...)
 end

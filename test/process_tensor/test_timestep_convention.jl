@@ -116,7 +116,9 @@ end
         add!(between_first, unitary_propagation(H_control, sys_phys), 1)
         @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz), 1)
         @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 2)
-        add!(between_first, observable_measurement(O_Sz; leg_plev=1), 1)
+        @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 1)
+        add!(between_first, state_preparation(rho0_h), 1)
+        @test between_first.entries[(1, :input)] isa StatePreparation
 
         output_first = InstrumentSeq(default=identity_operation(), nsteps=3)
         add!(output_first, observable_measurement(O_Sz), 1)

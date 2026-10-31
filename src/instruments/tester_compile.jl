@@ -400,7 +400,8 @@ function _compile_tester_control_data(
     compiled = ITensor[instruments...]
     first_interval = first(intervals)
     first_input = only(ProcessTensors.input_sites(pt, 1))
-    initial = compiled[1] * initial_tensor * initial_map
+    initial_memory = initial_tensor * initial_map
+    initial = compiled[1] * initial_memory
     if first_interval.pre_system !== nothing
         initial = _relabel_if_present(
             initial,
@@ -439,6 +440,7 @@ function _compile_tester_control_data(
 
     return (
         instruments=compiled,
+        initial_memory=replaceind(initial_memory, memory_links[1], only(memory.sites)),
         pending_post=ITensor[interval.post for interval in intervals],
         post_system=Union{Nothing,Index}[interval.post_system for interval in intervals],
         memory_output=memory_links[2:end],
