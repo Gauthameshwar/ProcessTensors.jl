@@ -300,7 +300,7 @@ function _materialize_interval(
     )
 end
 
-# Bind the tstep=0 tester-only map from stored tester sites onto the first memory link.
+# Bind the initialization tester-only map from stored tester sites onto the first memory link.
 function _initial_tester_map(
     action::_TesterOnlyAction,
     memory::Tester,
@@ -317,7 +317,7 @@ function _initial_tester_map(
     )
 end
 
-# Reject joint actions at tstep=0; they have no preceding system output.
+# Reject joint initialization actions; they have no preceding system output.
 function _initial_tester_map(
     ::_JointTesterAction,
     ::Tester,
@@ -325,7 +325,7 @@ function _initial_tester_map(
     ::Real,
     owner::AbstractString,
 )
-    throw(ArgumentError("$owner: joint tester actions are not allowed at tstep=0."))
+    throw(ArgumentError("$owner: joint tester actions are not allowed as the tester initialization."))
 end
 
 # Replace `source` by `target` only when the tensor still carries `source`.
@@ -368,9 +368,8 @@ function _compile_tester_control_data(
         for k in 0:pt.nsteps
     ]
 
-    initial_action = resolve_tester_action(schedule, 0)
     initial_map = _initial_tester_map(
-        initial_action,
+        schedule.initialization,
         memory,
         memory_links[1],
         pt.dt,
@@ -386,8 +385,8 @@ function _compile_tester_control_data(
     intervals = map(1:pt.nsteps) do k
         action = resolve_tester_action(schedule, k)
         _validate_runtime_action(action, memory, system_sites)
-        core_input = only(ProcessTensors.input_sites(pt, k - 1))
-        core_output = only(ProcessTensors.output_sites(pt, k - 1))
+        core_input = only(ProcessTensors.input_sites(pt, k))
+        core_output = only(ProcessTensors.output_sites(pt, k))
         return _materialize_interval(
             action,
             core_input,
@@ -400,8 +399,9 @@ function _compile_tester_control_data(
 
     compiled = ITensor[instruments...]
     first_interval = first(intervals)
-    first_input = only(ProcessTensors.input_sites(pt, 0))
-    initial = compiled[1] * initial_tensor * initial_map
+    first_input = only(ProcessTensors.input_sites(pt, 1))
+    initial_memory = initial_tensor * initial_map
+    initial = compiled[1] * initial_memory
     if first_interval.pre_system !== nothing
         initial = _relabel_if_present(
             initial,
@@ -440,6 +440,7 @@ function _compile_tester_control_data(
 
     return (
         instruments=compiled,
+        initial_memory=replaceind(initial_memory, memory_links[1], only(memory.sites)),
         pending_post=ITensor[interval.post for interval in intervals],
         post_system=Union{Nothing,Index}[interval.post_system for interval in intervals],
         memory_output=memory_links[2:end],
@@ -462,7 +463,7 @@ function _compile_tester_control(
         "evaluate_process",
     )
     compiled = data.instruments
-    final_output = only(ProcessTensors.output_sites(pt, pt.nsteps - 1))
+    final_output = only(ProcessTensors.output_sites(pt, pt.nsteps))
     terminal = compiled[end]
     final_post_system = last(data.post_system)
     if final_post_system !== nothing

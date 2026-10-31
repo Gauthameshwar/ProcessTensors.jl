@@ -188,69 +188,124 @@ end
     def = unitary_propagation(sys)
 
     # Given: unified schedule with default only.
-    # When: resolve k ≥ 1 missing from entries.
-    # Then: default instrument is returned.
+    # When: resolve an attachment missing from entries.
+    # Then: nothing; defaults are not substituted.
     seq = InstrumentSeq(def, 0)
-    @test resolve_instrument(seq, 1) === def
-    @test resolve_instrument(seq, 0) === nothing
+    @test resolve_instrument(seq, 1, :between) === nothing
+    @test resolve_instrument(seq, 1, :input) === nothing
 
-    # Given: optional init absent.
-    # When: resolve k == 0.
-    # Then: nothing.
-    @test resolve_instrument(seq, 0) === nothing
-
-    # Given: StatePreparation at tstep 0.
-    # When: resolve 0.
+    # Given: StatePreparation on the input of core 1.
+    # When: resolve (1, :input).
     # Then: that instrument is returned.
     s = siteinds("S=1/2", 1); L = liouv_sites(s)
     prep = state_preparation(to_liouville(to_dm(MPS(s, ["Dn"])); sites=L))
-    add!(seq, prep, 0)
-    @test resolve_instrument(seq, 0) === prep
+    add!(seq, prep, 1)
+    @test resolve_instrument(seq, 1, :input) === prep
     empty!(seq.entries)
 
-    # Given: non–StatePreparation at tstep 0.
+    # Given: core 0, or a non-preparation on the input of core 1.
     # When: add!.
     # Then: ArgumentError.
+    @test_throws ArgumentError add!(seq, prep, 0)
     @test_throws ArgumentError add!(seq, def, 0)
+    @test_throws ArgumentError add!(seq, observable_measurement(OpSum() + (1.0, "Sz", 1); leg_plev=1), 1)
 
-    # Given: two adds at the same tstep.
+    # Given: two adds on the same attachment.
     # When: add! twice.
     # Then: latest wins.
     seq2 = InstrumentSeq(identity_operation(), 0)
     add!(seq2, def, 2)
     other = unitary_propagation(sys)
     add!(seq2, other, 2)
-    @test resolve_instrument(seq2, 2) === other
+    @test resolve_instrument(seq2, 2, :between) === other
 
-    # Given: second schedule; add! at step 1.
-    # When: resolve 1.
+    # Given: second schedule; two-leg add! at core 1.
+    # When: resolve (1, :between).
     # Then: returns the instrument passed to add!.
     seq3 = InstrumentSeq(identity_operation(), 0)
     add!(seq3, def, 1)
-    @test resolve_instrument(seq3, 1) === def
+    @test resolve_instrument(seq3, 1, :between) === def
 
-    # Given: seq.nsteps bound and tstep above range.
-    # When: add!.
-    # Then: ArgumentError.
-    seq4 = InstrumentSeq(identity_operation(), 3; entries=Dict{Int,AbstractInstrument}())
-    @test_throws ArgumentError add!(seq4, def, 4)
+    # Given: seq.nsteps bound.
+    # When: add! a between-attachment at nsteps or a single leg beyond nsteps.
+    # Then: ArgumentError; the final output effect at nsteps is accepted.
+    seq4 = InstrumentSeq(identity_operation(), 3; entries=Dict{Tuple{Int,Symbol},AbstractInstrument}())
+    @test_throws ArgumentError add!(seq4, def, 3)
+    @test_throws ArgumentError add!(seq4, trace_out(), 4)
+    add!(seq4, trace_out(), 3)
+    @test resolve_instrument(seq4, 3, :output) isa TraceOut
 
-    @test_throws ArgumentError resolve_instrument(seq2, -1)
+    @test_throws ArgumentError resolve_instrument(seq2, 2, :slot)
 
-    # resolve with fallback for k ≥ 1
-    seq5 = InstrumentSeq(identity_operation(), 0)
-    fb = unitary_propagation(sys)
-    @test resolve_instrument(seq5, 1, fb) === fb
-    add!(seq5, def, 1)
-    @test resolve_instrument(seq5, 1, fb) === def
+    @test_throws ArgumentError InstrumentSeq(; default=identity_operation(), nsteps=2, entries=Dict(1 => def))
+    @test_throws ArgumentError InstrumentSeq(; default=identity_operation(), nsteps=2, entries=Dict((1, :input) => def))
+    seq_kw = InstrumentSeq(; default=identity_operation(), nsteps=2, entries=Dict((1, :between) => def))
+    @test resolve_instrument(seq_kw, 1, :between) === def
+    @test occursin("(1, :between)", sprint(show, seq_kw))
 
-    seq_kw = InstrumentSeq(; default=identity_operation(), nsteps=2, entries=Dict(1 => def))
-    @test resolve_instrument(seq_kw, 1) === def
-    @test occursin("InstrumentSeq", sprint(show, seq_kw))
-
-    seq_plus = InstrumentSeq(identity_operation(), 2)
+    seq_plus = InstrumentSeq(identity_operation(), 3)
     seq_plus += (def, 2)
-    @test resolve_instrument(seq_plus, 2) === def
+    @test resolve_instrument(seq_plus, 2, :between) === def
+end
+
+@testset "Instruments.jl: core attachments vs exact one-core references" begin
+    sys_phys = siteinds("S=1/2", 1)
+    H_sys = OpSum() + (0.7, "Sx", 1) + (0.3, "Sz", 1)
+    system = spin_system(sys_phys, H_sys)
+    rho0_h = to_dm(MPS(sys_phys, ["Up"]))
+    O_Sz = OpSum() + (1.0, "Sz", 1)
+    O_Sx = OpSum() + (1.0, "Sx", 1)
+    dt = 0.1
+
+    # Preparation and final effect share core 1 in either insertion order.
+    pt1 = build_process_tensor(system; dt, nsteps=1, progress=false)
+    U = exp(-im * dt * dense_hamiltonian_matrix(H_sys, sys_phys))
+    rho_dt = U * hilbert_mpo_to_dense(rho0_h, sys_phys) * U'
+    seq_prep_first = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_prep_first, state_preparation(rho0_h), 1)
+    add!(seq_prep_first, trace_out(), 1)
+    seq_trace_first = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_trace_first, trace_out(), 1)
+    add!(seq_trace_first, state_preparation(rho0_h), 1)
+    @test evaluate_process(pt1, seq_prep_first; progress=false) ≈ 1 atol=1e-12
+    @test evaluate_process(pt1, seq_trace_first; progress=false) ≈ 1 atol=1e-12
+
+    seq_obs = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_obs, observable_measurement(O_Sz), 1)
+    add!(seq_obs, state_preparation(rho0_h), 1)
+    @test evaluate_process(pt1, seq_obs; progress=false) ≈
+          tr(dense_hamiltonian_matrix(O_Sz, sys_phys) * rho_dt) atol=1e-12
+
+    # A between-attachment owns o_k and i_{k+1}; single legs there are rejected.
+    H_control = OpSum() + (0.4, "Sy", 1)
+    between_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(between_first, unitary_propagation(H_control, sys_phys), 1)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz), 1)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 2)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 1)
+    add!(between_first, state_preparation(rho0_h), 1)
+    @test between_first.entries[(1, :input)] isa StatePreparation
+
+    output_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(output_first, observable_measurement(O_Sz), 1)
+    @test_throws ArgumentError add!(output_first, unitary_propagation(H_control, sys_phys), 1)
+    input_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(input_first, observable_measurement(O_Sz; leg_plev=1), 2)
+    @test_throws ArgumentError add!(input_first, unitary_propagation(H_control, sys_phys), 1)
+
+    # Split (k, :output) + (k+1, :input) contracts like the product between-attachment.
+    pt3 = build_process_tensor(system; dt, nsteps=3, progress=false)
+    split_pair = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(split_pair, state_preparation(rho0_h), 1)
+    add!(split_pair, observable_measurement(O_Sz), 1)
+    add!(split_pair, observable_measurement(O_Sx; leg_plev=1), 2)
+    add!(split_pair, trace_out(), 3)
+    product_pair = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(product_pair, state_preparation(rho0_h), 1)
+    add!(product_pair, observable_measurement(O_Sz) * observable_measurement(O_Sx; leg_plev=1), 1)
+    add!(product_pair, trace_out(), 3)
+    @test evaluate_process(pt3, split_pair; progress=false) ≈
+          evaluate_process(pt3, product_pair; progress=false) atol=1e-12
 end
 
 @testset "Instruments.jl: instrument_leg_maps coverage" begin
@@ -260,15 +315,16 @@ end
     L_leg = liouv_sites(s_leg)
     prep0 = state_preparation(to_liouville(to_dm(MPS(s_leg, ["Up"])); sites=L_leg))
 
-    # Given: nsteps=1, default two-leg, no prep at 0.
+    # Given: nsteps=1, default two-leg, no preparation on core 1.
     # When: instrument_leg_maps.
-    # Then: missing_in lists 0 (init leg), no missing_out (nsteps==1 expects no out coverage).
+    # Then: missing_in lists core 1; the final output is covered by open_output.
     seq = InstrumentSeq(iddef, 0)
     in_m, out_m, mi, mo = instrument_leg_maps(seq, 1)
-    @test mi == [0]
+    @test mi == [1]
     @test isempty(mo)
+    @test out_m[1] isa OpenOutput
 
-    # Given: same with explicit StatePreparation at 0.
+    # Given: same with explicit StatePreparation on core 1.
     # When: maps.
     # Then: missing_in empty.
     s = siteinds("S=1/2", 1); L = liouv_sites(s)
@@ -277,16 +333,16 @@ end
     _, _, mi2, mo2 = instrument_leg_maps(seq_p, 1)
     @test isempty(mi2) && isempty(mo2)
 
-    # Given: nsteps ∈ {3,4}, default Identity plus init prep at 0.
+    # Given: nsteps ∈ {3,4}, default Identity plus init prep on core 1.
     # When: maps.
-    # Then: all required in/out slots covered; terminal open legs follow API contract.
+    # Then: all inputs and outputs 1:n covered; the final output stays open.
     for n in (3, 4)
         seqn = InstrumentSeq(iddef, 0; init=prep0)
         _, _, minn, mout = instrument_leg_maps(seqn, n)
         @test isempty(minn) && isempty(mout)
     end
 
-    # Given: sparse overrides — only step 3 set, rest default Identity, with prep at 0.
+    # Given: sparse overrides — only between-attachment 3 set, rest default Identity, with prep on core 1.
     # When: nsteps=4.
     # Then: in/out coverage complete.
     seq_s = InstrumentSeq(iddef, 0; init=prep0)
@@ -294,19 +350,19 @@ end
     _, _, mis, mos = instrument_leg_maps(seq_s, 4)
     @test isempty(mis) && isempty(mos)
 
-    # Given: last-wins at same step changes TwoLeg instrument.
+    # Given: last-wins on between-attachment 2.
     # When: leg maps.
-    # Then: maps reference the replaced instrument at that step.
+    # Then: output 2 and input 3 reference the replacing instrument.
     seq_l = InstrumentSeq(iddef, 0)
     spA = unitary_propagation(sys); spB = unitary_propagation(sys)
     add!(seq_l, spA, 2); add!(seq_l, spB, 2)
     im, om, _, _ = instrument_leg_maps(seq_l, 3)
-    @test im[2] === spB
-    @test om[1] === spB
+    @test im[3] === spB
+    @test om[2] === spB
 
-    # Given: Observable on input leg (plev 1) at step 2 (replaces default two-leg there).
+    # Given: Observable on the input leg (plev 1) of core 2, so between-attachment 1 is not defaulted.
     # When: maps for nsteps=3.
-    # Then: input slots stay covered via prep + other steps; output slot at tstep=1 lacks an instrument.
+    # Then: inputs stay covered via prep + other cores; output 1 lacks an instrument.
     op = OpSum(); op += 1.0, "Sz", 1
     seq_o = InstrumentSeq(iddef, 0; init=prep0)
     add!(seq_o, observable_measurement(op, Index[]; leg_plev=1), 2)
@@ -316,10 +372,10 @@ end
 
     # Given: no prep, Identity default, nsteps=3.
     # When: maps.
-    # Then: missing_in reports 0 (documented sparse-init case).
+    # Then: missing_in reports core 1 (no default preparation).
     seq_np = InstrumentSeq(iddef, 0)
     _, _, mi_np, _ = instrument_leg_maps(seq_np, 3)
-    @test 0 in mi_np
+    @test 1 in mi_np
 
     # Open bookkeeping coverage and pt wrapper.
     system = spin_system(s_leg, OpSum() + (0.2, "Sz", 1))
@@ -327,7 +383,7 @@ end
     rho0_h = to_dm(MPS(s_leg, ["Up"]))
 
     seq_closed = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_closed, state_preparation(rho0_h), 0)
+    add!(seq_closed, state_preparation(rho0_h), 1)
     add!(seq_closed, trace_out(), pt.nsteps)
     in_a, out_a, mi_a, mo_a = instrument_leg_maps(seq_closed, pt.nsteps)
     in_b, out_b, mi_b, mo_b = instrument_leg_maps(pt, seq_closed)
@@ -337,31 +393,31 @@ end
     @test keys(out_a) == keys(out_b)
 
     seq_oo = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_oo, state_preparation(rho0_h), 0)
+    add!(seq_oo, state_preparation(rho0_h), 1)
     add!(seq_oo, open_inout(), 1)
     add!(seq_oo, trace_out(), pt.nsteps)
     in_o, out_o, mi_o, mo_o = instrument_leg_maps(seq_oo, pt.nsteps)
     @test isempty(mi_o) && isempty(mo_o)
-    @test in_o[1] isa OpenInOut
-    @test out_o[0] isa OpenInOut
+    @test in_o[2] isa OpenInOut
+    @test out_o[1] isa OpenInOut
 
     seq_out_only = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_out_only, state_preparation(rho0_h), 0)
+    add!(seq_out_only, state_preparation(rho0_h), 1)
     add!(seq_out_only, open_output(), 1)
-    # OpenOutput at step 1 claims out[0]; in[1] is missing.
+    # OpenOutput claims the output of core 1; the input of core 2 is missing.
     _, _, mi_only, mo_out = instrument_leg_maps(seq_out_only, pt.nsteps)
-    @test 1 in mi_only
-    @test !(0 in mo_out)
+    @test 2 in mi_only
+    @test !(1 in mo_out)
 
     seq_in_only = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_in_only, state_preparation(rho0_h), 0)
-    add!(seq_in_only, open_input(), 1)
+    add!(seq_in_only, state_preparation(rho0_h), 1)
+    add!(seq_in_only, open_input(), 2)
     _, _, mi_in, mo_in = instrument_leg_maps(seq_in_only, pt.nsteps)
-    @test 0 in mo_in
-    @test !(1 in mi_in)
+    @test 1 in mo_in
+    @test !(2 in mi_in)
 
     seq_pair = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_pair, state_preparation(rho0_h), 0)
+    add!(seq_pair, state_preparation(rho0_h), 1)
     add!(seq_pair, trace_out(), 1)
     add!(seq_pair, state_preparation(to_dm(MPS(s_leg, ["Dn"]))), 2)
     add!(seq_pair, trace_out(), 3)
@@ -396,7 +452,7 @@ end
     pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s, ["Up"]))
     seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, state_preparation(rho0_h), 1)
     add!(seq, open_inout(), 1)
     add!(seq, trace_out(), 3)
     instruments = create_instruments(pt, seq)
@@ -404,7 +460,7 @@ end
     @test length(inds(instruments[2])) == 0
 
     seq_bad = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_bad, state_preparation(rho0_h), 0)
+    add!(seq_bad, state_preparation(rho0_h), 1)
     add!(seq_bad, open_input(), pt.nsteps)
     @test_throws ArgumentError create_instruments(pt, seq_bad)
 end
@@ -417,9 +473,9 @@ end
     prep = state_preparation(ρl)
     leg_in = prime(Ls[1])
     # Given: random single-qubit density matrix as MPO{Hilbert} → Liouville MPS.
-    # When: build StatePreparation ITensor at k=0 on primed Liouville leg.
+    # When: build StatePreparation ITensor on the primed input leg of core 1.
     # Then: tensor matches contracted Liouville state on that leg.
-    T = instrument_itensor(prep, [leg_in], 0)
+    T = instrument_itensor(prep, [leg_in], 1)
     ref = contract_core(ρl.core)
     ref = replaceind(ref, Ls[1], leg_in)
     @test hassameinds(T, Index[leg_in])
@@ -431,7 +487,7 @@ end
     ρbl = to_liouville(ρbh; sites=Lb)
     prep_b = state_preparation(ρbl)
     leg_b = prime(Lb[1])
-    Tb = instrument_itensor(prep_b, [leg_b], 0)
+    Tb = instrument_itensor(prep_b, [leg_b], 1)
     refb = contract_core(ρbl.core)
     refb = replaceind(refb, Lb[1], leg_b)
     @test isapprox(vec(Array(Tb, leg_b)), vec(Array(refb, leg_b)))
@@ -492,11 +548,11 @@ end
     in1 = prime(L[1])
     out0 = L[1]
     open_op = open_output()
-    Topen = instrument_itensor(open_op, [out0], 0)
+    Topen = instrument_itensor(open_op, [out0], 1)
     @test length(inds(Topen)) == 0
     @test isapprox(scalar(Topen), 1.0; atol=1e-12)
 
-    Ttrace = instrument_itensor(trace_out([out0]), [out0], 0)
+    Ttrace = instrument_itensor(trace_out([out0]), [out0], 1)
     @test length(inds(Ttrace)) == 1
     @test hasind(Ttrace, out0)
 
@@ -505,11 +561,12 @@ end
 
     iddef = identity_operation()
     seq = InstrumentSeq(iddef, 2)
-    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 1)
     add!(seq, open_output(), 2)
     in_map, out_map, missing_in, missing_out = instrument_leg_maps(seq, 2)
-    @test haskey(in_map, 1)
-    @test haskey(out_map, 0)
+    @test in_map[2] === iddef
+    @test out_map[1] === iddef
+    @test out_map[2] isa OpenOutput
     @test isempty(missing_in)
     @test isempty(missing_out)
 end
@@ -575,9 +632,9 @@ end
 
         system = spin_system(s, OpSum() + (0.1, "Sz", 1))
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
-        out1, in2 = coupling_times(pt, 2)
-        T_step2 = instrument_itensor(custom, in2, out1, 2)
-        T_ref2 = instrument_itensor(identity_operation(), in2, out1, 2)
+        out2, in3 = coupling_times(pt, 2)
+        T_step2 = instrument_itensor(custom, in3, out2, 2)
+        T_ref2 = instrument_itensor(identity_operation(), in3, out2, 2)
         @test isapprox(norm(T_step2 - T_ref2), 0.0; atol=1e-12)
     end
 
@@ -640,7 +697,7 @@ end
             [out0],
         )
         seq = InstrumentSeq(custom, 2)
-        add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+        add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 1)
         _, _, missing_in, missing_out = instrument_leg_maps(seq, 2)
         @test isempty(missing_in)
         @test isempty(missing_out)
@@ -649,7 +706,7 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=2)
         rho0_h = to_dm(MPS(s, ["Up"]))
         seq_pt = InstrumentSeq(default=custom, nsteps=pt.nsteps)
-        add!(seq_pt, state_preparation(rho0_h), 0)
+        add!(seq_pt, state_preparation(rho0_h), 1)
         instruments = create_instruments(pt, seq_pt)
         @test length(instruments) == pt.nsteps + 1
         out_prev, in_curr = coupling_times(pt, 1)
@@ -666,13 +723,13 @@ end
         rho1_h = to_dm(MPS(s, ["Dn"]))
 
         seq_unpaired = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_unpaired, state_preparation(rho0_h), 0)
+        add!(seq_unpaired, state_preparation(rho0_h), 1)
         add!(seq_unpaired, trace_out(), 1)
         err = @test_throws ArgumentError create_instruments(pt, seq_unpaired)
-        @test occursin("single-leg input instrument", lowercase(string(err.value)))
+        @test occursin("missing input legs on cores [2]", string(err.value))
 
         seq_paired = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_paired, state_preparation(rho0_h), 0)
+        add!(seq_paired, state_preparation(rho0_h), 1)
         add!(seq_paired, trace_out(), 1)
         add!(seq_paired, state_preparation(rho1_h), 2)
         add!(seq_paired, trace_out(), 3)
@@ -727,11 +784,11 @@ end
     @test measure_reprepare.output_instr === obs_z
     @test measure_reprepare.input_instr === prep
     T_mr = instrument_itensor(measure_reprepare, [in1], [out0], 1)
-    T_mr_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(obs_z, [out0], 0)
+    T_mr_ref = instrument_itensor(prep, [in1], 2) * instrument_itensor(obs_z, [out0], 1)
     @test isapprox(norm(T_mr - T_mr_ref), 0.0; atol=1e-12)
 
     T_prod = instrument_itensor(prod1, [in1], [out0], 1)
-    T_ref = instrument_itensor(prep, [in1], 1) * instrument_itensor(tr_out, [out0], 0)
+    T_ref = instrument_itensor(prep, [in1], 2) * instrument_itensor(tr_out, [out0], 1)
     @test isapprox(norm(T_prod - T_ref), 0.0; atol=1e-12)
 
     T_same = instrument_itensor(same_leg, [out0], 1)
@@ -755,7 +812,7 @@ end
 
     iddef = identity_operation()
     seq = InstrumentSeq(iddef, 3)
-    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 0)
+    add!(seq, state_preparation(to_liouville(to_dm(MPS(s, ["Up"])); sites=L)), 1)
     add!(seq, prod1, 1)
     add!(seq, trace_out(), 3)
     _, _, missing_in, missing_out = instrument_leg_maps(seq, 3)
@@ -766,7 +823,7 @@ end
     pt = build_process_tensor(system; dt=0.05, nsteps=3)
     rho0_h = to_dm(MPS(s, ["Up"]))
     seq_eval = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_eval, state_preparation(rho0_h), 0)
+    add!(seq_eval, state_preparation(rho0_h), 1)
     add!(seq_eval, observable_measurement(op_z), pt.nsteps)
     val = evaluate_process(pt, seq_eval)
     @test val isa ComplexF64
@@ -807,20 +864,20 @@ end
     op_z += 1.0, "Sz", 1
     rho_h = to_dm(MPS(s, ["Dn"]))
     prep_left = observable_measurement(op_z; leg_plev=1) * state_preparation(rho_h)
-    T_left = instrument_itensor(prep_left, [prime(L[1])], 0)
+    T_left = instrument_itensor(prep_left, [prime(L[1])], 1)
     ref_left = instrument_itensor(
         state_preparation(apply(MPO(op_z, s), rho_h)),
         [prime(L[1])],
-        0,
+        1,
     )
     @test isapprox(norm(T_left - ref_left), 0.0; atol=1e-12)
 
     prep_right = state_preparation(rho_h) * observable_measurement(op_z; leg_plev=1)
-    T_right = instrument_itensor(prep_right, [prime(L[1])], 0)
+    T_right = instrument_itensor(prep_right, [prime(L[1])], 1)
     ref_right = instrument_itensor(
         state_preparation(apply(rho_h, MPO(op_z, s))),
         [prime(L[1])],
-        0,
+        1,
     )
     @test isapprox(norm(T_right - ref_right), 0.0; atol=1e-12)
 end

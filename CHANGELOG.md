@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Breaking
+
+* **Process-tensor cores and system legs are numbered from one.** Core
+  `k ∈ 1:nsteps` is `pt.core[k]`, covers the interval `[(k-1)dt, k dt]`, and
+  carries input `i_k` and output `o_k` tagged `tstep=k`.
+  `input_sites(pt, k)` and `output_sites(pt, k)` take `k ∈ 1:nsteps`; `k = 0`
+  now throws. `coupling_times(pt, k)` returns `(o_k, i_{k+1})` for
+  `k ∈ 1:nsteps-1`. Memory links keep `tstep=0:nsteps`.
+* **Instrument attachments are keyed by leg.** `add!(seq, instr, k)` stores
+  `(k, :input)`, `(k, :output)`, or `(k, :between)` by type. Two-leg
+  instruments link `o_k → i_{k+1}` for `k ∈ 1:nsteps-1`; the preparation
+  is on core 1. Integer keys are rejected.
+* **`TesterSeq` initialization is a keyword.** The action before interval `1`
+  is `TesterSeq(...; initialization=action)`, replacing tester key `0`;
+  `add!(tester_seq, action, 0)` now throws. Interval keys `1:nsteps` are
+  unchanged.
+* **`evolve` returns `nsteps + 1` samples.** `times == 0:dt:nsteps*dt`, and
+  sample `1` of the system, tester, and joint trajectories is the initial
+  state at `t = 0`. Previously `nsteps` samples were returned with time labels
+  one step behind the physical states.
+* **`two_time_correlation_seq` takes snapshot indices.** Each insertion index
+  `j ∈ 1:nsteps+1` refers to time `(j-1)dt`. The old early index `0` maps to
+  `1`, and any other old index `n` maps to `n + 2`.
+
+Migration for a typical schedule:
+
+```julia
+# before
+add!(seq, state_preparation(ρ0), 0)
+add!(seq, trace_out(), pt.nsteps)
+
+# after
+add!(seq, state_preparation(ρ0), 1)
+add!(seq, trace_out(), pt.nsteps)
+```
+
+Two-leg instruments added with an integer anchor, such as
+`add!(seq, unitary_propagation(H, sites), k)`, keep the same `k`. Remove manual
+prepending of `ρ0` to `evolve` output and `nsteps = round(Int, T/dt) + 1`
+workarounds; `nsteps = round(Int, T/dt)` now ends at `T`.
+
 ### Removed
 
 * **Boundary-driven XXZ example.** The Literate page, companion script, and

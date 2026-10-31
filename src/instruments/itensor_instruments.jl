@@ -97,8 +97,11 @@ end
 
 Materialize an instrument as an `ITensor` on process-tensor legs.
 
-Hilbert-space preparations and observables are converted to Liouville-space
-objects when needed.
+For a single-leg instrument, `k` is the core whose leg is bound. For a two-leg
+instrument, `k` is the between-attachment anchor: the output leg carries
+`tstep=k` and the input leg `tstep=k+1`, and time-dependent controls are
+sampled at `(k - 1/2) dt`. Hilbert-space preparations and observables are
+converted to Liouville-space objects when needed.
 """
 function instrument_itensor(
     instr::StatePreparation,
@@ -212,8 +215,8 @@ function instrument_itensor(
     k::Int;
     kwargs...,
 )
-    T_out = instrument_itensor(instr.output_instr, output_pt_sites, k - 1; kwargs...)
-    T_in = instrument_itensor(instr.input_instr, input_pt_sites, k; kwargs...)
+    T_out = instrument_itensor(instr.output_instr, output_pt_sites, k; kwargs...)
+    T_in = instrument_itensor(instr.input_instr, input_pt_sites, k + 1; kwargs...)
     return T_in * T_out
 end
 
@@ -227,11 +230,11 @@ function instrument_itensor(
     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
     _validate_two_leg_map("IdentityOperation", in_sites, out_sites)
-    all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-        ArgumentError("IdentityOperation: all input_pt_sites must have tstep=$k when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k + 1), in_sites) || throw(
+        ArgumentError("IdentityOperation: all input_pt_sites must have tstep=$(k + 1) when tagged."),
     )
-    all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-        ArgumentError("IdentityOperation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k), out_sites) || throw(
+        ArgumentError("IdentityOperation: all output_pt_sites must have tstep=$k when tagged."),
     )
     map_t = ITensor(1.0)
     for (sin, sout) in zip(in_sites, out_sites)
@@ -272,7 +275,7 @@ function instrument_itensor(
     return ITensor(1.0)
 end
 
-# Evolve-slot entry point: pick the PT leg that matches `leg_plev`.
+# Between-attachment entry point: bind output `k` or input `k + 1` to match `leg_plev`.
 function instrument_itensor(
     instr::SingleLegInstrument,
     input_pt_sites::AbstractVector{<:Index},
@@ -281,9 +284,9 @@ function instrument_itensor(
     kwargs...,
 )
     if instr.leg_plev == _OUTPUT_PLEV
-        return instrument_itensor(instr, output_pt_sites, step - 1; kwargs...)
+        return instrument_itensor(instr, output_pt_sites, step; kwargs...)
     else
-        return instrument_itensor(instr, input_pt_sites, step; kwargs...)
+        return instrument_itensor(instr, input_pt_sites, step + 1; kwargs...)
     end
 end
 
@@ -298,11 +301,11 @@ function instrument_itensor(
     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
     if !isempty(in_sites) || !isempty(out_sites)
         _validate_two_leg_map("OpenInOut", in_sites, out_sites)
-        all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-            ArgumentError("OpenInOut: all input_pt_sites must have tstep=$k when tagged."),
+        all(s -> _tstep_from_site(s) in (nothing, k + 1), in_sites) || throw(
+            ArgumentError("OpenInOut: all input_pt_sites must have tstep=$(k + 1) when tagged."),
         )
-        all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-            ArgumentError("OpenInOut: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+        all(s -> _tstep_from_site(s) in (nothing, k), out_sites) || throw(
+            ArgumentError("OpenInOut: all output_pt_sites must have tstep=$k when tagged."),
         )
     end
     return ITensor(1.0)
@@ -330,11 +333,11 @@ function instrument_itensor(
     in_sites = isempty(instr.input_pt_sites) ? Index[input_pt_sites...] : instr.input_pt_sites
     out_sites = isempty(instr.output_pt_sites) ? Index[output_pt_sites...] : instr.output_pt_sites
     _validate_two_leg_map("UnitaryPropagation", in_sites, out_sites)
-    all(s -> _tstep_from_site(s) in (nothing, k), in_sites) || throw(
-        ArgumentError("UnitaryPropagation: all input_pt_sites must have tstep=$k when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k + 1), in_sites) || throw(
+        ArgumentError("UnitaryPropagation: all input_pt_sites must have tstep=$(k + 1) when tagged."),
     )
-    all(s -> _tstep_from_site(s) in (nothing, k - 1), out_sites) || throw(
-        ArgumentError("UnitaryPropagation: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k), out_sites) || throw(
+        ArgumentError("UnitaryPropagation: all output_pt_sites must have tstep=$k when tagged."),
     )
     H = _unitary_hamiltonian(instr.H, k, dt)
     liouv_os = liouvillian_opsum(H, OpSum[])
@@ -382,11 +385,11 @@ function instrument_itensor(
     runtime_in = Index[input_pt_sites...]
     runtime_out = Index[output_pt_sites...]
     _validate_two_leg_map("CustomTwoLegInstrument", runtime_in, runtime_out)
-    all(s -> _tstep_from_site(s) in (nothing, k), runtime_in) || throw(
-        ArgumentError("CustomTwoLegInstrument: all input_pt_sites must have tstep=$k when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k + 1), runtime_in) || throw(
+        ArgumentError("CustomTwoLegInstrument: all input_pt_sites must have tstep=$(k + 1) when tagged."),
     )
-    all(s -> _tstep_from_site(s) in (nothing, k - 1), runtime_out) || throw(
-        ArgumentError("CustomTwoLegInstrument: all output_pt_sites must have tstep=$(k - 1) when tagged."),
+    all(s -> _tstep_from_site(s) in (nothing, k), runtime_out) || throw(
+        ArgumentError("CustomTwoLegInstrument: all output_pt_sites must have tstep=$k when tagged."),
     )
 
     if isempty(instr.source_input) && isempty(instr.source_output)
@@ -419,21 +422,18 @@ end
 """
     create_instruments(pt, seq; default, alg, progress=:auto, verbose=false)
 
-Materialize an `InstrumentSeq` as one `ITensor` per schedule slot.
+Materialize an `InstrumentSeq` as the `pt.nsteps + 1` contraction factors
+between process-tensor cores:
+- factor `1` is the `(1, :input)` preparation on the input of core `1`,
+- factor `k + 1` for `k ∈ 1:pt.nsteps-1` joins the output of core `k` to the
+  input of core `k + 1` at time `k dt`,
+- factor `pt.nsteps + 1` is the `(pt.nsteps, :output)` effect on the final
+  output (`TraceOut`, `ObservableMeasurement`, or the default `OpenOutput`).
 
-The returned vector has length `pt.nsteps + 1`:
-- index `1` is the `tstep = 0` preparation,
-- indices `2:pt.nsteps` are evolve-slot instruments for steps `1:pt.nsteps-1`,
-- index `pt.nsteps + 1` is the terminal instrument at `tstep = pt.nsteps`
-  (`TraceOut`, `ObservableMeasurement`, or `OpenOutput` / open no-op).
-
-Schedule rewriting (same pairing policy as `instrument_leg_maps`):
-consecutive physical single-leg output/input entries become a
-[`ProductInstrument`](@ref) at the output slot; the consumed input slot is
-replaced by `default` when it still lies in the evolve range. A terminal
-[`IdentityOperation`](@ref) becomes [`OpenOutput`](@ref).
-
-Every slot is then materialized only through [`instrument_itensor`](@ref).
+Factor `k + 1` is the `(k, :between)` attachment when present; otherwise a
+separate `(k, :output)` and `(k + 1, :input)` pair is combined into one
+[`ProductInstrument`](@ref); otherwise `default` is used. Every factor is
+materialized only through [`instrument_itensor`](@ref).
 """
 function _create_instruments(
     pt::ProcessTensors.ProcessTensor,
@@ -442,80 +442,39 @@ function _create_instruments(
     alg=Trotter{2}(),
     run::ProcessTensors._AbstractRunReporter=ProcessTensors._NO_RUN_REPORTER,
 )
-    n = pt.nsteps
-    slots = Vector{AbstractInstrument}(undef, n + 1)
-    for t in 0:n
-        slots[t + 1] = resolve_instrument(seq, t, default)
-    end
-    if slots[end] isa IdentityOperation
-        slots[end] = open_output()
-    end
-
-    # Pair physical single-leg out/in (OpenOutput does not force a partner).
-    for s in 1:(n - 1)
-        out_entry = slots[s + 1]
-        in_entry = slots[s + 2]
-        out_entry isa SingleLegInstrument || continue
-        out_entry.leg_plev == _OUTPUT_PLEV || continue
-        out_entry isa OpenOutput && continue
-
-        (in_entry isa SingleLegInstrument && in_entry.leg_plev == _INPUT_PLEV) || throw(
-            ArgumentError(
-                "create_instruments: single-leg output instrument $(typeof(out_entry)) at tstep=$s " *
-                "requires a single-leg input instrument at tstep=$(s + 1); got $(typeof(in_entry)).",
-            ),
-        )
-        slots[s + 1] = ProductInstrument(in_entry, out_entry)
-        if s + 1 <= n - 1
-            slots[s + 2] = default
-        end
-    end
-
-    for s in 1:(n - 1)
-        instr = slots[s + 1]
-        if instr isa SingleLegInstrument && instr.leg_plev == _INPUT_PLEV && !(instr isa OpenInput)
-            throw(
-                ArgumentError(
-                    "create_instruments: unpaired single-leg input instrument $(typeof(instr)) at tstep=$s; " *
-                    "expected a single-leg output instrument at tstep=$(s - 1).",
-                ),
-            )
-        end
-    end
-
-    terminal = slots[end]
-    if terminal isa OpenInput || terminal isa OpenInOut || terminal isa TwoLegInstrument
-        throw(
-            ArgumentError(
-                "create_instruments: $(typeof(terminal)) is not supported at terminal tstep=$n.",
-            ),
-        )
-    elseif !(terminal isa SingleLegInstrument) || terminal.leg_plev != _OUTPUT_PLEV
-        throw(
-            ArgumentError(
-                "create_instruments: unsupported terminal instrument $(typeof(terminal)) at tstep=$n.",
-            ),
-        )
-    end
-
     ProcessTensors._validate_instrument_schedule!(pt, seq, default, "create_instruments")
+
+    n = pt.nsteps
+    factors = Vector{AbstractInstrument}(undef, n + 1)
+    factors[1] = seq.entries[(1, :input)]
+    for k in 1:(n - 1)
+        between = get(seq.entries, (k, :between), nothing)
+        output = get(seq.entries, (k, :output), nothing)
+        factors[k + 1] = if between !== nothing
+            between
+        elseif output !== nothing
+            ProductInstrument(seq.entries[(k + 1, :input)], output)
+        else
+            default
+        end
+    end
+    factors[n + 1] = get(seq.entries, (n, :output), open_output())
 
     instruments = Vector{ITensor}(undef, n + 1)
     ProcessTensors.@progress_bar run "Materializing instruments" (n + 1) begin
-        instruments[1] = instrument_itensor(slots[1], ProcessTensors.input_sites(pt, 0), 0)
+        instruments[1] = instrument_itensor(factors[1], ProcessTensors.input_sites(pt, 1), 1)
         ProcessTensors.@progress_update run 1
-        for step in 1:(n - 1)
-            out_prev, in_curr = ProcessTensors.coupling_times(pt, step)
-            instruments[step + 1] = instrument_itensor(
-                slots[step + 1], in_curr, out_prev, step; dt=pt.dt, alg=alg,
+        for k in 1:(n - 1)
+            out_k, in_next = ProcessTensors.coupling_times(pt, k)
+            instruments[k + 1] = instrument_itensor(
+                factors[k + 1], in_next, out_k, k; dt=pt.dt, alg=alg,
             )
-            slot = step + 1
-            ProcessTensors.@progress_update run slot
+            factor = k + 1
+            ProcessTensors.@progress_update run factor
         end
-        out_final, _ = ProcessTensors.coupling_times(pt, n)
-        instruments[n + 1] = instrument_itensor(slots[end], out_final, n - 1)
-        final_slot = n + 1
-        ProcessTensors.@progress_update run final_slot
+        instruments[n + 1] = instrument_itensor(factors[n + 1], ProcessTensors.output_sites(pt, n), n)
+        final_factor = n + 1
+        ProcessTensors.@progress_update run final_factor
     end
 
     return instruments
@@ -525,9 +484,11 @@ end
     create_instruments(pt, seq; default, alg=Trotter{2}(),
                        progress=:auto, verbose=false)
 
-Materialize one `ITensor` per process-tensor schedule slot. `progress` controls
-transient terminal feedback and `verbose=true` emits one completion `@info`
-summary after materialization finishes.
+Materialize the `pt.nsteps + 1` contraction factors of `seq`: the preparation on
+the input of core `1`, one factor between each pair of adjacent cores, and the
+effect on the output of core `pt.nsteps`. `progress` controls transient terminal
+feedback and `verbose=true` emits one completion `@info` summary after
+materialization finishes.
 """
 function create_instruments(
     pt::ProcessTensors.ProcessTensor,

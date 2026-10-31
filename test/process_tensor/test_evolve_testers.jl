@@ -89,8 +89,8 @@ end
     )
     @test keys(baseline) == (:times, :states_liouville, :states_hilbert)
     @test keys(explicit_no_tester) == keys(baseline)
-    @test baseline.times == [f.pt.dt * k for k in 0:(f.pt.nsteps - 1)]
-    @test length(baseline.states_liouville) == f.pt.nsteps
+    @test baseline.times == [f.pt.dt * k for k in 0:f.pt.nsteps]
+    @test length(baseline.states_liouville) == f.pt.nsteps + 1
     for k in eachindex(baseline.times)
         @test _evolve_density(explicit_no_tester.states_liouville[k]) ≈
               _evolve_density(baseline.states_liouville[k]) atol=1e-12
@@ -183,6 +183,8 @@ end
         progress=false,
     )
     @test _evolve_density(controlled.tester_states_liouville[1]) ≈
+          ComplexF64[0 0; 0 1] atol=1e-11
+    @test _evolve_density(controlled.tester_states_liouville[2]) ≈
           ComplexF64[1 0; 0 0] atol=1e-11
     for k in eachindex(baseline.times)
         @test _evolve_density(controlled.states_liouville[k]) ≈
@@ -207,10 +209,27 @@ end
         progress=false,
     )
     @test !isapprox(
-        _evolve_density(propagated.tester_states_liouville[1]),
+        _evolve_density(propagated.tester_states_liouville[2]),
         ComplexF64[0 0; 0 1];
         atol=1e-5,
     )
+
+    initialized = evolve(
+        f.pt,
+        f.rho0;
+        tester=f.memory,
+        tester_seq=TesterSeq(
+            nsteps=f.pt.nsteps,
+            initialization=tester_unitary(op("X", only(f.tester_sites)), f.tester_sites),
+        ),
+        return_joint=true,
+        progress=false,
+    )
+    @test length(initialized.joint_states_liouville) == f.pt.nsteps + 1
+    for k in eachindex(initialized.times)
+        @test _evolve_density(initialized.tester_states_liouville[k]) ≈
+              ComplexF64[1 0; 0 0] atol=1e-11
+    end
 end
 
 @testset "evolve: joint SWAP reductions and final evaluation" begin
@@ -234,9 +253,9 @@ end
         progress=false,
     )
 
-    @test _evolve_density(trajectory.states_liouville[1]) ≈
+    @test _evolve_density(trajectory.states_liouville[2]) ≈
           ComplexF64[0 0; 0 1] atol=1e-9
-    @test _evolve_density(trajectory.tester_states_liouville[1]) ≈
+    @test _evolve_density(trajectory.tester_states_liouville[2]) ≈
           ComplexF64[1 0; 0 0] atol=1e-9
 
     for k in eachindex(trajectory.times)
@@ -251,7 +270,7 @@ end
     end
 
     seq = InstrumentSeq(default=identity_operation(), nsteps=f.pt.nsteps)
-    add!(seq, state_preparation(f.rho0), 0)
+    add!(seq, state_preparation(f.rho0), 1)
     add!(seq, open_output(), f.pt.nsteps)
     final_evaluation = evaluate_process(
         f.pt,
@@ -304,7 +323,7 @@ end
         progress=false,
         verbose=true,
     )
-    @test length(verbose_result.states_liouville) == 1
+    @test length(verbose_result.states_liouville) == 2
 end
 
 @testset "evolve: one-mode spin bath vs three-body ED trajectories" begin
@@ -356,11 +375,9 @@ end
     H_control = OpSum()
     H_control += 0.2, "X", 1, "X", 2
     H_control += 0.35, "Z", 2
-    controls = TesterSeq(nsteps=nsteps)
-    add!(
-        controls,
-        tester_propagation(OpSum() + (0.45, "X", 1), tester_sites),
-        0,
+    controls = TesterSeq(
+        nsteps=nsteps,
+        initialization=tester_propagation(OpSum() + (0.45, "X", 1), tester_sites),
     )
     for k in 1:nsteps
         add!(controls, joint_propagation(H_control, system_sites, tester_sites), k)
@@ -391,15 +408,15 @@ end
     )
     rho_after_init = U_tester0 * rho0_joint * U_tester0'
 
-    for k in 1:nsteps
+    for k in 0:nsteps
         U = _exact_unitary_exp(H_full, joint_sites, k * dt)
         exact_SA, exact_S, exact_A = _partial_traces_sys_bath_tester(
             U * rho_after_init * U',
         )
-        @test _evolve_density(trajectory.states_liouville[k]) ≈ exact_S atol=1e-3
-        @test _evolve_density(trajectory.tester_states_liouville[k]) ≈ exact_A atol=1e-3
-        @test _evolve_density(trajectory.joint_states_liouville[k]) ≈ exact_SA atol=1e-3
-        @test tr(_evolve_density(trajectory.states_liouville[k])) ≈ 1 atol=1e-8
-        @test tr(_evolve_density(trajectory.tester_states_liouville[k])) ≈ 1 atol=1e-8
+        @test _evolve_density(trajectory.states_liouville[k + 1]) ≈ exact_S atol=1e-3
+        @test _evolve_density(trajectory.tester_states_liouville[k + 1]) ≈ exact_A atol=1e-3
+        @test _evolve_density(trajectory.joint_states_liouville[k + 1]) ≈ exact_SA atol=1e-3
+        @test tr(_evolve_density(trajectory.states_liouville[k + 1])) ≈ 1 atol=1e-8
+        @test tr(_evolve_density(trajectory.tester_states_liouville[k + 1])) ≈ 1 atol=1e-8
     end
 end

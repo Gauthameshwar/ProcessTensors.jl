@@ -84,7 +84,7 @@ process_tensor = build_process_tensor(
 
 # !!! note "Scope of the executable example"
 #     Four modes and three oscillator levels keep this calculation small; its
-#     final snapshot is at $t=1.95$. The companion figure uses 24 modes,
+#     final snapshot is at $t=2.1$. The companion figure uses 24 modes,
 #     three levels, $dt=0.2$, and $t=5$. Both require convergence checks before
 #     quantitative use, particularly the local oscillator cutoff at finite
 #     temperature. Neither is a calibrated model of particular hardware.
@@ -111,8 +111,8 @@ add!(controls, joint_unitary(swap_gate, processor_sites, ancilla_sites), retriev
 #     A joint gate $G$ is compiled by applying $G^{1/2}$ before and after the
 #     noisy process interval.
 #     It is therefore not an instantaneous SWAP outside the bath dynamics.
-#     Tester-only gates act on the ancilla wire. Schedule step `k` corresponds
-#     to snapshot `k`, labelled `(k-1)*dt` by `evolve`.
+#     Tester-only gates act on the ancilla wire. Schedule interval `k` covers
+#     $[(k-1)dt, k\,dt]$ and ends at snapshot `k + 1`, labelled `k*dt` by `evolve`.
 
 trajectory = evolve(process_tensor, rho_Q0; tester=memory, tester_seq=controls,
                     return_joint=true, progress=false);
@@ -185,8 +185,8 @@ println((identity_tester_error=spectator_error, max_trace_error=maximum(c.trace_
 # $\langle X_Q\rangle$, $\langle X_A\rangle$, and $I(Q{:}A)$.
 
 for (event, k) in zip((:store, :phase, :retrieve), (store_step, phase_step, retrieve_step))
-    println((event=event, time=trajectory.times[k], x_Q=x_Q[k], x_A=x_A[k],
-             mutual_information=information[k]))
+    println((event=event, time=trajectory.times[k + 1], x_Q=x_Q[k + 1], x_A=x_A[k + 1],
+             mutual_information=information[k + 1]))
 end
 @assert all(isfinite, x_Q) && all(isfinite, x_A)
 

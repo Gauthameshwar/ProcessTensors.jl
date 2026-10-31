@@ -95,7 +95,7 @@ end
 
         rho_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
         trajectory = evolve(pt, rho_sys0_h)
-        @test length(trajectory.states_liouville) == nsteps
+        @test length(trajectory.states_liouville) == nsteps + 1
 
         denv = 2^nmodes
         joint_sites = _joint_phys_sites(sys_phys, env_phys)
@@ -106,7 +106,7 @@ end
         for k in 1:nsteps
             rho_joint = U_bg * rho_joint * U_bg'
             rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, denv)
-            @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+            @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k + 1]) ≈
                   _partial_trace_env(rho_joint, 2, denv) atol=1e-11 rtol=1e-10
         end
 end
@@ -149,7 +149,7 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
 
     rho_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
     trajectory = evolve(pt, rho_sys0_h)
-    @test length(trajectory.states_liouville) == nsteps
+    @test length(trajectory.states_liouville) == nsteps + 1
 
     denv = 2^nmodes
     joint_sites = _joint_phys_sites(sys_phys, env_phys)
@@ -160,7 +160,7 @@ if JULIA_PROCESSTENSORS_RUN_SLOW
     for k in 1:nsteps
         rho_joint = U_bg * rho_joint * U_bg'
         rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, denv)
-        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k + 1]) ≈
               _partial_trace_env(rho_joint, 2, denv) atol=1e-11 rtol=1e-10
     end
     end

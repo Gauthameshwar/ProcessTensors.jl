@@ -83,10 +83,7 @@ function build_julia_trajectory()
     end
     trajectory = evolve(pt, ρsystem; progress=false)
     times = collect(0:DT:FINAL_TIME)
-    states = vcat(
-        [one_site_density_matrix(ρsystem)],
-        [one_site_density_matrix(ρ) for ρ in trajectory.states_hilbert],
-    )
+    states = [one_site_density_matrix(ρ) for ρ in trajectory.states_hilbert]
     length(states) == length(times) || error("Julia trajectory/time length mismatch.")
     return times, states, maxlinkdim(pt.core)
 end

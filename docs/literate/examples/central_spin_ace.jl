@@ -40,7 +40,7 @@
 # allows the central spin to flip while exciting the bath.
 #
 # !!! note "A small executable example and a larger figure"
-#     The cells below use $N=5$, $dt=0.2$, and 20 snapshots, ending at $t=3.8$.
+#     The cells below use $N=5$, $dt=0.2$, and 20 steps, ending at $t=4$.
 #     The companion figure uses $N=5,10,100,1000$, $dt=0.01$, $t=20$,
 #     cutoff $10^{-10}$, and `maxdim=1024`. These are separate calculations.
 
@@ -194,7 +194,7 @@ println((max_error_vs_exact_finite_N=maximum(abs.(spin_x .- exact_sx)),
 #     - Increase $N$ while keeping each coupling equal to $J/N$. Compare the
 #       first minimum of $\langle S_x(t)\rangle$ with the time
 #       $t=\pi/\omega_N$ and the depth given above.
-#     - Halve `dt` and set `nsteps = 2(nsteps - 1) + 1`, so the final time stays
+#     - Halve `dt` and set `nsteps = 2 * nsteps`, so the final time stays
 #       the same. If the second-order splitting dominates, the error against
 #       the finite-$N$ formula should fall by about a factor of four. A plateau
 #       points to the ACE cutoff and `maxdim` next.

@@ -450,7 +450,7 @@ function _build_ace_pt_cores(
     cores = ITensor[]
     inputs = Index[]
     outputs = Index[]
-    for k in 0:(nsteps - 1)
+    for k in 1:nsteps
         in_k, out_k = _generate_pt_legs(coupling_site, k)
         push!(inputs, in_k)
         push!(outputs, out_k)

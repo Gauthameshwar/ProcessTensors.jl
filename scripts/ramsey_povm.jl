@@ -60,7 +60,7 @@ function read_cache(path, parameters)
     isfile(path) || return nothing
     try
         payload = open(deserialize, path)
-        get(payload.metadata, :format, 0) == 2 || return nothing
+        get(payload.metadata, :format, 0) == 3 || return nothing
         all(k -> get(payload.metadata, k, nothing) == parameters[k], keys(parameters)) || return nothing
         return payload
     catch err
@@ -97,7 +97,7 @@ if !cache_hit
         sys_alg=Trotter{2}(), combine_alg=Trotter{2}(), progress=false)
     # The contracted core no longer needs the bath object in the serialized cache.
     process_tensor = ProcessTensor(pt.core, pt.system, nothing, pt.dt, pt.nsteps, pt.coupling_site)
-    metadata = (; format=2, parameters..., maxlinkdim=maxlinkdim(process_tensor))
+    metadata = (; format=3, parameters..., maxlinkdim=maxlinkdim(process_tensor))
     payload = (; process_tensor, system_sites, metadata)
     mkpath(dirname(cache_path))
     temporary_path = cache_path * ".tmp"
@@ -119,7 +119,7 @@ ramsey_instruments = Dict(
     for x in OUTCOMES)
 
 # --- Joint probabilities and independent-record reference ---
-# Slot s closes out_(s-1) after s propagations, then prepares the next input.
+# Step s closes out_s after s propagations, then prepares in_(s+1).
 # The original schedule gives times 0.6, 1.2, 1.8: three equal waits.
 readout_times = collect(READOUT_STEPS) .* DT
 final_time = NSTEPS * DT
@@ -127,7 +127,7 @@ println((readout_times=readout_times, final_time=final_time, visibility=ETA))
 
 function branch_probability(record)
     sequence = default_schedule(process_tensor)
-    add!(sequence, state_preparation(rho_reset), 0)
+    add!(sequence, state_preparation(rho_reset), 1)
     for (step, outcome) in zip(READOUT_STEPS, record)
         add!(sequence, ramsey_instruments[outcome], step)
     end
@@ -384,7 +384,7 @@ println((figures=output_dir,))
 
 # Try changing: test detector blindness, bath decoupling, or the memory timescale.
 # ETA=0 gives eight equiprobable records; ALPHA=0 gives independent biased coins.
-# For equal waits m*DT, use slots (m, 2m, 3m), NSTEPS > 3m.
+# For equal waits m*DT, use steps (m, 2m, 3m), NSTEPS > 3m.
 # Converge DT, ACE_CUTOFF/ACE_MAXDIM, LOCAL_DIM, and N_BATH before assigning
 # physical significance to a small residual. Factorization does not rule out
 # memory that this particular instrument cannot detect.

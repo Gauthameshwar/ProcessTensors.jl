@@ -148,8 +148,8 @@ obs = OpSum()
 obs += 1.0, "Sz", 1
 
 seq = default_schedule(pt)
-add!(seq, 0, state_preparation(ρ0))
-add!(seq, nsteps, observable_measurement(obs))
+add!(seq, state_preparation(ρ0), 1)
+add!(seq, observable_measurement(obs), nsteps)
 
 expectation = evaluate_process(pt, seq)
 ```

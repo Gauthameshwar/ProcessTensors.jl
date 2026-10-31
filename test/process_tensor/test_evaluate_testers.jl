@@ -37,7 +37,7 @@ end
 
 function _tester_schedule(pt, rho0; open::Bool)
     seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0), 0)
+    add!(seq, state_preparation(rho0), 1)
     add!(seq, open ? open_output() : trace_out(), pt.nsteps)
     return seq
 end
@@ -297,15 +297,13 @@ end
         progress=false,
     )
 
-    initial_joint = TesterSeq(nsteps=pt.nsteps)
-    add!(
-        initial_joint,
-        joint_propagation(
+    initial_joint = TesterSeq(
+        nsteps=pt.nsteps,
+        initialization=joint_propagation(
             OpSum() + (0.1, "X", 1, "X", 2),
             system_sites,
             tester_sites,
         ),
-        0,
     )
     @test_throws ArgumentError evaluate_process(
         pt,
