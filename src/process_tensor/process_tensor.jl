@@ -179,15 +179,18 @@ function _validate_instrument_schedule!(
     default_instr::AbstractInstrument,
     caller::AbstractString,
 )
+    haskey(seq.entries, (1, :input)) || throw(
+        ArgumentError(
+            "$caller: the input of core 1 needs the initial state; " *
+            "call add!(seq, state_preparation(ρ0), 1).",
+        ),
+    )
     _, _, missing_in, missing_out = Instruments.instrument_leg_maps(seq, pt.nsteps)
     isempty(missing_in) || throw(
-        ArgumentError("$caller: missing input legs for tsteps $(missing_in)."),
+        ArgumentError("$caller: missing input legs on cores $(missing_in)."),
     )
     isempty(missing_out) || throw(
-        ArgumentError("$caller: missing output legs for tsteps $(missing_out)."),
-    )
-    Instruments.resolve_instrument(seq, 0) isa SingleLegInstrument || throw(
-        ArgumentError("$caller: tstep=0 must be a single-leg initial preparation."),
+        ArgumentError("$caller: missing output legs on cores $(missing_out)."),
     )
     return nothing
 end
@@ -195,7 +198,7 @@ end
 """
     default_schedule(pt)
 
-Construct an [`InstrumentSeq`](@ref) whose ordinary evolve slots use
+Construct an [`InstrumentSeq`](@ref) whose unclaimed between-attachments use
 [`IdentityOperation`](@ref).
 
 The returned schedule does not include an initial state or final trace-out.
