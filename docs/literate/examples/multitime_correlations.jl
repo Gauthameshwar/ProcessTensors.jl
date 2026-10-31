@@ -45,7 +45,7 @@ using ProcessTensors
 
 const dt = 0.5
 const n_times = 6
-const pt_nsteps = n_times + 1
+const pt_nsteps = n_times - 1
 
 system_sites = siteinds("S=1/2", 1)
 bath_sites = siteinds("S=1/2", 1)
@@ -76,7 +76,9 @@ bath = spin_bath([bath_mode])
 # ## Build the process tensor
 #
 # `build_process_tensor` stores the influence of this bath on the system time
-# legs. Later grids change only the instruments.
+# legs. Core ``k`` covers ``[(k-1)\Delta t, k\Delta t]``, so `pt_nsteps` cores
+# give `n_times` snapshots at ``t=(j-1)\Delta t``, from ``t=0`` to ``t=2.5``.
+# Later grids change only the instruments.
 
 process_tensor = build_process_tensor(
     system,
@@ -118,11 +120,15 @@ process_tensor = build_process_tensor(
 # state by a reduced state at the intermediate time.
 #
 # `two_time_correlation_seq` turns that ordering into an `InstrumentSeq`:
-# prepare ``\rho_0`` at the first leg, insert the earlier operator, insert the
-# later operator, and use identity operations elsewhere. If ``t_1>t_2``, the
-# earlier and later insertions exchange, including whether the early insertion
-# acts from the left or the right. On ``t_2=t_1`` both operators sit on the
-# same leg. `evaluate_process` contracts the sequence with the process tensor.
+# prepare ``\rho_0`` on the input of the first core, insert the earlier operator,
+# insert the later operator, and use identity operations elsewhere. Each
+# insertion time is a snapshot index ``j`` with ``t=(j-1)\Delta t``: snapshot 1
+# acts on ``\rho_0`` at ``t=0``, and snapshot `pt_nsteps + 1` acts on the output
+# of the last core. If ``t_1>t_2``, the earlier and later insertions exchange,
+# including whether the early insertion acts from the left or the right. On
+# ``t_2=t_1`` both operators sit on the same leg. `evaluate_process` contracts
+# the sequence with the process tensor. The sample below is
+# ``C_{zz}(1.5, 1.0)``, at snapshots 4 and 3.
 
 system_state = to_dm(MPS(system_sites, ["Dn"]))
 
@@ -131,8 +137,8 @@ sigma_z += 2.0, "Sz", 1
 
 sequence = two_time_correlation_seq(
     process_tensor,
-    (sigma_z, 2),
-    (sigma_z, 1);
+    (sigma_z, 4),
+    (sigma_z, 3);
     rho0=system_state,
 )
 
@@ -145,20 +151,20 @@ correlation = evaluate_process(process_tensor, sequence)
 #
 # Each entry uses the same process tensor and a new pair of insertion times.
 
-time_indices = 0:(n_times - 1)
-times = dt .* collect(time_indices)
+snapshots = 1:n_times
+times = dt .* (collect(snapshots) .- 1)
 
 Czz = [
     evaluate_process(
         process_tensor,
         two_time_correlation_seq(
             process_tensor,
-            (sigma_z, t2),
-            (sigma_z, t1);
+            (sigma_z, j2),
+            (sigma_z, j1);
             rho0=system_state,
         ),
     )
-    for t1 in time_indices, t2 in time_indices
+    for j1 in snapshots, j2 in snapshots
 ]
 
 diagonal_error = maximum(abs.(diag(Czz) .- 1))

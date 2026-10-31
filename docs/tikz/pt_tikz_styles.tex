@@ -1041,8 +1041,8 @@
 \define@key{ptmpo}{label}{\def\PTMPOlabel{#1}}
 \makeatother
 
-% Draw n time cores W^{[0]} (right, t_0) ... W^{[n-1]} (left).
-% Node names:  <name>-W-<k>
+% Draw n time cores W^{[1]} (right, interval [t_0,t_1]) ... W^{[n]} (left).
+% Node names:  <name>-W-<k>,  k = 1..n
 % IO tips:     <name>-out-<k>  (process output, RIGHT of pair)
 %              <name>-in-<k>   (process input,  LEFT  of pair)
 % Time arrow:  <name>-t0  (right)  -->  <name>-tn (left)
@@ -1060,11 +1060,11 @@
   \def\PTMPOlabel{}%
   \setkeys{ptmpo}{#1}%
   \coordinate (\PTMPOname-origin) at (\PTMPOat);
-  \edef\PTMPOlast{\PTMPOname-W-\the\numexpr\PTMPOn-1\relax}%
-  % --- cores, right (k=0) to left ------------------------------------------
-  \foreach \k in {0,...,\the\numexpr\PTMPOn-1\relax} {%
+  \edef\PTMPOlast{\PTMPOname-W-\PTMPOn}%
+  % --- cores, right (k=1) to left ------------------------------------------
+  \foreach \k in {1,...,\PTMPOn} {%
     \path (\PTMPOname-origin)
-      ++(-\k*\PTMPOspacing,0)
+      ++({-(\k-1)*\PTMPOspacing},0)
       coordinate (\PTMPOname-c-\k);
     \PTProcessCore{\PTMPOname-W-\k}{(\PTMPOname-c-\k)}{\(W^{[\k]}\)}%
     % Local ports: output on the right, input on the left (local time).
@@ -1082,7 +1082,7 @@
   % --- joint body (no exposed link indices) or MPO links -------------------
   \ifPTMPOjoint
     \node[
-      fit=(\PTMPOname-W-0) (\PTMPOlast),
+      fit=(\PTMPOname-W-1) (\PTMPOlast),
       inner xsep=3.6pt,
       inner ysep=4.6pt,
       rounded corners=5.5pt,
@@ -1094,12 +1094,12 @@
       draw=PTProcess!70!black,
       line width=3.4pt,
       line cap=round,
-    ] (\PTMPOlast.center) -- (\PTMPOname-W-0.center);
+    ] (\PTMPOlast.center) -- (\PTMPOname-W-1.center);
   \else
     \ifnum\PTMPOn>1
       \foreach \k [
         evaluate=\k as \knext using int(\k+1)
-      ] in {0,...,\the\numexpr\PTMPOn-2\relax} {%
+      ] in {1,...,\the\numexpr\PTMPOn-1\relax} {%
         \draw[PTLinkLeg]
           (\PTMPOname-W-\k.west) -- (\PTMPOname-W-\knext.east)
           coordinate[midway] (\PTMPOname-link-\k);
@@ -1117,7 +1117,7 @@
       }%
     \fi
     % Dimension-1 boundary stubs.
-    \draw[PTLinkLeg] (\PTMPOname-W-0.east) -- ++(4.2mm,0)
+    \draw[PTLinkLeg] (\PTMPOname-W-1.east) -- ++(4.2mm,0)
       coordinate (\PTMPOname-bnd-R);
     \begin{scope}[on PTforeground layer]
       \node[PTDummyBond] (\PTMPOname-dummy-R) at (\PTMPOname-bnd-R) {};
@@ -1136,7 +1136,7 @@
       coordinate (\PTMPOname-final);
   \fi
   % --- time labels and left-pointing arrow ---------------------------------
-  \coordinate (\PTMPOname-t0) at ([yshift=-15.2mm, xshift=5.0mm]\PTMPOname-W-0.south);
+  \coordinate (\PTMPOname-t0) at ([yshift=-15.2mm, xshift=5.0mm]\PTMPOname-W-1.south);
   \coordinate (\PTMPOname-tn) at ([yshift=-15.2mm, xshift=-5.0mm]\PTMPOlast.south);
   \ifPTMPOtimes
     \node[font=\small, text=PTLabel, inner sep=0.4pt, anchor=west]
@@ -1151,22 +1151,22 @@
     \PTIndexLabel[
       anchor=west,
       math={\ell_{\mathrm{out}}},
-      tag={Output,t-00},
+      tag={Output,t-01},
       xshift=3.0pt,
-    ]{\PTMPOname-out-0}%
+    ]{\PTMPOname-out-1}%
     \PTIndexLabel[
       anchor=east,
       math={\ell_{\mathrm{in}}},
-      tag={Input,t-00},
+      tag={Input,t-01},
       xshift=-3.0pt,
       yshift=-4.2pt,
-    ]{\PTMPOname-in-0}%
+    ]{\PTMPOname-in-1}%
   \fi
   \def\PTMPOlabelEmpty{}%
   \ifx\PTMPOlabel\PTMPOlabelEmpty
   \else
     \node[font=\small, text=PTLabel, inner sep=1pt, above=3.6pt]
-      at ($ (\PTMPOname-W-0.north)!0.5!(\PTMPOlast.north) $)
+      at ($ (\PTMPOname-W-1.north)!0.5!(\PTMPOlast.north) $)
       {\PTMPOlabel};
   \fi
 }

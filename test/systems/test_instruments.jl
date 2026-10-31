@@ -248,6 +248,66 @@ end
     @test resolve_instrument(seq_plus, 2, :between) === def
 end
 
+@testset "Instruments.jl: core attachments vs exact one-core references" begin
+    sys_phys = siteinds("S=1/2", 1)
+    H_sys = OpSum() + (0.7, "Sx", 1) + (0.3, "Sz", 1)
+    system = spin_system(sys_phys, H_sys)
+    rho0_h = to_dm(MPS(sys_phys, ["Up"]))
+    O_Sz = OpSum() + (1.0, "Sz", 1)
+    O_Sx = OpSum() + (1.0, "Sx", 1)
+    dt = 0.1
+
+    # Preparation and final effect share core 1 in either insertion order.
+    pt1 = build_process_tensor(system; dt, nsteps=1, progress=false)
+    U = exp(-im * dt * dense_hamiltonian_matrix(H_sys, sys_phys))
+    rho_dt = U * hilbert_mpo_to_dense(rho0_h, sys_phys) * U'
+    seq_prep_first = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_prep_first, state_preparation(rho0_h), 1)
+    add!(seq_prep_first, trace_out(), 1)
+    seq_trace_first = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_trace_first, trace_out(), 1)
+    add!(seq_trace_first, state_preparation(rho0_h), 1)
+    @test evaluate_process(pt1, seq_prep_first; progress=false) ≈ 1 atol=1e-12
+    @test evaluate_process(pt1, seq_trace_first; progress=false) ≈ 1 atol=1e-12
+
+    seq_obs = InstrumentSeq(default=identity_operation(), nsteps=1)
+    add!(seq_obs, observable_measurement(O_Sz), 1)
+    add!(seq_obs, state_preparation(rho0_h), 1)
+    @test evaluate_process(pt1, seq_obs; progress=false) ≈
+          tr(dense_hamiltonian_matrix(O_Sz, sys_phys) * rho_dt) atol=1e-12
+
+    # A between-attachment owns o_k and i_{k+1}; single legs there are rejected.
+    H_control = OpSum() + (0.4, "Sy", 1)
+    between_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(between_first, unitary_propagation(H_control, sys_phys), 1)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz), 1)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 2)
+    @test_throws ArgumentError add!(between_first, observable_measurement(O_Sz; leg_plev=1), 1)
+    add!(between_first, state_preparation(rho0_h), 1)
+    @test between_first.entries[(1, :input)] isa StatePreparation
+
+    output_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(output_first, observable_measurement(O_Sz), 1)
+    @test_throws ArgumentError add!(output_first, unitary_propagation(H_control, sys_phys), 1)
+    input_first = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(input_first, observable_measurement(O_Sz; leg_plev=1), 2)
+    @test_throws ArgumentError add!(input_first, unitary_propagation(H_control, sys_phys), 1)
+
+    # Split (k, :output) + (k+1, :input) contracts like the product between-attachment.
+    pt3 = build_process_tensor(system; dt, nsteps=3, progress=false)
+    split_pair = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(split_pair, state_preparation(rho0_h), 1)
+    add!(split_pair, observable_measurement(O_Sz), 1)
+    add!(split_pair, observable_measurement(O_Sx; leg_plev=1), 2)
+    add!(split_pair, trace_out(), 3)
+    product_pair = InstrumentSeq(default=identity_operation(), nsteps=3)
+    add!(product_pair, state_preparation(rho0_h), 1)
+    add!(product_pair, observable_measurement(O_Sz) * observable_measurement(O_Sx; leg_plev=1), 1)
+    add!(product_pair, trace_out(), 3)
+    @test evaluate_process(pt3, split_pair; progress=false) ≈
+          evaluate_process(pt3, product_pair; progress=false) atol=1e-12
+end
+
 @testset "Instruments.jl: instrument_leg_maps coverage" begin
     sys = spin_system(siteinds("S=1/2", 1), OpSum() + (0.1, "Sz", 1))
     iddef = identity_operation()

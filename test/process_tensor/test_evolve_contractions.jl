@@ -69,12 +69,20 @@ end
 
 @testset "evolve contractions: Dense Markovian nsteps=1 and nsteps=4" begin
     s = siteinds("S=1/2", 1)
-    system = spin_system(s, OpSum() + (0.4, "Sz", 1) + (0.25, "Sx", 1))
+    H = OpSum() + (0.4, "Sz", 1) + (0.25, "Sx", 1)
+    system = spin_system(s, H)
     rho0 = to_dm(MPS(s, ["Up"]))
-    pt1 = build_process_tensor(system; dt=0.05, nsteps=1, progress=false)
-    _assert_contractions_agree(pt1, rho0)
-    pt4 = build_process_tensor(system; dt=0.05, nsteps=4, progress=false)
-    _assert_contractions_agree(pt4, rho0)
+    dt = 0.05
+    U = exp(-im * dt * dense_hamiltonian_matrix(H, s))
+    ρ0 = _one_site_hilbert_mpo_to_dense(rho0)
+    for nsteps in (1, 4)
+        pt = build_process_tensor(system; dt, nsteps, progress=false)
+        @test evolve(pt, rho0; progress=false).times ≈ [k * dt for k in 0:nsteps]
+        _, traj_close = _assert_contractions_agree(pt, rho0)
+        for k in 0:nsteps
+            @test traj_close[k + 1] ≈ U^k * ρ0 * (U^k)' atol=1e-10
+        end
+    end
 end
 
 @testset "evolve contractions: Dense single-mode spin bath" begin

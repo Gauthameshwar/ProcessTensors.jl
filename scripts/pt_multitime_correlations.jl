@@ -138,7 +138,7 @@ cases = [
 
 print_section("Main computation")
 
-pt_nsteps = n_times + 1
+pt_nsteps = n_times - 1
 pt = build_process_tensor(
     system,
     system.sites[1];
@@ -160,21 +160,21 @@ for (i, (title, O_A, O_B)) in enumerate(cases)
     n_pairs = n_times * n_times
     k = 0
 
-    for n1 in 0:(n_times - 1)
-        for n2 in 0:(n_times - 1)
+    for j1 in 1:n_times
+        for j2 in 1:n_times
             k += 1
             seq = two_time_correlation_seq(
                 pt,
-                (O_A, n2),
-                (O_B, n1);
+                (O_A, j2),
+                (O_B, j1);
                 rho0=rho_sys0_h,
             )
-            grid[n1 + 1, n2 + 1] = evaluate_process(pt, seq)
+            grid[j1, j2] = evaluate_process(pt, seq)
             if k == 1 || k == n_pairs || k % max(1, n_pairs ÷ 20) == 0
-                update_status(@sprintf("  case %d/%d  pair %4d / %4d  t₁=%.2f t₂=%.2f", i, length(cases), k, n_pairs, n1 * dt, n2 * dt))
+                update_status(@sprintf("  case %d/%d  pair %4d / %4d  t₁=%.2f t₂=%.2f", i, length(cases), k, n_pairs, times[j1], times[j2]))
             end
         end
-        finish_status(@sprintf("  finished row t₁ = %.2f (%d/%d)", n1 * dt, n1 + 1, n_times))
+        finish_status(@sprintf("  finished row t₁ = %.2f (%d/%d)", times[j1], j1, n_times))
     end
 
     grids[i] = grid

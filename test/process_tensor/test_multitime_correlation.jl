@@ -178,6 +178,32 @@ end
         _assert_corr_matches(val_pt, val_ed)
     end
 
+    @testset "snapshot indices: initial snapshot, interior ordering, and bounds" begin
+        nsteps = 4
+        pt = build_process_tensor(
+            system, system.sites[1];
+            environment=bath,
+            dt=dt,
+            nsteps=nsteps,
+        )
+        for (j_A, j_B, O_A, O_B) in [(1, 1, O_Sz, O_Sz), (4, 2, O_Sz, O_Sx), (2, 4, O_Sy, O_Sz)]
+            val_pt = evaluate_process(
+                pt,
+                two_time_correlation_seq(pt, (O_A, j_A), (O_B, j_B);
+                    rho0=rho_sys0_h,
+                    default_instr=default_instr,
+                ),
+            )
+            val_ed = _ed_corr_two_time(
+                rho_sys0_h, rho_env0_h, O_A, O_B, j_A, j_B,
+                dt, H_sys, H_bg, sys_phys, env_phys,
+            )
+            _assert_corr_matches(val_pt, val_ed)
+        end
+        @test_throws ArgumentError two_time_correlation_seq(pt, (O_Sz, 0), (O_Sx, 1); rho0=rho_sys0_h)
+        @test_throws ArgumentError two_time_correlation_seq(pt, (O_Sz, nsteps + 2), (O_Sx, 1); rho0=rho_sys0_h)
+    end
+
     @testset "extended PT (j_late interior to full horizon)" begin
         j_late = 5
         pt = build_process_tensor(

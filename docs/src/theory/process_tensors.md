@@ -86,7 +86,7 @@ The propagators, the initial joint state, and the environmental trace stay in th
 
 The general definition above allows a correlated initial state $\rho_{SE}(t_0)$. The construction workflow described here instead supplies an environmental state during construction and a system preparation during evaluation. It corresponds to an initially factorised preparation $\rho_0\otimes\rho_E$; arbitrary initial system–environment correlations are not supplied merely by changing $\rho_0$.
 
-The resulting network exposes the system input of the first interval. Attaching a preparation there specifies the experiment's initial system state. This is a boundary convention different from fixing a joint initial state and treating $\mathcal A_0$ as an operation on that state; the underlying multi-time idea is the same.
+The resulting network exposes the system input $i_1$ of the first interval, at $t_0=0$. Attaching a preparation there specifies the experiment's initial system state. This is a boundary convention different from fixing a joint initial state and treating $\mathcal A_0$ as an operation on that state; the underlying multi-time idea is the same.
 
 ### What stays fixed when the process is reused?
 
@@ -109,21 +109,21 @@ The package separates free-system propagation from environmental propagation int
 
 ## Anatomy of the temporal tensor network
 
-The package represents the process as a matrix-product network along time. For $n$ intervals, a core $Q^{[k]}$ represents the interval from $t_k$ to $t_{k+1}$, with $k=0,\ldots,n-1$. It carries a system input $i_k$, a system output $o_k$, and the neighbouring temporal bonds:
+The package represents the process as a matrix-product network along time. On a uniform grid $t_k=k\,\delta t$ with $t_0=0$, the $n$ intervals are carried by cores $Q^{[k]}$ with $k=1,\ldots,n$. Core $Q^{[k]}$ represents the interval $[t_{k-1},t_k]=[(k-1)\delta t,k\,\delta t]$. It carries a system input $i_k$ at $t_{k-1}$, a system output $o_k$ at $t_k$, and the neighbouring temporal bonds:
 
 ```math
-Q^{[k]}_{\chi_k\chi_{k+1}}{}^{o_k}{}_{i_k}.
+Q^{[k]}_{\chi_{k-1}\chi_k}{}^{o_k}{}_{i_k}.
 ```
 
-The system legs are Liouville indices. For a system with Hilbert dimension $d_S$, each has dimension $d_S^2$. The environmental initial state and final trace are absorbed into the boundary cores, leaving trivial external bond dimensions.
+The system legs are Liouville indices. For a system with Hilbert dimension $d_S$, each has dimension $d_S^2$. The environmental initial state and final trace are absorbed into the boundary cores, leaving trivial external bond dimensions $\chi_0$ and $\chi_n$.
 
-A preparation occupies $i_0$. For $k\geq1$, an intervention connects the output of the preceding interval to the input of the next:
+A preparation occupies $i_1$, the system input at $t_0=0$. For $k=1,\ldots,n-1$, an intervention at $t_k$ connects the output of interval $k$ to the input of interval $k+1$:
 
 ```math
-\mathcal A_k:\ o_{k-1}\longrightarrow i_k.
+\mathcal A_k:\ o_k\longrightarrow i_{k+1}.
 ```
 
-A final effect closes $o_{n-1}$, the system output at $t_n$. Thus the label of a core identifies an interval, whereas the intervention lies at its boundary. Core $Q^{[0]}$ is the first core even though Julia's positional indexing starts at one.
+A final effect closes $o_n$, the system output at $t_n$. Thus the label of a core identifies an interval, whereas the intervention lies at its right boundary. The initial time $t_0=0$ is the left edge of $Q^{[1]}$; there is no core labelled zero. The $n+1$ grid times $t_0,\ldots,t_n$ are the snapshots at which a reduced state can be read out.
 
 ```@raw html
 <div class="theme-figure">
@@ -132,12 +132,13 @@ A final effect closes $o_{n-1}$, the system output at $t_n$. Thus the label of a
 </div>
 ```
 
-Core $Q^{[k]}$ owns the interval $[t_k,t_{k+1}]$. The intervention $\mathcal A_k$ joins $o_{k-1}$ to $i_k$. The input leg has prime level 1 and the output leg has prime level 0. Those primes label the Liouville legs. They are not the ket and bra indices already fused inside each leg. Julia stores $Q^{[k]}$ at position $k+1$. Use `input_sites` and `output_sites` when attaching custom tensors.
+Core $Q^{[k]}$ owns the interval $[t_{k-1},t_k]$. The intervention $\mathcal A_k$ joins $o_k$ to $i_{k+1}$. The input leg has prime level 1 and the output leg has prime level 0. Those primes label the Liouville legs. They are not the ket and bra indices already fused inside each leg. Julia stores $Q^{[k]}$ as `pt.core[k]`, so the core label and the positional index agree. Use `input_sites` and `output_sites` when attaching custom tensors.
 
 !!! info "In the package"
     ```julia
-    input_sites(pt)
-    output_sites(pt)
+    pt.core[1]                  # Q^{[1]}, the interval [0, dt]
+    input_sites(pt, 1)          # i_1, where the preparation attaches
+    output_sites(pt, pt.nsteps) # o_n, closed by the final effect
     linkdims(pt)
     ```
 
@@ -177,10 +178,11 @@ An identity channel passes the system between intervals; it is not a trace-out o
 !!! info "In the package"
     ```julia
     seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq, state_preparation(ρ0), 0)
+    add!(seq, state_preparation(ρ0), 1) # (1, :input): i_1 at t = 0
+    add!(seq, trace_out(), pt.nsteps)   # (n, :output): o_n at t = n dt
     ```
 
-    This starts a schedule with a preparation and identity connections. Complete its terminal closure or open-output choice as shown in [Process tensor instruments](@ref).
+    `add!` chooses the leg from the instrument type. A preparation is stored as `(k, :input)` and a trace or measurement effect as `(k, :output)`. A two-leg instrument added at `k` is stored as `(k, :between)` and implements $\mathcal A_k: o_k\to i_{k+1}$ at time `k * dt`; unspecified connections use the identity default. For a single-core process (`nsteps = 1`), the preparation and the trace both attach to core 1, closing $i_1$ and $o_1$. See [Process tensor instruments](@ref) for open outputs and other terminal choices.
 
 ### What does a contraction return?
 
@@ -203,7 +205,7 @@ The cores and the earlier operations stay fixed. An open final leg returns an un
     trajectory = evolve(pt, ρ0)        # Reduced-trajectory convenience workflow
     ```
 
-    Both interrogate the same process. See [Process tensor instruments](@ref) for complete schedules and the returned data.
+    Both interrogate the same process. `evolve` returns the reduced state at the $n+1$ snapshots $t_0,\ldots,t_n$, starting with $\rho_0$ at $t_0=0$. See [Process tensor instruments](@ref) for complete schedules and the returned data.
 
 Obtaining a trajectory does not turn the cores into independent reduced-state propagators. The contraction retains the temporal bonds carrying environmental influence.
 

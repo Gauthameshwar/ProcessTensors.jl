@@ -47,9 +47,14 @@ with `Random.Xoshiro(20260905)` for $N\_{\max}=70$ and archived in
 [`results/bath_orientations.csv`](results/bath_orientations.csv). Each
 smaller $N$ reuses the first $N$ orientations, so the baths are nested.
 
-Defaults: $J=1$, $T=4$, $\Delta t=0.05$ (`nsteps = T/\Delta t + 1`),
+Defaults: $J=1$, $T=4$, $\Delta t=0.05$ (`nsteps = T/\Delta t = 80`),
 $\varepsilon=10^{-10}$, and
 $N\in\{1,5,10,20,30,40,50,70\}$. Both strategies are timed at this cutoff.
+
+`nsteps` is the number of physical intervals $[(k-1)\Delta t, k\Delta t]$, so
+the last `evolve` sample is at $t=T$. Earlier versions of this benchmark used
+`nsteps = T/\Delta t + 1 = 81` process-tensor cores; timings recorded before
+this change are for a slightly larger workload and are not directly comparable.
 
 ## Combined figure
 

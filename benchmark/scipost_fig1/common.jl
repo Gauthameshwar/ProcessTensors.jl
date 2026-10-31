@@ -5,8 +5,8 @@
 # the SciPost Figure 1 accuracy benchmark.
 #
 # Four-mode Sz⊗Sz spin bath matching scripts/pt_tfim_multimode.jl. The
-# observable is Pauli ⟨σy⟩. Snapshot k from evolve is compared with ED at
-# t = k Δt; t = 0 is the unevolved product initial state.
+# observable is Pauli ⟨σy⟩. Snapshot j from evolve is compared with ED at
+# t = (j - 1) Δt; snapshot 1 is the unevolved product initial state.
 
 include(joinpath(@__DIR__, "..", "env.jl"))
 
@@ -162,20 +162,14 @@ function process_tensor_sigma_y(
     )
     build_seconds = (time_ns() - started) / 1e9
     trajectory = evolve(pt, model.ρ_sys0; progress=false)
-    length(trajectory.states_hilbert) == nsteps || throw(
+    length(trajectory.states_hilbert) == nsteps + 1 || throw(
         ArgumentError(
-            "evolve returned $(length(trajectory.states_hilbert)) snapshots; expected $nsteps.",
+            "evolve returned $(length(trajectory.states_hilbert)) snapshots; expected $(nsteps + 1).",
         ),
     )
 
-    # t = 0 is the unevolved initial state. Snapshot k is compared at t = k Δt,
-    # matching scripts/pt_tfim_multimode.jl (not evolve's labelled times).
     times = collect(range(0.0; step=dt, length=nsteps + 1))
-    sy = Vector{Float64}(undef, nsteps + 1)
-    sy[1] = sigma_y(one_site_density_matrix(model.ρ_sys0))
-    for k in 1:nsteps
-        sy[k + 1] = sigma_y(one_site_density_matrix(trajectory.states_hilbert[k]))
-    end
+    sy = [sigma_y(one_site_density_matrix(ρ)) for ρ in trajectory.states_hilbert]
     return (; times, sy, chi_max=maxlinkdim(pt.core), build_seconds)
 end
 

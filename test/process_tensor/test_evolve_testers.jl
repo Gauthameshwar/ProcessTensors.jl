@@ -213,6 +213,23 @@ end
         ComplexF64[0 0; 0 1];
         atol=1e-5,
     )
+
+    initialized = evolve(
+        f.pt,
+        f.rho0;
+        tester=f.memory,
+        tester_seq=TesterSeq(
+            nsteps=f.pt.nsteps,
+            initialization=tester_unitary(op("X", only(f.tester_sites)), f.tester_sites),
+        ),
+        return_joint=true,
+        progress=false,
+    )
+    @test length(initialized.joint_states_liouville) == f.pt.nsteps + 1
+    for k in eachindex(initialized.times)
+        @test _evolve_density(initialized.tester_states_liouville[k]) ≈
+              ComplexF64[1 0; 0 0] atol=1e-11
+    end
 end
 
 @testset "evolve: joint SWAP reductions and final evaluation" begin

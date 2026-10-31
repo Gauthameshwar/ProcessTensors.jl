@@ -485,8 +485,9 @@ User-facing constructor for [`UnitaryPropagation`](@ref).
 
 The process tensor already contains the system's baseline propagation. Use
 this instrument only for explicit control operations inserted into an
-instrument schedule. A time-dependent `H_of_t` is evaluated at the midpoint
-`(k - 1/2) * dt` for the map connecting output time `k - 1` to input time `k`.
+instrument schedule. On the between-attachment `k`, which connects the output of
+core `k` to the input of core `k + 1`, a time-dependent `H_of_t` is evaluated at
+`(k - 1/2) * dt`, the midpoint of core `k`.
 
 # Examples
 ```julia
