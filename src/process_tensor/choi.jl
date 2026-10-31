@@ -14,9 +14,9 @@ import ITensorMPS: MPO as CoreMPO
 
 Convert a process tensor MPO to its unnormalized Choi MPO.
 
-Each core has separate dimension-``d`` `in` and `out` Hilbert indices,
-tagged `"Site,Choi,in,tstep=k"` and `"Site,Choi,out,tstep=k"`, and their
-primed partners. Standard MPO ordering is retained: primed rows (bra-facing),
+Core `k ∈ 1:pt.nsteps` keeps its position and has separate dimension-``d``
+`in` and `out` Hilbert indices, tagged `"Site,Choi,in,tstep=k"` and
+`"Site,Choi,out,tstep=k"`, and their primed partners. Standard MPO ordering is retained: primed rows (bra-facing),
 unprimed columns (ket-facing). The `in`/`out` tags label temporal ports;
 priming does not label time. Memory links and `pt` are unchanged.
 Use `siteinds(W, j; tags="in", plev=0)` to select an input index.
@@ -30,7 +30,7 @@ inputs = siteinds(W, 1; tags="in", plev=0)
 function choi_pt_mpo(pt::ProcessTensor)
     cores = ITensor[]
 
-    for k in 0:(pt.nsteps - 1)
+    for k in 1:pt.nsteps
         in_k = only(input_sites(pt, k))
         out_k = only(output_sites(pt, k))
 
@@ -53,7 +53,7 @@ function choi_pt_mpo(pt::ProcessTensor)
         C_out = replaceind(C_out, combinedind(C_out), out_k)
 
         # Construct the re-indexed MPO core via contraction with combiners.
-        core = pt.core[k + 1] * dag(C_in) * dag(C_out)
+        core = pt.core[k] * dag(C_in) * dag(C_out)
 
         push!(cores, core)
     end

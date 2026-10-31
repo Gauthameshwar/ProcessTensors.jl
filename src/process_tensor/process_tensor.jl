@@ -153,11 +153,12 @@ end
 """
     _generate_pt_legs(site::Index, k::Int)
 
-Construct the input/output Liouville legs for one process-tensor timestep.
+Construct the input/output Liouville legs of process-tensor core `k`.
 
 The returned tuple is `(input_site, output_site)`. The input leg is the primed
 version (`plev = 1`) of the output leg (`plev = 0`), and both carry the same
-physical Liouville metadata as `site` plus a `tstep=k` tag.
+physical Liouville metadata as `site` plus a `tstep=k` tag. Core `k` runs over
+`1:nsteps` and covers the interval `[(k - 1) dt, k dt]`.
 """
 function _generate_pt_legs(site::Index, k::Int)
     output_site = Index(dim(site); tags=_tagset_with_tstep(site, k))
@@ -208,11 +209,12 @@ end
 """
     output_sites(pt, k)
 
-Return the unprimed output process-tensor leg at time label `k`.
+Return the unprimed output leg of core `k ∈ 1:pt.nsteps`, the system state at
+time `k * dt`.
 """
 function output_sites(pt::ProcessTensor, k::Int)
-    0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
-    core_k = pt.core[k + 1]
+    1 <= k <= pt.nsteps || throw(BoundsError(1:pt.nsteps, k))
+    core_k = pt.core[k]
     sys_legs = Index[idx for idx in inds(core_k) if !has_tag_token(idx, "Link")]
     length(sys_legs) == 2 || throw(
         ArgumentError(
@@ -236,43 +238,38 @@ end
 """
     input_sites(pt, k)
 
-Return the primed input process-tensor leg at time label `k`.
+Return the primed input leg of core `k ∈ 1:pt.nsteps`, the system state at time
+`(k - 1) * dt` before that core acts.
 """
 function input_sites(pt::ProcessTensor, k::Int)
-    0 <= k < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), k))
+    1 <= k <= pt.nsteps || throw(BoundsError(1:pt.nsteps, k))
     out = only(output_sites(pt, k))
     inn = prime(out)
     plev(inn) == 1 || throw(ArgumentError("input_sites: expected plev=1 input leg, got plev=$(plev(inn))."))
-    inn in inds(pt.core[k + 1]) || throw(
+    inn in inds(pt.core[k]) || throw(
         ArgumentError("input_sites: primed input leg at tstep=$k is not present on core k=$k."),
     )
     return Index[inn]
 end
 
 """
-    coupling_times(pt, step)
+    coupling_times(pt, k)
 
-Return `(out_prev, in_curr)`, the output leg at `step - 1` and input leg at
-`step`, used by two-leg instruments between adjacent process-tensor slabs.
+Return `(out_k, in_next)`: the output leg of core `k` and the input leg of core
+`k + 1`, for `k ∈ 1:pt.nsteps-1`. A two-leg instrument added at `k` connects
+these legs at time `k * dt`.
 """
-function coupling_times(pt::ProcessTensor, step::Int)
-    1 <= step <= pt.nsteps || throw(BoundsError(1:pt.nsteps, step))
-    if step <= pt.nsteps - 1
-        inn = only(input_sites(pt, step))
-    else
-        # Terminal synthetic input leg (used only for compatibility checks / boundary maps).
-        inn = _generate_pt_legs(pt.coupling_site, step)[1]
-    end
-    plev(inn) == 1 || throw(ArgumentError("coupling_times: expected plev=1 on in_curr, got plev=$(plev(inn))."))
-    return (output_sites(pt, step - 1), Index[inn])
+function coupling_times(pt::ProcessTensor, k::Int)
+    1 <= k <= pt.nsteps - 1 || throw(BoundsError(1:(pt.nsteps - 1), k))
+    return (output_sites(pt, k), input_sites(pt, k + 1))
 end
 
 """
-    coupling_sites(pt, step)
+    coupling_sites(pt, k)
 
-Return `(in_curr, out_prev)`, the legacy ordering of [`coupling_times`](@ref).
+Return `(in_next, out_k)`, the legacy ordering of [`coupling_times`](@ref).
 """
-function coupling_sites(pt::ProcessTensor, step::Int)
-    out_prev, in_curr = coupling_times(pt, step)
-    return (in_curr, out_prev)
+function coupling_sites(pt::ProcessTensor, k::Int)
+    out_k, in_next = coupling_times(pt, k)
+    return (in_next, out_k)
 end

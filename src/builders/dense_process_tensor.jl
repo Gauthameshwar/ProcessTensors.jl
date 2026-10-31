@@ -129,11 +129,10 @@ function _build_trivial_pt_cores(
 )
     cores = ITensor[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
-        for k in 0:(nsteps - 1)
+        for k in 1:nsteps
             in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(cores, _system_liouvillian_pt_core(system, in_k, out_k, dt))
-            step = k + 1
-            @progress_update run step
+            @progress_update run k
         end
     end
     return cores
@@ -189,12 +188,12 @@ function _build_bathmode_cores_no_sys(
     inputs = Index[]
     outputs = Index[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
-        for k in 0:(nsteps - 1)
+        for k in 1:nsteps
             in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
             push!(outputs, out_k)
-            left = bath_links[k + 1]
-            right = bath_links[k + 2]
+            left = bath_links[k]
+            right = bath_links[k + 1]
 
             # Chronological temporal MPO: bath input on the left, bath output on the right.
             core_k = replaceind(U_ref, prime(env_liouv), left)
@@ -202,8 +201,7 @@ function _build_bathmode_cores_no_sys(
             core_k = replaceind(core_k, prime(coupling_site), in_k)
             core_k = replaceind(core_k, coupling_site, out_k)
             push!(cores, core_k)
-            step = k + 1
-            @progress_update run step
+            @progress_update run k
         end
     end
 
@@ -242,10 +240,8 @@ function _build_bathmode_pt_cores(
         alg=alg,
         run=run,
     )
-    for k in 0:(nsteps - 1)
-        cores[k + 1] = _embed_system_map(
-            cores[k + 1], system, inputs[k + 1], outputs[k + 1], dt, sys_alg,
-        )
+    for k in 1:nsteps
+        cores[k] = _embed_system_map(cores[k], system, inputs[k], outputs[k], dt, sys_alg)
     end
     return cores
 end
@@ -327,12 +323,12 @@ function _build_multimode_pt_cores(
     inputs = Index[]
     outputs = Index[]
     @progress_bar run "Assembling process-tensor cores" nsteps begin
-        for k in 0:(nsteps - 1)
+        for k in 1:nsteps
             in_k, out_k = _generate_pt_legs(coupling_site, k)
             push!(inputs, in_k)
             push!(outputs, out_k)
-            left = bath_links[k + 1]
-            right = bath_links[k + 2]
+            left = bath_links[k]
+            right = bath_links[k + 1]
 
             # Chronological temporal MPO: bath input on the left, bath output on the right
             # (same convention as `_build_bathmode_cores_no_sys`).
@@ -342,8 +338,7 @@ function _build_multimode_pt_cores(
             core_k = replaceind(core_k, fused_left, right)
             cores_k = _embed_system_map(core_k, system, in_k, out_k, dt, sys_alg)
             push!(cores, cores_k)
-            step = k + 1
-            @progress_update run step
+            @progress_update run k
         end
     end
 
