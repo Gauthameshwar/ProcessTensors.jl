@@ -15,14 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `input_sites(pt, k)` and `output_sites(pt, k)` take `k ∈ 1:nsteps`; `k = 0`
   now throws. `coupling_times(pt, k)` returns `(o_k, i_{k+1})` for
   `k ∈ 1:nsteps-1`. Memory links keep `tstep=0:nsteps`.
-* **Instrument attachments are keyed by leg.** `InstrumentSeq` stores
-  `(k, :input)`, `(k, :output)`, and `(k, :between)` entries, and
-  `add!(seq, instr, k)` dispatches on the instrument type: single-leg input
-  instruments attach to `(k, :input)`, single-leg output instruments to
-  `(k, :output)`, and two-leg instruments to `(k, :between)`, connecting
-  `o_k → i_{k+1}` at time `k dt` for `k ∈ 1:nsteps-1`. The preparation must
-  be on core 1. `InstrumentSeq(...; entries=...)` takes tuple keys, Int keys
-  are rejected, and `resolve_instrument(seq, k, kind)` takes the leg kind.
+* **Instrument attachments are keyed by leg.** `add!(seq, instr, k)` stores
+  `(k, :input)`, `(k, :output)`, or `(k, :between)` by type. Two-leg
+  instruments link `o_k → i_{k+1}` for `k ∈ 1:nsteps-1`; the preparation
+  is on core 1. Integer keys are rejected.
 * **`TesterSeq` initialization is a keyword.** The action before interval `1`
   is `TesterSeq(...; initialization=action)`, replacing tester key `0`;
   `add!(tester_seq, action, 0)` now throws. Interval keys `1:nsteps` are

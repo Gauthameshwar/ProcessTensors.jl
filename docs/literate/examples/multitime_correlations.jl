@@ -127,8 +127,7 @@ process_tensor = build_process_tensor(
 # of the last core. If ``t_1>t_2``, the earlier and later insertions exchange,
 # including whether the early insertion acts from the left or the right. On
 # ``t_2=t_1`` both operators sit on the same leg. `evaluate_process` contracts
-# the sequence with the process tensor. The sample below is
-# ``C_{zz}(1.5, 1.0)``, at snapshots 4 and 3.
+# the sequence with the process tensor. 
 
 system_state = to_dm(MPS(system_sites, ["Dn"]))
 

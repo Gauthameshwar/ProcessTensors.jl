@@ -95,8 +95,7 @@ println(pt)
 # available to read. It returns `nsteps + 1` samples at times
 # ``0, \Delta t, \dots, N\Delta t``, with ``N`` = `nsteps`; sample 1 is the
 # prepared state ``\rho(0)`` and sample `k + 1` is the output of core `k`. The
-# explicit schedule for the same idea comes in the next sections. The
-# preparation here is ``|\uparrow\rangle``.
+# explicit schedule for the same idea comes in the next sections. 
 
 trajectory = evolve(pt, ρ_up)
 

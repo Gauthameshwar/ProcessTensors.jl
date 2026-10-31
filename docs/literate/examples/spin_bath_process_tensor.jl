@@ -98,9 +98,8 @@ pt_single = build_process_tensor(
 # `evolve` returns the reduced trajectory for an initial system state: `nsteps + 1`
 # spaced by $\Delta t$ from $t=0$ to `final_time`, starting with the prepared
 # state. The explicit schedule below asks the same process for a final
-# $\langle S_z\rangle$. Core `k` covers $[(k-1)\Delta t, k\Delta t]$. The
-# preparation enters the input of core 1, and the readout closes the output of
-# core `nsteps`, at `final_time`.
+# $\langle S_z\rangle$. The preparation enters the input of core 1, and the readout 
+# closes the output of core `nsteps`, at `final_time`.
 
 ρ_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
 trajectory_single = evolve(pt_single, ρ_sys0_h)
