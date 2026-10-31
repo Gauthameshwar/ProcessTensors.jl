@@ -65,24 +65,6 @@ if !isdefined(Main, :_joint_unitary_exp)
         _exact_unitary_exp(H, joint_sites, t)
 end
 
-if !isdefined(Main, :_joint_density_B_at_0)
-    """
-    Joint density after inserting `B` on the system at `t = 0`, for split-schedule ED.
-
-    Matches `state_preparation(B * ρ_sys)` on the PT system leg with a product bath:
-    `kron(ρ_env, B ρ_sys)`.
-    """
-    function _joint_density_B_at_0(
-        rho_sys::AbstractMatrix{<:Number},
-        rho_env::AbstractMatrix{<:Number},
-        O_B::OpSum,
-        sys_phys::AbstractVector{<:Index},
-    )
-        B = dense_hamiltonian_matrix(O_B, sys_phys)
-        return kron(ComplexF64.(rho_env), B * ComplexF64.(rho_sys))
-    end
-end
-
 if !isdefined(Main, :_exact_unitary_exp)
     """Exact `exp(-im * dt * H)` on Hilbert space (no Trotter factorisation)."""
     function _exact_unitary_exp(H::OpSum, sites::AbstractVector{<:Index}, dt::Real)
@@ -294,16 +276,16 @@ end
 if !isdefined(Main, :_identity_instrument_seq)
     function _identity_instrument_seq(pt::ProcessTensor, rho0_h)
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
-        for step in 1:(pt.nsteps - 1)
-            add!(seq, identity_operation(), step)
+        add!(seq, state_preparation(rho0_h), 1)
+        for k in 1:(pt.nsteps - 1)
+            add!(seq, identity_operation(), k)
         end
         return seq
     end
 end
 
 if !isdefined(Main, :_seq_observable_terminal)
-    """Fully contracted schedule measuring `O` on the terminal system output (time label `nsteps-1`)."""
+    """Fully contracted schedule measuring `O` on the output of the final core `nsteps`."""
     function _seq_observable_terminal(
         rho0_h,
         O::OpSum,
@@ -311,7 +293,7 @@ if !isdefined(Main, :_seq_observable_terminal)
         default_instr::AbstractInstrument,
     )
         seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, observable_measurement(O), nsteps)
         return seq
     end
@@ -320,7 +302,7 @@ end
 if !isdefined(Main, :_seq_trace_terminal)
     function _seq_trace_terminal(rho0_h, nsteps::Int, default_instr::AbstractInstrument)
         seq = InstrumentSeq(default=default_instr, nsteps=nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, trace_out(), nsteps)
         return seq
     end
@@ -328,21 +310,21 @@ end
 
 if !isdefined(Main, :_seq_density_at_snapshot)
     """
-    Schedule whose `evaluate_process` result is the system marginal at snapshot `k`
-    (`t = k * dt`, output leg `out_k`).
+    Schedule whose `evaluate_process` result is the system marginal at the output
+    of core `m` (`t = m * dt`).
 
-    Uses a process tensor of length `k + 1` with terminal `OpenOutput`.
+    Uses a process tensor of length `m` with an open final output.
     """
     function _seq_density_at_snapshot(
         rho0_h,
-        k::Int,
+        m::Int,
         nsteps::Int,
         default_instr::AbstractInstrument,
     )
-        0 <= k < nsteps || throw(ArgumentError("_seq_density_at_snapshot: k=$k out of range for nsteps=$nsteps."))
-        seq = InstrumentSeq(default=default_instr, nsteps=k + 1)
-        add!(seq, state_preparation(rho0_h), 0)
-        add!(seq, open_output(), k + 1)
+        1 <= m <= nsteps || throw(ArgumentError("_seq_density_at_snapshot: m=$m out of range for nsteps=$nsteps."))
+        seq = InstrumentSeq(default=default_instr, nsteps=m)
+        add!(seq, state_preparation(rho0_h), 1)
+        add!(seq, open_output(), m)
         return seq
     end
 end
@@ -402,16 +384,17 @@ if !isdefined(Main, :_ed_corr_two_time)
     """
     ``\\langle A(t_A)\\, B(t_B) \\rangle`` from split joint ED (evolves only to ``t_{\\mathrm{late}}``).
 
-    Time indices `n_A`, `n_B` match [`two_time_correlation_seq`](@ref): snapshot after `n` split steps.
-  Independent of any extra PT length beyond ``n_{\\mathrm{late}}``.
+    Snapshot indices `j_A`, `j_B` match [`two_time_correlation_seq`](@ref): snapshot `j`
+    is the state after `j - 1` split steps, at ``t = (j - 1) dt``.
+    Independent of any extra PT length beyond ``t_{\\mathrm{late}}``.
     """
     function _ed_corr_two_time(
         rho_sys0_h,
         rho_env0_h,
         O_A::OpSum,
         O_B::OpSum,
-        n_A::Int,
-        n_B::Int,
+        j_A::Int,
+        j_B::Int,
         dt::Real,
         H_sys::OpSum,
         H_bg::OpSum,
@@ -424,15 +407,15 @@ if !isdefined(Main, :_ed_corr_two_time)
         joint_sites = _joint_phys_sites(sys_phys, env_phys)
         dsys = dim(only(sys_phys))
 
-        n_late = max(n_A, n_B)
-        n_early = min(n_A, n_B)
+        j_late = max(j_A, j_B)
+        j_early = min(j_A, j_B)
+        ρ_joint = kron(ComplexF64.(rho_env), ComplexF64.(rho_sys))
 
-        if n_A == n_B
-            ρ_joint = kron(ComplexF64.(rho_env), ComplexF64.(rho_sys))
+        if j_A == j_B
             ρ_joint = _evolve_joint_split_exact(
                 ρ_joint,
                 dt,
-                n_late + 1,
+                j_late - 1,
                 H_sys,
                 H_bg,
                 sys_phys,
@@ -445,7 +428,7 @@ if !isdefined(Main, :_ed_corr_two_time)
             return tr(A * B * ρ_sys_t)
         end
 
-        if n_A > n_B
+        if j_A > j_B
             O_early, O_late = O_B, O_A
             early_side = :left
         else
@@ -453,47 +436,27 @@ if !isdefined(Main, :_ed_corr_two_time)
             early_side = :right
         end
 
-        if n_early == 0
-            if early_side === :left
-                ρ_joint = _joint_density_B_at_0(rho_sys, rho_env, O_early, sys_phys)
-            else
-                Omat = dense_hamiltonian_matrix(O_early, sys_phys)
-                ρ_joint = kron(ComplexF64.(rho_env), ComplexF64.(rho_sys) * Omat)
-            end
-            ρ_joint = _evolve_joint_split_exact(
-                ρ_joint,
-                dt,
-                n_late + 1,
-                H_sys,
-                H_bg,
-                sys_phys,
-                joint_sites;
-                denv=denv,
-            )
-        else
-            ρ_joint = kron(ComplexF64.(rho_env), ComplexF64.(rho_sys))
-            ρ_joint = _evolve_joint_split_exact(
-                ρ_joint,
-                dt,
-                n_early + 1,
-                H_sys,
-                H_bg,
-                sys_phys,
-                joint_sites;
-                denv=denv,
-            )
-            ρ_joint = _apply_sys_op_joint(ρ_joint, O_early, sys_phys, denv; side=early_side)
-            ρ_joint = _evolve_joint_split_continue(
-                ρ_joint,
-                dt,
-                n_late - n_early,
-                H_sys,
-                H_bg,
-                sys_phys,
-                joint_sites;
-                denv=denv,
-            )
-        end
+        ρ_joint = _evolve_joint_split_exact(
+            ρ_joint,
+            dt,
+            j_early - 1,
+            H_sys,
+            H_bg,
+            sys_phys,
+            joint_sites;
+            denv=denv,
+        )
+        ρ_joint = _apply_sys_op_joint(ρ_joint, O_early, sys_phys, denv; side=early_side)
+        ρ_joint = _evolve_joint_split_continue(
+            ρ_joint,
+            dt,
+            j_late - j_early,
+            H_sys,
+            H_bg,
+            sys_phys,
+            joint_sites;
+            denv=denv,
+        )
 
         O_late = dense_hamiltonian_matrix(O_late, sys_phys)
         ρ_sys_t = _partial_trace_env(ρ_joint, dsys, denv)
@@ -518,8 +481,8 @@ if !isdefined(Main, :validate_process_tensor_structure)
             ),
         )
         nmodes = pt.environment === nothing ? 0 : length(pt.environment.modes)
-        for k in 0:(pt.nsteps - 1)
-            core_k = pt.core[k + 1]
+        for k in 1:pt.nsteps
+            core_k = pt.core[k]
             sys_legs = Index[idx for idx in inds(core_k) if !has_tag_token(idx, "Link")]
             link_legs = Index[idx for idx in inds(core_k) if has_tag_token(idx, "Link")]
 
@@ -569,14 +532,14 @@ if !isdefined(Main, :validate_process_tensor_structure)
                         "core k=$k still has $(length(link_legs)) Link leg(s).",
                     ),
                 )
-            elseif k == 0
+            elseif k == 1
                 length(link_legs) == 1 || throw(
                     ArgumentError(
-                        "validate_process_tensor_structure: first bath core k=0 expected 1 Link leg, " *
+                        "validate_process_tensor_structure: first bath core k=1 expected 1 Link leg, " *
                         "found $(length(link_legs)).",
                     ),
                 )
-            elseif k == pt.nsteps - 1
+            elseif k == pt.nsteps
                 length(link_legs) == 1 || throw(
                     ArgumentError(
                         "validate_process_tensor_structure: last bath core k=$k expected 1 Link leg, " *

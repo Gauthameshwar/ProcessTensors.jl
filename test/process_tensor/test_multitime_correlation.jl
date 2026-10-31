@@ -57,13 +57,13 @@ end
     O_Sy = OpSum()
     O_Sy += 1.0, "Sy", 1
 
-    @testset "minimal PT, t_B = 0 (n_A > n_B)" begin
-        n_late = 3
+    @testset "minimal PT, t_B = 0 (j_A > j_B)" begin
+        j_late = 5
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
             dt=dt,
-            nsteps=n_late + 1,
+            nsteps=j_late - 1,
         )
         for (label, O_A, O_B) in [
             ("Sz(t)Sz(0)", O_Sz, O_Sz),
@@ -73,13 +73,13 @@ end
             @testset "$label" begin
                 val_pt = evaluate_process(
                     pt,
-                    two_time_correlation_seq(pt, (O_A, n_late), (O_B, 0);
+                    two_time_correlation_seq(pt, (O_A, j_late), (O_B, 1);
                         rho0=rho_sys0_h,
                         default_instr=default_instr,
                     ),
                 )
                 val_ed = _ed_corr_two_time(
-                    rho_sys0_h, rho_env0_h, O_A, O_B, n_late, 0,
+                    rho_sys0_h, rho_env0_h, O_A, O_B, j_late, 1,
                     dt, H_sys, H_bg, sys_phys, env_phys,
                 )
                 _assert_corr_matches(val_pt, val_ed)
@@ -87,7 +87,7 @@ end
         end
     end
 
-    @testset "minimal PT, t_B > 0 (n_A > n_B)" begin
+    @testset "minimal PT, t_B > 0 (j_A > j_B)" begin
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
@@ -96,19 +96,19 @@ end
         )
         val_pt = evaluate_process(
             pt,
-            two_time_correlation_seq(pt, (O_Sz, 3), (O_Sx, 1);
+            two_time_correlation_seq(pt, (O_Sz, 5), (O_Sx, 3);
                 rho0=rho_sys0_h,
                 default_instr=default_instr,
             ),
         )
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 3, 1,
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 5, 3,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)
     end
 
-    @testset "minimal PT, reversed order (n_A < n_B)" begin
+    @testset "minimal PT, reversed order (j_A < j_B)" begin
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
@@ -117,100 +117,99 @@ end
         )
         val_pt = evaluate_process(
             pt,
-            two_time_correlation_seq(pt, (O_Sx, 1), (O_Sz, 3);
+            two_time_correlation_seq(pt, (O_Sx, 3), (O_Sz, 5);
                 rho0=rho_sys0_h,
                 default_instr=default_instr,
             ),
         )
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sx, O_Sz, 1, 3,
+            rho_sys0_h, rho_env0_h, O_Sx, O_Sz, 3, 5,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)
     end
 
-    @testset "minimal PT, same time (n_A = n_B)" begin
-        n_late = 2
+    @testset "minimal PT, same time (j_A = j_B)" begin
+        j_late = 4
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
             dt=dt,
-            nsteps=n_late + 1,
+            nsteps=j_late - 1,
         )
-        @test pt.nsteps == n_late + 1
         val_pt = evaluate_process(
             pt,
-            two_time_correlation_seq(pt, (O_Sz, 2), (O_Sx, 2);
+            two_time_correlation_seq(pt, (O_Sz, j_late), (O_Sx, j_late);
                 rho0=rho_sys0_h,
                 default_instr=default_instr,
             ),
         )
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, 2, 2,
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, j_late, j_late,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)
     end
 
-    @testset "extended PT, same time interior (n_A = n_B)" begin
-        # Covers the non-terminal same-time branch: left_action + identity padding
-        # + terminal trace_out when max(n_A, n_B) + 1 < pt.nsteps.
-        n_late = 2
+    @testset "extended PT, same time interior (j_A = j_B)" begin
+        # Covers the non-terminal same-time branch: left_action on a between-attachment
+        # + identity padding + terminal trace_out when j_late < pt.nsteps + 1.
+        j_late = 4
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
             dt=dt,
             nsteps=5,
         )
-        @test pt.nsteps > n_late + 1
+        @test pt.nsteps + 1 > j_late
 
-        seq = two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sx, n_late);
+        seq = two_time_correlation_seq(pt, (O_Sz, j_late), (O_Sx, j_late);
             rho0=rho_sys0_h,
             default_instr=default_instr,
         )
-        @test resolve_instrument(seq, n_late + 1) isa TwoLegInstrument
-        @test resolve_instrument(seq, pt.nsteps) isa SingleLegInstrument
+        @test resolve_instrument(seq, j_late - 1, :between) isa TwoLegInstrument
+        @test resolve_instrument(seq, pt.nsteps, :output) isa SingleLegInstrument
 
         val_pt = evaluate_process(pt, seq)
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, n_late, n_late,
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, j_late, j_late,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)
     end
 
-    @testset "extended PT (n_late interior to full horizon)" begin
-        n_late = 3
+    @testset "extended PT (j_late interior to full horizon)" begin
+        j_late = 5
         pt = build_process_tensor(
             system, system.sites[1];
             environment=bath,
             dt=dt,
             nsteps=5,
         )
-        @test pt.nsteps > n_late + 1
+        @test pt.nsteps + 1 > j_late
 
         val_pt = evaluate_process(
             pt,
-            two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sz, 0);
+            two_time_correlation_seq(pt, (O_Sz, j_late), (O_Sz, 1);
                 rho0=rho_sys0_h,
                 default_instr=default_instr,
             ),
         )
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sz, O_Sz, n_late, 0,
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sz, j_late, 1,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)
 
         val_pt = evaluate_process(
             pt,
-            two_time_correlation_seq(pt, (O_Sz, n_late), (O_Sx, 1);
+            two_time_correlation_seq(pt, (O_Sz, j_late), (O_Sx, 3);
                 rho0=rho_sys0_h,
                 default_instr=default_instr,
             ),
         )
         val_ed = _ed_corr_two_time(
-            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, n_late, 1,
+            rho_sys0_h, rho_env0_h, O_Sz, O_Sx, j_late, 3,
             dt, H_sys, H_bg, sys_phys, env_phys,
         )
         _assert_corr_matches(val_pt, val_ed)

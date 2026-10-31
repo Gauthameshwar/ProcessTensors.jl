@@ -32,7 +32,7 @@ end
 
 function _closed_markovian_seq(pt, rho0_h; nsteps=pt.nsteps)
     seq = InstrumentSeq(default=identity_operation(), nsteps=nsteps)
-    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, state_preparation(rho0_h), 1)
     add!(seq, trace_out(), nsteps)
     return seq
 end
@@ -47,7 +47,7 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq_open = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_open, state_preparation(rho0_h), 0)
+        add!(seq_open, state_preparation(rho0_h), 1)
         @test !isfullycontracted(pt, seq_open)
 
         seq_closed = _closed_markovian_seq(pt, rho0_h)
@@ -82,7 +82,7 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, open_output(), pt.nsteps)
 
         rho_out = evaluate_process(pt, seq)
@@ -96,7 +96,7 @@ end
 
         # Implicit terminal open (default Identity) remains supported.
         seq_implicit = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_implicit, state_preparation(rho0_h), 0)
+        add!(seq_implicit, state_preparation(rho0_h), 1)
         @test _mpo_to_dense(to_hilbert(evaluate_process(pt, seq_implicit))) ≈ ρ_final atol=1e-10
     end
 
@@ -105,7 +105,7 @@ end
             include(joinpath(@__DIR__, "pt_ed_test_utils.jl"))
         end
 
-        # --- Markovian: exact dense ED at t = (nsteps - 1) * dt ---
+        # --- Markovian: exact dense ED at t = nsteps * dt ---
         s = siteinds("S=1/2", 1)
         H = OpSum() + (0.7, "Sx", 1)
         system = spin_system(s, H)
@@ -115,7 +115,7 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq = InstrumentSeq(default=identity_operation(), nsteps=nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, open_output(), nsteps)
 
         instruments = create_instruments(pt, seq)
@@ -132,7 +132,7 @@ end
             result *= pt.core[step + 1]
         end
         result *= instruments[end]
-        keep = output_sites(pt, nsteps - 1)
+        keep = output_sites(pt, nsteps)
         @test length(inds(result)) == 1
         @test only(inds(result)) == only(keep)
 
@@ -146,9 +146,8 @@ end
         )
         @test rho_manual ≈ rho_eval atol=1e-12
 
-        # Always-embedded PT: each of the `nsteps` cores applies one system map of
-        # duration `dt`, so the final open output is the state at physical time
-        # `nsteps * dt` (evolve labels that snapshot as `(nsteps - 1) * dt`).
+        # Each of the `nsteps` cores applies one system map of duration `dt`, so the
+        # final open output is the state at `nsteps * dt`, the last evolve sample.
         t_phys = nsteps * dt
         H_mat = dense_hamiltonian_matrix(H, s)
         rho0 = hilbert_mpo_to_dense(rho0_h, s)
@@ -173,7 +172,7 @@ end
         bath = spin_bath([spin_mode(env_liouv, H_env, rho_env0_l; coupling=cpl)])
         pt_b = build_process_tensor(system, system.sites[1]; environment=bath, dt=dt, nsteps=nsteps)
         seq_b = InstrumentSeq(default=identity_operation(), nsteps=nsteps)
-        add!(seq_b, state_preparation(rho0_h), 0)
+        add!(seq_b, state_preparation(rho0_h), 1)
         add!(seq_b, open_output(), nsteps)
         inst_b = create_instruments(pt_b, seq_b)
         @test length(inds(inst_b[end])) == 0
@@ -185,7 +184,7 @@ end
             result_b *= pt_b.core[step + 1]
         end
         result_b *= inst_b[end]
-        keep_b = output_sites(pt_b, nsteps - 1)
+        keep_b = output_sites(pt_b, nsteps)
         @test length(inds(result_b)) == 1
         @test only(inds(result_b)) == only(keep_b)
         rho_b_manual_h = to_hilbert(ProcessTensors._liouville_mps_from_itensor(result_b, keep_b))
@@ -234,7 +233,7 @@ end
 
         O = OpSum() + (1.0, "Sz", 1)
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, observable_measurement(O), pt.nsteps)
 
         val = evaluate_process(pt, seq)
@@ -248,7 +247,7 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=2)
         rho0_h = to_dm(MPS(s, ["Up"]))
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
 
         err = @test_throws ArgumentError evaluate_process(pt, seq; all_legs_contracted=true)
         @test occursin("expected 0", string(err.value))
@@ -264,7 +263,7 @@ end
         seq1 = _closed_markovian_seq(pt, rho0_h; nsteps=pt.nsteps)
         O = OpSum() + (1.0, "Sx", 1)
         seq2 = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq2, state_preparation(rho0_h), 0)
+        add!(seq2, state_preparation(rho0_h), 1)
         add!(seq2, observable_measurement(O), pt.nsteps)
 
         batch = evaluate_process(pt, [seq1, seq2])
@@ -286,7 +285,7 @@ end
         seq_open = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
         rho_out = evaluate_process(pt, rho0_h, seq_open)
         seq_manual = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_manual, state_preparation(rho0_h), 0)
+        add!(seq_manual, state_preparation(rho0_h), 1)
         @test rho_out ≈ evaluate_process(pt, seq_manual)
 
         rho_default = evaluate_process(pt, rho0_h)
@@ -304,14 +303,14 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, open_inout(), 1)
         add!(seq, trace_out(), pt.nsteps)
 
         info = open_leg_info(pt, seq)
         @test info.n_open_expected == 2
-        @test 1 in info.open_in
-        @test 0 in info.open_out
+        @test 2 in info.open_in
+        @test 1 in info.open_out
         @test !isfullycontracted(pt, seq)
 
         result = evaluate_process(pt, seq)
@@ -328,13 +327,13 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         add!(seq, trace_out() * open_input(), 1)
         add!(seq, trace_out(), pt.nsteps)
 
         info = open_leg_info(pt, seq)
         @test info.n_open_expected == 1
-        @test 1 in info.open_in
+        @test 2 in info.open_in
         @test !isfullycontracted(pt, seq)
 
         result = evaluate_process(pt, seq)
@@ -349,8 +348,8 @@ end
         rho0_h = to_dm(MPS(s, ["Up"]))
 
         seq_scalar = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_scalar, state_preparation(rho0_h), 0)
-        add!(seq_scalar, observable_measurement(OpSum() + (1.0, "Sz", 1), output_sites(pt, pt.nsteps - 1)), pt.nsteps)
+        add!(seq_scalar, state_preparation(rho0_h), 1)
+        add!(seq_scalar, observable_measurement(OpSum() + (1.0, "Sz", 1), output_sites(pt, pt.nsteps)), pt.nsteps)
         @test_logs (
             :info,
             r"Evaluated process",
@@ -362,7 +361,7 @@ end
         )
 
         seq_open = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_open, state_preparation(rho0_h), 0)
+        add!(seq_open, state_preparation(rho0_h), 1)
         add!(seq_open, open_inout(), 1)
         add!(seq_open, trace_out(), pt.nsteps)
         result = evaluate_process(pt, seq_open; progress=false, verbose=false)

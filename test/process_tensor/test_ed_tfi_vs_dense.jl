@@ -44,7 +44,7 @@ end
     ρ_joint = kron(ρ_env, ρ_sys)
     for k in 1:nsteps
         ρ_joint = U_bg * ρ_joint * U_bg'
-        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k + 1]) ≈
               _partial_trace_env(ρ_joint, 2, 2) atol=1e-11 rtol=1e-10
     end
 end
@@ -74,11 +74,11 @@ end
     )
     U_bg = _exact_unitary_exp(H_bg, joint_sites, dt)
     U_sys = _exact_unitary_exp(H_sys, sys_phys, dt)
-    @test length(trajectory.states_liouville) == nsteps
+    @test length(trajectory.states_liouville) == nsteps + 1
     for k in 1:nsteps
         rho_joint = U_bg * rho_joint * U_bg'
         rho_joint = _apply_system_unitary_on_joint(rho_joint, U_sys, 2)
-        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k]) ≈
+        @test _one_site_hilbert_mpo_to_dense(trajectory.states_hilbert[k + 1]) ≈
               _partial_trace_env(rho_joint, 2, 2) atol=1e-11 rtol=1e-10
     end
 end
@@ -114,9 +114,9 @@ end
         alg=Trotter{2}(),
     )
 
-    for i in 1:nsteps
+    for i in 1:(nsteps + 1)
         ρ_pt = _one_site_liouville_state_to_dense(trj_pt.states_liouville[i])
-        ρ_ref = liouville_state_to_dense(trj_sys[i + 1], sys_phys)
+        ρ_ref = liouville_state_to_dense(trj_sys[i], sys_phys)
         @test ρ_pt ≈ ρ_ref atol=1e-9 rtol=1e-8
     end
 end
@@ -148,7 +148,7 @@ end
     )
 
     # This invariant trajectory is useful, but is not a bath-chronology guard.
-    for k in 0:(nsteps - 1)
+    for k in 0:nsteps
         t = k * dt
         rho_ed = _reduced_system_joint_full(rho_joint, t, H_bg, joint_sites, 2, 2)
         rho_pt_h = to_hilbert(trajectory.states_liouville[k + 1])
@@ -267,9 +267,7 @@ end
 
     dt = 0.25
     nsteps = 4
-    # Each PT slab embeds one full timestep; after `nsteps` slabs the physical time is
-    # `nsteps * dt` (evolve's time labels are offset by one step — compare to ED at the
-    # physical duration).
+    # Each PT core embeds one full timestep; the last evolve sample is at `nsteps * dt`.
     T = nsteps * dt
     rho0_h = to_dm(MPS(sys_phys, ["Up"]))
 

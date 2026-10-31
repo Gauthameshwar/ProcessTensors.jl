@@ -91,6 +91,7 @@ include(joinpath(@__DIR__, "process_tensor", "test_ed_multimode_spin.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ace_vs_dense.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ace_compress.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_multitime_correlation.jl"))
+include(joinpath(@__DIR__, "process_tensor", "test_timestep_convention.jl"))
 
 # Environments test sets
 include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))

@@ -34,31 +34,31 @@ if !isdefined(Main, :_mpo_to_dense)
     end
 end
 
-"""Default embedded schedule: prep at 0, IdentityOperation on bond slots."""
+"""Default embedded schedule: prep on core 1, IdentityOperation between cores."""
 function _standard_seq(pt::ProcessTensor, rho0_h)
     seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, state_preparation(rho0_h), 1)
     return seq
 end
 
 """
-    _seq_future_causality_break(pt, rho0_h, open_at, future_probe)
+    _seq_future_causality_break(pt, rho0_h, core, future_instr)
 
-Schedule identical to the reference up through evolve slot `open_at`, then apply
-`future_instr` on all later bond slots and trace the terminal output.
+Schedule identical to the reference through the output of `core`, then apply
+`future_instr` on every later between-attachment and trace the terminal output.
 """
 function _seq_future_causality_break(
     pt::ProcessTensor,
     rho0_h,
-    open_at::Int,
+    core::Int,
     future_instr::AbstractInstrument,
 )
-    0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
+    1 <= core <= pt.nsteps || throw(BoundsError(1:pt.nsteps, core))
     seq = _standard_seq(pt, rho0_h)
-    for step in (open_at + 1):(pt.nsteps - 1)
-        add!(seq, future_instr, step)
+    for k in core:(pt.nsteps - 1)
+        add!(seq, future_instr, k)
     end
-    if open_at < pt.nsteps - 1
+    if core < pt.nsteps
         add!(seq, trace_out(), pt.nsteps)
     end
     return seq
@@ -72,7 +72,8 @@ end
 """
     _check_causality_triple(pt, rho0_h, t_idx; atol, alg)
 
-Compare reduced states at snapshot `t_idx` from reference evolution vs a future-perturbed schedule.
+Compare reduced states at snapshot `t_idx ∈ 2:nsteps+1` (time `(t_idx - 1) dt`,
+the output of core `t_idx - 1`) from reference evolution vs a future-perturbed schedule.
 """
 function _check_causality_triple(
     pt::ProcessTensor,
@@ -81,15 +82,13 @@ function _check_causality_triple(
     atol=1e-10,
     alg=Trotter{2}(),
 )
-    open_at = t_idx - 1
-    0 <= open_at < pt.nsteps || throw(BoundsError(0:(pt.nsteps - 1), open_at))
     default_instr = identity_operation()
     seq_std = _standard_seq(pt, rho0_h)
     O_probe = OpSum() + (1.0, "Sz", 1)
     seq_pert = _seq_future_causality_break(
         pt,
         rho0_h,
-        open_at,
+        t_idx - 1,
         left_action(O_probe, _phys_sites_from_rho0(rho0_h)),
     )
 
@@ -132,7 +131,7 @@ end
         )
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        for t_idx in 2:nsteps
+        for t_idx in 2:(nsteps + 1)
             _check_causality_triple(pt, rho0_h, t_idx; atol=1e-10)
         end
     end
@@ -173,7 +172,7 @@ end
         )
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        for t_idx in 2:nsteps
+        for t_idx in 2:(nsteps + 1)
             _check_causality_triple(pt, rho0_h, t_idx; atol=1e-10)
         end
     end
