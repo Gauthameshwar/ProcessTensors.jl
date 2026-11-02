@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(k, :input)`, `(k, :output)`, or `(k, :between)` by type. Two-leg
   instruments link `o_k → i_{k+1}` for `k ∈ 1:nsteps-1`; the preparation
   is on core 1. Integer keys are rejected.
+* `resolve_instrument(seq, k)` is now `resolve_instrument(seq, k, kind)`,
+  with `kind` one of `:input`, `:output`, or `:between`.
 * **`TesterSeq` initialization is a keyword.** The action before interval `1`
   is `TesterSeq(...; initialization=action)`, replacing tester key `0`;
   `add!(tester_seq, action, 0)` now throws. Interval keys `1:nsteps` are

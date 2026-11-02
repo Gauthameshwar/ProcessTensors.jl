@@ -123,7 +123,7 @@ A preparation occupies $i_1$, the system input at $t_0=0$. For $k=1,\ldots,n-1$,
 \mathcal A_k:\ o_k\longrightarrow i_{k+1}.
 ```
 
-A final effect closes $o_n$, the system output at $t_n$. Thus the label of a core identifies an interval, whereas the intervention lies at its right boundary. The initial time $t_0=0$ is the left edge of $Q^{[1]}$; there is no core labelled zero. The $n+1$ grid times $t_0,\ldots,t_n$ are the snapshots at which a reduced state can be read out.
+A final effect closes $o_n$, the system output at $t_n$. Thus the label of a core identifies an interval, whereas the intervention lies at its right boundary. The initial time $t_0=0$ is the left edge of $Q^{[1]}$. The $n+1$ grid times $t_0,\ldots,t_n$ are the snapshots at which a reduced state can be read out.
 
 ```@raw html
 <div class="theme-figure">
