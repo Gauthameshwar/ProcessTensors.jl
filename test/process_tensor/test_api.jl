@@ -93,8 +93,8 @@ end
         @test pt isa ProcessTensor
         @test pt.coupling_site == system.sites[1]
         @test length(pt.core) == pt.nsteps == 3
-        @test length(output_sites(pt, 0)) == 1
-        @test length(input_sites(pt, 2)) == 1
+        @test length(output_sites(pt, 1)) == 1
+        @test length(input_sites(pt, 3)) == 1
 
         pt_dense = build_process_tensor(system, system.sites[1]; method=Dense(), dt=0.1, nsteps=3)
         @test pt_dense isa ProcessTensor
@@ -112,22 +112,22 @@ end
         s = siteinds("S=1/2", 1)
         system = @test_logs (:warn, r"SpinSystem: H is empty") spin_system(s, OpSum())
         pt = build_process_tensor(system, system.sites[1]; dt=0.2, nsteps=4)
-        out1, in2 = coupling_times(pt, 2)
-        @test length(in2) == 1
-        @test length(out1) == 1
-        @test plev(only(in2)) == 1
-        @test plev(only(out1)) == 0
-        @test tag_value(only(in2), "tstep=") == "2"
-        @test tag_value(only(out1), "tstep=") == "1"
+        out2, in3 = coupling_times(pt, 2)
+        @test length(in3) == 1
+        @test length(out2) == 1
+        @test plev(only(in3)) == 1
+        @test plev(only(out2)) == 0
+        @test tag_value(only(in3), "tstep=") == "3"
+        @test tag_value(only(out2), "tstep=") == "2"
 
         # Stable object identity across repeated calls (no fresh-mint index drift).
-        out1_again, in2_again = coupling_times(pt, 2)
-        @test only(out1_again) == only(out1)
-        @test only(in2_again) == only(in2)
+        out2_again, in3_again = coupling_times(pt, 2)
+        @test only(out2_again) == only(out2)
+        @test only(in3_again) == only(in3)
 
-        in2b, out1b = coupling_sites(pt, 2)
-        @test only(in2b) == only(in2)
-        @test only(out1b) == only(out1)
+        in3b, out2b = coupling_sites(pt, 2)
+        @test only(in3b) == only(in3)
+        @test only(out2b) == only(out2)
     end
 
     @testset "build_process_tensor supports multi-mode SpinBath under dense budget" begin
@@ -154,7 +154,7 @@ end
         @test pt isa ProcessTensor
         @test length(pt.core) == 2
         trj = evolve(pt, to_dm(MPS(s, ["Up"])))
-        @test length(trj.states_liouville) == 2
+        @test length(trj.states_liouville) == 3
     end
 
     @testset "build_process_tensor rejects oversized mixed bath with warning+error" begin
@@ -207,11 +207,11 @@ end
         trajectory = evolve(pt, psi0)
         manual = tebd_trajectory(rho0, H, 0.05, 3; jump_ops=[], maxdim=32, cutoff=1e-12, alg=Trotter{2}())
 
-        @test trajectory.times ≈ [0.0, 0.05, 0.1] atol=1e-12
-        @test length(trajectory.states_liouville) == 3
-        for i in 1:pt.nsteps
+        @test trajectory.times ≈ [0.0, 0.05, 0.1, 0.15] atol=1e-12
+        @test length(trajectory.states_liouville) == 4
+        for i in 1:(pt.nsteps + 1)
             @test _one_site_liouville_state_to_dense(trajectory.states_liouville[i]) ≈
-                  _one_site_liouville_state_to_dense(manual[i + 1]) atol=1e-10
+                  _one_site_liouville_state_to_dense(manual[i]) atol=1e-10
         end
     end
 
@@ -231,8 +231,8 @@ end
 
         trj_pt = evolve(pt, psi0)
         L_dense = dense_liouvillian_matrix(H, [L], s, system.sites)
-        @test trj_pt.times ≈ [dt * k for k in 0:(nsteps - 1)] atol=1e-12
-        for i in 1:nsteps
+        @test trj_pt.times ≈ [dt * k for k in 0:nsteps] atol=1e-12
+        for i in 1:(nsteps + 1)
             t = trj_pt.times[i]
             ρ_pt = _one_site_liouville_state_to_dense(trj_pt.states_liouville[i])
             ρ_ref = reshape(exp(t * L_dense) * vec(ρ0), size(ρ0))
@@ -287,7 +287,7 @@ end
         )
         bath = spin_bath([mode])
         pt_bath = build_process_tensor(system_identity; environment=bath, dt=0.05, nsteps=2)
-        @test length(evolve(pt_bath, to_dm(MPS(s, ["0"]))).states_liouville) == 2
+        @test length(evolve(pt_bath, to_dm(MPS(s, ["0"]))).states_liouville) == 3
     end
 
     @testset "identity instrument chain matches no-instrument evolve baseline" begin
@@ -301,7 +301,7 @@ end
         seq_id = _identity_instrument_seq(pt, rho0_h)
         trj_id = evolve(pt, seq_id)
 
-        for i in 1:pt.nsteps
+        for i in 1:(pt.nsteps + 1)
             ρ_base = _one_site_liouville_state_to_dense(trj_base.states_liouville[i])
             ρ_id = _one_site_liouville_state_to_dense(trj_id.states_liouville[i])
             @test ρ_base ≈ ρ_id atol=1e-10 rtol=1e-9
@@ -351,18 +351,18 @@ end
     end
 
     @testset "create_instruments bond dispatch and invalid types" begin
-        function _create_instruments_step_bond(pt, instr, step)
-            out_prev, in_curr = coupling_times(pt, step)
+        function _create_instruments_step_bond(pt, instr, k)
+            out_k, in_next = coupling_times(pt, k)
             if instr isa TwoLegInstrument
-                return instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt)
+                return instrument_itensor(instr, in_next, out_k, k; dt=pt.dt)
             elseif instr isa SingleLegInstrument
                 if instr.leg_plev == 0
-                    return instrument_itensor(instr, out_prev, step - 1)
+                    return instrument_itensor(instr, out_k, k)
                 else
-                    return instrument_itensor(instr, in_curr, step)
+                    return instrument_itensor(instr, in_next, k + 1)
                 end
             else
-                throw(ArgumentError("create_instruments: unsupported instrument $(typeof(instr)) at step=$step."))
+                throw(ArgumentError("create_instruments: unsupported instrument $(typeof(instr)) at k=$k."))
             end
         end
 
@@ -371,19 +371,19 @@ end
         pt = build_process_tensor(system; dt=0.05, nsteps=3)
         rho0_h = to_dm(MPS(s, ["Up"]))
 
-        out1, _ = coupling_times(pt, 2)
+        out2, _ = coupling_times(pt, 2)
         op_z = OpSum() + (1.0, "Sz", 1)
-        @test instrument_itensor(observable_measurement(op_z; leg_plev=0), out1, 1) isa ITensor
+        @test instrument_itensor(observable_measurement(op_z; leg_plev=0), out2, 2) isa ITensor
         @test_throws ArgumentError trace_out(; leg_plev=1)
 
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq, state_preparation(rho0_h), 0)
+        add!(seq, state_preparation(rho0_h), 1)
         instruments = create_instruments(pt, seq)
         @test length(instruments) == pt.nsteps + 1
-        @test instruments[1] ≈ instrument_itensor(state_preparation(rho0_h), input_sites(pt, 0), 0)
-        for step in 1:(pt.nsteps - 1)
-            expected = _create_instruments_step_bond(pt, identity_operation(), step)
-            @test instruments[step + 1] ≈ expected
+        @test instruments[1] ≈ instrument_itensor(state_preparation(rho0_h), input_sites(pt, 1), 1)
+        for k in 1:(pt.nsteps - 1)
+            expected = _create_instruments_step_bond(pt, identity_operation(), k)
+            @test instruments[k + 1] ≈ expected
         end
         @test length(inds(instruments[end])) == 0
         @test isapprox(scalar(instruments[end]), 1.0; atol=1e-12)
@@ -402,13 +402,13 @@ end
         seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
         trj_conv = evolve(pt, rho0_h, seq)
         seq_with_prep = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-        add!(seq_with_prep, state_preparation(rho0_h), 0)
+        add!(seq_with_prep, state_preparation(rho0_h), 1)
         trj_ref = evolve(pt, seq_with_prep)
         trj_short = evolve(pt, rho0_h)
 
         @test trj_conv.times ≈ trj_ref.times
         @test trj_conv.times ≈ trj_short.times
-        for i in 1:pt.nsteps
+        for i in 1:(pt.nsteps + 1)
             @test _one_site_liouville_state_to_dense(trj_conv.states_liouville[i]) ≈
                   _one_site_liouville_state_to_dense(trj_ref.states_liouville[i]) atol=1e-10
             @test _one_site_liouville_state_to_dense(trj_conv.states_liouville[i]) ≈

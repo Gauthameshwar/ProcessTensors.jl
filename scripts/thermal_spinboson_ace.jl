@@ -22,7 +22,7 @@ const spectral_strength, spectral_cutoff = 0.2, 3.0
 const thermal_frequency = 1.5       # θ = k_B T / ħ; not temperature in kelvin
 const hot_thermal_frequency = 6.0
 const dt, final_time = 0.05, 5.0
-const nsteps = round(Int, final_time / dt) + 1
+const nsteps = round(Int, final_time / dt)
 const ace_cutoff, ace_maxdim = 1e-5, 512
 const ace_compression = :canonzip
 const trace_warning_tolerance = 1e-5
@@ -30,7 +30,7 @@ const population_tolerance = 2e-3
 @assert N_bath > 0 && local_dim >= 2 && dt > 0 && final_time > 0
 @assert 0 <= ω_min < ω_max && spectral_strength >= 0 && spectral_cutoff > 0
 @assert all(θ -> isfinite(θ) && θ >= 0, (thermal_frequency, hot_thermal_frequency))
-@assert isapprox((nsteps - 1) * dt, final_time; atol=100eps(Float64))
+@assert isapprox(nsteps * dt, final_time; atol=100eps(Float64))
 
 # --- Plot environment (same automatic setup as the original script) ---
 import Pkg

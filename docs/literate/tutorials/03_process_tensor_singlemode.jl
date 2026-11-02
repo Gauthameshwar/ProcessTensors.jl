@@ -94,9 +94,10 @@ println(environment)
 
 # ## [Time grid and Dense construction](@id building-the-process-tensor)
 #
-# `dt` is the propagation interval between intervention slots. `nsteps` is the
-# number of those intervals. Slot `step` is where an operation can act between
-# the output of time `step - 1` and the input of time `step`.
+# `dt` is the length of one propagation interval. `nsteps` is the number of
+# those intervals, and each interval is one process-tensor core: core `k` covers
+# ``[(k-1)\Delta t, k\Delta t]``. An operation at step `k` acts at time
+# ``k\Delta t``, between the output of core `k` and the input of core `k + 1`.
 #
 # ```julia
 # pt = build_process_tensor(system; environment, dt, nsteps, method=Dense())
@@ -106,7 +107,7 @@ println(environment)
 # truncated boson that space is small enough to exponentiate exactly.
 # `alg=Exact()` builds that joint step directly, and `sys_alg=Trotter{2}()`
 # places the free spin map symmetrically around it. The free spin map is already
-# stored in the process tensor, so the default instrument between slots is an
+# stored in the process tensor, so the default instrument between cores is an
 # identity.
 
 dt = 0.1
@@ -141,33 +142,36 @@ println(pt)
 # </div>
 # ```
 #
-# Core ``Q^{[k]}`` owns the interval ``[t_k, t_{k+1}]``. The intervention at the
-# boundary joins output ``o_{k-1}`` to input ``i_k``.
+# Core ``Q^{[k]}``, for `k` in `1:nsteps`, owns the interval
+# ``[(k-1)\Delta t, k\Delta t]``. The intervention at time ``k\Delta t`` joins output
+# ``o_k`` to input ``i_{k+1}``.
 #
-# Each time label has an input leg and an output leg. Input legs have prime
-# level `1`. Output legs have prime level `0`. Both carry a `tstep` tag.
+# Each core has an input leg and an output leg. Input legs have prime level `1`.
+# Output legs have prime level `0`. Both legs of core `k` carry the tag
+# `tstep=k`. The initial state enters through the input of core 1, and the final
+# state leaves through the output of core `nsteps`.
 #
-# Intervention slot `step` connects the output leg at `step - 1` to the input
-# leg at `step`. For `step = 1` that is output `tstep=0` and input `tstep=1`.
+# Step `k` connects the output leg of core `k` to the input leg of core `k + 1`.
+# For `k = 1` that is output `tstep=1` and input `tstep=2`, at time ``\Delta t``.
 
-println("Input leg at time 0:")
-println(input_sites(pt, 0))
+println("Input leg of core 1:")
+println(input_sites(pt, 1))
 
-println("Output leg at time 0:")
-println(output_sites(pt, 0))
+println("Output leg of core 1:")
+println(output_sites(pt, 1))
 
-out_prev, in_curr = coupling_times(pt, 1)
+out_prev, in_next = coupling_times(pt, 1)
 
-println("Legs connected by slot 1:")
+println("Legs connected at step 1:")
 println(out_prev)
-println(in_curr)
+println(in_next)
 
-@assert plev(only(input_sites(pt, 0))) == 1
-@assert plev(only(output_sites(pt, 0))) == 0
-@assert only(out_prev) == only(output_sites(pt, 0))
-@assert only(in_curr) == only(input_sites(pt, 1))
+@assert plev(only(input_sites(pt, 1))) == 1
+@assert plev(only(output_sites(pt, 1))) == 0
+@assert only(out_prev) == only(output_sites(pt, 1))
+@assert only(in_next) == only(input_sites(pt, 2))
 
-# The bonds between cores carry the boson from one slot to the next.
+# The bonds between cores carry the boson from one interval to the next.
 # `Dense()` keeps that space uncompressed, so the bond dimension is the stored
 # bath Liouville space. It is not a witness that the dynamics are non-Markovian.
 

@@ -37,14 +37,15 @@ end
 
 _ace_traj_err(traj_a, traj_b) = maximum(norm(a - b) for (a, b) in zip(traj_a, traj_b))
 
-"""Hilbert split ED: each slab is `U_bg` then free `U_sys`, matching `sys_alg=Trotter{1}()`."""
+"""Hilbert split ED at `t = 0:dt:nsteps*dt`: each core is `U_bg` then free `U_sys`, matching `sys_alg=Trotter{1}()`."""
 function _split_ed_traj(ρ0, U_bg, U_sys, nsteps, denv)
     ρ = copy(ρ0)
-    return map(1:nsteps) do _
+    later = map(1:nsteps) do _
         ρ = U_bg * ρ * U_bg'
         ρ = _apply_system_unitary_on_joint(ρ, U_sys, denv)
         _partial_trace_env(ρ, 2, denv)
     end
+    return pushfirst!(later, _partial_trace_env(ρ0, 2, denv))
 end
 
 """Fresh spin mode on its own Liouville site, coupled to system site 2 by `cpl_op`."""
@@ -342,14 +343,14 @@ end
         )
         traj_full = _ace_dense_traj(pt_full, rho0_h)
 
-        # The marginal at snapshot k must not depend on the process tensor's
-        # future length: a PT truncated to k+1 steps (whose final snapshot needs
+        # The marginal after k cores must not depend on the process tensor's
+        # future length: a PT truncated to k cores (whose final snapshot needs
         # no memory-bond closure) must agree with the closure-based snapshot of
         # the full PT.
-        for k in 0:(nsteps - 1)
+        for k in 1:nsteps
             pt_k = build_process_tensor(
                 system, system.sites[1];
-                method=ACE(cutoff=1e-12), environment=bath, dt=dt, nsteps=k + 1,
+                method=ACE(cutoff=1e-12), environment=bath, dt=dt, nsteps=k,
                 combine_alg=combine_alg,
             )
             traj_k = _ace_dense_traj(pt_k, rho0_h)

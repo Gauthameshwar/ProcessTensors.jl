@@ -194,19 +194,11 @@ sx_ed, sy_ed, sz_ed = Float64[], Float64[], Float64[]
 sx_pt, sy_pt, sz_pt = Float64[], Float64[], Float64[]
 frob_err = Float64[]
 
-ρ_pt0 = reduced_system_ρ(to_liouville(rho_sys0_h; sites=system.sites), dsys)
-ρ_ed0 = partial_trace_system(to_hilbert(rho_joint0_l), dsys, denv)
-obs_pt0 = pauli_expectations(ρ_pt0, σx, σy, σz)
-obs_ed0 = pauli_expectations(ρ_ed0, σx, σy, σz)
-push!(sx_pt, obs_pt0[1]); push!(sy_pt, obs_pt0[2]); push!(sz_pt, obs_pt0[3])
-push!(sx_ed, obs_ed0[1]); push!(sy_ed, obs_ed0[2]); push!(sz_ed, obs_ed0[3])
-push!(frob_err, norm(ρ_pt0 - ρ_ed0))
-
 progress_stride = max(1, nsteps ÷ 20)
 
-for k in 1:nsteps
+for k in 0:nsteps
     t = k * dt
-    ρ_pt = reduced_system_ρ(trajectory.states_liouville[k], dsys)
+    ρ_pt = reduced_system_ρ(trajectory.states_liouville[k + 1], dsys)
     U_L = liouvillian_propagator(H_full, joint_liouv, t; alg=Exact())
     rho_joint_l = apply(U_L, copy(rho_joint0_l); cutoff=0.0, maxdim=typemax(Int))
     ρ_red = partial_trace_system(to_hilbert(rho_joint_l), dsys, denv)

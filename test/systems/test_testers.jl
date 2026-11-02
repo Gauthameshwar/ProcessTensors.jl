@@ -163,7 +163,7 @@ end
 
     seq = TesterSeq(default, 4)
     @test seq.default === default
-    @test resolve_tester_action(seq, 0) === default
+    @test seq.initialization === default
     @test resolve_tester_action(seq, 3) === default
 
     @test add!(seq, action_x, 1) === seq
@@ -180,18 +180,19 @@ end
     seq_plus += (action_u, 2)
     @test resolve_tester_action(seq_plus, 1) === action_x
     @test resolve_tester_action(seq_plus, 2) === action_u
-    @test resolve_tester_action(seq_plus, 0) === default
+    @test seq_plus.initialization === default
     @test_throws ArgumentError seq_plus + (action_x, 5)
 
-    keyword_seq = TesterSeq(nsteps=2, entries=Dict(0 => action_x))
-    @test resolve_tester_action(keyword_seq, 0) === action_x
+    keyword_seq = TesterSeq(nsteps=2, initialization=action_x)
+    @test keyword_seq.initialization === action_x
     @test resolve_tester_action(keyword_seq, 1) isa TesterIdentity
 
-    @test_throws ArgumentError add!(seq, action_x, -1)
+    @test_throws ArgumentError add!(seq, action_x, 0)
     @test_throws ArgumentError add!(seq, action_x, 5)
-    @test_throws ArgumentError resolve_tester_action(seq, -1)
+    @test_throws ArgumentError resolve_tester_action(seq, 0)
     @test_throws ArgumentError TesterSeq(default, -1)
     @test_throws ArgumentError TesterSeq(default, 2; entries=Dict(3 => action_x))
+    @test_throws ArgumentError TesterSeq(default, 2; entries=Dict(0 => action_x))
 
     instrument_seq = InstrumentSeq(default=identity_operation(), nsteps=2)
     memory = tester(sites, to_dm(MPS(sites, ["0"])))

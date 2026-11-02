@@ -25,8 +25,10 @@ abstract type AbstractInstrument end
 Instrument acting on one process-tensor leg.
 
 Single-leg instruments are bound either to a primed input leg (`plev = 1`) or an
-unprimed output leg (`plev = 0`). Examples include [`StatePreparation`](@ref),
-[`ObservableMeasurement`](@ref), and [`TraceOut`](@ref).
+unprimed output leg (`plev = 0`). `add!(seq, instr, k)` attaches them to the
+input of core `k` (time `(k - 1) dt`) or the output of core `k` (time `k dt`).
+Examples include [`StatePreparation`](@ref), [`ObservableMeasurement`](@ref),
+and [`TraceOut`](@ref).
 """
 abstract type SingleLegInstrument <: AbstractInstrument end
 
@@ -35,7 +37,9 @@ abstract type SingleLegInstrument <: AbstractInstrument end
 
 Instrument connecting one primed input process-tensor leg to one unprimed output leg.
 
-Two-leg instruments represent maps between adjacent evolve slots, such as
+Two-leg instruments act at time `k dt` between cores `k` and `k + 1`, mapping
+the output of core `k` to the input of core `k + 1`. `add!(seq, instr, k)` stores
+them as the `(k, :between)` attachment for `k ∈ 1:nsteps-1`. Examples include
 [`IdentityOperation`](@ref), [`UnitaryPropagation`](@ref), [`LeftRightOperator`](@ref),
 and custom Liouville superoperators.
 """
@@ -72,7 +76,7 @@ _tstep_from_site(s::Index) = begin
     return tstep_str === nothing ? nothing : parse(Int, tstep_str)
 end
 
-# Two-leg maps connect input `tstep=k` to output `tstep=k-1`.
+# Two-leg maps connect output `tstep=k` of core `k` to input `tstep=k+1` of core `k+1`.
 function _validate_two_leg_map(
     instr_name::AbstractString,
     input_pt_sites::AbstractVector{<:Index},
@@ -167,11 +171,12 @@ User-facing constructor for [`StatePreparation`](@ref).
 Hilbert inputs are converted to Liouville space when the instrument tensor is
 materialized. Leave `pt_sites` empty for lazy binding in
 [`create_instruments`](@ref ProcessTensors.Instruments.create_instruments).
+The initial state is the `(1, :input)` attachment on the input of core `1`.
 
 # Examples
 ```julia
 seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)
+add!(seq, state_preparation(ρ0), 1)
 ```
 """
 function state_preparation(
@@ -217,14 +222,14 @@ end
 
 User-facing constructor for [`ObservableMeasurement`](@ref).
 
-`leg_plev=0` targets an output leg; `leg_plev=1` targets an input leg for
-right-action correlation schedules.
+`leg_plev=0` targets the output of core `k` (time `k dt`); `leg_plev=1` targets
+the input of core `k` (time `(k - 1) dt`) for right-action correlation schedules.
 
 # Examples
 ```julia
 O = OpSum()
 O += 1.0, "Sz", 1
-add!(seq, observable_measurement(O), 2)
+add!(seq, observable_measurement(O), pt.nsteps)
 ```
 """
 function observable_measurement(
@@ -480,8 +485,9 @@ User-facing constructor for [`UnitaryPropagation`](@ref).
 
 The process tensor already contains the system's baseline propagation. Use
 this instrument only for explicit control operations inserted into an
-instrument schedule. A time-dependent `H_of_t` is evaluated at the midpoint
-`(k - 1/2) * dt` for the map connecting output time `k - 1` to input time `k`.
+instrument schedule. On the between-attachment `k`, which connects the output of
+core `k` to the input of core `k + 1`, a time-dependent `H_of_t` is evaluated at
+`(k - 1/2) * dt`, the midpoint of core `k`.
 
 # Examples
 ```julia
@@ -598,7 +604,8 @@ end
 
 User-facing constructor for [`OpenOutput`](@ref).
 
-Place at the terminal slot `pt.nsteps` to return the final reduced state.
+Place on the output of the final core `pt.nsteps` to return the reduced state at
+`pt.nsteps * dt`; an uncovered final output defaults to this instrument.
 `open_output` materializes as the scalar no-op `ITensor(1.0)`.
 
 # Examples
@@ -647,7 +654,7 @@ end
 
 User-facing constructor for [`OpenInput`](@ref).
 
-Not valid at the terminal slot `pt.nsteps` (no input leg exists there).
+`add!(seq, open_input(), k)` leaves the input of core `k` uncontracted.
 """
 function open_input(
     pt_sites::AbstractVector{<:Index}=Index[];
@@ -660,8 +667,8 @@ end
 """
     OpenInOut
 
-Two-leg bookkeeping instrument that leaves both input and output process-tensor
-legs at one evolve slot uncontracted.
+Two-leg bookkeeping instrument that leaves the output of core `k` and the input
+of core `k + 1` uncontracted.
 
 Canonical construction uses already-normalized fields:
 
@@ -708,8 +715,9 @@ end
 """
     ProductInstrument
 
-Two-leg instrument at one evolve slot: an output-leg factor (`plev = 0`, time `step - 1`)
-and an input-leg factor (`plev = 1`, time `step`). Construct by multiplying any two
+Two-leg instrument at between-attachment `k`: an output-leg factor (`plev = 0`) on
+core `k` and an input-leg factor (`plev = 1`) on core `k + 1`, both at time `k dt`.
+Construct by multiplying any two
 [`SingleLegInstrument`](@ref) factors with `*` when one is on the output leg and one on
 the input leg (order-independent).
 
@@ -933,10 +941,14 @@ end
     InstrumentSeq
 
 Schedule of instruments to contract with a [`ProcessTensor`](@ref ProcessTensors.ProcessTensor).
+
+`entries` maps `(k, kind)` attachments to instruments, where `kind` is
+`:input` (input of core `k`), `:output` (output of core `k`), or `:between`
+(output of core `k` joined to the input of core `k + 1`).
 """
 mutable struct InstrumentSeq
     default::AbstractInstrument
-    entries::Dict{Int,AbstractInstrument}
+    entries::Dict{Tuple{Int,Symbol},AbstractInstrument}
     nsteps::Int # upper bound for validation; 0 = unchecked until bound to a ProcessTensor
 end
 
@@ -946,13 +958,20 @@ end
 
 Schedule of instruments to contract with a process tensor.
 
-`default` fills unspecified evolve slots. `entries[0]` is reserved for the
-initial [`StatePreparation`](@ref).
+Core `k ∈ 1:nsteps` covers `[(k - 1) dt, k dt]`. [`add!`](@ref) attaches each
+instrument by its legs: a two-leg instrument at `k` is the `(k, :between)`
+attachment at time `k dt`, a single input-leg instrument is `(k, :input)`, and a
+single output-leg instrument is `(k, :output)`. The input of core `1` must hold a
+[`StatePreparation`](@ref) (`init` places one there). `default` fills between
+attachments with no explicit claim, and an uncovered final output is left open.
+
+`entries` (or its alias `overrides`) must already be keyed by `(k, kind)`;
+integer-keyed dictionaries are rejected. Each entry is checked as by `add!`.
 
 # Examples
 ```julia
 seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)
+add!(seq, state_preparation(ρ0), 1)
 add!(seq, trace_out(), pt.nsteps)
 ```
 """
@@ -960,18 +979,28 @@ function InstrumentSeq(
     default::AbstractInstrument,
     nsteps::Int=0;
     init::Union{Nothing,StatePreparation}=nothing,
-    overrides::AbstractDict{Int,<:AbstractInstrument}=Dict{Int,AbstractInstrument}(),
-    entries::Union{Nothing,AbstractDict{Int,<:AbstractInstrument}}=nothing,
+    overrides::AbstractDict=Dict{Tuple{Int,Symbol},AbstractInstrument}(),
+    entries::Union{Nothing,AbstractDict}=nothing,
 )
-    d = if entries === nothing
-        Dict{Int,AbstractInstrument}(pairs(overrides))
-    else
-        Dict{Int,AbstractInstrument}(pairs(entries))
+    nsteps >= 0 || throw(ArgumentError("InstrumentSeq: nsteps must be ≥ 0; got $nsteps."))
+    given = entries === nothing ? overrides : entries
+    if keytype(given) <: Integer || any(key -> !(key isa Tuple{Int,Symbol}), keys(given))
+        throw(
+            ArgumentError(
+                "InstrumentSeq: entries must be keyed by (k, :input | :output | :between); " *
+                "got key type $(keytype(given)). Use add!(seq, instr, k) to attach instruments by core.",
+            ),
+        )
     end
-    if init !== nothing
-        d[0] = init
+    seq = InstrumentSeq(default, Dict{Tuple{Int,Symbol},AbstractInstrument}(), nsteps)
+    for ((k, kind), instr) in given
+        add!(seq, instr, k)
+        haskey(seq.entries, (k, kind)) || throw(
+            ArgumentError("InstrumentSeq: $(typeof(instr)) at k=$k is not a :$kind attachment."),
+        )
     end
-    return InstrumentSeq(default, d, nsteps)
+    init === nothing || add!(seq, init, 1)
+    return seq
 end
 
 """
@@ -979,81 +1008,108 @@ end
 
 Construct an instrument schedule using keyword arguments.
 """
-function InstrumentSeq(; default::AbstractInstrument, nsteps::Int=0, entries=Dict{Int,AbstractInstrument}())
+function InstrumentSeq(;
+    default::AbstractInstrument,
+    nsteps::Int=0,
+    entries::AbstractDict=Dict{Tuple{Int,Symbol},AbstractInstrument}(),
+)
     return InstrumentSeq(default, nsteps; entries=entries)
 end
 
 """
-    resolve_instrument(seq, k)
-    resolve_instrument(seq, k, fallback)
+    resolve_instrument(seq, k, kind)
 
-Return the instrument active at logical timestep `k` in an
-[`InstrumentSeq`](@ref).
-
-For ordinary evolve slots (`k ≥ 1`), an explicit `seq.entries[k]` wins;
-otherwise the schedule default is used. With a `fallback` argument, that
-instrument is used instead of `seq.default` when no explicit entry is present.
-
-At `k = 0` (initial preparation), return the explicit entry if present, else
-`nothing` — there is no default preparation.
+Return the explicit instrument stored at attachment `(k, kind)` of an
+[`InstrumentSeq`](@ref), or `nothing` when that attachment is empty. `kind` is
+`:input`, `:output`, or `:between`. Defaults are not substituted, so an empty
+`(1, :input)` never yields a preparation.
 
 This is part of the public `ProcessTensors.Instruments` API. Prefer
 [`add!`](@ref) / [`evaluate_process`](@ref ProcessTensors.evaluate_process) for
-ordinary schedule workflows; use `resolve_instrument` when inspecting or
-manually materialising a schedule slot.
+ordinary schedule workflows; use `resolve_instrument` when inspecting a schedule.
 
 # Examples
 ```julia
 using ProcessTensors.Instruments: resolve_instrument
 
 seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)
+add!(seq, state_preparation(ρ0), 1)
 add!(seq, trace_out(), pt.nsteps)
 
-@assert resolve_instrument(seq, 0) isa StatePreparation
-@assert resolve_instrument(seq, 1) isa IdentityOperation
-@assert resolve_instrument(seq, pt.nsteps) isa TraceOut
+@assert resolve_instrument(seq, 1, :input) isa StatePreparation
+@assert resolve_instrument(seq, 1, :between) === nothing
+@assert resolve_instrument(seq, pt.nsteps, :output) isa TraceOut
 ```
 """
-function resolve_instrument(seq::InstrumentSeq, k::Int)
-    k == 0 && return get(seq.entries, 0, nothing)
-    k >= 1 || throw(ArgumentError("resolve_instrument: expected k ≥ 0; got $k."))
-    return get(seq.entries, k, seq.default)
+function resolve_instrument(seq::InstrumentSeq, k::Int, kind::Symbol)
+    kind in (:input, :output, :between) || throw(
+        ArgumentError("resolve_instrument: kind must be :input, :output, or :between; got :$kind."),
+    )
+    return get(seq.entries, (k, kind), nothing)
 end
 
 """
-    resolve_instrument(seq, k, fallback)
+    add!(seq, instr, k)
 
-See [`resolve_instrument`](@ref resolve_instrument(::InstrumentSeq, ::Int)).
+Attach `instr` to core `k` of `seq`, replacing an existing instrument on the
+same attachment.
+
+- A [`TwoLegInstrument`](@ref) (including [`ProductInstrument`](@ref) and
+  [`OpenInOut`](@ref)) becomes `(k, :between)`, acting at time `k dt` between
+  cores `k` and `k + 1`; valid for `k ∈ 1:nsteps-1`.
+- A [`SingleLegInstrument`](@ref) with `leg_plev = 1` becomes `(k, :input)` at
+  time `(k - 1) dt`; with `leg_plev = 0` it becomes `(k, :output)` at time
+  `k dt`. Valid for `k ∈ 1:nsteps`. `(1, :input)` accepts only a
+  [`StatePreparation`](@ref) or a same-leg product containing one.
+
+`(k, :between)` claims the output of core `k` and the input of core `k + 1`;
+adding an attachment that overlaps an existing claim throws `ArgumentError`.
+`(k, :input)` and `(k, :output)` may coexist, and a separate `(k, :output)` with
+`(k + 1, :input)` is contracted as one product factor.
 """
-function resolve_instrument(seq::InstrumentSeq, k::Int, fallback::AbstractInstrument)
-    k == 0 && return get(seq.entries, 0, nothing)
-    k >= 1 || throw(ArgumentError("resolve_instrument: expected k ≥ 0; got $k."))
-    return get(seq.entries, k, fallback)
-end
-
-"""
-    add!(seq, instr, tstep)
-
-Insert `instr` at `tstep`, replacing an existing explicit entry at that timestep.
-
-Only `StatePreparation` is allowed at `tstep = 0`.
-"""
-function add!(seq::InstrumentSeq, instr::AbstractInstrument, tstep::Int)
-    tstep >= 0 || throw(ArgumentError("add!: tstep must be ≥ 0; got $tstep."))
-    valid_init = instr isa StatePreparation ||
-                 (instr isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, instr.factors))
-    if tstep == 0 && !valid_init
-        throw(
+function add!(seq::InstrumentSeq, instr::TwoLegInstrument, k::Int)
+    k >= 1 || throw(ArgumentError("add!: two-leg instruments join cores k and k + 1 for k ≥ 1; got k=$k."))
+    seq.nsteps > 0 && k >= seq.nsteps && throw(
+        ArgumentError(
+            "add!: a two-leg instrument at k=$k needs core k + 1, but seq.nsteps=$(seq.nsteps). " *
+            "Use a single-leg output instrument for the final output of core $(seq.nsteps).",
+        ),
+    )
+    for claimed in ((k, :output), (k + 1, :input))
+        haskey(seq.entries, claimed) && throw(
             ArgumentError(
-                "add!: Only StatePreparation may be placed at tstep=0 (initial condition). Got $(typeof(instr)).",
+                "add!: ($k, :between) overlaps the existing $claimed attachment " *
+                "$(typeof(seq.entries[claimed])).",
             ),
         )
     end
-    if seq.nsteps > 0 && tstep > seq.nsteps
-        throw(ArgumentError("add!: tstep=$tstep exceeds seq.nsteps=$(seq.nsteps)."))
+    seq.entries[(k, :between)] = instr
+    return seq
+end
+
+function add!(seq::InstrumentSeq, instr::SingleLegInstrument, k::Int)
+    kind = instr.leg_plev == _INPUT_PLEV ? :input : :output
+    k >= 1 || throw(ArgumentError("add!: process-tensor cores are numbered 1:nsteps; got k=$k."))
+    seq.nsteps > 0 && k > seq.nsteps && throw(
+        ArgumentError("add!: core k=$k exceeds seq.nsteps=$(seq.nsteps)."),
+    )
+    prepares = instr isa StatePreparation ||
+               (instr isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, instr.factors))
+    if kind === :input && k == 1 && !prepares
+        throw(
+            ArgumentError(
+                "add!: the input of core 1 holds the initial state and requires a StatePreparation; " *
+                "got $(typeof(instr)).",
+            ),
+        )
     end
-    seq.entries[tstep] = instr
+    between = kind === :input ? (k - 1, :between) : (k, :between)
+    haskey(seq.entries, between) && throw(
+        ArgumentError(
+            "add!: ($k, :$kind) overlaps the existing $between attachment $(typeof(seq.entries[between])).",
+        ),
+    )
+    seq.entries[(k, kind)] = instr
     return seq
 end
 
@@ -1065,82 +1121,53 @@ end
 function Base.show(io::IO, seq::InstrumentSeq)
     ks = sort!(collect(keys(seq.entries)))
     print(io, "InstrumentSeq(default=$(typeof(seq.default)), nsteps=$(seq.nsteps), $(length(ks)) explicit entries)")
-    for k in ks
-        print(io, "\n  tstep=$k => ", typeof(seq.entries[k]))
+    for (k, kind) in ks
+        print(io, "\n  ($k, :$kind) => ", typeof(seq.entries[(k, kind)]))
     end
 end
 
 """
     instrument_leg_maps(seq, nsteps)
 
-Return dictionaries describing which instruments cover process-tensor input and
-output time labels, together with any missing input/output labels.
+Return `(in_map, out_map, missing_in, missing_out)` for a schedule bound to
+`nsteps` cores. `in_map[k]` and `out_map[k]` are the instruments covering the
+input and output of core `k ∈ 1:nsteps`; `missing_in` and `missing_out` list
+uncovered cores.
 
-Open instruments still claim legs even when they materialize as `ITensor(1.0)`.
+A `(k, :between)` attachment covers output `k` and input `k + 1`. Interior pairs
+with no explicit claim are covered by `seq.default`, and an uncovered final
+output is covered by [`open_output`](@ref). The input of core `1` has no
+default. Open instruments still claim legs even when they materialize as
+`ITensor(1.0)`.
 """
 function instrument_leg_maps(seq::InstrumentSeq, nsteps::Int)
     nsteps >= 1 || throw(ArgumentError("instrument_leg_maps: nsteps must be >= 1"))
 
     in_map = Dict{Int,AbstractInstrument}()
     out_map = Dict{Int,AbstractInstrument}()
-    consumed = falses(nsteps + 1)
-
-    function _record!(instr::AbstractInstrument, step::Int)
-        if instr isa TwoLegInstrument
-            step <= nsteps - 1 && (in_map[step] = instr)
-            tout = step - 1
-            tout <= nsteps - 2 && (out_map[tout] = instr)
-        elseif instr isa SingleLegInstrument
-            if instr.leg_plev == _OUTPUT_PLEV
-                tout = step - 1
-                tout <= nsteps - 2 && (out_map[tout] = instr)
-            else
-                step <= nsteps - 1 && (in_map[step] = instr)
-            end
+    for ((k, kind), instr) in seq.entries
+        last_core = kind === :between ? nsteps - 1 : nsteps
+        1 <= k <= last_core || throw(
+            ArgumentError("instrument_leg_maps: attachment ($k, :$kind) lies outside cores 1:$nsteps."),
+        )
+        if kind === :input
+            in_map[k] = instr
+        elseif kind === :output
+            out_map[k] = instr
         else
-            throw(
-                ArgumentError(
-                    "instrument_leg_maps: unsupported instrument $(typeof(instr)) at tstep=$step.",
-                ),
-            )
+            out_map[k] = instr
+            in_map[k + 1] = instr
         end
-        return nothing
     end
-
-    # Physical single-leg pairs (same interpretation as create_instruments).
-    for s in 1:(nsteps - 1)
-        out_entry = resolve_instrument(seq, s)
-        in_entry = resolve_instrument(seq, s + 1)
-        out_entry isa SingleLegInstrument || continue
-        in_entry isa SingleLegInstrument || continue
-        out_entry.leg_plev == _OUTPUT_PLEV || continue
-        in_entry.leg_plev == _INPUT_PLEV || continue
-        out_entry isa OpenOutput && continue
-        _record!(ProductInstrument(in_entry, out_entry), s)
-        consumed[s + 1] = true
+    for k in 1:(nsteps - 1)
+        if !haskey(out_map, k) && !haskey(in_map, k + 1)
+            out_map[k] = seq.default
+            in_map[k + 1] = seq.default
+        end
     end
+    haskey(out_map, nsteps) || (out_map[nsteps] = open_output())
 
-    for step in 1:nsteps
-        consumed[step] && continue
-        _record!(resolve_instrument(seq, step), step)
-    end
-    for step in 1:nsteps
-        consumed[step] || continue
-        _record!(seq.default, step)
-    end
-
-    prep = resolve_instrument(seq, 0)
-    if prep !== nothing
-        prep isa StatePreparation ||
-            (prep isa _ComposedSingleLegInstrument && any(f -> f isa StatePreparation, prep.factors)) ||
-            throw(ArgumentError("instrument_leg_maps: tstep=0 must be StatePreparation"))
-        in_map[0] = prep
-    end
-
-    expected_in = collect(0:nsteps-1)
-    expected_out = nsteps == 1 ? Int[] : collect(0:nsteps-2)
-    missing_in = [k for k in expected_in if !haskey(in_map, k)]
-    missing_out = [k for k in expected_out if !haskey(out_map, k)]
-
+    missing_in = [k for k in 1:nsteps if !haskey(in_map, k)]
+    missing_out = [k for k in 1:nsteps if !haskey(out_map, k)]
     return in_map, out_map, missing_in, missing_out
 end

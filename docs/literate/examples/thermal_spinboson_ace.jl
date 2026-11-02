@@ -101,7 +101,7 @@ couplings = sqrt.(spectral_density.(frequencies) .* Δω)
 @assert all(>(0), frequencies)
 
 # !!! note "Executable example versus companion figure"
-#     These cells use four modes, three levels per mode, and end at $t=2.2$ ps.
+#     These cells use four modes, three levels per mode, and end at $t=2.4$ ps.
 #     Their coarse grid starts at $3.75\,\mathrm{ps}^{-1}$ and misses the
 #     low-frequency part of the bath. They demonstrate the workflow, not a
 #     converged continuum result. The figure uses 60 modes, five levels,

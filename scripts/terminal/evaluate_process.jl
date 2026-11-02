@@ -27,9 +27,9 @@ pt = build_process_tensor(
 )
 
 Sz = OpSum() + (1.0, "Sz", 1)
-final_sites = output_sites(pt, pt.nsteps - 1)
+final_sites = output_sites(pt, pt.nsteps)
 seq = default_schedule(pt)
-add!(seq, state_preparation(problem.rho0), 0)
+add!(seq, state_preparation(problem.rho0), 1)
 add!(seq, observable_measurement(Sz, final_sites), pt.nsteps)
 
 @info "Evaluating process..."

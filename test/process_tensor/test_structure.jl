@@ -67,33 +67,21 @@ end
 
 function _closed_seq(pt::ProcessTensor, rho0_h)
     seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0_h), 0)
+    add!(seq, state_preparation(rho0_h), 1)
     add!(seq, trace_out(), pt.nsteps)
     return seq
 end
 
 function _topology_closure_tensor(pt::ProcessTensor, seq::InstrumentSeq)
-    prep = resolve_instrument(seq, 0)
-    result = pt.core[1] * instrument_itensor(prep, input_sites(pt, 0), 0)
-    for step in 1:(pt.nsteps - 1)
-        instr = resolve_instrument(seq, step, seq.default)
-        out_prev, in_curr = coupling_times(pt, step)
-        bond = if instr isa TwoLegInstrument
-            instrument_itensor(instr, in_curr, out_prev, step; dt=pt.dt)
-        elseif instr isa SingleLegInstrument
-            instr.leg_plev == 0 ?
-                instrument_itensor(instr, out_prev, step) :
-                instrument_itensor(instr, in_curr, step)
-        else
-            throw(ArgumentError("unsupported bond instrument $(typeof(instr)) at step=$step"))
-        end
-        result *= bond * pt.core[step + 1]
+    prep = resolve_instrument(seq, 1, :input)
+    result = pt.core[1] * instrument_itensor(prep, input_sites(pt, 1), 1)
+    for k in 1:(pt.nsteps - 1)
+        instr = something(resolve_instrument(seq, k, :between), seq.default)
+        out_k, in_next = coupling_times(pt, k)
+        result *= instrument_itensor(instr, in_next, out_k, k; dt=pt.dt) * pt.core[k + 1]
     end
-    final_instr = resolve_instrument(seq, pt.nsteps, seq.default)
-    if final_instr isa TraceOut || final_instr isa SingleLegInstrument
-        out_prev, _ = coupling_times(pt, pt.nsteps)
-        result *= instrument_itensor(final_instr, out_prev, pt.nsteps - 1)
-    end
+    final_instr = resolve_instrument(seq, pt.nsteps, :output)
+    result *= instrument_itensor(final_instr, output_sites(pt, pt.nsteps), pt.nsteps)
     return result
 end
 
@@ -116,14 +104,28 @@ const _STRUCTURE_MATRIX = vcat(
         end
     end
 
-    @testset "output_sites / input_sites fail closed on stray legs" begin
+    @testset "output_sites / input_sites: core bounds and tstep tags" begin
         pt = _build_pt_case(:bathmode, system, coupling_site; nsteps=4)
         validate_process_tensor_structure(pt)
-        for k in 0:3
-            @test length(output_sites(pt, k)) == 1
-            @test length(input_sites(pt, k)) == 1
-            @test only(input_sites(pt, k)) in inds(pt.core[k + 1])
+        for k in 1:4
+            out_k = only(output_sites(pt, k))
+            in_k = only(input_sites(pt, k))
+            @test tag_value(out_k, "tstep=") == string(k)
+            @test in_k == prime(out_k)
+            @test out_k in inds(pt.core[k])
+            @test in_k in inds(pt.core[k])
         end
+        @test_throws BoundsError output_sites(pt, 0)
+        @test_throws BoundsError input_sites(pt, 0)
+        @test_throws BoundsError output_sites(pt, 5)
+        @test_throws BoundsError input_sites(pt, 5)
+        for k in 1:3
+            out_k, in_next = coupling_times(pt, k)
+            @test only(out_k) == only(output_sites(pt, k))
+            @test only(in_next) == only(input_sites(pt, k + 1))
+        end
+        @test_throws BoundsError coupling_times(pt, 0)
+        @test_throws BoundsError coupling_times(pt, 4)
     end
 
     @testset "topology closure (zero open indices)" begin

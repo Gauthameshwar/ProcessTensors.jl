@@ -16,7 +16,7 @@ include(joinpath(@__DIR__, "ace_compression_common.jl"))
 const J = 1.0
 const DT = 0.05
 const T_FINAL = 4.0
-const NSTEPS = round(Int, T_FINAL / DT) + 1
+const NSTEPS = round(Int, T_FINAL / DT)
 const CUTOFF = 1e-10
 const N_VALUES = [1, 5, 10, 20, 30, 40, 50, 70]
 

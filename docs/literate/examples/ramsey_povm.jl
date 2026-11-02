@@ -147,24 +147,26 @@ ramsey_instruments = Dict(
 #
 # ## Contract the eight records
 #
-# Each bath core propagates one time step. A measure-and-reset at slot ``s``
-# closes the preceding output after ``s`` propagations, then prepares the next input:
+# Core ``k`` propagates over ``[(k-1)\Delta t, k\Delta t]``. The initial preparation
+# feeds the input of core 1. A measure-and-reset at step ``s`` closes the output of
+# core ``s`` after ``s`` propagations, then prepares the input of core ``s+1``:
 #
 # ```math
 # t_j=s_j\Delta t,\qquad \tau_j=t_j-t_{j-1},\qquad t_0=0.
 # ```
 #
-# The documentation uses slots (2, 4, 6), giving equal waits of 0.2. The companion
+# The documentation uses steps (2, 4, 6), giving equal waits of 0.2. The companion
 # uses (4, 8, 12), step size 0.15, 14 cores, and bond cap 512: its waits are 0.6.
-# The terminal trace closes the remaining evolution without conditioning on it.
+# The terminal trace on the output of the last core closes the remaining
+# evolution without conditioning on it.
 
 const READOUT_STEPS = (2, 4, 6)
 readout_times = collect(READOUT_STEPS) .* DT
 
-# Start with one explicit record, ``(+,-,+)``. Unused slots keep the identity.
+# Start with one explicit record, ``(+,-,+)``. Unused steps keep the identity.
 
 sequence = default_schedule(process_tensor)
-add!(sequence, state_preparation(rho_reset), 0)
+add!(sequence, state_preparation(rho_reset), 1)
 add!(sequence, ramsey_instruments[1], READOUT_STEPS[1])
 add!(sequence, ramsey_instruments[-1], READOUT_STEPS[2])
 add!(sequence, ramsey_instruments[1], READOUT_STEPS[3])
@@ -187,7 +189,7 @@ example_probability = evaluate_process(process_tensor, sequence; progress=false)
 
 function branch_probability(record)
     sequence = default_schedule(process_tensor)
-    add!(sequence, state_preparation(rho_reset), 0)
+    add!(sequence, state_preparation(rho_reset), 1)
     for (step, outcome) in zip(READOUT_STEPS, record)
         add!(sequence, ramsey_instruments[outcome], step)
     end
@@ -255,7 +257,7 @@ println((normalization_error=normalization_error, minimum_probability=minimum(pr
 #       though the bath can retain memory. Set `ALPHA = 0`: records should factorize,
 #       with a plus-outcome probability of `(1 + ETA)/2` in every round.
 #     - Change the readout spacing. For equal waiting times of `m * DT` from the
-#       initial preparation, use slots `(m, 2m, 3m)` and `NSTEPS > 3m`.
+#       initial preparation, use steps `(m, 2m, 3m)` and `NSTEPS > 3m`.
 #     - Reduce `DT` while preserving the physical readout times, lower `ACE_CUTOFF`,
 #       and increase `ACE_MAXDIM`. The normalization error should be much smaller
 #       than the factorization residual before interpreting it physically.

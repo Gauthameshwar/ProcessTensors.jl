@@ -19,7 +19,7 @@ const omega_max = 20.0
 const thermal_frequency = 2.5
 const dt = 0.20
 const final_time = 5.0
-const nsteps = round(Int, final_time / dt) + 1
+const nsteps = round(Int, final_time / dt)
 const ace_cutoff = 1e-5
 const ace_maxdim = 512
 const ace_compression = :zipup_cpp
@@ -27,7 +27,7 @@ const store_time_target, phase_time_target, retrieve_time_target = 1.0, 2.0, 3.0
 const trace_warning_tolerance, trace_assert_tolerance = 1e-3, 5e-2
 @assert N_bath > 0 && local_dim >= 2 && alpha >= 0 && omega_max > 0 && dt > 0
 @assert thermal_frequency >= 0 && isfinite(thermal_frequency)
-@assert isapprox((nsteps - 1) * dt, final_time; atol=100eps(Float64))
+@assert isapprox(nsteps * dt, final_time; atol=100eps(Float64))
 @assert 0 < store_time_target < phase_time_target < retrieve_time_target <= final_time
 
 # --- Automatic plot environment, as in the original script ---
@@ -134,7 +134,7 @@ println((largest_omitted_Gibbs_weight=thermal_tail,))
 rho_Q0 = to_dm(MPS(system_sites, ["+"]))
 ancilla_sites = siteinds("Qubit", 1)
 memory = tester(ancilla_sites, to_dm(MPS(ancilla_sites, ["0"])))
-store_step, phase_step, retrieve_step = round.(Int, [store_time_target, phase_time_target, retrieve_time_target] ./ dt) .+ 1
+store_step, phase_step, retrieve_step = round.(Int, [store_time_target, phase_time_target, retrieve_time_target] ./ dt)
 @assert 1 <= store_step < phase_step < retrieve_step <= nsteps
 swap_gate = op("SWAP", only(system_sites), only(ancilla_sites))
 phase_gate = op("Z", only(ancilla_sites))
@@ -144,14 +144,14 @@ add!(controls, tester_unitary(phase_gate, ancilla_sites), phase_step)
 add!(controls, joint_unitary(swap_gate, system_sites, ancilla_sites), retrieve_step)
 
 # Joint controls apply half-gates on each side of a noisy slab; they are not
-# instantaneous SWAPs. Report the actual grid labels after rounding target times.
+# instantaneous SWAPs. Interval k ends at snapshot k + 1, labelled k*dt
 baseline_seconds = @elapsed baseline = evolve(process_tensor, rho_Q0; progress=true)
 spectator_seconds = @elapsed spectator = evolve(process_tensor, rho_Q0; tester=memory, progress=true)
 controlled_seconds = @elapsed controlled = evolve(
     process_tensor, rho_Q0; tester=memory, tester_seq=controls, return_joint=true, progress=true,
 )
-event_steps = [store_step, phase_step, retrieve_step]
-event_times = controlled.times[event_steps]
+event_samples = [store_step, phase_step, retrieve_step] .+ 1
+event_times = controlled.times[event_samples]
 println((store_time=event_times[1], phase_time=event_times[2], retrieve_time=event_times[3],
          baseline_seconds=baseline_seconds, spectator_seconds=spectator_seconds,
          controlled_seconds=controlled_seconds))
@@ -215,7 +215,7 @@ invalid_entropy_inputs > 0 && @warn "Invalid entropy inputs; affected mutual-inf
 @assert all(isfinite, x_Q) && all(isfinite, x_A) && all(isfinite, x_baseline)
 @assert maximum(abs, x_Q) <= 1 + 1e-3 && maximum(abs, x_A) <= 1 + 1e-3
 
-for (event, k) in zip((:store, :phase, :retrieve), event_steps)
+for (event, k) in zip((:store, :phase, :retrieve), event_samples)
     println((event=event, time=controlled.times[k], x_Q=x_Q[k], x_A=x_A[k],
              ancilla_coherence=2abs(rho_A[k][1, 2] / tr(rho_A[k])), mutual_information=information[k]))
 end

@@ -95,19 +95,20 @@ pt_single = build_process_tensor(
 
 # ## Evolve and reuse the process
 #
-# `evolve` returns the reduced trajectory for an initial system state. The
-# explicit schedule below asks the same process for a final $\langle S_z\rangle$.
-# The final output belongs to core `nsteps - 1`; its readout is scheduled at
-# boundary `nsteps`.
+# `evolve` returns the reduced trajectory for an initial system state: `nsteps + 1`
+# spaced by $\Delta t$ from $t=0$ to `final_time`, starting with the prepared
+# state. The explicit schedule below asks the same process for a final
+# $\langle S_z\rangle$. The preparation enters the input of core 1, and the readout 
+# closes the output of core `nsteps`, at `final_time`.
 
 ρ_sys0_h = to_dm(MPS(sys_phys, ["Up"]))
 trajectory_single = evolve(pt_single, ρ_sys0_h)
 
 Sz = OpSum()
 Sz += 1.0, "Sz", 1
-final_sites = output_sites(pt_single, nsteps - 1)
+final_sites = output_sites(pt_single, nsteps)
 seq = default_schedule(pt_single)
-seq += state_preparation(ρ_sys0_h), 0
+seq += state_preparation(ρ_sys0_h), 1
 seq += observable_measurement(Sz, final_sites), nsteps
 final_sz_schedule = evaluate_process(pt_single, seq)
 

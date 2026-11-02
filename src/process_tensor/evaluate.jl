@@ -125,13 +125,7 @@ Return `true` when the schedule closes every process-tensor leg, so
 """
 function isfullycontracted(pt::ProcessTensor, seq::InstrumentSeq)
     info = open_leg_info(pt, seq)
-    info.n_open_expected == 0 || return false
-    isempty(info.missing_in) || return false
-    isempty(info.missing_out) || return false
-    final_instr = Instruments.resolve_instrument(seq, pt.nsteps, seq.default)
-    final_instr isa IdentityOperation && return false
-    final_instr isa OpenOutput && return false
-    return final_instr isa SingleLegInstrument
+    return info.n_open_expected == 0 && isempty(info.missing_in) && isempty(info.missing_out)
 end
 
 """
@@ -143,36 +137,30 @@ their dimensions.
 Returns a named tuple with fields:
 
 - `in_map`, `out_map`, `missing_in`, `missing_out` from schedule coverage maps
-- `open_in`, `open_out`: time labels owned by open bookkeeping instruments
+- `open_in`, `open_out`: cores whose input or output leg is held by an open
+  bookkeeping instrument, including the default open final output
 - `n_open_expected`: expected number of uncontracted system legs after evaluation
 - `open_dims`: dimensions of those expected open legs (from `pt`)
 """
 function open_leg_info(pt::ProcessTensor, seq::InstrumentSeq)
     in_map, out_map, missing_in, missing_out = Instruments.instrument_leg_maps(seq, pt.nsteps)
-    default = seq.default
 
     open_in = Int[]
     open_out = Int[]
-    for (tin, instr) in pairs(in_map)
-        tin == 0 && continue
+    for (k, instr) in pairs(in_map)
         if instr isa OpenInput || instr isa OpenInOut ||
            (instr isa ProductInstrument && instr.input_instr isa OpenInput)
-            push!(open_in, tin)
+            push!(open_in, k)
         end
     end
-    for (tout, instr) in pairs(out_map)
+    for (k, instr) in pairs(out_map)
         if instr isa OpenOutput || instr isa OpenInOut ||
            (instr isa ProductInstrument && instr.output_instr isa OpenOutput)
-            push!(open_out, tout)
+            push!(open_out, k)
         end
     end
-
-    final_instr = Instruments.resolve_instrument(seq, pt.nsteps, default)
-    if final_instr isa OpenOutput || final_instr isa IdentityOperation
-        push!(open_out, pt.nsteps - 1)
-    end
-    unique!(sort!(open_in))
-    unique!(sort!(open_out))
+    sort!(open_in)
+    sort!(open_out)
 
     open_dims = Int[]
     for tin in open_in
@@ -221,10 +209,10 @@ function _evaluate_process(
     )
     result = pt.core[1] * instruments[1]
     @progress_bar run "Contracting process tensor" max(pt.nsteps - 1, 1) begin
-        for step in 1:(pt.nsteps - 1)
-            result *= instruments[step + 1]
-            result *= pt.core[step + 1]
-            @progress_update run step
+        for k in 1:(pt.nsteps - 1)
+            result *= instruments[k + 1]
+            result *= pt.core[k + 1]
+            @progress_update run k
         end
     end
     result *= instruments[pt.nsteps + 1]
@@ -255,6 +243,11 @@ end
 
 Contract a process tensor with an instrument schedule.
 
+Core `k ∈ 1:pt.nsteps` covers `[(k - 1) dt, k dt]`. The schedule must prepare
+the input of core `1` (`add!(seq, state_preparation(ρ0), 1)`); the output of
+core `pt.nsteps` is the state at `pt.nsteps * dt` and stays open unless an
+effect such as [`trace_out`](@ref) is added there.
+
 Pass a [`Tester`](@ref) to include a persistent ancillary memory. When
 `tester_seq` is omitted, the tester is carried forward unchanged. A supplied
 [`TesterSeq`](@ref) must have the same `nsteps` as `pt`; the tester is traced
@@ -271,7 +264,7 @@ Return type depends on the number of uncontracted system legs after contraction:
 # Examples
 ```julia
 seq = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-add!(seq, state_preparation(ρ0), 0)
+add!(seq, state_preparation(ρ0), 1)
 add!(seq, open_output(), pt.nsteps)
 
 s_tester = siteinds("Qubit", 1)
@@ -373,8 +366,8 @@ end
 """
     evaluate_process(pt, rho0, seq; kwargs...)
 
-Insert `state_preparation(rho0)` at `tstep = 0` and contract the resulting
-schedule with `pt`.
+Attach `state_preparation(rho0)` to the input of core `1`, replacing any
+existing preparation there, and contract the resulting schedule with `pt`.
 """
 function evaluate_process(
     pt::ProcessTensor,
@@ -383,8 +376,8 @@ function evaluate_process(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     kwargs...
 )
-    seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=Dict{Int,AbstractInstrument}(pairs(seq.entries)))
-    add!(seq_full, state_preparation(rho0), 0)
+    seq_full = InstrumentSeq(seq.default, seq.nsteps; entries=copy(seq.entries))
+    add!(seq_full, state_preparation(rho0), 1)
     return evaluate_process(pt, seq_full; default_instr=default_instr, kwargs...)
 end
 
@@ -401,6 +394,6 @@ function evaluate_process(
     kwargs...
 )
     seq = InstrumentSeq(default=default_instr, nsteps=pt.nsteps)
-    add!(seq, state_preparation(rho0), 0)
+    add!(seq, state_preparation(rho0), 1)
     return evaluate_process(pt, seq; default_instr=default_instr, kwargs...)
 end

@@ -410,20 +410,24 @@ end
 
 Mutable schedule of tester-only and joint system-tester actions.
 
-The schedule is independent of the physical [`Tester`](@ref). Explicit entries
-override `default`, including at `tstep = 0`.
+The schedule is independent of the physical [`Tester`](@ref). Interval `k ∈
+1:nsteps` surrounds process-tensor core `k`; explicit entries override
+`default` there. `initialization` acts on the tester memory before interval `1`
+and must be a tester-only action.
 """
 mutable struct TesterSeq
     default::AbstractTesterAction
+    initialization::AbstractTesterAction
     entries::Dict{Int,AbstractTesterAction}
     nsteps::Int
 end
 
 """
-    TesterSeq(default, nsteps=0; entries=Dict())
-    TesterSeq(; default=tester_identity(), nsteps=0, entries=Dict())
+    TesterSeq(default, nsteps=0; initialization=default, entries=Dict())
+    TesterSeq(; default=tester_identity(), nsteps=0, initialization=default, entries=Dict())
 
-Construct a tester-action schedule.
+Construct a tester-action schedule. `entries` keys are interval indices
+`k ∈ 1:nsteps`; the action before interval `1` is `initialization`.
 
 # Examples
 ```julia
@@ -436,53 +440,62 @@ add!(seq, tester_propagation(H, s), 2)
 function TesterSeq(
     default::AbstractTesterAction,
     nsteps::Int=0;
+    initialization::AbstractTesterAction=default,
     entries::AbstractDict{Int,<:AbstractTesterAction}=Dict{Int,AbstractTesterAction}(),
 )
     nsteps >= 0 || throw(ArgumentError("TesterSeq: nsteps must be ≥ 0; got $nsteps."))
     collected = Dict{Int,AbstractTesterAction}(pairs(entries))
-    for tstep in keys(collected)
-        tstep >= 0 || throw(
-            ArgumentError("TesterSeq: entry timestep must be ≥ 0; got $tstep."),
+    for k in keys(collected)
+        k >= 1 || throw(
+            ArgumentError(
+                "TesterSeq: entry interval must be ≥ 1; got $k. Use `initialization=` for the action before interval 1.",
+            ),
         )
-        nsteps > 0 && tstep > nsteps && throw(
-            ArgumentError("TesterSeq: entry tstep=$tstep exceeds nsteps=$nsteps."),
+        nsteps > 0 && k > nsteps && throw(
+            ArgumentError("TesterSeq: entry interval $k exceeds nsteps=$nsteps."),
         )
     end
-    return TesterSeq(default, collected, nsteps)
+    return TesterSeq(default, initialization, collected, nsteps)
 end
 
 function TesterSeq(;
     default::AbstractTesterAction=tester_identity(),
     nsteps::Int=0,
+    initialization::AbstractTesterAction=default,
     entries::AbstractDict{Int,<:AbstractTesterAction}=Dict{Int,AbstractTesterAction}(),
 )
-    return TesterSeq(default, nsteps; entries=entries)
+    return TesterSeq(default, nsteps; initialization=initialization, entries=entries)
 end
 
 """
     resolve_tester_action(seq, k)
 
-Return the explicit tester action at timestep `k`, or `seq.default` when no
-override exists.
+Return the explicit tester action on interval `k ≥ 1`, or `seq.default` when no
+override exists. The action before interval `1` is `seq.initialization`.
 """
 function resolve_tester_action(seq::TesterSeq, k::Int)
-    k >= 0 || throw(
-        ArgumentError("resolve_tester_action: expected k ≥ 0; got $k."),
+    k >= 1 || throw(
+        ArgumentError("resolve_tester_action: expected interval k ≥ 1; got $k."),
     )
     return get(seq.entries, k, seq.default)
 end
 
 """
-    add!(seq::TesterSeq, action, tstep)
+    add!(seq::TesterSeq, action, k)
 
-Insert `action` at `tstep`, replacing an existing explicit entry.
+Insert `action` on interval `k ∈ 1:nsteps`, replacing an existing explicit
+entry. Set the action before interval `1` with `TesterSeq(...; initialization=)`.
 """
-function add!(seq::TesterSeq, action::AbstractTesterAction, tstep::Int)
-    tstep >= 0 || throw(ArgumentError("add!: tstep must be ≥ 0; got $tstep."))
-    seq.nsteps > 0 && tstep > seq.nsteps && throw(
-        ArgumentError("add!: tstep=$tstep exceeds seq.nsteps=$(seq.nsteps)."),
+function add!(seq::TesterSeq, action::AbstractTesterAction, k::Int)
+    k >= 1 || throw(
+        ArgumentError(
+            "add!: tester intervals are numbered 1:nsteps; got $k. Use `initialization=` for the action before interval 1.",
+        ),
     )
-    seq.entries[tstep] = action
+    seq.nsteps > 0 && k > seq.nsteps && throw(
+        ArgumentError("add!: interval $k exceeds seq.nsteps=$(seq.nsteps)."),
+    )
+    seq.entries[k] = action
     return seq
 end
 
@@ -515,7 +528,8 @@ function Base.show(io::IO, seq::TesterSeq)
         "TesterSeq(default=$(typeof(seq.default)), nsteps=$(seq.nsteps), " *
         "$(length(ks)) explicit entries)",
     )
+    print(io, "\n  initialization => ", typeof(seq.initialization))
     for k in ks
-        print(io, "\n  tstep=$k => ", typeof(seq.entries[k]))
+        print(io, "\n  interval $k => ", typeof(seq.entries[k]))
     end
 end

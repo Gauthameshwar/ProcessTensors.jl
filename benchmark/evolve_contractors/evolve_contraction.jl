@@ -44,11 +44,11 @@ function random_process_tensor(nsteps::Integer, chi::Integer; dt::Real=DT, seed:
     links = [Index(chi; tags="Link,tstep=$k") for k in 1:(nsteps - 1)]
 
     cores = ITensor[]
-    for k in 0:(nsteps - 1)
+    for k in 1:nsteps
         in_k, out_k = ProcessTensors._generate_pt_legs(coupling_site, k)
         inds = Index[in_k, out_k]
-        k > 0 && push!(inds, links[k])
-        k < nsteps - 1 && push!(inds, links[k + 1])
+        k > 1 && push!(inds, links[k - 1])
+        k < nsteps && push!(inds, links[k])
         push!(cores, random_itensor_on(rng, Tuple(inds)))
     end
     return ProcessTensor(ITensorMPS.MPO(cores), system, nothing, dt, nsteps, coupling_site)
@@ -78,6 +78,8 @@ function snapshot_error(pt, rho0)
         one_site_density_matrix(ρ) for ρ in
         evolve(pt, rho0; contraction=:closures, progress=false).states_hilbert
     ]
+    length(traj_eval) == length(traj_close) == pt.nsteps + 1 ||
+        error("evolve trajectories must have nsteps + 1 = $(pt.nsteps + 1) samples.")
     return maximum(
         norm(a - b) / max(norm(a), norm(b), eps())
         for (a, b) in zip(traj_eval, traj_close)

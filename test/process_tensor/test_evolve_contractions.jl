@@ -40,9 +40,9 @@ end
 function _assert_contractions_agree(pt, rho0_or_seq; atol=1e-10)
     traj_eval = _snapshot_matrices(pt, rho0_or_seq; contraction=:evaluate)
     traj_close = _snapshot_matrices(pt, rho0_or_seq; contraction=:closures)
-    @test length(traj_eval) == pt.nsteps
-    @test length(traj_close) == pt.nsteps
-    for k in 1:pt.nsteps
+    @test length(traj_eval) == pt.nsteps + 1
+    @test length(traj_close) == pt.nsteps + 1
+    for k in 1:(pt.nsteps + 1)
         @test traj_eval[k] ≈ traj_close[k] atol=atol
         @test abs(real(tr(traj_close[k])) - 1) < max(atol, 1e-8)
     end
@@ -69,12 +69,20 @@ end
 
 @testset "evolve contractions: Dense Markovian nsteps=1 and nsteps=4" begin
     s = siteinds("S=1/2", 1)
-    system = spin_system(s, OpSum() + (0.4, "Sz", 1) + (0.25, "Sx", 1))
+    H = OpSum() + (0.4, "Sz", 1) + (0.25, "Sx", 1)
+    system = spin_system(s, H)
     rho0 = to_dm(MPS(s, ["Up"]))
-    pt1 = build_process_tensor(system; dt=0.05, nsteps=1, progress=false)
-    _assert_contractions_agree(pt1, rho0)
-    pt4 = build_process_tensor(system; dt=0.05, nsteps=4, progress=false)
-    _assert_contractions_agree(pt4, rho0)
+    dt = 0.05
+    U = exp(-im * dt * dense_hamiltonian_matrix(H, s))
+    ρ0 = _one_site_hilbert_mpo_to_dense(rho0)
+    for nsteps in (1, 4)
+        pt = build_process_tensor(system; dt, nsteps, progress=false)
+        @test evolve(pt, rho0; progress=false).times ≈ [k * dt for k in 0:nsteps]
+        _, traj_close = _assert_contractions_agree(pt, rho0)
+        for k in 0:nsteps
+            @test traj_close[k + 1] ≈ U^k * ρ0 * (U^k)' atol=1e-10
+        end
+    end
 end
 
 @testset "evolve contractions: Dense single-mode spin bath" begin
@@ -126,15 +134,16 @@ end
     )
 
     seq_id = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_id, state_preparation(rho0), 0)
+    add!(seq_id, state_preparation(rho0), 1)
 
     seq_u = InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps)
-    add!(seq_u, state_preparation(rho0), 0)
+    add!(seq_u, state_preparation(rho0), 1)
     add!(seq_u, unitary_propagation(system), 2)
 
     traj_id, _ = _assert_contractions_agree(pt, seq_id; atol=1e-10)
     traj_u, _ = _assert_contractions_agree(pt, seq_u; atol=1e-10)
-    @test traj_id[1] ≈ traj_u[1] atol=1e-10
-    @test traj_id[2] ≈ traj_u[2] atol=1e-10
-    @test norm(traj_id[3] - traj_u[3]) > 1e-8
+    for j in 1:3
+        @test traj_id[j] ≈ traj_u[j] atol=1e-10
+    end
+    @test norm(traj_id[4] - traj_u[4]) > 1e-8
 end

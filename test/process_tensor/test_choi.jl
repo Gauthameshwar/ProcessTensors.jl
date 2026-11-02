@@ -24,9 +24,9 @@ end
 
 # Create a dense Choi reference using array reshaping rather than ITensor combiners.
 function _choi_dense_reference(pt::ProcessTensor)
-    d = isqrt(dim(only(output_sites(pt, 0))))
+    d = isqrt(dim(only(output_sites(pt, 1))))
     legs = Index[]
-    for k in reverse(0:(pt.nsteps - 1))
+    for k in reverse(1:pt.nsteps)
         push!(legs, only(output_sites(pt, k)), only(input_sites(pt, k)))
     end
 
@@ -82,7 +82,7 @@ end
         @test dim(input) == dim(output) == 2
         @test Set(siteinds(W, j; plev=0)) == Set((input, output))
         @test Set(siteinds(W, j; plev=1)) == Set((prime(input), prime(output)))
-        @test all(i -> hastags(i, "Site,Choi,tstep=$(j - 1)"), (input, output))
+        @test all(i -> hastags(i, "Site,Choi,tstep=$j"), (input, output))
 
         links = Set(i for i in inds(original[j]) if has_tag_token(i, "Link"))
         @test Set(inds(W.core[j])) == union(links, Set((input, output, prime(input), prime(output))))
@@ -122,7 +122,7 @@ end
 
 @testset "choi_pt_mpo: non-square Liouville dimension" begin
     system = qubit_system(siteinds("Qubit", 1))
-    s = Index(3; tags="Liouv,tstep=0")
+    s = Index(3; tags="Liouv,tstep=1")
     core = ITensorMPS.MPO([delta(prime(s), s)])
     pt = ProcessTensor(core, system, nothing, 0.1, 1, only(system.sites))
     @test_throws ArgumentError choi_pt_mpo(pt)

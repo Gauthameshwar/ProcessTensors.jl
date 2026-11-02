@@ -18,7 +18,7 @@
 const J = 1.0
 const dt = 0.01
 const final_time = 20.0
-const nsteps = round(Int, final_time / dt) + 1
+const nsteps = round(Int, final_time / dt)
 const N_bath_values = [5, 10, 100, 1000] # Use [5, 10] for a shorter first run.
 const ace_cutoff = 1e-10
 const ace_maxdim = 1024
@@ -29,7 +29,7 @@ const reference_nmarkers = 21
 const log_error_floor = 1e-16
 const line_colors = [:dodgerblue, :darkorange, :seagreen, :mediumpurple]
 @assert dt > 0 && J > 0 && all(N -> N > 0, N_bath_values)
-@assert !isempty(N_bath_values) && isapprox((nsteps - 1) * dt, final_time)
+@assert !isempty(N_bath_values) && isapprox(nsteps * dt, final_time)
 
 # --- Plot environment (same automatic setup as the original script) ---
 import Pkg

@@ -31,10 +31,9 @@ Terminology:
 - **Exact PT** is `method=Dense(), alg=Exact()`.
 - **ACE** is `ACE(cutoff=1e-12, compression=:canonzip)`.
 
-Time alignment matches the example script, not `evolve`'s labelled times:
-$t=0$ is the unevolved product state, and process-tensor snapshot $k$ is
-compared with ED at $t=k\Delta t$. The process tensor therefore has
-$n\_{\mathrm{steps}}=T/\Delta t$ slabs.
+The process tensor has $n\_{\mathrm{steps}}=T/\Delta t$ cores, and `evolve`
+returns $n\_{\mathrm{steps}}+1$ snapshots: snapshot $j$ is compared with ED at
+$t=(j-1)\Delta t$, with snapshot 1 the unevolved product state.
 
 ## Scripts
 
