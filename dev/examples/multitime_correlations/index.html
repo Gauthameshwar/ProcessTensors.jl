@@ -7,7 +7,7 @@ using ProcessTensors
 
 const dt = 0.5
 const n_times = 6
-const pt_nsteps = n_times + 1
+const pt_nsteps = n_times - 1
 
 system_sites = siteinds(&quot;S=1/2&quot;, 1)
 bath_sites = siteinds(&quot;S=1/2&quot;, 1)
@@ -41,17 +41,17 @@ bath = spin_bath([bath_mode])</code></pre><pre><code class="nohighlight hljs">Pr
 
   mode summary:
     [1] SpinMode(dim=4, H_terms=1, coupling_terms=1)
-</code></pre><h2 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h2><p><code>build_process_tensor</code> stores the influence of this bath on the system time legs. Later grids change only the instruments.</p><pre><code class="language-julia hljs">process_tensor = build_process_tensor(
+</code></pre><h2 id="Build-the-process-tensor"><a class="docs-heading-anchor" href="#Build-the-process-tensor">Build the process tensor</a><a id="Build-the-process-tensor-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-process-tensor" title="Permalink"></a></h2><p><code>build_process_tensor</code> stores the influence of this bath on the system time legs. Core <span>$k$</span> covers <span>$[(k-1)\Delta t, k\Delta t]$</span>, so <code>pt_nsteps</code> cores give <code>n_times</code> snapshots at <span>$t=(j-1)\Delta t$</span>, from <span>$t=0$</span> to <span>$t=2.5$</span>. Later grids change only the instruments.</p><pre><code class="language-julia hljs">process_tensor = build_process_tensor(
     system,
     system.sites[1];
     environment=bath,
     dt=dt,
     nsteps=pt_nsteps,
-)</code></pre><pre><code class="nohighlight hljs">7-step ProcessTensor{SpinSystem, SpinBath} | dt=0.5 | t_final=3.5 | maxlinkdim=4
+)</code></pre><pre><code class="nohighlight hljs">5-step ProcessTensor{SpinSystem, SpinBath} | dt=0.5 | t_final=2.5 | maxlinkdim=4
 
   system:      SpinSystem(nsites=1, dissipative=false)
   environment: SpinBath(nmodes=1, D_bath=4, coupling=true)
-  core:        MPO{Liouville}(length=7, linkdims=[4, 4, 4, 4, 4, 4])
+  core:        MPO{Liouville}(length=5, linkdims=[4, 4, 4, 4])
 </code></pre><h2 id="Two-time-instrument-schedules"><a class="docs-heading-anchor" href="#Two-time-instrument-schedules">Two-time instrument schedules</a><a id="Two-time-instrument-schedules-1"></a><a class="docs-heading-anchor-permalink" href="#Two-time-instrument-schedules" title="Permalink"></a></h2><p>For <span>$t_2&gt;t_1$</span>, write <span>$U(t)$</span> for the joint system–bath evolution and <span>$\rho_{SE}$</span> for the joint state. The operators <span>$A$</span> and <span>$B$</span> act on the system and as the identity on the bath:</p><p class="math-container">\[\begin{aligned}
 \langle A(t_2)B(t_1)\rangle
 &amp;=
@@ -66,35 +66,35 @@ U(t_1)\,\rho_{SE}(0)
 U(t_2-t_1)\,(B\otimes I)\,\rho_{SE}(t_1)\,
 U(t_2-t_1)^\dagger
 \right].
-\end{aligned}\]</p><p>The object <span>$(B\otimes I)\rho_{SE}(t_1)$</span> is an auxiliary operator. The same joint evolution carries it from <span>$t_1$</span> to <span>$t_2$</span>, and the trace against <span>$A\otimes I$</span> is the correlator. Propagating that operator is a bookkeeping device for the ordered product. It is separate from preparing a post-measurement state, and this contraction does not replace the joint state by a reduced state at the intermediate time.</p><p><code>two_time_correlation_seq</code> turns that ordering into an <code>InstrumentSeq</code>: prepare <span>$\rho_0$</span> at the first leg, insert the earlier operator, insert the later operator, and use identity operations elsewhere. If <span>$t_1&gt;t_2$</span>, the earlier and later insertions exchange, including whether the early insertion acts from the left or the right. On <span>$t_2=t_1$</span> both operators sit on the same leg. <code>evaluate_process</code> contracts the sequence with the process tensor.</p><pre><code class="language-julia hljs">system_state = to_dm(MPS(system_sites, [&quot;Dn&quot;]))
+\end{aligned}\]</p><p>The object <span>$(B\otimes I)\rho_{SE}(t_1)$</span> is an auxiliary operator. The same joint evolution carries it from <span>$t_1$</span> to <span>$t_2$</span>, and the trace against <span>$A\otimes I$</span> is the correlator. Propagating that operator is a bookkeeping device for the ordered product. It is separate from preparing a post-measurement state, and this contraction does not replace the joint state by a reduced state at the intermediate time.</p><p><code>two_time_correlation_seq</code> turns that ordering into an <code>InstrumentSeq</code>: prepare <span>$\rho_0$</span> on the input of the first core, insert the earlier operator, insert the later operator, and use identity operations elsewhere. Each insertion time is a snapshot index <span>$j$</span> with <span>$t=(j-1)\Delta t$</span>: snapshot 1 acts on <span>$\rho_0$</span> at <span>$t=0$</span>, and snapshot <code>pt_nsteps + 1</code> acts on the output of the last core. If <span>$t_1&gt;t_2$</span>, the earlier and later insertions exchange, including whether the early insertion acts from the left or the right. On <span>$t_2=t_1$</span> both operators sit on the same leg. <code>evaluate_process</code> contracts the sequence with the process tensor.</p><pre><code class="language-julia hljs">system_state = to_dm(MPS(system_sites, [&quot;Dn&quot;]))
 
 sigma_z = OpSum()
 sigma_z += 2.0, &quot;Sz&quot;, 1
 
 sequence = two_time_correlation_seq(
     process_tensor,
-    (sigma_z, 2),
-    (sigma_z, 1);
+    (sigma_z, 4),
+    (sigma_z, 3);
     rho0=system_state,
 )
 
 correlation = evaluate_process(process_tensor, sequence)
 
 @assert correlation isa ComplexF64
-@assert isfinite(correlation)</code></pre><h2 id="Correlation-grid"><a class="docs-heading-anchor" href="#Correlation-grid">Correlation grid</a><a id="Correlation-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Correlation-grid" title="Permalink"></a></h2><p>Each entry uses the same process tensor and a new pair of insertion times.</p><pre><code class="language-julia hljs">time_indices = 0:(n_times - 1)
-times = dt .* collect(time_indices)
+@assert isfinite(correlation)</code></pre><h2 id="Correlation-grid"><a class="docs-heading-anchor" href="#Correlation-grid">Correlation grid</a><a id="Correlation-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Correlation-grid" title="Permalink"></a></h2><p>Each entry uses the same process tensor and a new pair of insertion times.</p><pre><code class="language-julia hljs">snapshots = 1:n_times
+times = dt .* (collect(snapshots) .- 1)
 
 Czz = [
     evaluate_process(
         process_tensor,
         two_time_correlation_seq(
             process_tensor,
-            (sigma_z, t2),
-            (sigma_z, t1);
+            (sigma_z, j2),
+            (sigma_z, j1);
             rho0=system_state,
         ),
     )
-    for t1 in time_indices, t2 in time_indices
+    for j1 in snapshots, j2 in snapshots
 ]
 
 diagonal_error = maximum(abs.(diag(Czz) .- 1))
@@ -109,7 +109,7 @@ println((
 
 @assert all(isfinite, Czz)
 @assert diagonal_error &lt; 1e-10
-@assert conjugate_error &lt; 1e-10</code></pre><pre><code class="nohighlight hljs">(n_times = 6, final_time = 2.5, sample_correlation = 0.8775825618903729 - 0.07108634239454274im, diagonal_error = 2.249823744256464e-16, conjugate_error = 6.866350197783356e-16)
+@assert conjugate_error &lt; 1e-10</code></pre><pre><code class="nohighlight hljs">(n_times = 6, final_time = 2.5, sample_correlation = 0.877582561890373 - 0.07108634239454278im, diagonal_error = 4.077640494928911e-17, conjugate_error = 5.647850449853784e-16)
 </code></pre><h2 id="What-the-heatmaps-show"><a class="docs-heading-anchor" href="#What-the-heatmaps-show">What the heatmaps show</a><a id="What-the-heatmaps-show-1"></a><a class="docs-heading-anchor-permalink" href="#What-the-heatmaps-show" title="Permalink"></a></h2><p>The executable grid uses six times from <span>$0$</span> to <span>$2.5$</span>, with <span>$\Delta t=0.5$</span>. The figure is the companion script on the same Hamiltonian and the same initial state, extended to <span>$t_f=5.5$</span>, for three operator pairs.</p><p><img src="../../assets/examples/pt_multitime_correlations.png" alt="Two-time correlation heatmaps"/></p><p>The left column is the autocorrelation. Because <span>$\sigma_z$</span> is Hermitian and <span>$\sigma_z^2=I$</span>,</p><p class="math-container">\[C_{zz}(t,t)=1 .\]</p><p>The real diagonal is one and the imaginary diagonal is zero, up to the contraction tolerance. Off the diagonal,</p><p class="math-container">\[C_{zz}(t_2,t_1)^*=C_{zz}(t_1,t_2),\]</p><p>so the real part is symmetric and the imaginary part is antisymmetric.</p><p>The middle and right columns are cross-correlations. For the Pauli products</p><p class="math-container">\[\sigma_z\sigma_x=i\sigma_y,
 \qquad
-\sigma_x\sigma_y=i\sigma_z,\]</p><p>the equal-time value is purely imaginary in exact arithmetic: it equals <span>$i\langle\sigma_y(t)\rangle$</span> or <span>$i\langle\sigma_z(t)\rangle$</span>. Away from that diagonal, the conjugate partner is the correlator with the operator order reversed.</p><p>A diagonal that matches these identities checks the contraction at equal times. It does not by itself certify the off-diagonal entries, which depend on the joint evolution stored in the process tensor.</p><div class="admonition is-success" id="Try-changing-8962efe828a14a46"><header class="admonition-header"> Try changing<a class="admonition-anchor" href="#Try-changing-8962efe828a14a46" title="Permalink"></a></header><div class="admonition-body"><p>These comparisons test whether the grid is fixed by the system operators and the initial state, or whether the bath spin changes it.</p><ul><li>Try reducing the coupling strength such that the process tensor is approximately Markovian. How do the correlation functions change?</li><li>Exchange the operator order and compare the new grid with the complex conjugate of the original partner.</li><li>Set the coupling to zero and build a new process tensor. Compare the grid with the isolated-spin correlator.</li></ul><p>Correlations at more than two times would place further system operators on those legs. One can use the same idea of applying left\right actions of operators and extend the analysis to obtain higher-order correlation functions.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ramsey_povm/">« Ramsey POVM measurements</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin chain »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 26 October 2026 04:58">Monday 26 October 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+\sigma_x\sigma_y=i\sigma_z,\]</p><p>the equal-time value is purely imaginary in exact arithmetic: it equals <span>$i\langle\sigma_y(t)\rangle$</span> or <span>$i\langle\sigma_z(t)\rangle$</span>. Away from that diagonal, the conjugate partner is the correlator with the operator order reversed.</p><p>A diagonal that matches these identities checks the contraction at equal times. It does not by itself certify the off-diagonal entries, which depend on the joint evolution stored in the process tensor.</p><div class="admonition is-success" id="Try-changing-8962efe828a14a46"><header class="admonition-header"> Try changing<a class="admonition-anchor" href="#Try-changing-8962efe828a14a46" title="Permalink"></a></header><div class="admonition-body"><p>These comparisons test whether the grid is fixed by the system operators and the initial state, or whether the bath spin changes it.</p><ul><li>Try reducing the coupling strength such that the process tensor is approximately Markovian. How do the correlation functions change?</li><li>Exchange the operator order and compare the new grid with the complex conjugate of the original partner.</li><li>Set the coupling to zero and build a new process tensor. Compare the grid with the isolated-spin correlator.</li></ul><p>Correlations at more than two times would place further system operators on those legs. One can use the same idea of applying left\right actions of operators and extend the analysis to obtain higher-order correlation functions.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ramsey_povm/">« Ramsey POVM measurements</a><a class="docs-footer-nextpage" href="../dissipative_spin/">Dissipative spin chain »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 2 November 2026 10:41">Monday 2 November 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
