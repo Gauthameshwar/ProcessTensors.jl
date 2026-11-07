@@ -144,7 +144,7 @@ Core $Q^{[k]}$ owns the interval $[t_{k-1},t_k]$. The intervention $\mathcal A_k
 
     These expose the temporal system legs and bond dimensions. See [Construct a process tensor](@ref) for an inspection of the constructed network and its time labels.
 
-The Schmidt entropy of this MPO across the bond after core ``b`` is the temporal bond entropy. [`bond_entropy`](@ref) orthogonalizes the stored tensor at that cut and returns the von Neumann entropy, in nats, of its normalized squared Schmidt values. The cut separates intervals ``1:b`` from ``b+1:nsteps``. This is the operator-space entanglement carried by the temporal bond. It is distinct from the von Neumann entropy of the reduced system state. A bond entropy computed from an `ACE` process tensor is the spectrum that remains after compression.
+The temporal entanglement of this MPO across the bond after core ``b`` is [`temporal_entanglement`](@ref). It orthogonalizes the stored tensor at that cut and returns the von Neumann entropy, in nats, of its normalized squared Schmidt values. The cut separates intervals ``1:b`` from ``b+1:nsteps``. This is the operator-space entanglement of the vectorized process tensor. An `ACE` value is the spectrum that remains after compression.
 
 ### Dense and ACE construction
 

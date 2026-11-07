@@ -98,7 +98,7 @@ include("process_tensor/build.jl")
 include("process_tensor/evaluate.jl")
 include("process_tensor/evolve.jl")
 include("process_tensor/multitime.jl")
-include("measures/bond_entropy.jl")
+include("measures/temporal_entanglement.jl")
 
 # Public API
 
@@ -180,7 +180,7 @@ export choi_pt_mpo
 export build_process_tensor, default_schedule
 export evaluate_process, evolve
 export two_time_correlation_seq
-export bond_entropy
+export temporal_entanglement
 export isfullycontracted, open_leg_info
 export input_sites, output_sites
 export coupling_times, coupling_sites

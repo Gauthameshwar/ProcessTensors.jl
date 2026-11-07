@@ -1,11 +1,11 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: src/measures/bond_entropy.jl
+# File: src/measures/temporal_entanglement.jl
 # Contributor: Gauthameshwar S.
 #
-# Defines the normalized Schmidt entropy across one virtual bond, or across
-# every bond, of an MPS, MPO, or process tensor.
+# Defines the temporal entanglement across one virtual bond, or across every
+# bond, of an MPS, MPO, or process tensor.
 
 import ITensorMPS: orthogonalize!, set_ortho_lims!
 import ITensors: eigs, svd, uniqueinds
@@ -23,10 +23,10 @@ function _von_neumann_from_weights(w::AbstractVector{<:Real})
 end
 
 """
-    bond_entropy(W::AbstractMPS, b::Integer) -> Float64
-    bond_entropy(W::AbstractMPS) -> Vector{Float64}
+    temporal_entanglement(W::AbstractMPS, b::Integer) -> Float64
+    temporal_entanglement(W::AbstractMPS) -> Vector{Float64}
 
-Von Neumann entropy, in nats, of the Schmidt spectrum across a virtual bond of `W`.
+Temporal entanglement, in nats, of the Schmidt spectrum across a virtual bond of `W`.
 
 For a [`ProcessTensor`](@ref), site `b` is time step `b`. The cut after core `b`
 separates intervals `1:b` from `b+1:nsteps`. The result is the operator-space
@@ -39,8 +39,8 @@ cut, divided by their sum. Both methods bring `W.core` to a canonical gauge with
 `orthogonalize!` and modify that gauge in place. The represented tensor is
 unchanged. Site indices are preserved. Link indices may be replaced.
 
-`bond_entropy(W, b)` orthogonalizes at core `b` and performs one SVD.
-`bond_entropy(W)` orthogonalizes once at core `1`, then takes one SVD per bond
+`temporal_entanglement(W, b)` orthogonalizes at core `b` and performs one SVD.
+`temporal_entanglement(W)` orthogonalizes once at core `1`, then takes one SVD per bond
 while moving the orthogonality center to the right. A tensor with fewer than
 two sites returns an empty vector.
 
@@ -53,16 +53,16 @@ two sites returns an empty vector.
 
 ```julia
 # `pt` is a ProcessTensor with `nsteps ≥ 2`.
-S2 = bond_entropy(pt, 2)
-profile = bond_entropy(pt)
+S2 = temporal_entanglement(pt, 2)
+profile = temporal_entanglement(pt)
 ```
 """
-function bond_entropy end
+function temporal_entanglement end
 
-function bond_entropy(W::AbstractMPS, b::Integer)
+function temporal_entanglement(W::AbstractMPS, b::Integer)
     N = length(W)
     1 <= b <= N - 1 || throw(
-        ArgumentError("bond_entropy cut b must satisfy 1 ≤ b ≤ $(N - 1); got b=$b."),
+        ArgumentError("temporal_entanglement cut b must satisfy 1 ≤ b ≤ $(N - 1); got b=$b."),
     )
     core = W.core
     orthogonalize!(core, b)
@@ -70,7 +70,7 @@ function bond_entropy(W::AbstractMPS, b::Integer)
     return _von_neumann_from_weights(eigs(spec))
 end
 
-function bond_entropy(W::AbstractMPS)
+function temporal_entanglement(W::AbstractMPS)
     core = W.core
     N = length(core)
     N >= 2 || return Float64[]
