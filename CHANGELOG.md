@@ -60,6 +60,9 @@ workarounds; `nsteps = round(Int, T/dt)` now ends at `T`.
 
 ### Added
 
+* **`bond_entropy`.** Schmidt entropy, in nats, of one temporal bond or of every
+  bond of a process tensor. The squared singular values are normalized before
+  the von Neumann sum, so the result is independent of the MPO scale.
 * **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`
   is the Gibbs state of the local mode Hamiltonian at temperature `T`, the
   ground-state projector at `T = 0`, or the maximally mixed state at `T = Inf`.
