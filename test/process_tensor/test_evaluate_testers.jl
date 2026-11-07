@@ -44,7 +44,7 @@ end
 
 function _qubit_tester()
     sites = siteinds("Qubit", 1)
-    return sites, tester(sites, to_dm(MPS(sites, ["0"])))
+    return sites, tester_memory(sites, to_dm(MPS(sites, ["0"])))
 end
 
 @testset "evaluate_process: tester memory and isolated actions" begin
@@ -60,11 +60,13 @@ end
     seq_closed = _tester_schedule(pt, rho0; open=false)
     tester_sites, memory = _qubit_tester()
 
+    @test_throws MethodError evaluate_process(pt, seq_open; tester=memory, progress=false)
+
     baseline_open = _tester_result_dense(evaluate_process(pt, seq_open; progress=false))
     baseline_closed = evaluate_process(pt, seq_closed; progress=false)
 
-    identity_open = evaluate_process(pt, seq_open; tester=memory, progress=false)
-    identity_closed = evaluate_process(pt, seq_closed; tester=memory, progress=false)
+    identity_open = evaluate_process(pt, seq_open; tester_memory=memory, progress=false)
+    identity_closed = evaluate_process(pt, seq_closed; tester_memory=memory, progress=false)
     @test _tester_result_dense(identity_open) ≈ baseline_open atol=1e-11
     @test identity_closed ≈ baseline_closed atol=1e-11
 
@@ -73,7 +75,7 @@ end
     isolated_unitary = evaluate_process(
         pt,
         seq_open;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=unitary_seq,
         progress=false,
     )
@@ -85,7 +87,7 @@ end
     isolated_propagation = evaluate_process(
         pt,
         seq_open;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=propagation_seq,
         progress=false,
     )
@@ -94,14 +96,14 @@ end
     @test evaluate_process(
         pt,
         [seq_closed, seq_closed];
-        tester=memory,
+        tester_memory=memory,
         progress=false,
     ) ≈ fill(baseline_closed, 2)
     @test evaluate_process(
         pt,
         rho0,
         InstrumentSeq(default=identity_operation(), nsteps=pt.nsteps);
-        tester=memory,
+        tester_memory=memory,
         progress=false,
     ) isa MPS{Liouville}
 end
@@ -129,7 +131,7 @@ end
     zero_result = evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=zero_seq,
         progress=false,
     )
@@ -141,7 +143,7 @@ end
     result = evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=joint_seq,
         progress=false,
     )
@@ -180,7 +182,7 @@ end
     result = evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=controls,
         progress=false,
     )
@@ -224,7 +226,7 @@ end
     value = evaluate_process(
         pt,
         closed;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=mixed,
         progress=false,
     )
@@ -250,7 +252,7 @@ end
     ordered_result = _tester_result_dense(evaluate_process(
         ordering_pt,
         ordering_seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=ordering_controls,
         progress=false,
     ))
@@ -292,7 +294,7 @@ end
     @test_throws ArgumentError evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=TesterSeq(nsteps=pt.nsteps + 1),
         progress=false,
     )
@@ -308,7 +310,7 @@ end
     @test_throws ArgumentError evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=initial_joint,
         progress=false,
     )
@@ -319,7 +321,7 @@ end
     @test_throws ArgumentError evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=invalid,
         progress=false,
     )
@@ -355,7 +357,7 @@ end
         return _tester_result_dense(evaluate_process(
             pt,
             seq;
-            tester=memory,
+            tester_memory=memory,
             tester_seq=controls,
             progress=false,
         ))
@@ -427,7 +429,7 @@ end
     result = _tester_result_dense(evaluate_process(
         pt,
         seq;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=controls,
         progress=false,
     ))
