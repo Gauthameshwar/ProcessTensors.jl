@@ -185,6 +185,10 @@ evolve(::ProcessTensor, ::Any)
 two_time_correlation_seq
 ```
 
+```@docs
+temporal_entanglement
+```
+
 ### Systems
 
 ```@docs

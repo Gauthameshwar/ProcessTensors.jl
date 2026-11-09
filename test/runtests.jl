@@ -92,6 +92,9 @@ include(joinpath(@__DIR__, "process_tensor", "test_ace_vs_dense.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_ace_compress.jl"))
 include(joinpath(@__DIR__, "process_tensor", "test_multitime_correlation.jl"))
 
+# Measures test sets
+include(joinpath(@__DIR__, "measures", "test_temporal_entanglement.jl"))
+
 # Environments test sets
 include(joinpath(@__DIR__, "environments", "test_spectrals.jl"))
 include(joinpath(@__DIR__, "environments", "test_environments.jl"))

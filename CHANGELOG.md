@@ -60,6 +60,9 @@ workarounds; `nsteps = round(Int, T/dt)` now ends at `T`.
 
 ### Added
 
+* **`temporal_entanglement`.** Temporal entanglement, in nats, of one time cut
+  or of every cut of a process tensor. The squared singular values are
+  normalized before the von Neumann sum.
 * **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`
   is the Gibbs state of the local mode Hamiltonian at temperature `T`, the
   ground-state projector at `T = 0`, or the maximally mixed state at `T = Inf`.
