@@ -39,8 +39,6 @@ The same package can also be used before process tensors enter the story: closed
 | **Run experiments on a process** | Assemble preparations, controls, measurements, left/right actions, trace-outs, and open legs into an `InstrumentSeq`, then contract it with `evaluate_process`. |
 | **Reuse the same environment** | Once a process tensor is built, evolve new initial states with `evolve`, evaluate different protocols, or probe multi-time correlations without rebuilding the bath. |
 
-In each clip below, time runs from right to left.
-
 **Construct a process tensor:** Combine the influence of independent environmental modes and compress the resulting temporal bonds using ACE.
 
 <p align="center">
