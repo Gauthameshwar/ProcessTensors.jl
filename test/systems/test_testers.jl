@@ -18,8 +18,8 @@ const TesterIns = ProcessTensors.Instruments
 
 @testset "API surface: tester names" begin
     for name in (
-        :Tester,
-        :tester,
+        :TesterMemory,
+        :tester_memory,
         :AbstractTesterAction,
         :TesterIdentity,
         :TesterPropagation,
@@ -37,7 +37,10 @@ const TesterIns = ProcessTensors.Instruments
     end
     @test :resolve_tester_action ∉ names(ProcessTensors)
     @test :resolve_tester_action ∈ names(ProcessTensors.Instruments)
-    @test Tester <: AbstractInstrument
+    for mod in (ProcessTensors, TesterIns), old_name in (:Tester, :tester)
+        @test !isdefined(mod, old_name)
+    end
+    @test TesterMemory <: AbstractInstrument
     @test TesterIdentity <: AbstractTesterAction
     @test nameof(typeof(tester_identity())) == :TesterIdentity
 end
@@ -45,9 +48,10 @@ end
 @testset "testers.jl: tester construction and state compatibility" begin
     sites = siteinds("Qubit", 1)
     rho0 = to_dm(MPS(sites, ["0"]))
-    memory = tester(sites, rho0)
+    memory = tester_memory(sites, rho0)
 
-    @test memory isa Tester
+    @test memory isa TesterMemory
+    @test TesterMemory(sites, rho0) isa TesterMemory
     @test length(memory.sites) == 1
     @test has_tag_token(only(memory.sites), "Liouv")
     @test memory.rho0 === rho0
@@ -55,27 +59,27 @@ end
 
     sites_liouv = liouv_sites(sites)
     rho0_liouv = to_liouville(rho0; sites=sites_liouv)
-    memory_liouv = tester(sites_liouv, rho0_liouv)
+    memory_liouv = tester_memory(sites_liouv, rho0_liouv)
     @test memory_liouv.sites == sites_liouv
     @test memory_liouv.rho0 === rho0_liouv
 
-    @test_throws ArgumentError tester(Index[], rho0)
-    @test_throws ArgumentError tester(siteinds("Qubit", 2), rho0)
+    @test_throws ArgumentError tester_memory(Index[], rho0)
+    @test_throws ArgumentError tester_memory(siteinds("Qubit", 2), rho0)
 
     boson_sites = siteinds("Boson", 1; dim=3)
     boson_rho0 = to_dm(MPS(boson_sites, ["0"]))
-    @test_throws ArgumentError tester(sites, boson_rho0)
+    @test_throws ArgumentError tester_memory(sites, boson_rho0)
 
     unrelated_liouv = liouv_sites(sites)
     @test unrelated_liouv != sites_liouv
-    @test_throws ArgumentError tester(unrelated_liouv, rho0_liouv)
+    @test_throws ArgumentError tester_memory(unrelated_liouv, rho0_liouv)
 end
 
 @testset "testers.jl: action constructors and validation" begin
     system_sites = siteinds("Qubit", 1)
     tester_sites = siteinds("Qubit", 1)
     rho0 = to_dm(MPS(tester_sites, ["0"]))
-    memory = tester(tester_sites, rho0)
+    memory = tester_memory(tester_sites, rho0)
 
     H_tester = OpSum() + (0.2, "X", 1)
     H_joint = OpSum() + (0.3, "Z", 1, "Z", 2)
@@ -195,7 +199,7 @@ end
     @test_throws ArgumentError TesterSeq(default, 2; entries=Dict(0 => action_x))
 
     instrument_seq = InstrumentSeq(default=identity_operation(), nsteps=2)
-    memory = tester(sites, to_dm(MPS(sites, ["0"])))
+    memory = tester_memory(sites, to_dm(MPS(sites, ["0"])))
     @test_throws ArgumentError add!(instrument_seq, memory, 1)
     @test_throws ArgumentError add!(instrument_seq, action_x, 1)
 end
@@ -203,13 +207,13 @@ end
 @testset "testers.jl: show output and object isolation" begin
     tester_sites = siteinds("Qubit", 1)
     rho0 = to_dm(MPS(tester_sites, ["0"]))
-    memory = tester(tester_sites, rho0)
+    memory = tester_memory(tester_sites, rho0)
     seq = TesterSeq(nsteps=2)
 
     memory_output = sprint(show, memory)
     identity_output = sprint(show, tester_identity())
     seq_output = sprint(show, seq)
-    @test occursin("ProcessTensors.Tester", memory_output)
+    @test occursin("ProcessTensors.TesterMemory", memory_output)
     @test occursin("sites: 1", memory_output)
     @test occursin("tester_identity", identity_output)
     @test occursin("TesterSeq", seq_output)

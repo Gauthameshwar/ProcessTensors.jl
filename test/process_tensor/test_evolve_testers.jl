@@ -27,7 +27,7 @@ function _evolve_tester_fixture(; nsteps::Int=3, dt::Real=0.1)
     system_sites = siteinds("Qubit", 1)
     tester_sites = siteinds("Qubit", 1)
     rho0 = to_dm(MPS(system_sites, ["0"]))
-    memory = tester(tester_sites, to_dm(MPS(tester_sites, ["1"])))
+    memory = tester_memory(tester_sites, to_dm(MPS(tester_sites, ["1"])))
     pt = build_process_tensor(
         qubit_system(system_sites);
         dt,
@@ -83,7 +83,7 @@ end
     explicit_no_tester = evolve(
         f.pt,
         f.rho0;
-        return_tester=false,
+        return_memory=false,
         return_joint=false,
         progress=false,
     )
@@ -96,15 +96,19 @@ end
               _evolve_density(baseline.states_liouville[k]) atol=1e-12
     end
 
-    default_tester = evolve(f.pt, f.rho0; tester=f.memory, progress=false)
-    @test haskey(default_tester, :tester_states_liouville)
-    @test !haskey(default_tester, :joint_states_liouville)
+    default_tester = evolve(f.pt, f.rho0; tester_memory=f.memory, progress=false)
+    @test keys(default_tester) == (
+        :times, :states_liouville, :states_hilbert,
+        :memory_states_liouville, :memory_states_hilbert,
+    )
+    @test_throws MethodError evolve(f.pt, f.rho0; tester=f.memory, progress=false)
+    @test_throws MethodError evolve(f.pt, f.rho0; return_tester=false, progress=false)
 
     neither = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
-        return_tester=false,
+        tester_memory=f.memory,
+        return_memory=false,
         return_joint=false,
         progress=false,
     )
@@ -112,31 +116,31 @@ end
     joint_only = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
-        return_tester=false,
+        tester_memory=f.memory,
+        return_memory=false,
         return_joint=true,
         progress=false,
     )
     both = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
-        return_tester=true,
+        tester_memory=f.memory,
+        return_memory=true,
         return_joint=true,
         progress=false,
     )
     @test keys(neither) == (:times, :states_liouville, :states_hilbert)
-    @test haskey(tester_only, :tester_states_hilbert)
+    @test haskey(tester_only, :memory_states_hilbert)
     @test !haskey(tester_only, :joint_states_hilbert)
-    @test !haskey(joint_only, :tester_states_hilbert)
+    @test !haskey(joint_only, :memory_states_hilbert)
     @test haskey(joint_only, :joint_states_hilbert)
-    @test haskey(both, :tester_states_hilbert)
+    @test haskey(both, :memory_states_hilbert)
     @test haskey(both, :joint_states_hilbert)
 
     @test_throws ArgumentError evolve(
         f.pt,
         f.rho0;
-        return_tester=true,
+        return_memory=true,
         progress=false,
     )
     @test_throws ArgumentError evolve(
@@ -154,7 +158,16 @@ end
     @test_throws ArgumentError evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
+        contraction=:evaluate,
+        progress=false,
+    )
+    @test_throws r"tester_memory requires contraction=:closures" evolve(
+        f.pt,
+        f.rho0;
+        tester_memory=f.memory,
+        return_memory=false,
+        return_joint=false,
         contraction=:evaluate,
         progress=false,
     )
@@ -163,7 +176,7 @@ end
 @testset "evolve: identity and tester-only controls" begin
     f = _evolve_tester_fixture()
     baseline = evolve(f.pt, f.rho0; progress=false)
-    identity_memory = evolve(f.pt, f.rho0; tester=f.memory, progress=false)
+    identity_memory = evolve(f.pt, f.rho0; tester_memory=f.memory, progress=false)
     for k in eachindex(baseline.times)
         @test _evolve_density(identity_memory.states_liouville[k]) ≈
               _evolve_density(baseline.states_liouville[k]) atol=1e-11
@@ -178,18 +191,18 @@ end
     controlled = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
         tester_seq=controls,
         progress=false,
     )
-    @test _evolve_density(controlled.tester_states_liouville[1]) ≈
+    @test _evolve_density(controlled.memory_states_liouville[1]) ≈
           ComplexF64[0 0; 0 1] atol=1e-11
-    @test _evolve_density(controlled.tester_states_liouville[2]) ≈
+    @test _evolve_density(controlled.memory_states_liouville[2]) ≈
           ComplexF64[1 0; 0 0] atol=1e-11
     for k in eachindex(baseline.times)
         @test _evolve_density(controlled.states_liouville[k]) ≈
               _evolve_density(baseline.states_liouville[k]) atol=1e-11
-        @test tr(_evolve_density(controlled.tester_states_liouville[k])) ≈ 1 atol=1e-11
+        @test tr(_evolve_density(controlled.memory_states_liouville[k])) ≈ 1 atol=1e-11
     end
 
     propagation = TesterSeq(nsteps=f.pt.nsteps)
@@ -204,12 +217,12 @@ end
     propagated = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
         tester_seq=propagation,
         progress=false,
     )
     @test !isapprox(
-        _evolve_density(propagated.tester_states_liouville[2]),
+        _evolve_density(propagated.memory_states_liouville[2]),
         ComplexF64[0 0; 0 1];
         atol=1e-5,
     )
@@ -217,7 +230,7 @@ end
     initialized = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
         tester_seq=TesterSeq(
             nsteps=f.pt.nsteps,
             initialization=tester_unitary(op("X", only(f.tester_sites)), f.tester_sites),
@@ -227,7 +240,7 @@ end
     )
     @test length(initialized.joint_states_liouville) == f.pt.nsteps + 1
     for k in eachindex(initialized.times)
-        @test _evolve_density(initialized.tester_states_liouville[k]) ≈
+        @test _evolve_density(initialized.memory_states_liouville[k]) ≈
               ComplexF64[1 0; 0 0] atol=1e-11
     end
 end
@@ -247,7 +260,7 @@ end
     trajectory = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
         tester_seq=controls,
         return_joint=true,
         progress=false,
@@ -255,12 +268,12 @@ end
 
     @test _evolve_density(trajectory.states_liouville[2]) ≈
           ComplexF64[0 0; 0 1] atol=1e-9
-    @test _evolve_density(trajectory.tester_states_liouville[2]) ≈
+    @test _evolve_density(trajectory.memory_states_liouville[2]) ≈
           ComplexF64[1 0; 0 0] atol=1e-9
 
     for k in eachindex(trajectory.times)
         rho_system = _evolve_density(trajectory.states_liouville[k])
-        rho_tester = _evolve_density(trajectory.tester_states_liouville[k])
+        rho_tester = _evolve_density(trajectory.memory_states_liouville[k])
         rho_joint = _evolve_density(trajectory.joint_states_liouville[k])
         @test _trace_tester(rho_joint) ≈ rho_system atol=1e-9
         @test _trace_system(rho_joint) ≈ rho_tester atol=1e-9
@@ -275,7 +288,7 @@ end
     final_evaluation = evaluate_process(
         f.pt,
         seq;
-        tester=f.memory,
+        tester_memory=f.memory,
         tester_seq=controls,
         progress=false,
     )
@@ -312,14 +325,14 @@ end
     storage = @inferred ProcessTensors._evolve_storage(Val(true), Val(true), 2)
     @test eltype(storage.states_liouville) == MPS{Liouville}
     @test eltype(storage.states_hilbert) == MPO{Hilbert}
-    @test eltype(storage.tester_states_liouville) == MPS{Liouville}
+    @test eltype(storage.memory_states_liouville) == MPS{Liouville}
     @test eltype(storage.joint_states_hilbert) == MPO{Hilbert}
 
     f = _evolve_tester_fixture(nsteps=1)
     verbose_result = evolve(
         f.pt,
         f.rho0;
-        tester=f.memory,
+        tester_memory=f.memory,
         progress=false,
         verbose=true,
     )
@@ -350,7 +363,7 @@ end
     system_sites = siteinds("Qubit", 1)
     bath_phys = siteinds("S=1/2", 1)
     tester_sites = siteinds("Qubit", 1)
-    memory = tester(tester_sites, to_dm(MPS(tester_sites, ["0"])))
+    memory = tester_memory(tester_sites, to_dm(MPS(tester_sites, ["0"])))
     rho0 = to_dm(MPS(system_sites, ["0"]))
 
     H_system = OpSum() + (0.4, "Z", 1)
@@ -386,7 +399,7 @@ end
     trajectory = evolve(
         pt,
         rho0;
-        tester=memory,
+        tester_memory=memory,
         tester_seq=controls,
         return_joint=true,
         progress=false,
@@ -414,9 +427,9 @@ end
             U * rho_after_init * U',
         )
         @test _evolve_density(trajectory.states_liouville[k + 1]) ≈ exact_S atol=1e-3
-        @test _evolve_density(trajectory.tester_states_liouville[k + 1]) ≈ exact_A atol=1e-3
+        @test _evolve_density(trajectory.memory_states_liouville[k + 1]) ≈ exact_A atol=1e-3
         @test _evolve_density(trajectory.joint_states_liouville[k + 1]) ≈ exact_SA atol=1e-3
         @test tr(_evolve_density(trajectory.states_liouville[k + 1])) ≈ 1 atol=1e-8
-        @test tr(_evolve_density(trajectory.tester_states_liouville[k + 1])) ≈ 1 atol=1e-8
+        @test tr(_evolve_density(trajectory.memory_states_liouville[k + 1])) ≈ 1 atol=1e-8
     end
 end
