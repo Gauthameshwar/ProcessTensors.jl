@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `add!(tester_seq, action, 0)` now throws. Interval keys `1:nsteps` are
   unchanged.
 * **`evolve` returns `nsteps + 1` samples.** `times == 0:dt:nsteps*dt`, and
-  sample `1` of the system, tester, and joint trajectories is the initial
+  sample `1` of the system, memory, and joint trajectories is the initial
   state at `t = 0`. Previously `nsteps` samples were returned with time labels
   one step behind the physical states.
 * **`two_time_correlation_seq` takes snapshot indices.** Each insertion index
@@ -70,16 +70,18 @@ workarounds; `nsteps = round(Int, T/dt)` now ends at `T`.
   single-round marginals. The companion script is `scripts/ramsey_povm.jl`
   and writes separate protocol and record figures.
 * **Testers and noisy quantum qubits example:** A Literate walkthrough and
-  companion ACE script demonstrate store–wait–retrieve control, tester-only
-  phase operations, joint trajectories, and system–tester mutual information.
+  companion ACE script demonstrate store–wait–retrieve control, memory-only
+  phase operations, joint trajectories, and system–memory mutual information.
   `scripts/noisy_quantum_circuit_tester.jl` caches the ACE process tensor and
   reuses a matching cache on later runs.
-* **Memory-bearing tester architecture.** `Tester` stores an ancillary quantum
-  state, while `TesterSeq` schedules tester-only and joint system-tester
-  Hamiltonian or unitary actions. `evaluate_process` optionally contracts these
-  controls with persistent tester memory and traces the tester at the end.
-  `evolve` returns reduced system and tester trajectories, with joint
-  system-tester trajectories available on request.
+* **Memory-bearing tester architecture.** `TesterMemory`, constructed with
+  `tester_memory(sites, rho0)`, stores an ancillary quantum state. `TesterSeq`
+  schedules memory-only and joint system-memory Hamiltonian or unitary actions.
+  Pass the register as `tester_memory=memory` to `evaluate_process` or `evolve`.
+  Evaluation traces out the memory at the end. Evolution returns reduced system
+  and memory trajectories (`memory_states_liouville` / `memory_states_hilbert`);
+  `return_memory=false` omits the memory trajectories, and `return_joint=true`
+  includes joint system-memory trajectories.
 * **`QubitSystem` / `qubit_system`.** Circuit-style ITensor `"Qubit"` sites can
   now define process-tensor systems. An omitted Hamiltonian selects identity
   free-system evolution without introducing a separate qubit bath type.

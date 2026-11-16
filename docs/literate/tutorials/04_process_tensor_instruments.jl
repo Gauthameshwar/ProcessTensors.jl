@@ -363,8 +363,9 @@ println((
 # !!! info "Larger experiments to try next"
 #     The instruments on this page are the same operations used in the longer
 #     examples. Multi-time correlations insert operators at several times of one
-#     process tensor. A tester carries an extra ancilla from one intervention to
-#     the next.
+#     process tensor. A memory-bearing tester carries an extra ancilla between
+#     interventions: `TesterMemory` holds its initial state and `TesterSeq`
+#     schedules the memory and joint system-memory actions.
 #     - [Multi-time correlations](../examples/multitime_correlations.md)
 #     - [Noisy quantum circuits with a memory-bearing tester](../examples/noisy_quantum_circuit_tester.md)
 #

@@ -190,8 +190,8 @@ function _evolve_storage(::Val{true}, ::Val{false}, nsamples::Int)
     return (
         states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
         states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
-        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
-        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        memory_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        memory_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
 end
 
@@ -208,8 +208,8 @@ function _evolve_storage(::Val{true}, ::Val{true}, nsamples::Int)
     return (
         states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
         states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
-        tester_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
-        tester_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
+        memory_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
+        memory_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
         joint_states_liouville=Vector{MPS{Liouville}}(undef, nsamples),
         joint_states_hilbert=Vector{MPO{Hilbert}}(undef, nsamples),
     )
@@ -219,11 +219,11 @@ function _store_evolve_snapshot!(
     storage,
     snapshot::ITensor,
     system_sites::AbstractVector{<:Index},
-    tester_sites::AbstractVector{<:Index},
+    memory_sites::AbstractVector{<:Index},
     slot::Int,
-    ::Val{ReturnTester},
+    ::Val{ReturnMemory},
     ::Val{ReturnJoint},
-) where {ReturnTester,ReturnJoint}
+) where {ReturnMemory,ReturnJoint}
     system_state = _liouville_mps_from_itensor(
         _trace_out_except(snapshot, system_sites),
         system_sites,
@@ -231,17 +231,17 @@ function _store_evolve_snapshot!(
     storage.states_liouville[slot] = system_state
     storage.states_hilbert[slot] = to_hilbert(system_state)
 
-    if ReturnTester
-        tester_state = _liouville_mps_from_itensor(
-            _trace_out_except(snapshot, tester_sites),
-            tester_sites,
+    if ReturnMemory
+        memory_state = _liouville_mps_from_itensor(
+            _trace_out_except(snapshot, memory_sites),
+            memory_sites,
         )
-        storage.tester_states_liouville[slot] = tester_state
-        storage.tester_states_hilbert[slot] = to_hilbert(tester_state)
+        storage.memory_states_liouville[slot] = memory_state
+        storage.memory_states_hilbert[slot] = to_hilbert(memory_state)
     end
 
     if ReturnJoint
-        joint_sites = vcat(system_sites, tester_sites)
+        joint_sites = vcat(system_sites, memory_sites)
         joint_state = _liouville_mps_from_itensor(
             _trace_out_except(snapshot, joint_sites),
             joint_sites,
@@ -256,17 +256,17 @@ function _evolve(
     ::Val{:closures},
     pt::ProcessTensor,
     seq::InstrumentSeq,
-    return_tester::Val,
+    return_memory::Val,
     return_joint::Val;
     default_instr::AbstractInstrument,
     alg,
-    tester::Tester,
+    tester_memory::TesterMemory,
     tester_seq::Union{Nothing,TesterSeq},
     run,
 )
     n = pt.nsteps
     times = [pt.dt * k for k in 0:n]
-    storage = _evolve_storage(return_tester, return_joint, n + 1)
+    storage = _evolve_storage(return_memory, return_joint, n + 1)
 
     @progress_stage run "Preparing trajectory"
     instruments = Instruments._create_instruments(
@@ -279,7 +279,7 @@ function _evolve(
     control = Instruments._compile_tester_control_data(
         pt,
         instruments,
-        tester,
+        tester_memory,
         tester_seq,
         "evolve",
     )
@@ -296,9 +296,9 @@ function _evolve(
             storage,
             initialized,
             first_output,
-            control.tester_sites,
+            control.memory_sites,
             1,
-            return_tester,
+            return_memory,
             return_joint,
         )
         @progress_update run 1 (t=times[1],)
@@ -317,7 +317,7 @@ function _evolve(
             snapshot = replaceind(
                 snapshot,
                 control.memory_output[k],
-                only(control.tester_sites),
+                only(control.memory_sites),
             )
             if k <= length(closures)
                 snapshot *= closures[k]
@@ -328,9 +328,9 @@ function _evolve(
                 storage,
                 snapshot,
                 system_sites,
-                control.tester_sites,
+                control.memory_sites,
                 slot,
-                return_tester,
+                return_memory,
                 return_joint,
             )
             @progress_update run slot (t=times[slot],)
@@ -345,13 +345,13 @@ function _evolve(
     ::InstrumentSeq,
     ::Val,
     ::Val;
-    tester::Tester,
+    tester_memory::TesterMemory,
     kwargs...,
 )
     throw(
         ArgumentError(
-            "evolve: tester trajectories require contraction=:closures; " *
-            "contraction=:evaluate traces tester memory at each schedule end.",
+            "evolve: tester_memory requires contraction=:closures; " *
+            "contraction=:evaluate traces out the memory at each schedule end.",
         ),
     )
 end
@@ -380,8 +380,8 @@ function _evolve(::Val{S}, pt::ProcessTensor, seq::InstrumentSeq; kwargs...) whe
 end
 
 """
-    evolve(pt, seq; tester=nothing, tester_seq=nothing,
-           return_tester=nothing, return_joint=false,
+    evolve(pt, seq; tester_memory=nothing, tester_seq=nothing,
+           return_memory=nothing, return_joint=false,
            default_instr=_schedule_default_instr(pt), contraction=:closures,
            alg=Trotter{2}(),
            progress=:auto, verbose=false)
@@ -393,15 +393,15 @@ The trajectory has `pt.nsteps + 1` samples at `times == [k * dt for k in 0:pt.ns
 Sample `1` is the prepared input of core `1` before any core acts; sample
 `k + 1` is the output of core `k`, the state at `k * dt`.
 
-Pass `tester` and optionally `tester_seq` to propagate ancillary tester memory.
-Tester states are returned by default when a tester is present; set
-`return_tester=false` to omit them or `return_joint=true` to additionally return
-joint system-tester states. Tester and joint trajectories have the same length:
-sample `1` holds the initialized tester (and the product system-tester state)
+Pass `tester_memory` and optionally `tester_seq` to propagate ancillary memory.
+Memory states are returned by default when `tester_memory` is provided; set
+`return_memory=false` to omit them or `return_joint=true` to additionally return
+joint system-memory states. Memory and joint trajectories have the same length:
+sample `1` holds the initialized memory (and the product system-memory state)
 before interval `1`, and sample `k + 1` the state after interval `k`.
 
-Tester trajectories use the fields `tester_states_liouville` and
-`tester_states_hilbert`; requested joint trajectories use
+Memory trajectories use the fields `memory_states_liouville` and
+`memory_states_hilbert`; requested joint trajectories use
 `joint_states_liouville` and `joint_states_hilbert`. The system fields
 `states_liouville` and `states_hilbert` are always returned.
 
@@ -420,8 +420,8 @@ trajectory = evolve(pt, ρ0)
 trajectory_ref = evolve(pt, ρ0; contraction=:evaluate)
 
 sA = siteinds("Qubit", 1)
-memory = tester(sA, to_dm(MPS(sA, ["0"])))
-tester_trajectory = evolve(pt, ρ0; tester=memory)
+memory = tester_memory(sA, to_dm(MPS(sA, ["0"])))
+memory_trajectory = evolve(pt, ρ0; tester_memory=memory)
 ```
 """
 function evolve(
@@ -430,21 +430,21 @@ function evolve(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     contraction::Symbol=:closures,
     alg=Trotter{2}(),
-    tester::Union{Nothing,Tester}=nothing,
+    tester_memory::Union{Nothing,TesterMemory}=nothing,
     tester_seq::Union{Nothing,TesterSeq}=nothing,
-    return_tester::Union{Nothing,Bool}=nothing,
+    return_memory::Union{Nothing,Bool}=nothing,
     return_joint::Bool=false,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
 )
     _validate_instrument_schedule!(pt, seq, default_instr, "evolve")
-    tester === nothing && tester_seq !== nothing && throw(
-        ArgumentError("evolve: tester_seq requires a tester."),
+    tester_memory === nothing && tester_seq !== nothing && throw(
+        ArgumentError("evolve: tester_seq requires tester_memory."),
     )
-    want_tester = something(return_tester, tester !== nothing)
-    (want_tester || return_joint) && tester === nothing && throw(
+    want_memory = something(return_memory, tester_memory !== nothing)
+    (want_memory || return_joint) && tester_memory === nothing && throw(
         ArgumentError(
-            "evolve: return_tester=true or return_joint=true requires a tester.",
+            "evolve: return_memory=true or return_joint=true requires tester_memory.",
         ),
     )
     started = time()
@@ -454,7 +454,7 @@ function evolve(
         contraction=contraction,
     )
     try
-        result = if tester === nothing
+        result = if tester_memory === nothing
             _evolve(
                 Val(contraction),
                 pt,
@@ -468,11 +468,11 @@ function evolve(
                 Val(contraction),
                 pt,
                 seq,
-                Val(want_tester),
+                Val(want_memory),
                 Val(return_joint);
                 default_instr=default_instr,
                 alg=alg,
-                tester=tester,
+                tester_memory=tester_memory,
                 tester_seq=tester_seq,
                 run=run,
             )

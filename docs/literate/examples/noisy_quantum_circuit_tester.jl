@@ -11,7 +11,7 @@
 # Can an ancillary qubit hold and manipulate a state while its processor remains
 # coupled to a noisy environment? We prepare processor $Q$ in $|+\rangle$,
 # SWAP its state into an isolated ancilla $A$, apply $Z_A$, then SWAP it back.
-# A `Tester` carries the same ancilla through all three operations; `TesterSeq`
+# A `TesterMemory` carries the same ancilla through all three operations; `TesterSeq`
 # specifies the circuit. The bath process tensor is built only once.
 #
 # ![Processor, thermal bath, and the SWAP–Z–SWAP tester protocol](../assets/examples/noisy_quantum_circuit_tester_protocol.png)
@@ -92,12 +92,13 @@ process_tensor = build_process_tensor(
 # ## Program the persistent ancilla
 #
 # The ancilla starts in $|0\rangle$. It has no free evolution or direct bath
-# coupling here. A tester retains its state across interventions, whereas a
-# sequence of unrelated system-only operations would not carry that memory.
+# coupling here. `TesterMemory` stores the ancillary register and its initial
+# state; `TesterSeq` schedules the actions on it. Together with the system
+# preparation and readout, they specify the tester strategy.
 
 ancilla_sites = siteinds("Qubit", 1)
 rho_A0 = to_dm(MPS(ancilla_sites, ["0"]))
-memory = tester(ancilla_sites, rho_A0)
+memory = tester_memory(ancilla_sites, rho_A0)
 store_step, phase_step, retrieve_step = 4, 7, 10
 
 swap_gate = op("SWAP", only(processor_sites), only(ancilla_sites))
@@ -111,10 +112,10 @@ add!(controls, joint_unitary(swap_gate, processor_sites, ancilla_sites), retriev
 #     A joint gate $G$ is compiled by applying $G^{1/2}$ before and after the
 #     noisy process interval.
 #     It is therefore not an instantaneous SWAP outside the bath dynamics.
-#     Tester-only gates act on the ancilla wire. Schedule interval `k` covers
+#     Memory-only gates act on the ancilla wire. Schedule interval `k` covers
 #     $[(k-1)dt, k\,dt]$ and ends at snapshot `k + 1`, labelled `k*dt` by `evolve`.
 
-trajectory = evolve(process_tensor, rho_Q0; tester=memory, tester_seq=controls,
+trajectory = evolve(process_tensor, rho_Q0; tester_memory=memory, tester_seq=controls,
                     return_joint=true, progress=false);
 println((element_type=eltype(trajectory.states_liouville),))
 println(sprint(show, foldl(*, last(trajectory.states_liouville))))
@@ -123,7 +124,7 @@ println(sprint(show, foldl(*, last(trajectory.states_liouville))))
 # idle ancilla. The second must leave the processor's reduced trajectory unchanged.
 
 baseline = evolve(process_tensor, rho_Q0; progress=false);
-spectator = evolve(process_tensor, rho_Q0; tester=memory, progress=false);
+spectator = evolve(process_tensor, rho_Q0; tester_memory=memory, progress=false);
 
 # ## Read local signals and joint correlations
 #
@@ -163,7 +164,7 @@ function entropy_diagnostics(ρ; tolerance=1e-7)
 end
 
 rho_Q = density_matrix.(trajectory.states_hilbert)
-rho_A = density_matrix.(trajectory.tester_states_hilbert)
+rho_A = density_matrix.(trajectory.memory_states_hilbert)
 rho_QA = density_matrix.(trajectory.joint_states_hilbert)
 rho_baseline = density_matrix.(baseline.states_hilbert)
 rho_spectator = density_matrix.(spectator.states_hilbert)

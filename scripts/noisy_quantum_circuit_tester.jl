@@ -133,7 +133,7 @@ println((largest_omitted_Gibbs_weight=thermal_tail,))
 # --- Explicit tester circuit: SWAP to store, Z to phase-tag, SWAP to retrieve ---
 rho_Q0 = to_dm(MPS(system_sites, ["+"]))
 ancilla_sites = siteinds("Qubit", 1)
-memory = tester(ancilla_sites, to_dm(MPS(ancilla_sites, ["0"])))
+memory = tester_memory(ancilla_sites, to_dm(MPS(ancilla_sites, ["0"])))
 store_step, phase_step, retrieve_step = round.(Int, [store_time_target, phase_time_target, retrieve_time_target] ./ dt)
 @assert 1 <= store_step < phase_step < retrieve_step <= nsteps
 swap_gate = op("SWAP", only(system_sites), only(ancilla_sites))
@@ -146,9 +146,9 @@ add!(controls, joint_unitary(swap_gate, system_sites, ancilla_sites), retrieve_s
 # Joint controls apply half-gates on each side of a noisy slab; they are not
 # instantaneous SWAPs. Interval k ends at snapshot k + 1, labelled k*dt
 baseline_seconds = @elapsed baseline = evolve(process_tensor, rho_Q0; progress=true)
-spectator_seconds = @elapsed spectator = evolve(process_tensor, rho_Q0; tester=memory, progress=true)
+spectator_seconds = @elapsed spectator = evolve(process_tensor, rho_Q0; tester_memory=memory, progress=true)
 controlled_seconds = @elapsed controlled = evolve(
-    process_tensor, rho_Q0; tester=memory, tester_seq=controls, return_joint=true, progress=true,
+    process_tensor, rho_Q0; tester_memory=memory, tester_seq=controls, return_joint=true, progress=true,
 )
 event_samples = [store_step, phase_step, retrieve_step] .+ 1
 event_times = controlled.times[event_samples]
@@ -181,7 +181,7 @@ function entropy_diagnostics(ρ; tolerance=1e-7)
 end
 
 rho_Q = density_matrix.(controlled.states_hilbert)
-rho_A = density_matrix.(controlled.tester_states_hilbert)
+rho_A = density_matrix.(controlled.memory_states_hilbert)
 rho_QA = density_matrix.(controlled.joint_states_hilbert)
 rho_baseline = density_matrix.(baseline.states_hilbert)
 rho_spectator = density_matrix.(spectator.states_hilbert)

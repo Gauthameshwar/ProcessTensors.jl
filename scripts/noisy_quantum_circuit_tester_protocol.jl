@@ -30,11 +30,11 @@ CairoMakie.activate!()
 const PT_COLOR = "#3A9A5B"
 const PT_FILL = (PT_COLOR, 0.28)
 const QUBIT_COLOR = "#E07B2D"
-const TESTER_COLOR = "#7A4EAB"
+const MEMORY_COLOR = "#7A4EAB"
 const ARROW_LENGTH_PX = 18.0
 const PT_Y = 2.0
 const QUBIT_Y = 1.0
-const TESTER_Y = 0.0
+const MEMORY_Y = 0.0
 
 # Axis window in data units. Pixel scales keep the Z box and the SWAP crosses
 # square on the page; one data unit is wider than it is tall.
@@ -43,7 +43,9 @@ const TESTER_Y = 0.0
 const TIME_Y = -0.62
 const X_LIMITS = (-0.07, FINAL_TIME + 0.08)
 const Y_LIMITS = (-1.05, 2.55)
-const FIGURE_SIZE = (1120, 420)
+# Keep the plotting area and spacing fixed when the label column changes.
+const LABEL_WIDTH = 92
+const FIGURE_SIZE = (LABEL_WIDTH + 1042, 420)
 const PX_PER_X = 1000 / (X_LIMITS[2] - X_LIMITS[1])
 const PX_PER_Y = 320 / (Y_LIMITS[2] - Y_LIMITS[1])
 
@@ -84,18 +86,18 @@ end
 figure = Figure(size=FIGURE_SIZE, figure_padding=(12, 18, 8, 16))
 Label(
     figure[1, 1:2],
-    "Noisy qubit with tester interactions";
+    "Noisy qubit with persistent memory";
     fontsize=22,
     font=:bold,
     tellwidth=false,
 )
 
-label_axis = Axis(figure[2, 1]; width=78, limits=(0, 1, Y_LIMITS...))
+label_axis = Axis(figure[2, 1]; width=LABEL_WIDTH, limits=(0, 1, Y_LIMITS...))
 hidedecorations!(label_axis)
 hidespines!(label_axis)
 text!(label_axis, 1, PT_Y; text="PT", align=(:right, :center), color=PT_COLOR, fontsize=18)
 text!(label_axis, 1, QUBIT_Y; text="QUBIT", align=(:right, :center), color=QUBIT_COLOR, fontsize=18)
-text!(label_axis, 1, TESTER_Y; text="TESTER", align=(:right, :center), color=TESTER_COLOR, fontsize=18)
+text!(label_axis, 1, MEMORY_Y; text="MEMORY", align=(:right, :center), color=MEMORY_COLOR, fontsize=18)
 text!(label_axis, 1, TIME_Y; text="Time", align=(:right, :center), color=:black, fontsize=18)
 
 axis = Axis(
@@ -137,7 +139,7 @@ band!(
 for (y, color, initialize) in (
         (PT_Y, PT_COLOR, false),
         (QUBIT_Y, QUBIT_COLOR, true),
-        (TESTER_Y, TESTER_COLOR, true),
+        (MEMORY_Y, MEMORY_COLOR, true),
     )
     lines!(axis, [0.0, fill_end], [y, y]; color=color, linewidth=2.6)
     poly!(axis, arrowhead(FINAL_TIME, y); color=color, strokewidth=0)
@@ -159,23 +161,23 @@ for swap_time in SWAP_TIMES
     lines!(
         axis,
         [swap_time, swap_time],
-        [QUBIT_Y, TESTER_Y];
-        color=TESTER_COLOR,
+        [QUBIT_Y, MEMORY_Y];
+        color=MEMORY_COLOR,
         linewidth=4.0,
     )
-    cross!(axis, swap_time, QUBIT_Y; color=TESTER_COLOR)
-    cross!(axis, swap_time, TESTER_Y; color=TESTER_COLOR)
+    cross!(axis, swap_time, QUBIT_Y; color=MEMORY_COLOR)
+    cross!(axis, swap_time, MEMORY_Y; color=MEMORY_COLOR)
 end
 
-z_box = rounded_square(Z_TIME, TESTER_Y, 36.0, 8.0)
-poly!(axis, z_box; color=:white, strokecolor=TESTER_COLOR, strokewidth=2.2)
+z_box = rounded_square(Z_TIME, MEMORY_Y, 36.0, 8.0)
+poly!(axis, z_box; color=:white, strokecolor=MEMORY_COLOR, strokewidth=2.2)
 text!(
     axis,
     Z_TIME,
-    TESTER_Y;
+    MEMORY_Y;
     text="Z",
     align=(:center, :center),
-    color=TESTER_COLOR,
+    color=MEMORY_COLOR,
     fontsize=22,
 )
 

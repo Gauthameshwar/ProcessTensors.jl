@@ -138,10 +138,12 @@ liouvillian_propagator
 `ACE.cutoff` is the relative singular-value threshold ``ε`` used at every
 memory bond: retain ``σᵢ > ε σ₁``. `ACE.maxdim` is an additional safety cap.
 `ACE.compression` is `:zipup_cpp` (default) or `:canonzip`.
-`evaluate_process` accepts optional `tester` and `tester_seq` keywords for
+`evaluate_process` accepts optional `tester_memory` and `tester_seq` keywords for
 memory-bearing ancillary controls.
-`evolve` additionally returns tester trajectories by default when `tester` is
-provided, with joint system-tester trajectories available through `return_joint`.
+`evolve` additionally returns `memory_states_liouville` and
+`memory_states_hilbert` by default when `tester_memory` is provided. Set
+`return_memory=false` to omit them, or `return_joint=true` to also return joint
+system-memory trajectories.
 
 ```@docs
 ProcessTensor
@@ -286,11 +288,11 @@ ProcessTensors.Instruments.instrument_itensor
 ProcessTensors.Instruments.create_instruments
 ```
 
-### Testers and tester schedules
+### Tester memory and schedules
 
 ```@docs
-Tester
-tester
+TesterMemory
+tester_memory
 AbstractTesterAction
 TesterIdentity
 TesterPropagation

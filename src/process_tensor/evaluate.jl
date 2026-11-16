@@ -188,7 +188,7 @@ function _evaluate_process(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
-    tester::Union{Nothing,Tester}=nothing,
+    tester_memory::Union{Nothing,TesterMemory}=nothing,
     tester_seq::Union{Nothing,TesterSeq}=nothing,
     run::_AbstractRunReporter=_NO_RUN_REPORTER,
 )
@@ -204,7 +204,7 @@ function _evaluate_process(
     instruments = Instruments._compile_tester_control(
         pt,
         instruments,
-        tester,
+        tester_memory,
         tester_seq,
     )
     result = pt.core[1] * instruments[1]
@@ -238,7 +238,7 @@ function _evaluate_process(
 end
 
 """
-    evaluate_process(pt, seq; tester=nothing, tester_seq=nothing, kwargs...)
+    evaluate_process(pt, seq; tester_memory=nothing, tester_seq=nothing, kwargs...)
         -> Union{ComplexF64, MPS{Liouville}, ITensor}
 
 Contract a process tensor with an instrument schedule.
@@ -248,10 +248,10 @@ the input of core `1` (`add!(seq, state_preparation(ρ0), 1)`); the output of
 core `pt.nsteps` is the state at `pt.nsteps * dt` and stays open unless an
 effect such as [`trace_out`](@ref) is added there.
 
-Pass a [`Tester`](@ref) to include a persistent ancillary memory. When
-`tester_seq` is omitted, the tester is carried forward unchanged. A supplied
-[`TesterSeq`](@ref) must have the same `nsteps` as `pt`; the tester is traced
-out after the final interval.
+Pass a [`TesterMemory`](@ref) through `tester_memory` to include a persistent
+ancillary memory. When `tester_seq` is omitted, the memory is carried forward
+unchanged. A supplied [`TesterSeq`](@ref) must have the same `nsteps` as `pt`;
+the memory is traced out after the final interval.
 
 Return type depends on the number of uncontracted system legs after contraction:
 
@@ -268,9 +268,9 @@ add!(seq, state_preparation(ρ0), 1)
 add!(seq, open_output(), pt.nsteps)
 
 s_tester = siteinds("Qubit", 1)
-memory = tester(s_tester, to_dm(MPS(s_tester, ["0"])))
+memory = tester_memory(s_tester, to_dm(MPS(s_tester, ["0"])))
 controls = TesterSeq(nsteps=pt.nsteps)
-result = evaluate_process(pt, seq; tester=memory, tester_seq=controls)
+result = evaluate_process(pt, seq; tester_memory=memory, tester_seq=controls)
 ```
 """
 function evaluate_process(
@@ -279,7 +279,7 @@ function evaluate_process(
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
     all_legs_contracted::Union{Nothing,Bool}=nothing,
-    tester::Union{Nothing,Tester}=nothing,
+    tester_memory::Union{Nothing,TesterMemory}=nothing,
     tester_seq::Union{Nothing,TesterSeq}=nothing,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
@@ -293,7 +293,7 @@ function evaluate_process(
             default_instr=default_instr,
             alg=alg,
             all_legs_contracted=all_legs_contracted,
-            tester=tester,
+            tester_memory=tester_memory,
             tester_seq=tester_seq,
             run=run,
         )
@@ -318,7 +318,7 @@ function evaluate_process(
     seqs::AbstractVector{<:InstrumentSeq};
     default_instr::AbstractInstrument=_schedule_default_instr(pt),
     alg=Trotter{2}(),
-    tester::Union{Nothing,Tester}=nothing,
+    tester_memory::Union{Nothing,TesterMemory}=nothing,
     tester_seq::Union{Nothing,TesterSeq}=nothing,
     progress::Union{Bool,Symbol}=:auto,
     verbose::Bool=false,
@@ -337,7 +337,7 @@ function evaluate_process(
                     seqs[i];
                     default_instr=default_instr,
                     alg=alg,
-                    tester=tester,
+                    tester_memory=tester_memory,
                     tester_seq=tester_seq,
                 )
                 val isa ComplexF64 || throw(

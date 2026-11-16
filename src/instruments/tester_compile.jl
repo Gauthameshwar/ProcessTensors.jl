@@ -300,10 +300,10 @@ function _materialize_interval(
     )
 end
 
-# Bind the initialization tester-only map from stored tester sites onto the first memory link.
+# Bind the initialization tester-only map from stored memory sites onto the first memory link.
 function _initial_tester_map(
     action::_TesterOnlyAction,
-    memory::Tester,
+    memory::TesterMemory,
     memory_output::Index,
     dt::Real,
     ::AbstractString,
@@ -320,7 +320,7 @@ end
 # Reject joint initialization actions; they have no preceding system output.
 function _initial_tester_map(
     ::_JointTesterAction,
-    ::Tester,
+    ::TesterMemory,
     ::Index,
     ::Real,
     owner::AbstractString,
@@ -332,14 +332,14 @@ end
 _relabel_if_present(tensor::ITensor, source::Index, target::Index) =
     hasind(tensor, source) ? replaceind(tensor, source, target) : tensor
 
-# Check a tester-only action against stored tester sites.
-_validate_runtime_action(action::_TesterOnlyAction, memory::Tester, ::AbstractVector{<:Index}) =
+# Check a tester-only action against stored memory sites.
+_validate_runtime_action(action::_TesterOnlyAction, memory::TesterMemory, ::AbstractVector{<:Index}) =
     validate_tester_action(action, memory)
 
-# Check a joint action against both system sites and stored tester sites.
+# Check a joint action against both system sites and stored memory sites.
 _validate_runtime_action(
     action::_JointTesterAction,
-    memory::Tester,
+    memory::TesterMemory,
     system_sites::AbstractVector{<:Index},
 ) = validate_tester_action(action, memory; system_sites)
 
@@ -347,7 +347,7 @@ _validate_runtime_action(
 function _compile_tester_control_data(
     pt,
     instruments::AbstractVector{<:ITensor},
-    memory::Tester,
+    memory::TesterMemory,
     schedule::TesterSeq,
     owner::AbstractString,
 )
@@ -444,7 +444,7 @@ function _compile_tester_control_data(
         pending_post=ITensor[interval.post for interval in intervals],
         post_system=Union{Nothing,Index}[interval.post_system for interval in intervals],
         memory_output=memory_links[2:end],
-        tester_sites=memory.sites,
+        memory_sites=memory.sites,
     )
 end
 
@@ -452,7 +452,7 @@ end
 function _compile_tester_control(
     pt,
     instruments::AbstractVector{<:ITensor},
-    memory::Tester,
+    memory::TesterMemory,
     schedule::TesterSeq,
 )
     data = _compile_tester_control_data(
@@ -483,7 +483,7 @@ end
 function _compile_tester_control_data(
     pt,
     instruments::AbstractVector{<:ITensor},
-    memory::Tester,
+    memory::TesterMemory,
     ::Nothing,
     owner::AbstractString,
 )
@@ -501,14 +501,14 @@ function _compile_tester_control(
     ::Nothing,
     ::TesterSeq,
 )
-    throw(ArgumentError("evaluate_process: tester_seq requires a tester."))
+    throw(ArgumentError("evaluate_process: tester_seq requires tester_memory."))
 end
 
 # Missing tester_seq: evaluate with identity tester dynamics.
 function _compile_tester_control(
     pt,
     instruments::AbstractVector{<:ITensor},
-    memory::Tester,
+    memory::TesterMemory,
     ::Nothing,
 )
     schedule = TesterSeq(default=tester_identity(), nsteps=pt.nsteps)
