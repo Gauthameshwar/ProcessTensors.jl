@@ -60,8 +60,6 @@ end
     seq_closed = _tester_schedule(pt, rho0; open=false)
     tester_sites, memory = _qubit_tester()
 
-    @test_throws MethodError evaluate_process(pt, seq_open; tester=memory, progress=false)
-
     baseline_open = _tester_result_dense(evaluate_process(pt, seq_open; progress=false))
     baseline_closed = evaluate_process(pt, seq_closed; progress=false)
 

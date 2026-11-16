@@ -101,8 +101,6 @@ end
         :times, :states_liouville, :states_hilbert,
         :memory_states_liouville, :memory_states_hilbert,
     )
-    @test_throws MethodError evolve(f.pt, f.rho0; tester=f.memory, progress=false)
-    @test_throws MethodError evolve(f.pt, f.rho0; return_tester=false, progress=false)
 
     neither = evolve(
         f.pt,

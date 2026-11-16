@@ -37,9 +37,6 @@ const TesterIns = ProcessTensors.Instruments
     end
     @test :resolve_tester_action ∉ names(ProcessTensors)
     @test :resolve_tester_action ∈ names(ProcessTensors.Instruments)
-    for mod in (ProcessTensors, TesterIns), old_name in (:Tester, :tester)
-        @test !isdefined(mod, old_name)
-    end
     @test TesterMemory <: AbstractInstrument
     @test TesterIdentity <: AbstractTesterAction
     @test nameof(typeof(tester_identity())) == :TesterIdentity

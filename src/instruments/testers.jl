@@ -12,13 +12,13 @@
 function _tester_site_signature(site::Index)
     family = _liouv_site_type(tag_tokens(site))
     family === nothing && throw(
-        ArgumentError("Could not infer a physical SiteType from action site $(site)."),
+        ArgumentError("Could not infer a physical SiteType from site $(site)."),
     )
     if has_tag_token(site, "Liouv")
         d2 = dim(site)
         d = isqrt(d2)
         d * d == d2 || throw(
-            ArgumentError("Liouville action site $(site) has dim=$d2, expected a perfect square."),
+            ArgumentError("Liouville site $(site) has dim=$d2, expected a perfect square."),
         )
         return d, family
     end
