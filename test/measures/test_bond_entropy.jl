@@ -1,11 +1,11 @@
 # Copyright © 2026 Gauthameshwar and ProcessTensors.jl contributors
 # SPDX-License-Identifier: MIT
 #
-# File: test/measures/test_temporal_entanglement.jl
+# File: test/measures/test_bond_entropy.jl
 # Contributor: Gauthameshwar S.
 #
-# Tests that temporal_entanglement returns the normalized Schmidt entropy of an MPO
-# or process tensor, including a full bond profile without a second QR sweep.
+# Tests that bond_entropy returns the normalized Schmidt entropy of an MPS,
+# MPO, or process tensor, including a full bond profile without a second QR sweep.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
@@ -14,11 +14,12 @@ using Test
 using ITensors
 using ProcessTensors
 
-@testset "API surface: temporal entanglement names" begin
-    @test :temporal_entanglement ∈ names(ProcessTensors)
+@testset "API surface: bond entropy names" begin
+    @test :bond_entropy ∈ names(ProcessTensors)
+    @test :temporal_entanglement ∉ names(ProcessTensors)
 end
 
-# Squared Schmidt weights from a matricization, normalized the same way as temporal_entanglement.
+# Squared Schmidt weights from a matricization, normalized the same way as bond_entropy.
 function _reference_entropy(tensor::ITensor, left_inds)
     _, _, _, spec = svd(tensor, left_inds...; cutoff=0.0)
     w = eigs(spec)
@@ -90,53 +91,69 @@ function _equal_schmidt_mpo()
     return MPO([left, right])
 end
 
-@testset "temporal_entanglement" begin
+@testset "bond_entropy" begin
+    @testset "spatial MPS" begin
+        sites = siteinds("S=1/2", 4)
+        ψ = MPS(sites, fill("Up", 4))
+        @test all(S -> isapprox(S, 0.0; atol=1e-10), bond_entropy(ψ))
+        @test entropy(ψ, 2) ≈ bond_entropy(ψ, 2)
+
+        ψ[2] = 3 * ψ[2]
+        @test all(S -> isapprox(S, 0.0; atol=1e-10), bond_entropy(ψ))
+
+        ghz = (MPS(sites, fill("Up", 4)) + MPS(sites, fill("Dn", 4))) * (1 / sqrt(2))
+        for b in 1:3
+            @test bond_entropy(ghz, b) ≈ log(2)
+            @test entropy(ghz, b) ≈ bond_entropy(ghz, b)
+        end
+    end
+
     @testset "product process tensor" begin
         sites = siteinds("S=1/2", 1)
         system = spin_system(sites, OpSum() + (0.3, "Sx", 1))
         pt = build_process_tensor(system; dt=0.05, nsteps=4, progress=false)
-        profile = temporal_entanglement(pt)
+        profile = bond_entropy(pt)
         @test length(profile) == 3
         @test all(S -> isapprox(S, 0.0; atol=1e-10), profile)
 
         pt[2] = 3 * pt[2]
-        @test all(S -> isapprox(S, 0.0; atol=1e-10), temporal_entanglement(pt))
+        @test all(S -> isapprox(S, 0.0; atol=1e-10), bond_entropy(pt))
     end
 
     @testset "one-step process and invalid cuts" begin
         sites = siteinds("S=1/2", 1)
         system = spin_system(sites, OpSum() + (0.3, "Sz", 1))
         pt = build_process_tensor(system; dt=0.05, nsteps=1, progress=false)
-        @test temporal_entanglement(pt) == Float64[]
-        @test_throws ArgumentError temporal_entanglement(pt, 0)
-        @test_throws ArgumentError temporal_entanglement(pt, 1)
+        @test bond_entropy(pt) == Float64[]
+        @test_throws ArgumentError bond_entropy(pt, 0)
+        @test_throws ArgumentError bond_entropy(pt, 1)
 
         longer = build_process_tensor(system; dt=0.05, nsteps=3, progress=false)
-        @test_throws ArgumentError temporal_entanglement(longer, 0)
-        @test_throws ArgumentError temporal_entanglement(longer, longer.nsteps)
+        @test_throws ArgumentError bond_entropy(longer, 0)
+        @test_throws ArgumentError bond_entropy(longer, longer.nsteps)
     end
 
     @testset "equal Schmidt MPO" begin
         W = _equal_schmidt_mpo()
-        @test temporal_entanglement(W, 1) ≈ log(2)
+        @test bond_entropy(W, 1) ≈ log(2)
         W[1] = 4 * W[1]
-        @test temporal_entanglement(W, 1) ≈ log(2)
-        @test only(temporal_entanglement(W)) ≈ log(2)
-        @test temporal_entanglement(W, 1) ≈ log(2)
+        @test bond_entropy(W, 1) ≈ log(2)
+        @test only(bond_entropy(W)) ≈ log(2)
+        @test bond_entropy(W, 1) ≈ log(2)
     end
 
     @testset "dense reference and profile agreement" begin
         pt_ref = _bath_process(; nsteps=3)
         reference = [_contracted_cut_entropy(pt_ref, b) for b in 1:2]
-        @test temporal_entanglement(pt_ref) ≈ reference atol = 1e-8
+        @test bond_entropy(pt_ref) ≈ reference atol = 1e-8
 
         pt_profile = _bath_process(; nsteps=3)
         pt_scalar = _bath_process(; nsteps=3)
-        profile = temporal_entanglement(pt_profile)
-        scalars = [temporal_entanglement(pt_scalar, b) for b in 1:2]
+        profile = bond_entropy(pt_profile)
+        scalars = [bond_entropy(pt_scalar, b) for b in 1:2]
         @test profile ≈ scalars atol = 1e-8
         for b in 1:2
-            @test temporal_entanglement(pt_profile, b) ≈ profile[b] atol = 1e-8
+            @test bond_entropy(pt_profile, b) ≈ profile[b] atol = 1e-8
         end
         @test any(S -> S > 1e-3, profile)
     end
@@ -148,7 +165,7 @@ end
         rho0 = to_dm(MPS(sites, ["Up"]))
         before = evolve(pt, rho0; progress=false)
         hs_norm = norm(pt)
-        temporal_entanglement(pt)
+        bond_entropy(pt)
         after = evolve(pt, rho0; progress=false)
         @test norm(pt) ≈ hs_norm
         for (left, right) in zip(before.states_liouville, after.states_liouville)

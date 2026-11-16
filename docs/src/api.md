@@ -186,7 +186,7 @@ two_time_correlation_seq
 ```
 
 ```@docs
-temporal_entanglement
+bond_entropy
 ```
 
 ### Systems

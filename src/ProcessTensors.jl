@@ -98,7 +98,7 @@ include("process_tensor/build.jl")
 include("process_tensor/evaluate.jl")
 include("process_tensor/evolve.jl")
 include("process_tensor/multitime.jl")
-include("measures/temporal_entanglement.jl")
+include("measures/bond_entropy.jl")
 
 # Public API
 
@@ -117,7 +117,7 @@ export linkdims, maxlinkdim
 # Tensor-network algebra and observables
 export apply, contract, add
 export inner, dot, norm
-export expect, correlation_matrix, entropy, tr
+export expect, correlation_matrix, entropy, bond_entropy, tr
 
 # Index-tag helpers
 export tag_tokens, has_tag_token, has_tag_prefix, tag_value
@@ -180,7 +180,6 @@ export choi_pt_mpo
 export build_process_tensor, default_schedule
 export evaluate_process, evolve
 export two_time_correlation_seq
-export temporal_entanglement
 export isfullycontracted, open_leg_info
 export input_sites, output_sites
 export coupling_times, coupling_sites
