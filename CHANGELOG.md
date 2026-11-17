@@ -60,6 +60,10 @@ workarounds; `nsteps = round(Int, T/dt)` now ends at `T`.
 
 ### Added
 
+* **`bond_entropy`.** Normalized von Neumann entropy, in nats, of one virtual
+  bond or of every bond of an MPS, MPO, or process tensor. `entropy` on an
+  unnormalized MPS or MPO now uses this normalized spectrum.
+  `temporal_entanglement` is this value restricted to a process tensor.
 * **`thermal_mode`.** Build a bosonic or spin bath mode whose Liouville `rho0`
   is the Gibbs state of the local mode Hamiltonian at temperature `T`, the
   ground-state projector at `T = 0`, or the maximally mixed state at `T = Inf`.

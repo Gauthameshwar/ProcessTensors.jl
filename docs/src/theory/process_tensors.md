@@ -144,6 +144,8 @@ Core $Q^{[k]}$ owns the interval $[t_{k-1},t_k]$. The intervention $\mathcal A_k
 
     These expose the temporal system legs and bond dimensions. See [Construct a process tensor](@ref) for an inspection of the constructed network and its time labels.
 
+The bond entropy of this MPO across the bond after core ``b`` is [`bond_entropy`](@ref). The squared Schmidt values are normalized before the von Neumann sum, in nats. The cut separates intervals ``1:b`` from ``b+1:nsteps``. For these temporal bonds this is the same as [`temporal_entanglement`](@ref). It is defined as the entropy of the normalised process tensor at a specific temporal cut. It quantifies the correlations between past and future, which may be classical or quantum. An `ACE` value is the spectrum that remains after compression.
+
 ### Dense and ACE construction
 
 The temporal bonds arise from environmental degrees of freedom connecting successive intervals. In the uncompressed dense construction, an environment of Hilbert dimension $d_E$ carries an internal Liouville space of dimension $d_E^2$.
