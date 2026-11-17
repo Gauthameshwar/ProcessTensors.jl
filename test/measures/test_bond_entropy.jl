@@ -5,7 +5,8 @@
 # Contributor: Gauthameshwar S.
 #
 # Tests that bond_entropy returns the normalized Schmidt entropy of an MPS,
-# MPO, or process tensor, including a full bond profile without a second QR sweep.
+# MPO, or process tensor, and that temporal_entanglement is that value on a
+# process tensor only.
 #
 # Run with:
 #   julia --project=. test/runtests.jl
@@ -16,7 +17,7 @@ using ProcessTensors
 
 @testset "API surface: bond entropy names" begin
     @test :bond_entropy ∈ names(ProcessTensors)
-    @test :temporal_entanglement ∉ names(ProcessTensors)
+    @test :temporal_entanglement ∈ names(ProcessTensors)
 end
 
 # Squared Schmidt weights from a matricization, normalized the same way as bond_entropy.
@@ -115,6 +116,8 @@ end
         profile = bond_entropy(pt)
         @test length(profile) == 3
         @test all(S -> isapprox(S, 0.0; atol=1e-10), profile)
+        @test temporal_entanglement(pt) ≈ profile
+        @test temporal_entanglement(pt, 2) ≈ profile[2]
 
         pt[2] = 3 * pt[2]
         @test all(S -> isapprox(S, 0.0; atol=1e-10), bond_entropy(pt))
@@ -140,12 +143,22 @@ end
         @test bond_entropy(W, 1) ≈ log(2)
         @test only(bond_entropy(W)) ≈ log(2)
         @test bond_entropy(W, 1) ≈ log(2)
+        @test_throws MethodError temporal_entanglement(W)
+        @test_throws MethodError temporal_entanglement(W, 1)
+    end
+
+    @testset "temporal_entanglement rejects a spatial MPS" begin
+        sites = siteinds("S=1/2", 2)
+        ψ = MPS(sites, ["Up", "Up"])
+        @test_throws MethodError temporal_entanglement(ψ)
+        @test_throws MethodError temporal_entanglement(ψ, 1)
     end
 
     @testset "dense reference and profile agreement" begin
         pt_ref = _bath_process(; nsteps=3)
         reference = [_contracted_cut_entropy(pt_ref, b) for b in 1:2]
         @test bond_entropy(pt_ref) ≈ reference atol = 1e-8
+        @test temporal_entanglement(pt_ref, 1) ≈ reference[1] atol = 1e-8
 
         pt_profile = _bath_process(; nsteps=3)
         pt_scalar = _bath_process(; nsteps=3)

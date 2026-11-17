@@ -4,8 +4,8 @@
 # File: src/measures/bond_entropy.jl
 # Contributor: Gauthameshwar S.
 #
-# Defines the normalized von Neumann entropy across one virtual bond, or across
-# every bond, of an MPS, MPO, or process tensor.
+# Defines the normalized bond entropy of an MPS, MPO, or process tensor, and
+# the process-tensor wrapper temporal_entanglement.
 
 import ITensorMPS: orthogonalize!, set_ortho_lims!
 import ITensors: eigs, entropy, svd, uniqueinds
@@ -28,7 +28,7 @@ end
 
 Von Neumann entropy, in nats, of the normalized squared Schmidt values across a virtual bond of `W`.
 
-For a process tensor, whose bonds are temporal, this is also called the temporal entanglement entropy. For spatial bonds it is the bipartite von Neumann entropy.
+For a process tensor, this is the same as [`temporal_entanglement`](@ref). For spatial bonds it is the bipartite von Neumann entropy.
 
 `bond_entropy(W, b)` orthogonalizes at core `b` and performs one SVD. `bond_entropy(W)` orthogonalizes once at core `1`, then takes one SVD per bond while moving the orthogonality center to the right. A tensor with fewer than two sites returns an empty vector.
 
@@ -74,6 +74,17 @@ function bond_entropy(W::AbstractMPS)
     end
     return entropies
 end
+
+"""
+    temporal_entanglement(pt::ProcessTensor, b::Integer) -> Float64
+    temporal_entanglement(pt::ProcessTensor) -> Vector{Float64}
+
+Temporal entanglement of a process tensor. The same value as [`bond_entropy`](@ref) on `pt`.
+"""
+function temporal_entanglement end
+
+temporal_entanglement(pt::ProcessTensor, b::Integer) = bond_entropy(pt, b)
+temporal_entanglement(pt::ProcessTensor) = bond_entropy(pt)
 
 """
     entropy(W::AbstractMPS, b::Integer) -> Float64

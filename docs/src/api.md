@@ -189,6 +189,10 @@ two_time_correlation_seq
 bond_entropy
 ```
 
+```@docs
+temporal_entanglement
+```
+
 ### Systems
 
 ```@docs
