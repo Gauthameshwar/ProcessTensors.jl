@@ -68,18 +68,18 @@ The same package can also be used before process tensors enter the story: closed
 
 ## Installation
 
-Install the latest tagged release from GitHub:
+Install the latest registered package using the following command:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="v0.2.0")
+Pkg.add("ProcessTensors")
 ```
 
 For the latest development version:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl")
+Pkg.add(url="https://github.com/Gauthameshwar/ProcessTensors.jl", rev="main")
 ```
 
 ### ACE: compress the environment, keep the memory
